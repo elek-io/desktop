@@ -229,32 +229,14 @@ export default [
     },
   },
 
-  // Two shared form components view a generic UseFormReturn as a concrete
-  // Update*Props to address their literal fields (the RHF generic-component path
-  // tax; the render-fold removed the leaf-input casts but not these wrapper ones).
-  // They are the only remaining hits, so the cast ban is exempted for them alone,
-  // as a documented, tracked exception - they still render through
-  // <AppForm>/<SubmitButton>, so the raw-form and submit bans stay. asset-form.tsx
-  // is deliberately NOT here: it stays generic and casts field names
-  // (`as FieldPath<T>`) instead, so it never launders the whole form. entry-form.tsx
-  // left this list once FormFieldFromDefinition took a defaulted TTransformedValues,
-  // which is the shape of the fix for the remaining two.
-  // @todo Retire these two casts (e.g. per-mode non-generic components), then
-  // delete this block so the cast ban is global.
-  {
-    files: [
-      'src/renderer/components/forms/project-form.tsx',
-      'src/renderer/components/forms/collection-form.tsx',
-    ],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        noEnumDeclaration,
-        noRawForm,
-        noLiteralSubmitType,
-      ],
-    },
-  },
+  // The cast ban is global. The two remaining whole-form casts (project-form.tsx
+  // and collection-form.tsx, the RHF generic-component path tax) each carry a
+  // narrowly scoped `eslint-disable-next-line` at the cast site instead of a
+  // file-wide exemption, so any new whole-form launder in those files still
+  // fails. asset-form.tsx casts field names (`as FieldPath<T>`) rather than the
+  // whole form, and entry-form.tsx dropped its cast once FormFieldFromDefinition
+  // took a defaulted TTransformedValues.
+  // @todo Retire the two remaining casts (e.g. per-mode non-generic components).
 
   // Prettier must be last
   eslintConfigPrettier,

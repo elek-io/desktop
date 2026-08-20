@@ -102,7 +102,7 @@ export function AddFieldSheet({
           <SheetTitle>Add a Field to this Collection</SheetTitle>
           <SheetDescription>
             Adding Fields to your Collection will enable users to enter data
-            that follows the boundries you&apos;ve set.
+            that follows the boundaries you&apos;ve set.
           </SheetDescription>
           <div className="grid gap-2">
             <Label htmlFor={inputTypeId} isRequired>

@@ -9,6 +9,7 @@ import {
   type DefinitionExtrasProps,
   type DefinitionSpec,
 } from '@renderer/components/forms/field-definition-draft';
+import { FieldLegend, FieldSet } from '@renderer/components/ui/field';
 import {
   FormControl,
   FormDescription,
@@ -64,53 +65,61 @@ function EntryExtras({
         name="ofCollections"
         render={() => (
           <FormItem>
-            <FormLabel isRequired={false}>Restrict to Collections</FormLabel>
-            <FormDescription>
-              Only Entries from the selected Collections can be referenced. If
-              none are selected, Entries from all Collections are available.
-            </FormDescription>
-            <div className="space-y-2">
-              {isReadingCollections === true ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, i) => {
-                    const key = `skeleton-${String(i)}`;
+            <FieldSet className="gap-2">
+              <FieldLegend variant="label" className="mb-0">
+                Restrict to Collections
+              </FieldLegend>
+              <FormDescription>
+                Only Entries from the selected Collections can be referenced. If
+                none are selected, Entries from all Collections are available.
+              </FormDescription>
+              <div className="space-y-2">
+                {isReadingCollections === true ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => {
+                      const key = `skeleton-${String(i)}`;
+                      return (
+                        <div
+                          key={key}
+                          className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
+                        />
+                      );
+                    })}
+                  </div>
+                ) : collectionList.list.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No Collections available in this project.
+                  </p>
+                ) : (
+                  collectionList.list.map((collection) => {
+                    const name = translateContent({
+                      key: 'collection.name.plural',
+                      record: collection.name.plural,
+                    });
                     return (
                       <div
-                        key={key}
-                        className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
-                      />
-                    );
-                  })}
-                </div>
-              ) : collectionList.list.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No Collections available in this project.
-                </p>
-              ) : (
-                collectionList.list.map((collection) => {
-                  const name = translateContent({
-                    key: 'collection.name.plural',
-                    record: collection.name.plural,
-                  });
-                  return (
-                    <div
-                      key={collection.id}
-                      className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
-                    >
-                      <div className="mr-4">
-                        <span className="text-sm font-medium">{name}</span>
+                        key={collection.id}
+                        className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+                      >
+                        <div className="mr-4">
+                          <span className="text-sm font-medium">{name}</span>
+                        </div>
+                        <Switch
+                          aria-label={name}
+                          checked={selectedCollectionIds.includes(
+                            collection.id
+                          )}
+                          onCheckedChange={() =>
+                            toggleCollection(collection.id)
+                          }
+                        />
                       </div>
-                      <Switch
-                        aria-label={name}
-                        checked={selectedCollectionIds.includes(collection.id)}
-                        onCheckedChange={() => toggleCollection(collection.id)}
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <FormMessage />
+                    );
+                  })
+                )}
+              </div>
+              <FormMessage />
+            </FieldSet>
           </FormItem>
         )}
       />

@@ -9,6 +9,7 @@ import {
   type DefinitionExtrasProps,
   type DefinitionSpec,
 } from '@renderer/components/forms/field-definition-draft';
+import { FieldLegend, FieldSet } from '@renderer/components/ui/field';
 import {
   FormControl,
   FormDescription,
@@ -75,16 +76,20 @@ function AssetExtras({
         name="ofAssetMimeTypes"
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired={false}>Restrict to file types</FormLabel>
-            <FormDescription>
-              Only Assets of the selected file types can be referenced. If none
-              are selected, Assets of any type are available.
-            </FormDescription>
-            <AssetMimeTypePicker
-              value={field.value}
-              onChange={field.onChange}
-            />
-            <FormMessage />
+            <FieldSet className="gap-2">
+              <FieldLegend variant="label" className="mb-0">
+                Restrict to file types
+              </FieldLegend>
+              <FormDescription>
+                Only Assets of the selected file types can be referenced. If
+                none are selected, Assets of any type are available.
+              </FormDescription>
+              <AssetMimeTypePicker
+                value={field.value}
+                onChange={field.onChange}
+              />
+              <FormMessage />
+            </FieldSet>
           </FormItem>
         )}
       />

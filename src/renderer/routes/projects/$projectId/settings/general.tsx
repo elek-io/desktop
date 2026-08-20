@@ -108,6 +108,12 @@ function ProjectSettingsGeneralPage(): ReactElement {
     },
   });
 
+  // The forced delete handles no type on purpose. Reusing the guard-handling
+  // mutation above would intercept a Conflict or PreconditionFailed from the
+  // forced call too, and with no handleError that would swallow it silently.
+  const { mutateAsync: forceDeleteProject, isPending: isForceDeletingProject } =
+    useAppMutation(queryOptions.projects.delete, { handled: {} });
+
   function Description(): ReactElement {
     return <>Here you will be able to tweak this project to your liking</>;
   }
@@ -137,11 +143,12 @@ function ProjectSettingsGeneralPage(): ReactElement {
 
   const onForceDelete = async (): Promise<void> => {
     try {
-      await deleteProject({ id: projectId, force: true });
+      await forceDeleteProject({ id: projectId, force: true });
       await router.navigate({ to: '/projects' });
     } catch {
-      // A force delete bypasses the guard, so any failure here is unexpected and
-      // reaches the boundary. Close this dialog so it is not left in front of it.
+      // A force delete bypasses the guard, so any failure here is unexpected.
+      // forceDeleteProject handles no type, so throwOnError routes it to the
+      // boundary. Close this dialog so it is not left in front of it.
       setIsForceDeleteDialogOpen(false);
     }
   };
@@ -226,7 +233,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
                     <Button
                       Icon={Trash}
                       variant="destructive"
-                      isLoading={isDeletingProject}
+                      isLoading={isForceDeletingProject}
                       onClick={() => void onForceDelete()}
                     >
                       Yes, delete

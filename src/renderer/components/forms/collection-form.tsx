@@ -80,9 +80,11 @@ export function CollectionForm<
   const { translateContent } = useProject();
   // The concrete fields use literal paths RHF cannot resolve for a generic T, so
   // view the form as the collection props for those. This is the documented
-  // exception to the form-cast guardrail, which eslint.config.mjs exempts.
-  // @todo Retire it (e.g. a per-mode non-generic component) and drop the exemption.
+  // exception to the form-cast guardrail, scoped to the cast line below so the
+  // ban stays global for the rest of the file.
+  // @todo Retire it (e.g. a per-mode non-generic component) and drop the suppression.
   const collectionForm =
+    // eslint-disable-next-line no-restricted-syntax -- documented whole-form cast
     genericForm as unknown as UseFormReturn<UpdateCollectionProps>;
 
   // The whole fieldDefinitions array is one Controller-bound value, not a

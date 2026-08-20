@@ -282,49 +282,52 @@ function MarkdownExtras({
           name="ofCollections"
           render={() => (
             <FormItem>
-              <FormLabel isRequired={false}>
-                Restrict Entry references to Collections
-              </FormLabel>
-              <FormDescription>
-                Only Entries from the selected Collections can be referenced. If
-                none are selected, Entries from all Collections are available.
-              </FormDescription>
-              <div className="space-y-2">
-                {isReadingCollections === true ? (
-                  <div className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800" />
-                ) : collectionList.list.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No Collections available in this project.
-                  </p>
-                ) : (
-                  collectionList.list.map((collection) => {
-                    const name = translateContent({
-                      key: 'collection.name.plural',
-                      record: collection.name.plural,
-                    });
-                    return (
-                      <div
-                        key={collection.id}
-                        className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
-                      >
-                        <div className="mr-4">
-                          <span className="text-sm font-medium">{name}</span>
+              <FieldSet className="gap-2">
+                <FieldLegend variant="label" className="mb-0">
+                  Restrict Entry references to Collections
+                </FieldLegend>
+                <FormDescription>
+                  Only Entries from the selected Collections can be referenced.
+                  If none are selected, Entries from all Collections are
+                  available.
+                </FormDescription>
+                <div className="space-y-2">
+                  {isReadingCollections === true ? (
+                    <div className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800" />
+                  ) : collectionList.list.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No Collections available in this project.
+                    </p>
+                  ) : (
+                    collectionList.list.map((collection) => {
+                      const name = translateContent({
+                        key: 'collection.name.plural',
+                        record: collection.name.plural,
+                      });
+                      return (
+                        <div
+                          key={collection.id}
+                          className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+                        >
+                          <div className="mr-4">
+                            <span className="text-sm font-medium">{name}</span>
+                          </div>
+                          <Switch
+                            aria-label={name}
+                            checked={selectedCollectionIds.includes(
+                              collection.id
+                            )}
+                            onCheckedChange={() =>
+                              toggleCollection(collection.id)
+                            }
+                          />
                         </div>
-                        <Switch
-                          aria-label={name}
-                          checked={selectedCollectionIds.includes(
-                            collection.id
-                          )}
-                          onCheckedChange={() =>
-                            toggleCollection(collection.id)
-                          }
-                        />
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              <FormMessage />
+                      );
+                    })
+                  )}
+                </div>
+                <FormMessage />
+              </FieldSet>
             </FormItem>
           )}
         />
@@ -336,18 +339,20 @@ function MarkdownExtras({
           name="ofAssetMimeTypes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>
-                Restrict Asset references to file types
-              </FormLabel>
-              <FormDescription>
-                Only Assets of the selected file types can be referenced. If
-                none are selected, Assets of any type are available.
-              </FormDescription>
-              <AssetMimeTypePicker
-                value={field.value}
-                onChange={field.onChange}
-              />
-              <FormMessage />
+              <FieldSet className="gap-2">
+                <FieldLegend variant="label" className="mb-0">
+                  Restrict Asset references to file types
+                </FieldLegend>
+                <FormDescription>
+                  Only Assets of the selected file types can be referenced. If
+                  none are selected, Assets of any type are available.
+                </FormDescription>
+                <AssetMimeTypePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+                <FormMessage />
+              </FieldSet>
             </FormItem>
           )}
         />

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, TrashIcon } from 'lucide-react';
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useId, useState, type ReactElement } from 'react';
 import { useFieldArray, useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
@@ -22,6 +22,7 @@ import {
   TranslatableFormInputField,
 } from '@renderer/components/ui/form';
 import { Input } from '@renderer/components/ui/input';
+import { Label } from '@renderer/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -60,14 +61,21 @@ function ValueTypeSelect({
   valueType: SelectValueType;
   onValueTypeChange: (valueType: SelectValueType) => void;
 }): ReactElement {
+  // Not a form field (it selects which schema is active, above the form), so it
+  // uses a plain Label bound to the trigger id rather than FormLabel, whose
+  // htmlFor would point at a control that does not exist here.
+  const selectId = useId();
+  const descriptionId = useId();
   return (
-    <FormItem>
-      <FormLabel isRequired>Type of options</FormLabel>
+    <div className="grid gap-2">
+      <Label htmlFor={selectId} isRequired>
+        Type of options
+      </Label>
       <Select
         value={valueType}
         onValueChange={(value: SelectValueType) => onValueTypeChange(value)}
       >
-        <SelectTrigger>
+        <SelectTrigger id={selectId} aria-describedby={descriptionId}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -75,10 +83,10 @@ function ValueTypeSelect({
           <SelectItem value="number">Number</SelectItem>
         </SelectContent>
       </Select>
-      <FormDescription>
+      <p id={descriptionId} className="text-sm text-muted-foreground">
         Whether the options of this Field hold text or number values.
-      </FormDescription>
-    </FormItem>
+      </p>
+    </div>
   );
 }
 

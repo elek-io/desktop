@@ -39,7 +39,7 @@ Authoring and rendering are two independent sides; a type can gain one before th
 
 ### Rendering unsupported field types
 
-`RENDER_REGISTRY` ([`ui/form.tsx`](../src/renderer/components/ui/form.tsx)) is exhaustive over `FieldType`, and the `dynamic` entry draws a muted "can't be displayed yet" placeholder. So a Collection that contains a not-yet-renderable field (from Core, the API, or a migration) does not crash the entry form, the collection editor, or a diff. The actual renderer components are still missing (see above).
+`RENDER_REGISTRY` ([`ui/form.tsx`](../src/renderer/components/ui/form.tsx)) is exhaustive over `FieldType`, and the `dynamic` entry draws a muted "can't be displayed yet" placeholder. So rendering a not-yet-renderable field (from Core, the API, or a migration) in the collection editor or a diff does not crash. The entry create and update forms are the exception: they seed defaults through `defaultEntryValue` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)), which throws for a value type it does not build, so a Collection carrying an unsupported field still fails to initialize its entry form. That failure reaches the error boundary rather than degrading in place. The actual renderer components are still missing (see above).
 
 ## Field definition editing
 

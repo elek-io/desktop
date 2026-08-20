@@ -140,7 +140,7 @@ Rendering is driven by a **registry** keyed on Core's `FieldType`, the RENDER fa
   - `renderInput(props)` - the value-typed leaf described above. It receives `{ field, fieldDefinition, disabled, controlProps }` and renders the matching typed wrapper.
   - `translatable` - whether the Value is per-language. Core stores every value type except `component` as a per-language record (see Core's `docs/fields.md`), so every rendered type is translatable; only the `dynamic` placeholder is not.
 
-  The `dynamic` entry keeps the record exhaustive and draws the muted "can't be displayed yet" placeholder so a Collection carrying an unsupported type (via Core, the API, or a migration) does not crash (see [`not-yet-implemented.md`](../not-yet-implemented.md)).
+  The `dynamic` entry keeps the record exhaustive and draws the muted "can't be displayed yet" placeholder so rendering a Collection that carries an unsupported type (via Core, the API, or a migration) does not crash. This guarantee covers the rendering phase only: the entry form still seeds defaults through `defaultEntryValue`, which throws for an unsupported value type (see [`not-yet-implemented.md`](../not-yet-implemented.md)).
 
 - **`FormComponentFromFieldDefinition`** (internal) is a `RENDER_REGISTRY[fieldType].renderInput(...)` lookup. The only thing it decides is `disabled`, which is the definition's `isDisabled` OR the enclosing `AppForm`'s view mode (read through `useAppFormMode()`). Folding the mode in here rather than per type is what keeps a non-native leaf, the markdown `contenteditable`, from staying editable in a diff. See [forms.md](./forms.md#view-only-forms-and-diffs).
 
@@ -152,7 +152,7 @@ Rendering is driven by a **registry** keyed on Core's `FieldType`, the RENDER fa
 
 - **`FormFieldFromDefinition`** (exported, the entry point) owns the single `FormField` / `Controller` at `name` and composes the label (which marks optional fields with an "- optional" suffix; the control carries `aria-required` for the required state), the registry leaf (through `TranslatableField` when translatable), the description and the validation message. Use it when rendering an Entry's fields.
 
-- **`FormFieldDefinitionPreview`** (exported) is the collection editor's non-editable preview. It draws the same label / leaf / description plus the drag / edit / delete chrome, but is **not** bound to a form: the leaf holds a static, disabled Value, so there are no phantom form paths and the label associates with a real (disabled) input (so the previews are addressable by `getByLabel`).
+- **`FormFieldDefinitionPreview`** (exported) is the collection editor's non-editable preview. It draws the same label / leaf / description plus the drag / edit / delete chrome, but is **not** bound to a form: the leaf holds a static, disabled Value, so there are no phantom form paths and, when the selected renderer provides a form control, the label associates with a real (disabled) input, so those previews are addressable by `getByLabel`. The `dynamic` placeholder renders no control, so it is the exception and is not label-addressable.
 
 ### Example Usage
 
