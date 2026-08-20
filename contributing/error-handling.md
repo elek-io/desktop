@@ -42,7 +42,7 @@ Some `CoreError`s are raised by normal user actions and are recoverable. A `409`
 
 Use the [`useAppMutation`](/src/renderer/hooks/useAppMutation.ts) hook when a specific Core guard should stay on the page instead of hitting the boundary. It is the single home for this pattern, so the "expected" set is defined once and the boundary opt-out can never drift from the in-place dispatch.
 
-1. **Declare the handled `type`s with their in-place handlers.** Give `useAppMutation(options, { handled })` a `handled` map from each `CoreError` `type` to the callback that drives its UI. From that map the hook sets `throwOnError` to a predicate returning `false` only for the handled `type`s (so just those reach the caller's `catch` and every other failure still hits the boundary) plus a no-op `onError` (so the wrapper's toast and log are suppressed for this mutation). Never a blanket `throwOnError: false`.
+1. **Declare the handled `type`s with their in-place handlers.** Give `useAppMutation(options, { handled })` a `handled` map from each `CoreError` `type` to the callback that drives its UI. From that map the hook sets `throwOnError` to a predicate returning `false` only for the handled `type`s (so just those reach the caller's `catch` and every other failure still hits the boundary) plus an `onError` that suppresses the wrapper's toast and log **for the handled `type`s only** and delegates to the wrapped options' `onError` for everything else. Suppression is per type, not per mutation: an unexpected failure on an in-place mutation keeps its `{ method, objectType }` log, exactly like on a plain `useMutation`. Never a blanket `throwOnError: false`.
 
    ```tsx
    const { mutateAsync, handleError } = useAppMutation(
@@ -75,7 +75,7 @@ Because the predicate and the dispatch both read the same `handled` map, they ca
 
 Keep dialog titles and button labels stable, since the E2E specs assert them. Only the description changes with the `type`. Assert the copy you wrote in specs, never Core's raw message, which belongs to Core's own tests.
 
-A `type` handled this way is intentionally invisible to the standard logging and to Sentry (see [Logging](#logging-where-what-and-when)): only the in place UI reacts. The `type`s you did not handle are unaffected, they still propagate to the boundary and are logged and reported as usual. If you also want a handled `type` tracked, log it explicitly in the `catch`.
+A `type` handled this way is intentionally invisible to the standard logging and to Sentry (see [Logging](#logging-where-what-and-when)): only the in place UI reacts. The `type`s you did not handle are unaffected, they still propagate to the boundary and are logged, toasted and reported as usual, because the suppression is keyed on the same `handled` map. If you also want a handled `type` tracked, log it explicitly in the `catch`.
 
 All the sites below build their mutation with `useAppMutation`, so the "predicate returns false only for X" behavior described in each is what the helper derives from that site's `handled` map.
 
@@ -132,7 +132,7 @@ Rebuilding the stack matters because, as noted above, the reconstructed renderer
 > [!NOTE]
 > Those rebuilt frames point at Core's shipped build (`@elek-io/core/.../index.node.mjs`) with function names and line and column numbers, which is enough to locate the failure. They are **not** symbolicated to Core's TypeScript source yet, because the Sentry build plugin uploads source maps for our own bundles, not for `node_modules`. Core already ships a self-contained node source map (its original sources are embedded), so resolving these frames to Core's `.ts` is a later, our-side-only step: upload Core's node map to the Sentry release. It needs no change to Core. It is deliberately deferred because matching a main-process node frame on a renderer event relies on release plus path matching (Core's files carry no Sentry debug id), which wants its own verification against a real event.
 
-**What is not sent to Sentry.** A `CoreError` `type` handled in place (its `throwOnError` predicate returns false for that `type`, plus a no-op `onError`) never reaches the React error handlers, so it produces no Sentry event and no standard toast or log. That is intended. A `type` the predicate does not handle is not opted out, so it still propagates to the boundary and is reported normally.
+**What is not sent to Sentry.** A `CoreError` `type` handled in place (its `throwOnError` predicate returns false for that `type`, and `onError` is suppressed for it) never reaches the React error handlers, so it produces no Sentry event and no standard toast or log. That is intended. A `type` the predicate does not handle is not opted out, so it still propagates to the boundary and is reported normally.
 
 ### What one unexpected mutation failure produces
 
@@ -145,7 +145,7 @@ A single failed mutation that is not handled in place fans out on purpose:
 
 The two local logs are not a bug. They carry different context, the mutation meta and the fatal route surface, and both help when reading a session's logs.
 
-A mutation using the in-place pattern is the one exception. Its no-op `onError` drops steps 1 and 2, so an unexpected `type` on such a mutation still reaches the boundary and Sentry (steps 3 and 4) but without the wrapper toast and its meta log. That is the deliberate trade for keeping the handled `type`s quiet.
+A mutation using the in-place pattern drops steps 1 and 2 **for its handled `type`s**, which is the whole point of handling them in place. An unexpected `type` on the same mutation is not suppressed: it fans out exactly as above, boundary and Sentry included. Suppressing per mutation instead of per type is the bug this shape avoids, since it silently costs an unexpected failure its `{ method, objectType }` log.
 
 ## Testing implications
 
@@ -158,7 +158,7 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 | Unexpected query error                   | Root error boundary     | Boundary error log                                   | Yes (`onCaughtError`)               |
 | Unexpected mutation error                | Root error boundary     | Wrapper error log plus boundary error log, one toast | Yes (`onCaughtError`)               |
 | Handled `CoreError` `type` (in place)    | Dialog on the same page | None by default                                      | No                                  |
-| Unhandled `type` on an in-place mutation | Root error boundary     | Boundary error log (no wrapper toast or log)         | Yes (`onCaughtError`)               |
+| Unhandled `type` on an in-place mutation | Root error boundary     | Wrapper error log plus boundary error log, one toast | Yes (`onCaughtError`)               |
 | Route not found                          | `NotFoundComponent`     | None                                                 | No                                  |
 | Main process security block              | Denied, no window       | Core logger error                                    | Yes (`captureException`)            |
 | App init failure                         | App exits               | console.error only                                   | Yes (`captureException` then flush) |

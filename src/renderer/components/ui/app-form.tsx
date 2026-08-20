@@ -1,26 +1,37 @@
-import { createContext, useContext, useId, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   useFormState,
   type FieldValues,
+  type SubmitErrorHandler,
   type SubmitHandler,
   type UseFormReturn,
 } from 'react-hook-form';
 
 import { Button } from '@renderer/components/ui/button';
 import { Form } from '@renderer/components/ui/form';
+import {
+  AppFormContext,
+  useAppFormId,
+  type AppFormContextValue,
+} from '@renderer/hooks/useAppFormContext';
+import {
+  collectFieldErrorMessages,
+  isAtOrBelow,
+  type FieldErrorMessage,
+} from '@renderer/lib/formErrors';
 
 // The form primitives every form in the app is built from.
 // See contributing/renderer/forms.md.
-
-interface AppFormContextValue {
-  id: string;
-}
-
-const AppFormContext = createContext<AppFormContextValue | null>(null);
-
-function useAppFormId(): string | null {
-  return useContext(AppFormContext)?.id ?? null;
-}
 
 // The gating a detached SubmitButton reads, since a button outside the form's
 // FormProvider subtree cannot read formState from context.
@@ -74,7 +85,62 @@ export function AppForm<
   const generatedId = useId();
   const formId = id ?? generatedId;
 
-  const submit = form.handleSubmit(onSubmit);
+  // The paths whose errors something mounted inside this form renders. A ref, not
+  // state, because registering must not re-render the form. Counted rather than a
+  // Set, since two components legitimately claim the same path (a translatable
+  // field's visible message and the same language's message inside its dialog),
+  // and closing one must not drop the other's claim.
+  const errorTargets = useRef(new Map<string, number>());
+  const registerErrorTarget = useCallback((name: string): (() => void) => {
+    const targets = errorTargets.current;
+    targets.set(name, (targets.get(name) ?? 0) + 1);
+    return () => {
+      const claims = targets.get(name) ?? 0;
+      if (claims > 1) {
+        targets.set(name, claims - 1);
+      } else {
+        targets.delete(name);
+      }
+    };
+  }, []);
+  const [unsurfacedErrors, setUnsurfacedErrors] = useState<FieldErrorMessage[]>(
+    []
+  );
+  const unsurfacedRef = useRef<HTMLDivElement>(null);
+  const [submitError, setSubmitError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (unsurfacedErrors.length > 0) {
+      unsurfacedRef.current?.focus();
+    }
+  }, [unsurfacedErrors]);
+
+  const context = useMemo<AppFormContextValue>(
+    () => ({ id: formId, mode, registerErrorTarget }),
+    [formId, mode, registerErrorTarget]
+  );
+
+  // A validation error nothing renders would make the submit a silent no-op, so
+  // report it on the form itself and log it, rather than leaving the user with a
+  // button that appears to do nothing. See contributing/renderer/forms.md.
+  const onInvalid: SubmitErrorHandler<TFieldValues> = (errors) => {
+    const unsurfaced = collectFieldErrorMessages(errors).filter((error) =>
+      [...errorTargets.current.keys()].every(
+        (target) => isAtOrBelow(error.path, target) === false
+      )
+    );
+    setUnsurfacedErrors(unsurfaced);
+
+    if (unsurfaced.length > 0) {
+      void window.ipc.core.logger.error({
+        source: 'desktop',
+        message: 'Form submit blocked by a validation error with no message',
+        meta: { formId, errors: unsurfaced },
+      });
+    }
+  };
+
+  const submit = form.handleSubmit(onSubmit, onInvalid);
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     // Load bearing: a Sheet or Dialog is portaled out of an outer form's DOM but
     // React still bubbles the synthetic submit event to its React ancestors, so
@@ -85,11 +151,22 @@ export function AppForm<
       event.preventDefault();
       return;
     }
-    void submit(event);
+    setUnsurfacedErrors((previous) => (previous.length === 0 ? previous : []));
+    // handleSubmit re-throws whatever onSubmit rejected with, after awaiting it.
+    // Nothing is left to catch that by then, so hold it and re-throw it during
+    // render, where the root error boundary sees it. A CoreError handled in place
+    // never gets here, since that recipe catches inside onSubmit.
+    void submit(event).catch((error: unknown) => {
+      setSubmitError(error instanceof Error ? error : new Error(String(error)));
+    });
   };
 
+  if (submitError !== null) {
+    throw submitError;
+  }
+
   return (
-    <AppFormContext value={{ id: formId }}>
+    <AppFormContext value={context}>
       <Form {...form}>
         {/* noValidate is deliberately not a prop, so it cannot be forgotten. */}
         <form
@@ -98,7 +175,29 @@ export function AppForm<
           className={className}
           onSubmit={handleSubmit}
         >
-          <fieldset disabled={mode === 'view'}>{children}</fieldset>
+          <fieldset disabled={mode === 'view'}>
+            {unsurfacedErrors.length > 0 ? (
+              <div
+                ref={unsurfacedRef}
+                tabIndex={-1}
+                role="alert"
+                className="m-6 rounded-md border border-destructive p-4 text-sm text-destructive"
+              >
+                <p className="font-medium">
+                  This form could not be saved, because of a problem that is not
+                  shown on any of its fields:
+                </p>
+                <ul className="mt-2 list-inside list-disc">
+                  {unsurfacedErrors.map((error) => (
+                    <li key={error.path}>
+                      {error.message} ({error.path})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {children}
+          </fieldset>
         </form>
       </Form>
     </AppFormContext>
@@ -144,7 +243,15 @@ export function FormActions<
   );
 }
 
-export interface SubmitButtonProps extends React.ComponentProps<typeof Button> {
+/**
+ * `type` and `asChild` are omitted, not just defaulted: a SubmitButton that can
+ * be talked out of submitting is the bug this component exists to prevent. See
+ * contributing/renderer/forms.md.
+ */
+export interface SubmitButtonProps extends Omit<
+  React.ComponentProps<typeof Button>,
+  'type' | 'asChild'
+> {
   /**
    * The id of the form to submit. Needed when the button is rendered outside the
    * form's subtree (the detached header/footer case) and no enclosing
@@ -183,12 +290,14 @@ export function SubmitButton({
     disabled === true || isSubmitting || (requireDirty && isDirty === false);
 
   return (
+    // The spread comes first on purpose, so the structural props below it cannot
+    // be overridden by a caller.
     <Button
+      {...props}
       type="submit"
       form={formId}
       disabled={gatedDisabled}
       isLoading={isLoading ?? isSubmitting}
-      {...props}
     >
       {children}
     </Button>

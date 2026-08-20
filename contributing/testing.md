@@ -4,7 +4,9 @@ The client is tested end to end with [Playwright](https://playwright.dev/docs/ap
 
 There is no unit test setup yet. Everything below is about E2E tests.
 
-The current suite covers only a few test cases. [`e2e-test-backlog.md`](./e2e-test-backlog.md) is the prioritized list of tests still to write, grounded in the full route and IPC surface. Work top down (P0 data-loss cases first) and build the shared helpers it lists before their first consumer.
+The suite is currently 83 specs across 16 files, and it covers each object type end to end (Projects, Collections, Entries, Assets, User) plus the cross-cutting surfaces: navigation and breadcrumbs, empty states, history and diffs, git sync, persistence across a reload, the root error boundary and not-found route, the main process security policy, the IPC guards, the local API and accessibility. `tests/specs` is the map, and each spec's name says what it pins.
+
+New tests are written where a change lands rather than from a standing list. What earns one is the desktop app's own responsibility (see [What a desktop test verifies](#what-a-desktop-test-verifies)): a flow that drives Core, a failure the UI has to surface, or a form invariant that would otherwise regress silently. Build the shared helper in `tests/helpers` before its first consumer, and extend an existing helper rather than inlining a second copy of a UI drive.
 
 ## Running tests
 

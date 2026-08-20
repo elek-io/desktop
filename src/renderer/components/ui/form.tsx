@@ -18,6 +18,7 @@ import {
   Controller,
   FormProvider,
   useFormContext,
+  useFormState,
   useWatch,
   type ControllerProps,
   type ControllerRenderProps,
@@ -48,6 +49,10 @@ import { Label } from '@renderer/components/ui/label';
 import { Slider } from '@renderer/components/ui/slider';
 import { Switch } from '@renderer/components/ui/switch';
 import { Textarea } from '@renderer/components/ui/textarea';
+import {
+  useAppFormMode,
+  useErrorTarget,
+} from '@renderer/hooks/useAppFormContext';
 import { useFieldDefinitions } from '@renderer/hooks/useFieldDefinitions';
 import {
   FormFieldContext,
@@ -57,6 +62,10 @@ import {
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import {
+  collectFieldErrorMessages,
+  isAtOrBelow,
+} from '@renderer/lib/formErrors';
 import { cn, fieldWidth } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
@@ -95,9 +104,17 @@ const Form = FormProvider;
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+  // Defaulted and never read here, only carried so a caller's form (whose schema
+  // transforms its input) is assignable without erasing the generic through a
+  // cast. See contributing/renderer/forms.md#form-typing.
+  TTransformedValues extends FieldValues = TFieldValues,
 >({
   ...props
-}: ControllerProps<TFieldValues, TName>): React.JSX.Element => {
+}: ControllerProps<
+  TFieldValues,
+  TName,
+  TTransformedValues
+>): React.JSX.Element => {
   return (
     <FormFieldContext.Provider value={{ name: props.name }}>
       <Controller {...props} />
@@ -180,7 +197,9 @@ function FormMessage({
   className,
   ...props
 }: React.ComponentProps<'p'>): React.JSX.Element | null {
-  const { error, formMessageId } = useFormField();
+  const { error, formMessageId, name } = useFormField();
+  // Claims this field's errors, so AppForm knows they have somewhere to render.
+  useErrorTarget(name);
   const body =
     error !== undefined ? String(error.message ?? '') : props.children;
 
@@ -197,6 +216,67 @@ function FormMessage({
     >
       {body}
     </p>
+  );
+}
+
+export interface FormSubtreeMessageProps<TFieldValues extends FieldValues> {
+  form: UseFormReturn<TFieldValues>;
+  name: FieldPath<TFieldValues>;
+  className?: string;
+}
+
+/**
+ * Renders every validation message at or below `name`. Use it where a value is
+ * bound as a single Controller but rendered as something other than a field (the
+ * Collection editor's `fieldDefinitions` array), so a refinement landing on the
+ * value itself or on a path inside it still has a surface. A `FormMessage` cannot
+ * serve here, because it only shows the message sitting at its own exact path.
+ *
+ * It claims the whole subtree as an error target, which is also what keeps
+ * AppForm from reporting the same errors a second time.
+ * See contributing/renderer/forms.md.
+ */
+function FormSubtreeMessage<TFieldValues extends FieldValues>({
+  form,
+  name,
+  className,
+}: FormSubtreeMessageProps<TFieldValues>): React.ReactElement | null {
+  useErrorTarget(name);
+  const { errors } = useFormState({ control: form.control, name });
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const messages = collectFieldErrorMessages(errors).filter((error) =>
+    isAtOrBelow(error.path, name)
+  );
+  // A primitive key, so the effect refocuses when the set of messages changes but
+  // not on every re-render (the array is rebuilt each time).
+  const messageKey = messages.map((error) => error.path).join(',');
+
+  React.useEffect(() => {
+    if (messageKey !== '') {
+      containerRef.current?.focus();
+    }
+  }, [messageKey]);
+
+  if (messages.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      role="alert"
+      data-slot="form-message"
+      className={cn('text-sm text-destructive', className)}
+    >
+      <ul className="list-inside list-disc">
+        {messages.map((error) => (
+          <li key={error.path}>
+            {error.message} ({error.path})
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -328,6 +408,10 @@ function TranslatableField<TFieldValues extends FieldValues>({
 }: TranslatableFieldProps<TFieldValues>): React.ReactElement {
   const currentLanguage = field.name.split('.').pop() as SupportedLanguage;
   const baseName = field.name.split('.').slice(0, -1).join('.');
+  // Claims every language of this field, not just the current one: a hidden
+  // translation's error is surfaced by the dialog trigger's invalid state below,
+  // so AppForm must not report it as having no message.
+  useErrorTarget(baseName);
 
   /**
    * True when a language other than the current one has an error, so the dialog
@@ -1782,10 +1866,15 @@ function FormComponentFromFieldDefinition<TFieldValues extends FieldValues>({
   fieldDefinition,
   ...controlProps
 }: FormComponentFromFieldDefinitionProps<TFieldValues>): React.ReactNode {
+  // AppForm's view-only fieldset only disables native form controls, so a leaf
+  // that is not one (the markdown editor's contenteditable) has to be told. Every
+  // leaf takes `disabled`, so the mode is folded in here rather than per type.
+  const mode = useAppFormMode();
+
   return RENDER_REGISTRY[fieldDefinition.fieldType].renderInput({
     field,
     fieldDefinition,
-    disabled: fieldDefinition.isDisabled,
+    disabled: fieldDefinition.isDisabled || mode === 'view',
     controlProps: {
       ...controlProps,
       // Omitted (not set to false) when it must not be emitted, so the attribute
@@ -1797,9 +1886,16 @@ function FormComponentFromFieldDefinition<TFieldValues extends FieldValues>({
   });
 }
 
-interface FormFieldFromDefinitionProps<TFieldValues extends FieldValues> {
+// TTransformedValues is defaulted and never read: only `control` and
+// `formState.errors` are used here, and both are typed by TFieldValues alone.
+// Carrying the generic lets a caller pass its form as it is, instead of erasing
+// the third generic through a cast. See contributing/renderer/forms.md#form-typing.
+interface FormFieldFromDefinitionProps<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+> {
   fieldDefinition: FieldDefinition;
-  form: UseFormReturn<TFieldValues>;
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   name: FieldPath<TFieldValues>;
   supportedLanguages: SupportedLanguage[];
   className?: string;
@@ -1811,13 +1907,19 @@ interface FormFieldFromDefinitionProps<TFieldValues extends FieldValues> {
  * validation message. For a non-editable definition preview in the collection
  * editor, use FormFieldDefinitionPreview instead.
  */
-function FormFieldFromDefinition<TFieldValues extends FieldValues>({
+function FormFieldFromDefinition<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
   form,
   name,
   fieldDefinition,
   supportedLanguages,
   className,
-}: FormFieldFromDefinitionProps<TFieldValues>): React.ReactElement {
+}: FormFieldFromDefinitionProps<
+  TFieldValues,
+  TTransformedValues
+>): React.ReactElement {
   const { translateContent } = useProject();
 
   return (
@@ -2035,13 +2137,10 @@ export {
   FormControl,
   FormDescription,
   FormMessage,
+  FormSubtreeMessage,
   FormField,
-  FormAssetField,
-  FormEntryField,
   FormDateField,
   FormDatetimeField,
-  FormSelectField,
-  FormSlugField,
   FormFieldFromDefinition,
   FormFieldDefinitionPreview,
 };

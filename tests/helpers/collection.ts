@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import {
   uuid,
@@ -8,9 +8,12 @@ import {
   type DateFieldDefinition,
   type DatetimeFieldDefinition,
   type EmailFieldDefinition,
+  type FieldType,
+  type MarkdownFieldDefinition,
   type NumberFieldDefinition,
   type RangeFieldDefinition,
   type ReferenceFieldDefinition,
+  type SupportedLanguage,
   type TextFieldDefinition,
   type TimeFieldDefinition,
   type UpdateCollectionProps,
@@ -198,6 +201,56 @@ export function timeFieldDefinition(
 }
 
 /**
+ * Build an optional markdown FieldDefinition with a caller-supplied id. Markdown
+ * is the one field type whose input is not a native form control but a Milkdown
+ * `contenteditable`, so it is what a view-only form has to disable explicitly.
+ * Every feature defaults off, matching the authoring form's own defaults (Core
+ * expects features to be opted into).
+ */
+export function markdownFieldDefinition(
+  overrides: Partial<MarkdownFieldDefinition> = {}
+): MarkdownFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'body',
+    label: { en: 'Body' },
+    description: null,
+    isRequired: false,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'mdast',
+    fieldType: 'markdown',
+    defaultValue: null,
+    min: null,
+    max: null,
+    features: {
+      headings: [],
+      blockquotes: false,
+      lists: false,
+      taskListItems: false,
+      codeBlocks: false,
+      thematicBreak: false,
+      tables: false,
+      footnotes: false,
+      rawHtml: false,
+      emphasis: false,
+      strong: false,
+      inlineCode: false,
+      strikethrough: false,
+      hardLineBreaks: false,
+      externalLinks: false,
+      externalImages: false,
+      entryReferences: false,
+      assetReferences: false,
+    },
+    ofCollections: [],
+    ofAssetMimeTypes: [],
+    ...overrides,
+  };
+}
+
+/**
  * The entry arm of the `ReferenceFieldDefinition` union (an `entry` reference,
  * as opposed to an `asset` one). Extracted so the builder's overrides are typed
  * against the concrete member rather than the whole union.
@@ -370,13 +423,80 @@ export async function fillCollectionForm(
   await page.getByLabel('Entry-Slug', { exact: true }).fill(props.slugSingular);
 }
 
+/**
+ * Fill languages other than the default on the Collection form's translatable
+ * fields, keyed by the field's visible label.
+ *
+ * The visible input holds the default language, so a second language is edited
+ * through the field's translations dialog. Its trigger carries the accessible
+ * name "Edit translations for <label>" and the dialog itself is named by the
+ * same label (see forms.md), which is what makes both addressable.
+ */
+export async function fillCollectionFormTranslations(
+  page: Page,
+  fields: Record<string, Partial<Record<SupportedLanguage, string>>>
+): Promise<void> {
+  for (const [label, languages] of Object.entries(fields)) {
+    await page
+      .getByRole('button', { name: `Edit translations for ${label}` })
+      .click();
+    const dialog = page.getByRole('dialog', { name: label });
+    await expect(dialog).toBeVisible();
+
+    for (const [language, text] of Object.entries(languages)) {
+      // A dialog's per-language label is the language code, with an
+      // " - optional" suffix on a field that is not required (the Description is
+      // not), so anchor on the code rather than matching exactly.
+      await dialog
+        .getByLabel(new RegExp(`^${language}( - optional)?$`))
+        .fill(text);
+    }
+
+    await dialog.getByRole('button', { name: 'Done' }).click();
+    await expect(dialog).toBeHidden();
+  }
+}
+
+/**
+ * Open the "Add Field" sheet and select `fieldType` in its "Input type" picker,
+ * returning the sheet so a caller can scope its locators to it.
+ *
+ * Use this directly when a spec inspects the sheet without adding anything (the
+ * per-type locked switches), and through `addFieldDefinition` when it does add.
+ */
+export async function openAddFieldSheet(
+  page: Page,
+  fieldType: FieldType = 'text'
+): Promise<Locator> {
+  await page.getByRole('button', { name: 'Add Field' }).click();
+  const sheet = page.getByRole('dialog', {
+    name: 'Add a Field to this Collection',
+  });
+  await expect(sheet).toBeVisible();
+
+  if (fieldType !== 'text') {
+    // The picker is the first combobox in the sheet (its header). Its options
+    // render in a Radix portal, so locate them on the page, not in the dialog.
+    await sheet.getByRole('combobox').first().click();
+    await page.getByRole('option', { name: fieldType, exact: true }).click();
+  }
+
+  return sheet;
+}
+
 export interface AddFieldDefinitionOptions {
   label: string;
   description: string;
-  /** Fills the text field's "Minimum" control. */
+  /** The "Input type" to pick. Defaults to the sheet's own default, `text`. */
+  fieldType?: FieldType;
+  /** Fills the field's "Minimum" control. */
   min?: number;
-  /** Fills the text field's "Maximum" control. */
+  /** Fills the field's "Maximum" control. */
   max?: number;
+  /** Fills the shared "Default value" control. */
+  defaultValue?: string;
+  /** Turns the "Unique" switch on. Only the string types allow it. */
+  isUnique?: boolean;
   /**
    * Assert the add is REJECTED rather than accepted. `submitDefinition` only
    * closes the sheet after it appends the definition, so a still-open sheet
@@ -388,39 +508,40 @@ export interface AddFieldDefinitionOptions {
 }
 
 /**
- * Drive the "Add Field" sheet to add one text field definition. Opens the
- * sheet, fills the translatable label and description (the slug auto-derives
- * from the label) plus any per-type bounds, then confirms with "Add definition".
+ * Drive the "Add Field" sheet to add one field definition. Opens the sheet on
+ * the requested input type, fills the translatable label and description (the
+ * slug auto-derives from the label) plus any of the shared per-type controls,
+ * then confirms with "Add definition".
  *
  * For a valid, unique definition the sheet closes (asserted). Pass
  * `expectRejected` to instead assert the sheet stays open, which the negative
- * validation specs (duplicate slug, min>max) use to prove the definition was
- * not appended. Add other input types (a `fieldType` Select drive) when a spec
- * needs them.
+ * validation specs (duplicate slug, min>max, unique with a default) use to prove
+ * the definition was not appended.
  */
 export async function addFieldDefinition(
   page: Page,
   options: AddFieldDefinitionOptions
 ): Promise<void> {
-  await page.getByRole('button', { name: 'Add Field' }).click();
-  const sheet = page.getByRole('dialog', {
-    name: 'Add a Field to this Collection',
-  });
-  await expect(sheet).toBeVisible();
+  const sheet = await openAddFieldSheet(page, options.fieldType);
 
-  // The "Input type" Select defaults to "text", so no change is needed here.
   await sheet.getByLabel('Label', { exact: true }).fill(options.label);
   // A Field's Description is optional, so its label carries an "- optional"
   // suffix. Match by prefix. Filling an optional Field is still valid.
   await sheet.getByLabel('Description').fill(options.description);
 
-  // The text field's bounds labels carry an "- optional" suffix (they are not
-  // required), so match by prefix rather than exactly.
+  // The optional bounds labels carry an "- optional" suffix, so match by prefix
+  // rather than exactly. Range's mandatory ones match either way.
   if (options.min !== undefined) {
     await sheet.getByLabel('Minimum').fill(String(options.min));
   }
   if (options.max !== undefined) {
     await sheet.getByLabel('Maximum').fill(String(options.max));
+  }
+  if (options.defaultValue !== undefined) {
+    await sheet.getByLabel('Default value').fill(options.defaultValue);
+  }
+  if (options.isUnique === true) {
+    await sheet.getByRole('switch', { name: 'Unique' }).click();
   }
 
   await page.getByRole('button', { name: 'Add definition' }).click();

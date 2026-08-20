@@ -57,12 +57,6 @@ export function EntryForm<
   const { translateContent } = useProject();
   const defaultLanguage = project.settings.language.default;
 
-  // FormFieldFromDefinition only reads the form's control, so view the form by its
-  // field values and keep the dual generic out of form.tsx. This is the documented
-  // exception to the form-cast guardrail, which eslint.config.mjs exempts.
-  // @todo Retire it (e.g. a per-mode non-generic component) and drop the exemption.
-  const fieldForm = entryForm as unknown as UseFormReturn<TFieldValues>;
-
   // The path is provably a key of `values` (a Record), but react-hook-form's
   // FieldPath cannot reduce that for an unresolved generic, so assert it once here.
   const valuePath = (slug: string): FieldPath<TFieldValues> =>
@@ -94,7 +88,7 @@ export function EntryForm<
                       <FormFieldFromDefinition
                         key={member.id}
                         fieldDefinition={member}
-                        form={fieldForm}
+                        form={entryForm}
                         name={valuePath(member.slug)}
                         supportedLanguages={project.settings.language.supported}
                       />
@@ -108,7 +102,7 @@ export function EntryForm<
               <FormFieldFromDefinition
                 key={fieldDefinition.id}
                 fieldDefinition={fieldDefinition}
-                form={fieldForm}
+                form={entryForm}
                 name={valuePath(fieldDefinition.slug)}
                 supportedLanguages={project.settings.language.supported}
               />

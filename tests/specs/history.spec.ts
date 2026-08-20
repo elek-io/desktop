@@ -3,9 +3,17 @@ import { expect } from '@playwright/test';
 import { test } from '../fixtures/electronApp.js';
 import {
   createCollectionViaIpc,
+  markdownFieldDefinition,
   textFieldDefinition,
 } from '../helpers/collection.js';
-import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
+import {
+  createEntryViaIpc,
+  markdownEditorSurface,
+  markdownValue,
+  mdAstParagraph,
+  navigateToEntryUpdate,
+  stringValue,
+} from '../helpers/entry.js';
 import { verifyCurrentRouteHash } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
@@ -139,5 +147,56 @@ test.describe('History', () => {
     await expect(
       mainWindow.getByText('Headline', { exact: true })
     ).toBeVisible();
+  });
+
+  // A diff renders the same EntryForm in view mode, which turns the form
+  // read-only through a disabled fieldset. A fieldset only disables native form
+  // controls, so the markdown field (a Milkdown contenteditable) stayed typable
+  // in history until AppForm's mode reached the render registry. See
+  // contributing/renderer/forms.md#view-only-forms-and-diffs.
+  test('renders a markdown field read-only in the history diff', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition(), markdownFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'First article' }),
+        body: markdownValue({ en: mdAstParagraph('Written once') }),
+      },
+    });
+
+    // The editable baseline: on the Entry update form the same field is typable,
+    // so the assertion below is about view mode and not about the editor failing
+    // to mount.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(markdownEditorSurface(mainWindow)).toHaveAttribute(
+      'contenteditable',
+      'true'
+    );
+
+    await navigateToHistory(mainWindow, project.id);
+    await mainWindow.getByRole('link', { name: /create entry/i }).click();
+    await expect(
+      mainWindow.getByRole('heading', { name: 'create entry' })
+    ).toBeVisible();
+
+    // Same component, view mode: the editor holds the stored content but cannot
+    // be typed into.
+    await expect(markdownEditorSurface(mainWindow)).toHaveAttribute(
+      'contenteditable',
+      'false'
+    );
+    await expect(mainWindow.getByText('Written once')).toBeVisible();
   });
 });

@@ -28,6 +28,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormSubtreeMessage,
   TranslatableFormInputField,
   TranslatableFormTextareaField,
 } from '@renderer/components/ui/form';
@@ -297,6 +298,17 @@ export function CollectionForm<
           )
         }
       >
+        {/* The definitions render as previews, not as bound fields, so a Core
+        refinement that lands on the array or on a definition inside it (a
+        duplicate slug, a stale slug source, a language a Field is missing) has no
+        FormMessage to land on. Without this, such an error would make Save a
+        silent no-op. See contributing/renderer/forms.md. */}
+        <FormSubtreeMessage
+          form={collectionForm}
+          name="fieldDefinitions"
+          className="mt-6"
+        />
+
         <div className="mt-6 grid grid-cols-12 gap-6">
           <SortableFieldArray items={definitions} onReorder={moveDefinition}>
             {definitions.map((fieldDefinition) => {

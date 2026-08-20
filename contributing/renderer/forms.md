@@ -27,7 +27,13 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   else.
 - **Every submit control is a `SubmitButton`.** It sets `type="submit"` and the
   form association structurally, so a submit button can never silently do nothing.
-  A lint rule bans a literal `type="submit"` outside `app-form.tsx`.
+  `SubmitButtonProps` omits `type` and `asChild`, so neither can be passed, and
+  the caller's props are spread before the structural ones rather than after. A
+  lint rule bans a literal `type="submit"` outside `app-form.tsx`.
+- **A failed submit is never silent.** `AppForm` passes `handleSubmit` an
+  `onInvalid` that reports any validation error no mounted message covers, and
+  routes a rejection thrown after the awaited `onSubmit` to the root error
+  boundary. See [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
 - **Every field type has a `DefinitionSpec` and a `RenderSpec`.** Both
   `FIELD_DEFINITION_REGISTRY` (authoring) and `RENDER_REGISTRY` (rendering) are
   exhaustive `Record<FieldType, ...>`, so adding a Core field type is a compile
@@ -101,7 +107,8 @@ which owns the policies that used to be pasted at each call site:
   still bubbles the synthetic submit event up the React tree, so the Add Field
   sheet used to create the whole Collection when you added a field to it.
 - **`mode="view"`** renders the form read-only through a disabled `<fieldset>` and
-  makes submit a no-op.
+  makes submit a no-op. It also reaches the render registry through the
+  `AppFormContext`, see [View-only forms and diffs](#view-only-forms-and-diffs).
 
 ## Detached submit buttons
 
@@ -135,10 +142,66 @@ read-only rendering path. Pass `isViewOnly` (which the shared components map to
 `AppForm`'s `mode="view"`), and the whole form renders inside a disabled
 `<fieldset>` with submit turned off.
 
+A disabled `<fieldset>` only turns off native form controls, so it does nothing
+for a leaf that is not one. The markdown field is the case: it is a Milkdown
+`contenteditable`, which stayed typable in a diff. `AppForm` therefore publishes
+its `mode` on the `AppFormContext`
+([`hooks/useAppFormContext.ts`](../../src/renderer/hooks/useAppFormContext.ts)),
+and `FormComponentFromFieldDefinition` reads it with `useAppFormMode()` and ORs it
+into the `disabled` it hands the registry leaf. Every leaf already takes
+`disabled`, so this is one fold at the dispatch rather than a per-type opt-in, and
+a new field type inherits it. That context is a separate module because
+`app-form.tsx` imports `form.tsx`, so the dependency has to run the other way.
+
 [`components/collection-diff.tsx`](../../src/renderer/components/collection-diff.tsx)
 does this: one view-mode form for a create or a delete, and a before/after pair
 for an update. Because it is the same component the editor uses, a field added to
 the editor shows up in the diff with no extra work.
+
+## When an error has no field to land on
+
+A form is only honest if pressing Save either saves or says why not. Two paths
+used to end nowhere, and `AppForm` closes both.
+
+**A validation error with no mounted message.** zod validates the whole form
+value, so an error can land on a path that no field renders. The Collection
+editor is the standing case: its `fieldDefinitions` array is one
+`Controller`-bound value drawn as previews, so a Core refinement reporting
+`fieldDefinitions.0.label.de` had no `FormMessage` to appear in and no input to
+focus. Save simply did nothing.
+
+`AppForm` now passes `handleSubmit` an `onInvalid`. Every component that renders
+messages claims the paths it covers through `useErrorTarget(name)` (`FormMessage`
+claims its own path, `TranslatableField` claims its base path because the dialog
+trigger flags a hidden language). On a failed submit `AppForm` flattens
+`formState.errors`, subtracts everything a claimed path covers, and renders what
+is left in a focused `role="alert"` at the top of the form, plus an error through
+Core's logger so it is loud in a dev run. That surface is a backstop for a bug,
+not a design: an error that reaches it should get a real home.
+
+Giving one a real home is what `FormSubtreeMessage` is for. Point it at a value
+that is bound as a single `Controller` but rendered as something else, and it
+renders every message at or below that path and claims the subtree:
+
+```tsx
+<FormSubtreeMessage form={collectionForm} name="fieldDefinitions" />
+```
+
+A plain `FormMessage` cannot serve there, because it only shows the message
+sitting at its own exact path, and a nested refinement never leaves one there.
+
+The UX follows the rest of the app: nothing is disabled to express "invalid",
+validation runs on the submit click, and the error appears then.
+
+**A rejection thrown after the awaited `onSubmit`.** `handleSubmit` re-throws
+whatever `onSubmit` rejected with, after awaiting it. By then the submit event is
+long over, so a floated call left an unhandled rejection that reached no React
+boundary. `AppForm` catches it and re-throws it during render, where the root
+error boundary takes it.
+
+This does not disturb the `useAppMutation` recipe below, whose `catch` sits
+inside `onSubmit`: a handled `CoreError` never rejects out of the handler, so it
+stays in place. What reaches the boundary is what nothing chose to handle.
 
 ## Handling submit errors by type
 
@@ -150,7 +213,8 @@ on a unique field is the canonical case.
 [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) is the single home
 for that. Pass a `handled` map from `CoreError` type to an in-place handler. The
 hook derives both the mutation's `throwOnError` predicate (false only for the
-handled types) and a no-op `onError` from that one map, so the predicate and the
+handled types) and its `onError` (suppressed for the handled types, delegated to
+the wrapped options for every other) from that one map, so the predicate and the
 dispatch can never drift. It returns a `handleError(error)` to call from the
 `catch` of `await mutateAsync(...)`:
 
@@ -233,13 +297,23 @@ const form = useForm({ resolver: zodResolver(schema) /* ... */ });
 This keeps Core the single source of truth: the form needs no compensating
 pre-seed and no refinement of its own.
 
-`ProjectForm`, `CollectionForm` and `EntryForm` each view their generic form as a
-concrete `Update*Props` internally, because react-hook-form's `FieldPath` cannot
-resolve a literal path for an unresolved generic. Those three
+`ProjectForm` and `CollectionForm` each view their generic form as a concrete
+`Update*Props` internally, because react-hook-form's `FieldPath` cannot resolve a
+literal path for an unresolved generic. Those two
 `as unknown as UseFormReturn<...>` casts are the one documented exception to the
 cast guardrail below, each carrying an inline comment and a `@todo`. `AssetForm`
 avoids even that by staying generic and casting only field names
 (`as FieldPath<T>`).
+
+`EntryForm` used to be a third. Its cast changed no field values at all: it only
+erased the third generic, because `FormFieldFromDefinition` declared its `form`
+as `UseFormReturn<TFieldValues>`. Carrying a defaulted
+`TTransformedValues extends FieldValues = TFieldValues` through
+`FormFieldFromDefinition` and `FormField` removed the need for it, and the generic
+is never read, since only `control` and `formState.errors` are used and both are
+typed by `TFieldValues` alone. That is the shape of the fix for a cast that only
+erases a generic, as opposed to the two above, which genuinely re-view the value
+type.
 
 ## The form primitives
 
@@ -253,6 +327,9 @@ primitives every form composes:
 - **`FormLabel`**, **`FormDescription`** and **`FormMessage`** render those parts.
   `FormLabel` takes `isRequired` and appends a " - optional" suffix when it is
   false, so required fields are the unmarked default.
+- **`FormSubtreeMessage`** renders every message at or below one path, for a value
+  bound as a single `Controller` but drawn as something other than a field. See
+  [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
 - **`FormControl`** is a Radix `Slot` that lands `id` and the `aria-*` attributes
   on its single child. Use it in hand-written forms whose leaf is a plain DOM
   input. The dynamic field path does not use it, because a `Slot` can only reach
@@ -307,8 +384,8 @@ fire on an intentional violation.
   submit controls should be `SubmitButton` anyway.
 - **The whole-form laundering casts `as unknown as UseFormReturn` and
   `as unknown as Control` are a lint error** across the whole renderer, so a new
-  one is caught anywhere and not only in the form files. The three shared `*Form`
-  components are exempted by a file-scoped override as a documented, tracked
+  one is caught anywhere and not only in the form files. `ProjectForm` and
+  `CollectionForm` are exempted by a file-scoped override as a documented, tracked
   exception (see [Form typing](#form-typing)). Banning globally while those exist
   would have left a red baseline, which is not a guardrail. It is a backstop, not
   a proof, since an aliased or single-step cast still slips through.
@@ -316,7 +393,9 @@ fire on an intentional violation.
   field type fails to compile until both have an entry.
 - **`SubmitButton` sets `type="submit"` structurally** and `AppForm` owns
   `noValidate`, the `id` and `stopPropagation`. None of these are props a caller
-  can get wrong.
+  can get wrong: `SubmitButtonProps` omits `type` and `asChild` outright, so
+  passing either is a compile error rather than a button that renders as a submit
+  control and does not submit.
 - **A test asserts no native constraint attributes.** An E2E spec in
   [`tests/specs/entries.spec.ts`](../../tests/specs/entries.spec.ts) checks that a
   rendered required text and number field carry no `required` / `min` / `max` /

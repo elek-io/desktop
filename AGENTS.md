@@ -45,10 +45,11 @@ Two rules follow:
 Read these before touching any form. Each is enforced (a compile error, a lint error, or a test), so breaking one fails CI. Full detail, including the rationale, is in [`contributing/renderer/forms.md`](./contributing/renderer/forms.md). The registries and everything specific to user-defined fields are in [`contributing/renderer/dynamic-form-field-generation.md`](./contributing/renderer/dynamic-form-field-generation.md).
 
 - Every form is an `AppForm` (the only place a `<form>` element is written; it owns `noValidate`, submit wiring, `stopPropagation`, the detached-button `id`, and the view-only `mode`).
-- Every submit control is a `SubmitButton` (sets `type="submit"` and the form association structurally).
+- Every submit control is a `SubmitButton` (sets `type="submit"` and the form association structurally, and does not accept `type` or `asChild`).
+- A failed submit is never silent. `AppForm` surfaces a validation error no mounted message covers, and routes a post-await submit rejection to the root error boundary.
 - Every field type has a `DefinitionSpec` and a `RenderSpec`; both registries are exhaustive `Record<FieldType, ...>`, so a new Core type is a compile error until both have an entry.
 - The registry emits no native constraint attributes (`required`/`min`/`max`/`minLength`/`maxLength`); zod is the sole validator. The only exception is the range `Slider`'s value domain.
-- By-type `CoreError` handling goes through `useAppMutation`, never a blanket `throwOnError: false`.
+- By-type `CoreError` handling goes through `useAppMutation`, never a blanket `throwOnError: false`. Its suppression of the wrapper's toast and log is per handled type, not per mutation.
 
 ## Testing notes
 

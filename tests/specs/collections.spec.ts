@@ -6,8 +6,10 @@ import {
   createCollection,
   createCollectionViaIpc,
   fillCollectionForm,
+  fillCollectionFormTranslations,
   navigateToCollectionCreate,
   navigateToCollectionSettings,
+  openAddFieldSheet,
   referenceFieldDefinition,
   textFieldDefinition,
 } from '../helpers/collection.js';
@@ -18,7 +20,10 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { reloadWindow } from '../helpers/navigation.js';
-import { createProjectViaIpc } from '../helpers/project.js';
+import {
+  addProjectLanguageViaIpc,
+  createProjectViaIpc,
+} from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
 test.describe('Collections', () => {
@@ -836,5 +841,143 @@ test.describe('Collections', () => {
     await expect(
       mainWindow.getByRole('button', { name: 'Save changes' })
     ).toBeEnabled();
+  });
+  // A Collection written when the Project had one language is missing every
+  // language added later. Core's language-aware update schema flags that on the
+  // Field definition itself (`fieldDefinitions.<i>.label.<language>`), a path the
+  // editor draws as a preview rather than as a bound field. Without a message
+  // target for the array, Save was a silent no-op: no dialog, no message, no
+  // navigation. See contributing/renderer/forms.md.
+  test('surfaces a Field-definition validation error instead of silently doing nothing', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition({ label: { en: 'Title' } })],
+    });
+    // Adding a language touches only the Project file, so the Collection above
+    // keeps its en-only labels, which is exactly the state a user lands in.
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+
+    // Fill the German side of everything the editor can actually edit. This both
+    // dirties the form (Save is dirty gated here) and leaves the Field
+    // definition's missing label as the only remaining problem.
+    await fillCollectionFormTranslations(mainWindow, {
+      'Collection name (Plural)': { de: 'Artikel' },
+      'Entry name (Singular)': { de: 'Artikel' },
+      Description: { de: 'Von den E2E-Tests erstellte Artikel' },
+    });
+
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    // The Field definitions area reports the error, naming the path it sits at.
+    // Assert the path, which is the app's own copy, not Core's message text.
+    await expect(
+      mainWindow.getByText('fieldDefinitions.0.label.de')
+    ).toBeVisible();
+
+    // It reports there and not through AppForm's whole-form backstop, which
+    // proves the error found a real home rather than the catch-all.
+    await expect(
+      mainWindow.getByText('not shown on any of its fields')
+    ).toBeHidden();
+
+    // Nothing was saved, so the route stays on the update form with the values
+    // intact to fix.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update$`)
+    );
+  });
+
+  // Core pins `isUnique` to false for every number backed field, so the switch
+  // shows a fixed fact instead of offering a choice that would only fail on save.
+  test('locks the Unique switch for number and range fields', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+
+    const numberSheet = await openAddFieldSheet(mainWindow, 'number');
+    await expect(
+      numberSheet.getByRole('switch', { name: 'Unique' })
+    ).toBeDisabled();
+    await expect(
+      numberSheet.getByText('Number fields cannot be unique.')
+    ).toBeVisible();
+    await mainWindow.keyboard.press('Escape');
+    await expect(numberSheet).toBeHidden();
+
+    // Range is number backed too, and additionally always required, so both
+    // switches are locked and each explains itself.
+    const rangeSheet = await openAddFieldSheet(mainWindow, 'range');
+    await expect(
+      rangeSheet.getByRole('switch', { name: 'Unique' })
+    ).toBeDisabled();
+    await expect(
+      rangeSheet.getByText('Number fields cannot be unique.')
+    ).toBeVisible();
+    await expect(
+      rangeSheet.getByRole('switch', { name: 'Required' })
+    ).toBeDisabled();
+    await expect(
+      rangeSheet.getByText('Ranges are always required')
+    ).toBeVisible();
+  });
+
+  // A unique field may not carry a default value, since one shared default could
+  // only ever be valid for a single Entry. Core refines that onto `defaultValue`,
+  // and the sheet validates the definition before appending it, so the
+  // combination is rejected where the user can still fix it.
+  test('rejects a unique field that also carries a default value', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, {
+      namePlural: 'Articles',
+      nameSingular: 'Article',
+      description: 'The articles of this blog',
+      slugPlural: 'articles',
+      slugSingular: 'article',
+    });
+
+    // The sheet stays open (expectRejected), which proves nothing was appended,
+    // and the Default value control carries the flag. Assert that rejected state
+    // rather than Core's message text.
+    await addFieldDefinition(mainWindow, {
+      label: 'Title',
+      description: 'The title of the article',
+      isUnique: true,
+      defaultValue: 'Untitled',
+      expectRejected: true,
+    });
+    const sheet = mainWindow.getByRole('dialog', {
+      name: 'Add a Field to this Collection',
+    });
+    await expect(sheet.getByLabel('Default value')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+
+    // Clearing the default leaves a valid unique field, so the same add is
+    // accepted and the definition appears in the editor.
+    await sheet.getByLabel('Default value').fill('');
+    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
+    await expect(sheet).toBeHidden();
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveCount(
+      1
+    );
   });
 });

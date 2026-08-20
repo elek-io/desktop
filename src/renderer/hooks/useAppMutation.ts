@@ -54,9 +54,17 @@ export function useAppMutation<
       const { type } = parseIpcError(error);
       return type === undefined || handled[type] === undefined;
     },
-    // The in-place surface reacts instead, so suppress the wrapper's toast and
-    // log. An unhandled type still reaches the boundary, which logs it as usual.
-    onError: () => {},
+    // Suppress the wrapper's toast and log for the handled types only, since
+    // their in-place surface reacts instead. Everything else keeps the wrapper's
+    // onError, so an unexpected failure still carries its per-mutation
+    // `{ method, objectType }` log alongside the boundary takeover.
+    onError: (error, variables, onMutateResult, context) => {
+      const { type } = parseIpcError(error);
+      if (type !== undefined && handled[type] !== undefined) {
+        return;
+      }
+      return options.onError?.(error, variables, onMutateResult, context);
+    },
   });
 
   const handleError = (error: unknown): void => {

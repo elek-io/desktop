@@ -229,21 +229,22 @@ export default [
     },
   },
 
-  // The three shared form components view a generic UseFormReturn as a concrete
+  // Two shared form components view a generic UseFormReturn as a concrete
   // Update*Props to address their literal fields (the RHF generic-component path
   // tax; the render-fold removed the leaf-input casts but not these wrapper ones).
   // They are the only remaining hits, so the cast ban is exempted for them alone,
   // as a documented, tracked exception - they still render through
   // <AppForm>/<SubmitButton>, so the raw-form and submit bans stay. asset-form.tsx
   // is deliberately NOT here: it stays generic and casts field names
-  // (`as FieldPath<T>`) instead, so it never launders the whole form.
-  // @todo Retire these three casts (e.g. per-mode non-generic components), then
+  // (`as FieldPath<T>`) instead, so it never launders the whole form. entry-form.tsx
+  // left this list once FormFieldFromDefinition took a defaulted TTransformedValues,
+  // which is the shape of the fix for the remaining two.
+  // @todo Retire these two casts (e.g. per-mode non-generic components), then
   // delete this block so the cast ban is global.
   {
     files: [
       'src/renderer/components/forms/project-form.tsx',
       'src/renderer/components/forms/collection-form.tsx',
-      'src/renderer/components/forms/entry-form.tsx',
     ],
     rules: {
       'no-restricted-syntax': [
