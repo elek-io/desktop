@@ -9,6 +9,7 @@ import { type SubmitHandler, useForm } from 'react-hook-form';
 import { ProjectForm } from '@renderer/components/forms/project-form';
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
+import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@renderer/components/ui/dialog';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
@@ -35,9 +37,7 @@ export const Route = createFileRoute('/projects/$projectId/settings/general')({
   component: ProjectSettingsGeneralPage,
 });
 
-// Why the normal delete was blocked, keyed by the CoreError type preserved
-// across IPC. Unlisted types (and non-Core errors) fall back to the generic
-// sentence below.
+// Copy for a blocked delete, keyed by CoreError type.
 const forceDeleteDescriptions: Partial<Record<CoreErrorType, string>> = {
   PreconditionFailed:
     'This Project only exists on this device (no remote copy). Force delete removes it permanently.',
@@ -90,23 +90,29 @@ function ProjectSettingsGeneralPage(): ReactElement {
   const [isForceDeleteDialogOpen, setIsForceDeleteDialogOpen] = useState(false);
   const [forceDeleteError, setForceDeleteError] = useState<unknown>(null);
 
-  const { mutateAsync: deleteProject, isPending: isDeletingProject } =
-    useMutation({
-      ...queryOptions.projects.delete,
-      // Only the delete guard is handled in place by the force-delete dialog: a
-      // local-only Project (PreconditionFailed) or one with unpushed commits
-      // (Conflict). Every other failure is unexpected, so let it reach the root
-      // error boundary, which logs it and reports it to Sentry.
-      throwOnError: (error) => {
-        const { type } = parseIpcError(error);
-        return type !== 'PreconditionFailed' && type !== 'Conflict';
-      },
-      onError: () => {
-        // The force-delete dialog is the surface for the handled guard, so
-        // suppress the wrapper's error toast. Unexpected failures are logged and
-        // reported by the boundary instead.
-      },
-    });
+  // The delete guard opens the force-delete dialog instead.
+  // See contributing/error-handling.md.
+  const openForceDeleteDialog = (error: unknown): void => {
+    setForceDeleteError(error);
+    setIsDeleteDialogOpen(false);
+    setIsForceDeleteDialogOpen(true);
+  };
+  const {
+    mutateAsync: deleteProject,
+    isPending: isDeletingProject,
+    handleError: handleDeleteError,
+  } = useAppMutation(queryOptions.projects.delete, {
+    handled: {
+      PreconditionFailed: openForceDeleteDialog,
+      Conflict: openForceDeleteDialog,
+    },
+  });
+
+  // The forced delete handles no type on purpose. Reusing the guard-handling
+  // mutation above would intercept a Conflict or PreconditionFailed from the
+  // forced call too, and with no handleError that would swallow it silently.
+  const { mutateAsync: forceDeleteProject, isPending: isForceDeletingProject } =
+    useAppMutation(queryOptions.projects.delete, { handled: {} });
 
   function Description(): ReactElement {
     return <>Here you will be able to tweak this project to your liking</>;
@@ -114,17 +120,11 @@ function ProjectSettingsGeneralPage(): ReactElement {
 
   function Actions(): ReactElement {
     return (
-      <>
-        <Button
-          type="submit"
-          form={formId}
-          Icon={Check}
-          isLoading={isUpdatingProject}
-          disabled={updateProjectForm.formState.isDirty === false}
-        >
+      <FormActions form={updateProjectForm} id={formId}>
+        <SubmitButton requireDirty Icon={Check}>
           Save changes
-        </Button>
-      </>
+        </SubmitButton>
+      </FormActions>
     );
   }
 
@@ -137,28 +137,18 @@ function ProjectSettingsGeneralPage(): ReactElement {
       await deleteProject({ id: projectId });
       await router.navigate({ to: '/projects' });
     } catch (error) {
-      const { type } = parseIpcError(error);
-      // Only the guard offers a force delete (see throwOnError above): a
-      // local-only Project (PreconditionFailed) or one with unpushed commits
-      // (Conflict). Keep the error so the force-delete dialog can explain the
-      // reason. Any other failure was already routed to the root error boundary,
-      // so there is nothing to handle here.
-      if (type === 'PreconditionFailed' || type === 'Conflict') {
-        setForceDeleteError(error);
-        setIsDeleteDialogOpen(false);
-        setIsForceDeleteDialogOpen(true);
-      }
+      handleDeleteError(error);
     }
   };
 
   const onForceDelete = async (): Promise<void> => {
     try {
-      await deleteProject({ id: projectId, force: true });
+      await forceDeleteProject({ id: projectId, force: true });
       await router.navigate({ to: '/projects' });
     } catch {
       // A force delete bypasses the guard, so any failure here is unexpected.
-      // throwOnError routes it to the root error boundary (which logs and reports
-      // it); close this dialog so it is not left in front of the boundary.
+      // forceDeleteProject handles no type, so throwOnError routes it to the
+      // boundary. Close this dialog so it is not left in front of it.
       setIsForceDeleteDialogOpen(false);
     }
   };
@@ -243,7 +233,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
                     <Button
                       Icon={Trash}
                       variant="destructive"
-                      isLoading={isDeletingProject}
+                      isLoading={isForceDeletingProject}
                       onClick={() => void onForceDelete()}
                     >
                       Yes, delete

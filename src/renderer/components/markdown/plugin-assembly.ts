@@ -30,7 +30,6 @@ import {
   hardbreakSchema,
   headingAttr,
   headingIdGenerator,
-  headingKeymap,
   headingSchema,
   hrAttr,
   hrSchema,
@@ -87,7 +86,6 @@ import {
   wrapInBulletListCommand,
   wrapInBulletListInputRule,
   wrapInHeadingCommand,
-  wrapInHeadingInputRule,
   wrapInOrderedListCommand,
   wrapInOrderedListInputRule,
 } from '@milkdown/kit/preset/commonmark';
@@ -128,6 +126,10 @@ import {
   entryReferenceSchema,
   insertEntryReferenceCommand,
 } from './plugins/entry-reference';
+import {
+  restrictedHeadingInputRule,
+  restrictedHeadingKeymap,
+} from './plugins/restricted-heading';
 
 // Milkdown slices come in tuple and single-plugin flavors, same as the
 // preset bundles handle them before flattening
@@ -176,14 +178,17 @@ export function buildEditorPlugins(
   }
 
   if (features.headings.length > 0) {
+    // The stock input rule and keymap always accept depths 1-6, which Core
+    // then rejects for a field that allows only some of them. Both are
+    // replaced with versions restricted to features.headings.
     slices.push(
       headingIdGenerator,
       headingAttr,
       headingSchema,
-      wrapInHeadingInputRule,
+      restrictedHeadingInputRule(features.headings),
       wrapInHeadingCommand,
       downgradeHeadingCommand,
-      headingKeymap,
+      restrictedHeadingKeymap(features.headings),
       syncHeadingIdPlugin
     );
   }

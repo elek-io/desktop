@@ -11,6 +11,7 @@ import {
 } from '@renderer/components/asset-teaser';
 import { AssetForm } from '@renderer/components/forms/asset-form';
 import { Page } from '@renderer/components/page';
+import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -48,9 +49,7 @@ function ProjectAssetsPage(): React.JSX.Element {
       limit: 0,
     })
   );
-  const { mutateAsync: createAsset, isPending: isCreatingAsset } = useMutation(
-    queryOptions.assets.create
-  );
+  const { mutateAsync: createAsset } = useMutation(queryOptions.assets.create);
   const [isAddAssetDialogOpen, setIsAddAssetDialogOpen] =
     useState<boolean>(false);
   const addAssetFormId = useId();
@@ -181,14 +180,9 @@ function ProjectAssetsPage(): React.JSX.Element {
                 Cancel
               </Button>
             </DialogClose>
-            <Button
-              type="submit"
-              form={addAssetFormId}
-              Icon={Plus}
-              isLoading={isCreatingAsset}
-            >
-              Add Asset
-            </Button>
+            <FormActions form={createAssetForm} id={addAssetFormId}>
+              <SubmitButton Icon={Plus}>Add Asset</SubmitButton>
+            </FormActions>
           </DialogFooter>
         </DialogContent>
       </Dialog>

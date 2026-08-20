@@ -14,6 +14,12 @@ Users need the flexibility to create custom content types without modifying code
 
 We can't hardcode these forms since they are user-defined, instead we use **field definitions** to describe each field's properties, allowing the UI to render appropriate form controls dynamically.
 
+## Before you start
+
+This document covers the layer that is specific to user-defined fields: field definitions, the two registries keyed on Core's `FieldType`, and how an Entry form is rendered from them.
+
+The shared form layer that every form in the app uses is in [forms.md](./forms.md): `AppForm` and `SubmitButton`, detached submit buttons, view-only mode, `useAppMutation`, form typing, and the typed field wrappers with their value contracts. **Read its [form invariants](./forms.md#form-invariants) first.** Two of the five are about the registries below, and each is enforced by a compile error, a lint error or a test, so breaking one fails CI.
+
 ## Field Definitions
 
 A field definition is a JSON object that contains all necessary information to render and validate a form field.
@@ -82,18 +88,28 @@ When users create or update a Collection, they use a visual editor to define the
 
 ### Field Definition Form Architecture
 
-Each field type has its own definition form so it can expose only the options that type supports (for example `min` / `max` for `number`, `ofCollections` for `entry`). These live in [`components/forms/`](../../src/renderer/components/forms/) as `<type>-value-definition-form.tsx` files. The pieces:
+Field-definition authoring is driven by a **registry** keyed on Core's `FieldType`, not a per-type form file plus a central dispatcher. One `AppForm` is mounted for the field type being added, and submission is native through a detached `SubmitButton` (`form={id}`), not an imperative ref. The pieces:
 
-- **`FieldDefinitionForm`** ([`forms/util.tsx`](../../src/renderer/components/forms/util.tsx)) is the dispatcher. It holds one `useForm()` per field type and renders the per-type form matching the selected `fieldType`. It exposes an imperative `addDefinition()` through a ref, which validates the active form, rejects duplicate slugs, and appends the new definition to the Collection's `useFieldArray`.
+- **`FIELD_DEFINITION_REGISTRY`** ([`forms/field-definition-registry.tsx`](../../src/renderer/components/forms/field-definition-registry.tsx)) is the table: an exhaustive `Record<FieldType, (props) => ReactElement>`. Because it is exhaustive, adding a field type to Core is a compile error here until it has an entry. The trivial scalar types (`text`, `textarea`, `number`, `toggle`, `email`, `date`, `datetime`, `time`, `url`, `telephone`, `ipv4`, `range`) are pure data: each is a `DefinitionSpec` (the Core schema that validates it, a fresh draft via `makeDefaults`, and an optional `Extras` for the type-specific controls) rendered through the shared `DefinitionDraft`. The complex types (`select`, `slug`, `asset`, `entry`, `markdown`) live in their own `<type>-field-definition.tsx` file, referenced from the table. `dynamic` cannot be authored yet: its entry renders a short note, and it is listed in `unauthorableFieldTypes` next to the registry, which is what the picker uses to disable it.
+- **`DefinitionDraft`** ([`forms/field-definition-draft.tsx`](../../src/renderer/components/forms/field-definition-draft.tsx)) is the shared engine. Given a `DefinitionSpec` it builds one real `AppForm`: it calls `useForm()` with the spec's resolver and defaults, rejects duplicate slugs, wraps `DefaultFieldDefinitionForm`, and renders the spec's `Extras` as children. This replaces the per-type wrapper file and its dedicated `useForm` instance, so there is one live form, remounted when the picker changes type, not 18 always-mounted ones. Its value-typed helpers (`DefaultValueInputField`, `MinMaxRow`) let a spec's `Extras` compose the common controls without a bespoke file.
 - **`DefaultFieldDefinitionForm`** ([`forms/default-field-definition-form.tsx`](../../src/renderer/components/forms/default-field-definition-form.tsx)) renders the fields every definition shares (label, slug, description, `inputWidth`, `isRequired`, `isUnique`, `isDisabled`) and takes the type-specific inputs as `children`. It also auto-generates the slug from the label until the user edits the slug manually.
-- **Per-type forms** (e.g. [`text-value-definition-form.tsx`](../../src/renderer/components/forms/text-value-definition-form.tsx)) wrap `DefaultFieldDefinitionForm` and add only the inputs unique to that type.
 
-One field type is special: Core backs `select` with two schemas, one for text options and one for number options. The select definition form ([`select-value-definition-form.tsx`](../../src/renderer/components/forms/select-value-definition-form.tsx)) renders a chooser for the option value type and mounts the matching variant, each with its own `useForm()` draft. `FieldDefinitionForm` holds which variant is active and its `addDefinition()` validates that variant's form. The shared base form receives the resolved variant (`stringSelect` or `numberSelect`) as its `fieldType`, which is why that prop is the widened `AuthorableFieldType` instead of Core's `FieldType`.
+### Writing a `DefinitionSpec`
 
-`CollectionForm` ([`forms/collection-form.tsx`](../../src/renderer/components/forms/collection-form.tsx)) renders the field-type `Select` and the editor sheet, holds the `FieldDefinitionForm` ref, and calls `addDefinition()` from the sheet's footer button.
+A spec ([`field-definition-draft.tsx`](../../src/renderer/components/forms/field-definition-draft.tsx)) is four things: the `authorableFieldType`, a `resolver` built from Core's per-type schema, a `makeDefaults` that returns a fresh draft, and an optional `Extras` component for the controls beyond the shared base. Three rules govern what may go in one.
+
+**Type-specific context arrives through `DefinitionExtrasProps`, and it is shared.** Every `Extras` receives `form`, `currentLanguage`, `supportedLanguages` and the Collection's current `fieldDefinitions`, whether it needs them or not. Only `select` reads the languages (its option labels are translatable) and only `slug` reads the sibling definitions (to offer non-slug string fields as slug sources, whose real ids Core's `slugSourceReferencesSuperRefinement` then validates). When a new type needs context the others do not, widen this one shared type rather than branching in the shared base or the sheet.
+
+**A type's data fetching lives inside its own `Extras`.** The `entry` spec's `ofCollections` picker is backed by a Collections list query, and both the query and its `projectId` hook stay in the `Extras` component. The shared engine never learns that a query exists, which is what keeps `DefinitionDraft` free of per-type knowledge.
+
+**One spec may diverge between its form values and its resolver output.** `markdown` is the only case. Its recursive `defaultValue` mdast tree blows react-hook-form's path-type instantiation, and the form never edits it (v1 keeps markdown defaults null), so its form values pin `defaultValue` to null while the resolver still yields a full `MarkdownFieldDefinition`. That divergence is the single `as unknown as Resolver` cast in the authoring layer, and it lives at that one seam. Do not reach for it elsewhere.
+
+One field type is special: Core backs `select` with two schemas, one for text options and one for number options. The select authoring file ([`select-field-definition.tsx`](../../src/renderer/components/forms/select-field-definition.tsx)) holds a `DefinitionSpec` for each variant (`stringSelect` / `numberSelect`) and a value-type picker that mounts the matching one. The shared base form receives the resolved variant as its `fieldType`, which is why that prop is the widened `AuthorableFieldType` instead of Core's `FieldType`.
+
+The **Add Field sheet** ([`forms/add-field-sheet.tsx`](../../src/renderer/components/forms/add-field-sheet.tsx)) renders the field-type picker, looks the selected type up in the registry, renders that one entry in its body, and submits it with a single detached `SubmitButton` in its footer. `CollectionForm` ([`forms/collection-form.tsx`](../../src/renderer/components/forms/collection-form.tsx)) embeds `<AddFieldSheet>` and receives each new definition through an `onAppend` callback.
 
 > [!NOTE]
-> The type `Select` lists every Core `fieldType`, but `FieldDefinitionForm` only implements a subset. Selecting an unimplemented type (`dynamic`) throws "Unsupported definition form". Adding a new field type means adding a per-type form, a `useForm()` and the matching `addDefinition` case in `util.tsx`, and confirming Core's `fieldTypeSchema` includes it.
+> The type `Select` lists every Core `fieldType`. To add authoring for a new one, add a `DefinitionSpec` (and, for a complex type, a `<type>-field-definition.tsx` file), register it in `FIELD_DEFINITION_REGISTRY`, and remove it from `unauthorableFieldTypes`. The `Record<FieldType, ...>` type makes this non-optional: the registry does not compile until the new type has an entry. Confirm Core's `fieldTypeSchema` includes it.
 
 ## Rendering Dynamic Forms
 
@@ -105,74 +121,62 @@ When rendering a form to create or edit an Entry, we iterate over the Collection
 
 The dynamic form rendering system is built with layered components, each adding functionality:
 
-#### Base UI Components
+#### Base UI Components and typed field wrappers
 
-Located in [`components/ui/`](../../src/renderer/components/ui/):
+The base controls in [`components/ui/`](../../src/renderer/components/ui/) (**`Input`**, **`Textarea`**, **`Switch`**, **`Slider`**, **`Select`**) and the typed wrappers over them in [`components/ui/form.tsx`](../../src/renderer/components/ui/form.tsx) (`FormInputField`, `FormDatetimeField`, `FormSelectField` and the rest) are shared with every hand-written form, so they are documented in [forms.md](./forms.md#typed-field-wrappers-and-their-value-contracts) together with the value contracts they carry. Do not hand-roll a raw `<Input>` in a field renderer.
 
-- **`Input`**, **`Textarea`**, **`Switch`**, **`Slider`**, **`Select`**: basic form controls with styling and [Radix UI primitives](https://www.radix-ui.com/primitives) for accessibility
-- These are the fundamental building blocks used across the application
+Two things about them matter specifically here:
 
-#### Typed field wrappers
+- The leaf wrappers are **value-typed**: they receive the already-bound `field` (value/onChange/onBlur/ref) plus a `controlProps` bag (`id`, `aria-describedby`, `aria-invalid`, and `aria-required` on the controls that accept it) to place on the real input. They do not know or build a form path. The path lives at the single `Controller` in `FormFieldFromDefinition`, which is what lets one wrapper serve both a static form and a generated one.
+- `FormSlugField` resolves its source ids through `useFieldDefinitions()` ([`hooks/useFieldDefinitions.ts`](../../src/renderer/hooks/useFieldDefinitions.ts)), provided by the `FieldDefinitionsProvider` ([`providers/FieldDefinitionsProvider.tsx`](../../src/renderer/providers/FieldDefinitionsProvider.tsx)) that `EntryForm` wraps its fields in. Outside of it (for example the Collection editor preview) the input is simply manual.
 
-Also in [`components/ui/form.tsx`](../../src/renderer/components/ui/form.tsx): a layer of reusable wrappers that bind a base control to React Hook Form and own value transformation - `FormInputField`, `FormTextareaField`, `FormDateField`, `FormDatetimeField`, `FormSelectField`, `FormRangeField`, `FormToggleField`, `FormAssetField`, `FormEntryField` (plus `TranslatableFormInputField` / `TranslatableFormTextareaField`).
+`TranslatableFormInputField` / `TranslatableFormTextareaField` are thin presets over the shared `TranslatableField` (see below) for the static string / textarea cases.
 
-These wrappers carry the value contract Core expects, so do not hand-roll a raw `<Input>`:
+#### The render registry
 
-- They return `null` for empty values instead of empty strings (Core schemas use `.nullable()`, so `''` would fail validation)
-- `FormInputField` with `type="number"` coerces the string input to a number
-- `FormInputField` maps field types without an HTML input type of the same name (`telephone` to `tel`, `ipv4` and `slug` to `text`, `datetime` to `datetime-local`)
-- `FormDatetimeField` converts between the ISO UTC datetime Core stores and the local time the `datetime-local` input speaks
-- `FormSlugField` derives the slug live from its source fields (same language) while the value is empty or still equals the last derived value, so a stored slug is never rewritten. Manual input is made canonical on blur. It resolves its source ids through `useFieldDefinitions()` ([`hooks/useFieldDefinitions.ts`](../../src/renderer/hooks/useFieldDefinitions.ts)), provided by the `FieldDefinitionsProvider` ([`providers/FieldDefinitionsProvider.tsx`](../../src/renderer/providers/FieldDefinitionsProvider.tsx)) that `EntryForm` wraps its fields in - outside of it (for example the Collection editor preview) the input is simply manual
-- `markdown` fields render the Milkdown based `MarkdownEditor` through a thin adapter - see [`markdown-editor.md`](./markdown-editor.md)
-- `TranslatableFormInputField` / `TranslatableFormTextareaField` must forward the props the parent `FormControl` injects (`id`, `aria-describedby`, `aria-invalid`) onto the inner control in **both** the single and multi language branches. Those props carry the label, description and error associations. A branch that renders the bare control without them silently breaks accessibility: the `<label htmlFor>` no longer points at the input and the validation error is not announced. The single-language project is the common case, so a gap there affects most forms
+Rendering is driven by a **registry** keyed on Core's `FieldType`, the RENDER facet that shares the `FieldType` spine with the authoring `FIELD_DEFINITION_REGISTRY`. It replaced the old 18-case switch, the hand-synced `renderableFieldTypes` set, and the three near-identical translatable wrappers. Everything below lives in [`components/ui/form.tsx`](../../src/renderer/components/ui/form.tsx).
 
-#### Field definition components
+- **`RENDER_REGISTRY`** is an exhaustive `Record<FieldType, RenderSpec>`. Because it is exhaustive, adding a field type to Core is a compile error here until it has an entry. Each `RenderSpec` has:
+  - `renderInput(props)` - the value-typed leaf described above. It receives `{ field, fieldDefinition, disabled, controlProps }` and renders the matching typed wrapper.
+  - `translatable` - whether the Value is per-language. Core stores every value type except `component` as a per-language record (see Core's `docs/fields.md`), so every rendered type is translatable; only the `dynamic` placeholder is not.
 
-The three layers that turn a field definition into a rendered field, all in [`components/ui/form.tsx`](../../src/renderer/components/ui/form.tsx). Only `FormFieldFromDefinition` is exported; the other two are internal helpers. The file is large (~1500 lines) so the line numbers below are approximate and drift:
+  The `dynamic` entry keeps the record exhaustive and draws the muted "can't be displayed yet" placeholder so rendering a Collection that carries an unsupported type (via Core, the API, or a migration) does not crash. This guarantee covers the rendering phase only: the entry form still seeds defaults through `defaultEntryValue`, which throws for an unsupported value type (see [`not-yet-implemented.md`](../not-yet-implemented.md)).
 
-**1. `FormComponentFromFieldDefinition`** (internal, around line 1080)
+- **`FormComponentFromFieldDefinition`** (internal) is a `RENDER_REGISTRY[fieldType].renderInput(...)` lookup. The only thing it decides is `disabled`, which is the definition's `isDisabled` OR the enclosing `AppForm`'s view mode (read through `useAppFormMode()`). Folding the mode in here rather than per type is what keeps a non-native leaf, the markdown `contenteditable`, from staying editable in a diff. See [forms.md](./forms.md#view-only-forms-and-diffs).
 
-- Maps a field definition's `fieldType` to the correct typed field wrapper
-- Throws for field types the renderer does not support yet (`dynamic`)
+- **The registry emits no native constraint attributes.** zod (through react-hook-form) is the only validator and the form is `noValidate`, so the leaves never set `required` / `min` / `max` / `minLength` / `maxLength`. The one exception is the range `Slider`'s `min` / `max`, which are its functional value domain, not HTML constraints. A test asserts a required field renders with no `required` attribute. Required-ness is still exposed to assistive tech, but through `aria-required` (an ARIA state, not a native constraint that could block submit), not native `required`: `FormComponentFromFieldDefinition` sets `aria-required` on the control for the string and number scalars plus select, the controls whose role accepts it (`ariaRequiredFor`). The range slider, toggle, reference and markdown fields do not accept it and convey required through their label.
 
-**2. `FormComponentFromFieldDefinitionTranslatable`** (internal, around line 1240)
+- **`ControlledLeaf`** (internal) reads the surrounding `FormItem` / `FormField` ids through `useFormField` and hands them to the leaf as `controlProps`, so `id` and `aria-*` land on the real focusable input **by construction**. This replaced wrapping the leaf in a `<FormControl>` Radix `Slot`, which could only reach the leaf's outermost element - a wrapper `<div>` or a non-DOM Radix root for select and reference fields.
 
-- Wraps `FormComponentFromFieldDefinition`
-- Adds multi-language support for translatable fields
-- Renders a dialog for entering translations in all supported languages, with a language switcher button next to the field
+- **`TranslatableField`** (internal) is the single per-language wrapper. With one Project language it renders the leaf directly; with more it renders the leaf plus a dialog that edits every supported language. It owns the multi-field name convention (the name's last dot-segment is the language, so the sibling paths derive from it) and the `hasErrorsInTranslations` traversal that flags the dialog trigger when a hidden translation is invalid.
 
-**3. `FormFieldFromDefinition`** (exported, recommended entry point, around line 1378)
+- **`FormFieldFromDefinition`** (exported, the entry point) owns the single `FormField` / `Controller` at `name` and composes the label (which marks optional fields with an "- optional" suffix; the control carries `aria-required` for the required state), the registry leaf (through `TranslatableField` when translatable), the description and the validation message. Use it when rendering an Entry's fields.
 
-- Use this component when rendering form fields from definitions
-- Wraps `FormComponentFromFieldDefinitionTranslatable` with:
-  - Label (with required indicator)
-  - Description text
-  - Validation error messages
-  - Proper spacing and layout
+- **`FormFieldDefinitionPreview`** (exported) is the collection editor's non-editable preview. It draws the same label / leaf / description plus the drag / edit / delete chrome, but is **not** bound to a form: the leaf holds a static, disabled Value, so there are no phantom form paths and, when the selected renderer provides a form control, the label associates with a real (disabled) input, so those previews are addressable by `getByLabel`. The `dynamic` placeholder renders no control, so it is the exception and is not label-addressable.
 
 ### Example Usage
 
 ```typescript
+import { AppForm } from '@renderer/components/ui/app-form';
 import { FormFieldFromDefinition } from '@renderer/components/ui/form';
 
 // In your component (see entry-form.tsx):
 const project = /* ... current Project ... */;
 const collection = /* ... Collection with fieldDefinitions ... */;
 
+// AppForm is the only place a <form> element is written (see forms.md).
 return (
-  <Form {...form}>
-    <form>
-      {collection.fieldDefinitions.map((fieldDefinition) => (
-        <FormFieldFromDefinition
-          key={fieldDefinition.id}
-          fieldDefinition={fieldDefinition}
-          form={form}
-          name={`values.${fieldDefinition.slug}.content.${project.settings.language.default}`}
-          supportedLanguages={project.settings.language.supported}
-        />
-      ))}
-    </form>
-  </Form>
+  <AppForm form={form} onSubmit={onSubmit} id={id}>
+    {collection.fieldDefinitions.map((fieldDefinition) => (
+      <FormFieldFromDefinition
+        key={fieldDefinition.id}
+        fieldDefinition={fieldDefinition}
+        form={form}
+        name={`values.${fieldDefinition.slug}.content.${project.settings.language.default}`}
+        supportedLanguages={project.settings.language.supported}
+      />
+    ))}
+  </AppForm>
 );
 ```
 
@@ -186,11 +190,13 @@ Their inputs fetch data from within the form. `FormAssetField` and `FormEntryFie
 
 Their definition forms add type-specific options:
 
-- The asset definition form ([`asset-value-definition-form.tsx`](../../src/renderer/components/forms/asset-value-definition-form.tsx)) exposes `min` / `max` (how many Assets may be selected).
-- The entry definition form ([`entry-value-definition-form.tsx`](../../src/renderer/components/forms/entry-value-definition-form.tsx)) adds an `ofCollections` list that restricts which Collections can be referenced (backed by a Collections query), plus `min` / `max`.
+- The asset definition form ([`asset-field-definition.tsx`](../../src/renderer/components/forms/asset-field-definition.tsx)) exposes `min` / `max` (how many Assets may be selected) plus `ofAssetMimeTypes` through its spec's `Extras`.
+- The entry definition form ([`entry-field-definition.tsx`](../../src/renderer/components/forms/entry-field-definition.tsx)) adds an `ofCollections` list that restricts which Collections can be referenced (backed by a Collections query), plus `min` / `max`.
 
-> [!NOTE]
-> Core's asset definition also carries `ofAssetMimeTypes`, which the asset definition form does not expose yet. Keep that in mind before assuming the asset form is complete.
+`ofAssetMimeTypes` is authored through the shared [`asset-mime-type-picker.tsx`](../../src/renderer/components/forms/asset-mime-type-picker.tsx), used by both the asset spec and the markdown spec (where it constrains `assetReference` targets and only shows while `features.assetReferences` is on). It offers the distinct MIME types of the Project's own Assets rather than a hardcoded universe, and an empty selection means "any type".
+
+> [!IMPORTANT]
+> A reference value's stored shape is not symmetric. An asset reference is `{ id, objectType: 'asset' }`, but Core's `valueContentReferenceToEntrySchema` also requires `collectionId` on an **entry** reference, and refines it against the definition's `ofCollections`. `FormEntryField` therefore takes the collection from the selected Entry's own collection at the point of selection. Do not reintroduce a cast over `field.onChange` here: the missing `collectionId` was invisible to `tsc` for exactly that reason, and it made every entry-reference field unsaveable.
 
 ## Validation with Zod
 
@@ -262,30 +268,11 @@ const form = useForm({
 // Form validates automatically and shows error messages via FormMessage component
 ```
 
-### Submitting from the page header (`form={id}` and `noValidate`)
+### Submitting the form
 
-A form's primary action (Create, Save changes) is rendered in the `Page` header
-through `Page`'s `actions`, which is outside the `<form>` subtree. The button
-associates back to the form with `type="submit"` and `form={id}`, where the same
-`id` (from `useId()`) is passed to the form component. `Button` defaults to
-`type="button"`, so a submit button has to opt in with `type="submit"`.
+Entry forms submit like every other form in the app, through `AppForm` and a detached `SubmitButton`. That layer, along with `useAppMutation` for handling an expected `CoreError` in place (the Entry unique-value `Conflict` is the canonical case) and the [form typing rules](./forms.md#form-typing) that the generated schemas make necessary, is documented in [forms.md](./forms.md).
 
-Because that button submits the form natively, the form must set `noValidate`.
-Zod (through react-hook-form) is the single source of validation, and the inputs
-carry native constraints too (`FormFieldFromDefinition` sets `required` from
-`isRequired`, and the Collection editor renders required field-definition preview
-inputs). Without `noValidate` the browser's native constraint check runs first,
-blocks the submit on an empty required input, and shows its own default message,
-so the `submit` event and `handleSubmit` never fire and no Zod error is shown.
-Every react-hook-form form that submits (the shared `*Form` components and the
-standalone route forms) sets `noValidate` for this reason.
-
-### Form typing (react-hook-form + generated schemas)
-
-The generated entry and collection schemas transform a loose input into the strict `*Props` output (their `values` is a `z.pipe`, and Collections carry recursive mdast), so their `z.input` differs from their `z.output`. Two rules follow, both applied throughout the form code:
-
-- **Do not pass an explicit `useForm<...>()` generic** when the resolver comes from a generated or recursive Core schema. Let react-hook-form infer the types from `zodResolver(schema)`: the form values become the schema input (a loose `values` record) and `handleSubmit` yields the typed output (`CreateEntryProps` and so on). What actually breaks is passing the `*Props` output type as the sole generic: it makes the resolver unassignable and, for the recursive Collection schema, produces the "two unrelated types" error. A matched `useForm<z.input, unknown, z.output>` triple does type-check, even for the recursive schema, but inference is simpler and is what the code uses.
-- **Shared form components are generic over the schema input shape**, not the `*Props` union, so a concrete caller form (create, update, or a view-only diff) is assignable without variance errors. `EntryForm` / `CollectionForm` / `ProjectForm` / `DefaultFieldDefinitionForm` take `UseFormReturn<TFieldValues, unknown, TTransformedValues>` and narrow to a concrete props type internally to address literal paths (RHF's `FieldPath` cannot resolve a path for an unresolved generic). The Collection editor manages its `fieldDefinitions` field array as opaque `{ id }` rows because react-hook-form cannot type a field array whose element is the deep `FieldDefinitionOrGroup` union.
+One typing point is specific to this side. The Collection editor binds its `fieldDefinitions` as a single `Controller`-bound value, edited through typed append / remove / move helpers, not as a `useFieldArray` of opaque `{ id }` rows. react-hook-form cannot type a field array whose element is the deep `FieldDefinitionOrGroup` union, and the opaque rows previously overwrote the definitions' real ids, which was the latent slug-source id bug. See [`collection-form.tsx`](../../src/renderer/components/forms/collection-form.tsx).
 
 **Benefits:**
 

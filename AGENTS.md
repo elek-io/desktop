@@ -40,6 +40,17 @@ Two rules follow:
 - Keep comments short and put deeper detail in the docs. Avoid em-dashes and semicolons, use simple sentences for readability.
 - Handle errors by type. When a handler catches some errors but not all, catch only the `CoreError` types you can act on in place and let the rest reach the root error boundary, which logs to Core and reports to Sentry. Never opt a whole mutation out with a blanket `throwOnError: false`. See [`contributing/error-handling.md`](./contributing/error-handling.md).
 
+## Form invariants
+
+Read these before touching any form. Each is enforced (a compile error, a lint error, or a test), so breaking one fails CI. Full detail, including the rationale, is in [`contributing/renderer/forms.md`](./contributing/renderer/forms.md). The registries and everything specific to user-defined fields are in [`contributing/renderer/dynamic-form-field-generation.md`](./contributing/renderer/dynamic-form-field-generation.md).
+
+- Every form is an `AppForm` (the only place a `<form>` element is written; it owns `noValidate`, submit wiring, `stopPropagation`, the detached-button `id`, and the view-only `mode`).
+- Every submit control is a `SubmitButton` (sets `type="submit"` and the form association structurally, and does not accept `type` or `asChild`).
+- A failed submit is never silent. `AppForm` surfaces a validation error no mounted message covers, and routes a post-await submit rejection to the root error boundary.
+- Every field type has a `DefinitionSpec` and a `RenderSpec`; both registries are exhaustive `Record<FieldType, ...>`, so a new Core type is a compile error until both have an entry.
+- The registry emits no native constraint attributes (`required`/`min`/`max`/`minLength`/`maxLength`); zod is the sole validator. The only exception is the range `Slider`'s value domain.
+- By-type `CoreError` handling goes through `useAppMutation`, never a blanket `throwOnError: false`. Its suppression of the wrapper's toast and log is per handled type, not per mutation.
+
 ## Testing notes
 
 - Playwright E2E tests live in `tests/` and run against the packaged app. See [`contributing/testing.md`](./contributing/testing.md) for how the fixtures, isolation and CI work. Run `pnpm test` to verify a change end to end, and make sure `pnpm check` passes before considering it done.

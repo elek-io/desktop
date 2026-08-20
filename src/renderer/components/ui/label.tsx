@@ -22,7 +22,9 @@ function Label({
     >
       {children}
       {isRequired === false && (
-        <span className="text-sm text-muted-foreground">- optional</span>
+        // The leading space keeps the composed accessible name readable ("Title -
+        // optional", not "Title- optional"). The flex gap collapses it visually.
+        <span className="text-sm text-muted-foreground">{' - optional'}</span>
       )}
     </LabelPrimitive.Root>
   );

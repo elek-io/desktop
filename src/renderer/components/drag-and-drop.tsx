@@ -20,7 +20,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Slot } from '@radix-ui/react-slot';
 import { GripVerticalIcon } from 'lucide-react';
 import * as React from 'react';
-import type { FieldValues, UseFieldArrayReturn } from 'react-hook-form';
 
 import { Button } from '@renderer/components/ui/button';
 import { cn } from '@renderer/lib/utils';
@@ -80,12 +79,15 @@ function DraggableComponent({
   );
 }
 
-function SortableFieldArray<T extends FieldValues>({
+function SortableFieldArray({
   children,
-  fieldArray,
+  items,
+  onReorder,
 }: {
   children: React.ReactNode;
-  fieldArray: UseFieldArrayReturn<T>;
+  // The rows to reorder, identified by id.
+  items: { id: string }[];
+  onReorder: (activeId: string, overId: string) => void;
 }): React.ReactElement {
   const [activeId, setActiveId] = React.useState<UniqueIdentifier | null>(null);
   const sensors = useSensors(
@@ -103,13 +105,7 @@ function SortableFieldArray<T extends FieldValues>({
   function handleDragEnd(event: DragEndEvent): void {
     const { active, over } = event;
     if (over !== null && active.id !== over.id) {
-      const oldIndex = fieldArray.fields.findIndex(
-        (item) => item.id === active.id
-      );
-      const newIndex = fieldArray.fields.findIndex(
-        (item) => item.id === over.id
-      );
-      fieldArray.move(oldIndex, newIndex);
+      onReorder(String(active.id), String(over.id));
     }
   }
 
@@ -121,10 +117,7 @@ function SortableFieldArray<T extends FieldValues>({
       onDragEnd={handleDragEnd}
       sensors={sensors}
     >
-      <SortableContext
-        items={fieldArray.fields}
-        strategy={verticalListSortingStrategy}
-      >
+      <SortableContext items={items} strategy={verticalListSortingStrategy}>
         {children}
       </SortableContext>
       <DragOverlay>

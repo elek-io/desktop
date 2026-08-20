@@ -34,7 +34,7 @@ export function DatePicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button id="date-picker" Icon={CalendarIcon} {...props}>
+        <Button Icon={CalendarIcon} {...props}>
           <span className="sr-only">Select date</span>
         </Button>
       </PopoverTrigger>

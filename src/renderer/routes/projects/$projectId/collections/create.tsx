@@ -1,21 +1,34 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useEffect, useId, type ReactElement } from 'react';
+import { useEffect, useId, useState, type ReactElement } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 
 import { CollectionForm } from '@renderer/components/forms/collection-form';
 import { Page } from '@renderer/components/page';
+import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@renderer/components/ui/dialog';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
+import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { translatableDefault } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
+  type CoreErrorType,
   type CreateCollectionProps,
-  createCollectionSchema,
+  getCreateCollectionSchemaFromLanguages,
 } from '@elek-io/core';
 
 export const Route = createFileRoute('/projects/$projectId/collections/create')(
@@ -24,6 +37,16 @@ export const Route = createFileRoute('/projects/$projectId/collections/create')(
   }
 );
 
+// Copy for a blocked create, keyed by CoreError type. Slug uniqueness is only
+// checked by Core, so a collision arrives as a Conflict rather than a zod error.
+const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
+  Conflict:
+    'Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again.',
+};
+
+const saveErrorFallback =
+  'This Collection could not be created. Please review your changes and try again.';
+
 function ProjectCollectionCreate(): ReactElement {
   const router = useRouter();
   const { projectId } = Route.useParams();
@@ -31,12 +54,37 @@ function ProjectCollectionCreate(): ReactElement {
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
-  const { mutateAsync: createCollection, isPending: isCreatingCollection } =
-    useMutation(queryOptions.collections.create);
+  const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  // A slug already taken by another Collection is handled in place.
+  // See contributing/error-handling.md.
+  const {
+    mutateAsync: createCollection,
+    isPending: isCreatingCollection,
+    handleError: handleSaveError,
+  } = useAppMutation(queryOptions.collections.create, {
+    handled: {
+      Conflict: (error) => {
+        setSaveError(error);
+        setIsSaveErrorDialogOpen(true);
+      },
+    },
+  });
   const formId = useId();
 
+  // Resolve against Core's language-aware schema, which requires a value for
+  // every Project language. Falls back to an empty language set until the
+  // Project loads, matching the Entry routes. This is Core's own strict
+  // validator, so Desktop adds no refinement of its own.
+  const generatedCreateCollectionSchema =
+    isReadingProject === false
+      ? getCreateCollectionSchemaFromLanguages(
+          project.settings.language.supported
+        )
+      : getCreateCollectionSchemaFromLanguages([]);
+
   const createCollectionForm = useForm({
-    resolver: zodResolver(createCollectionSchema),
+    resolver: zodResolver(generatedCreateCollectionSchema),
     defaultValues: {
       projectId,
       icon: 'home',
@@ -94,21 +142,22 @@ function ProjectCollectionCreate(): ReactElement {
 
   function Actions(): ReactElement {
     return (
-      <>
-        <Button
-          type="submit"
-          form={formId}
-          Icon={Check}
-          isLoading={isCreatingCollection}
-        >
-          Create Collection
-        </Button>
-      </>
+      <FormActions form={createCollectionForm} id={formId}>
+        <SubmitButton Icon={Check}>Create Collection</SubmitButton>
+      </FormActions>
     );
   }
 
   const onCreate: SubmitHandler<CreateCollectionProps> = async (props) => {
-    const collection = await createCollection(props);
+    let collection;
+    try {
+      collection = await createCollection(props);
+    } catch (error) {
+      // A slug collision is surfaced in place by the dialog below. Any other
+      // failure was already routed to the boundary, so this is a no-op.
+      handleSaveError(error);
+      return;
+    }
     await router.navigate({
       to: '/projects/$projectId/collections/$collectionId',
       params: {
@@ -117,6 +166,8 @@ function ProjectCollectionCreate(): ReactElement {
       },
     });
   };
+
+  const { type: saveErrorType } = parseIpcError(saveError);
 
   if (isReadingProject) {
     return <></>;
@@ -135,6 +186,31 @@ function ProjectCollectionCreate(): ReactElement {
         isViewOnly={isCreatingCollection}
         onFormSubmit={onCreate}
       />
+
+      <Dialog
+        open={isSaveErrorDialogOpen}
+        onOpenChange={setIsSaveErrorDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Could not create this Collection</DialogTitle>
+            <DialogDescription>
+              {describeCoreError(
+                saveErrorType,
+                saveErrorDescriptions,
+                saveErrorFallback
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Close
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }

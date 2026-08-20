@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@elek-io/core':
-        specifier: 0.21.0
-        version: 0.21.0(dugite@3.2.2)(zod@4.4.3)
+        specifier: 0.22.0
+        version: 0.22.0(dugite@3.2.2)(zod@4.4.3)
       '@sentry/electron':
         specifier: 7.15.0
         version: 7.15.0(@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1))
@@ -625,8 +625,8 @@ packages:
     engines: {node: '>=14.14'}
     hasBin: true
 
-  '@elek-io/core@0.21.0':
-    resolution: {integrity: sha512-dz5Xw7jwNj4byqxzb2i+Fn623IbmYH7DCYqgdo4IoyXFuG8DW8NVxsFcstG4ZNjLzmPVTI0Q2KQ8jTCkWclN2Q==}
+  '@elek-io/core@0.22.0':
+    resolution: {integrity: sha512-uIZTX+Hygmdon/ZJqEOJdlFREXNPDdVi9Idd4QweQORhctyguqrljNbAF7bJufy6Xp2scN+66Y7fKHsuGBj2GA==}
     hasBin: true
     peerDependencies:
       astro: ^6.0.0
@@ -6307,7 +6307,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@elek-io/core@0.21.0(dugite@3.2.2)(zod@4.4.3)':
+  '@elek-io/core@0.22.0(dugite@3.2.2)(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 2.0.5(hono@4.12.26)
       '@hono/zod-openapi': 1.4.0(hono@4.12.26)(zod@4.4.3)

@@ -7,7 +7,7 @@ import { type SubmitHandler, useForm } from 'react-hook-form';
 
 import { ProjectForm } from '@renderer/components/forms/project-form';
 import { Page } from '@renderer/components/page';
-import { Button } from '@renderer/components/ui/button';
+import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { queryOptions } from '@renderer/queries';
 
@@ -49,16 +49,9 @@ function CreateProjectPage(): ReactElement {
 
   function Actions(): ReactElement {
     return (
-      <>
-        <Button
-          type="submit"
-          form={formId}
-          Icon={Check}
-          isLoading={isCreatingProject}
-        >
-          Create Project
-        </Button>
-      </>
+      <FormActions form={createProjectForm} id={formId}>
+        <SubmitButton Icon={Check}>Create Project</SubmitButton>
+      </FormActions>
     );
   }
 

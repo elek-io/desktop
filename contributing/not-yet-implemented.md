@@ -18,27 +18,28 @@ Core's `fieldTypeSchema` defines 18 field types. The client implements a subset.
 - **Working end to end** (17): `text`, `textarea`, `number`, `range`, `toggle`, `asset`, `entry`, `date`, `datetime`, `time`, `email`, `url`, `telephone`, `ipv4`, `select`, `slug`, `markdown`.
 - **Not yet implemented** (1): `dynamic`. It is shown **disabled** in the "Add Field" picker so it cannot be authored, and any that still reaches the client (through Core, the API, or a migration) renders as a muted placeholder instead of crashing (see [Rendering unsupported field types](#rendering-unsupported-field-types)).
 
-Two sets are the source of truth for "what is implemented". Keep them in sync when adding a type:
+Two things are the source of truth for "what is implemented", one per side (authoring and rendering). Keep them current when adding a type:
 
-- `unimplementedFieldTypes` in [`collection-form.tsx`](../src/renderer/components/forms/collection-form.tsx) - types disabled in the picker.
-- `renderableFieldTypes` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) - types `FormComponentFromFieldDefinition` can draw.
+- `FIELD_DEFINITION_REGISTRY` in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx) - the exhaustive `Record<FieldType, ...>` of authoring forms. A type that cannot be authored yet still needs an entry (a short note) plus a listing in `unauthorableFieldTypes` beside it, which is what disables it in the "Add Field" picker.
+- `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) - the exhaustive `Record<FieldType, RenderSpec>` of leaf inputs `FormComponentFromFieldDefinition` can draw. A type that cannot be rendered yet still needs an entry (`dynamic` draws the muted placeholder and is marked `translatable: false`).
 
 ### What the missing type needs
 
 - **Core support**: `dynamicFieldDefinitionSchema` (`valueType: 'component'`, `ofComponents` referencing Component ids, min/max item counts) and the Component object type (`componentFileSchema`, `makeComponentsContext`, `resolveOfComponents`). A dynamic Value's content is a flat array of `ComponentItem`s, not a per-language record.
 - **Client today**: the client has no Components support at all - no queries, no IPC surface, no routes, no CRUD UI. A dynamic field is disabled in the picker and renders the muted placeholder. `defaultEntryValue()` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)) still throws for `valueType: 'component'`, so an entry form for a Collection that already contains a dynamic field (via Core or the API) crashes.
-- **Where to start**: Components come first - list/read queries plus routes and CRUD UI, mirroring how Collections are wired. Then the dynamic definition form (an `ofComponents` picker) and a polymorphic block editor in the entry form. Note the per-language `Translatable` wrapper in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) assumes per-language content and does not fit dynamic Values.
+- **Where to start**: Components come first - list/read queries plus routes and CRUD UI, mirroring how Collections are wired. Then the dynamic definition form (an `ofComponents` picker) and a polymorphic block editor in the entry form. Note the `TranslatableField` wrapper in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) assumes per-language content and does not fit dynamic Values, which is why the `dynamic` `RenderSpec` is `translatable: false`.
 
 ### To implement a type
 
-1. Add a `<type>-value-definition-form.tsx`, plus a `useForm` and an `addDefinition` case in [`forms/util.tsx`](../src/renderer/components/forms/util.tsx).
-2. Add a case to `FormComponentFromFieldDefinition` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx), and add the type to `renderableFieldTypes`.
-3. Remove the type from `unimplementedFieldTypes` in [`collection-form.tsx`](../src/renderer/components/forms/collection-form.tsx).
-4. Confirm Core's `fieldTypeSchema` includes it.
+Authoring and rendering are two independent sides; a type can gain one before the other.
+
+1. **Authoring**: add a `DefinitionSpec` for the type. A trivial scalar is pure data (resolver + `makeDefaults` + optional `Extras`) added in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx); a complex type gets its own `<type>-field-definition.tsx`. Register it in `FIELD_DEFINITION_REGISTRY` (an exhaustive `Record<FieldType, ...>`, so it will not compile until you do) and remove it from `unauthorableFieldTypes` so the picker enables it.
+2. **Rendering**: add a `RenderSpec` entry (a `renderInput` leaf plus `translatable`) to `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx). The exhaustive `Record<FieldType, RenderSpec>` will not compile until you do.
+3. Confirm Core's `fieldTypeSchema` includes it.
 
 ### Rendering unsupported field types
 
-`FormFieldFromDefinition` ([`ui/form.tsx`](../src/renderer/components/ui/form.tsx)) checks `renderableFieldTypes` and renders a muted "can't be displayed yet" placeholder for any type it does not know. So a Collection that contains an unsupported field (from Core, the API, or a migration) does not crash the entry form, the collection editor, or a diff. The actual renderer components are still missing (see above).
+`RENDER_REGISTRY` ([`ui/form.tsx`](../src/renderer/components/ui/form.tsx)) is exhaustive over `FieldType`, and the `dynamic` entry draws a muted "can't be displayed yet" placeholder. So rendering a not-yet-renderable field (from Core, the API, or a migration) in the collection editor or a diff does not crash. The entry create and update forms are the exception: they seed defaults through `defaultEntryValue` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)), which throws for a value type it does not build, so a Collection carrying an unsupported field still fails to initialize its entry form. That failure reaches the error boundary rather than degrading in place. The actual renderer components are still missing (see above).
 
 ## Field definition editing
 
@@ -46,12 +47,6 @@ Two sets are the source of truth for "what is implemented". Keep them in sync wh
 - **Client today**: definitions are add-only. The Edit pencil button `FormFieldFromDefinition` renders in the collection editor has no `onClick` ([`ui/form.tsx`](../src/renderer/components/ui/form.tsx)), and the per-type definition forms have no update mode. Only adding, reordering (drag) and deleting work.
 - **Where to start**: wire the Edit button to open the sheet with the matching per-type form hydrated from the existing definition, and replace via the field array on submit.
 - **Notes**: `select` (options lists) and `markdown` (feature toggles) raise the priority - those are the definitions users will want to revise. Editing also raises data questions Core should answer first, like what happens to stored Values referencing a removed select option.
-
-## `ofAssetMimeTypes`: asset field and markdown definition forms
-
-- **Core support**: `assetFieldDefinitionSchema` and `markdownFieldDefinitionSchema` carry `ofAssetMimeTypes` to restrict which mime types an Asset (or a markdown assetReference) may use.
-- **Client today**: neither definition form exposes it, so it always stays at its default (empty, any type). The markdown editor's asset picker already filters by it when it is set through Core or the API.
-- **Where to start**: add a mime type selector shared by [`asset-value-definition-form.tsx`](../src/renderer/components/forms/asset-value-definition-form.tsx) and [`markdown-value-definition-form.tsx`](../src/renderer/components/forms/markdown-value-definition-form.tsx).
 
 ## Markdown: v1 simplifications
 
@@ -64,8 +59,8 @@ See [`renderer/markdown-editor.md`](./renderer/markdown-editor.md) for the edito
 ## Field definition groups: authoring
 
 - **Core support**: `fieldDefinitionGroupSchema` and `FieldDefinitionOrGroup`. Groups can be created, nested members added, and reordered at the data level.
-- **Client today**: groups are display only. The entry form and collection editor render existing groups as a `FieldSet`, but there is no UI to create a group, move fields into or out of one, or reorder groups. The collection field array is typed as opaque `{ id }` rows, which does not scale to authoring.
-- **Where to start**: see the note in [`dynamic-form-field-generation.md`](./renderer/dynamic-form-field-generation.md). When authoring lands, consider managing `fieldDefinitions` as typed React state (a `useReducer` over `FieldDefinitionOrGroup[]`) instead of `useFieldArray`, so nesting and reordering are typed tree operations.
+- **Client today**: groups are display only. The entry form and collection editor render existing groups as a `FieldSet`, but there is no UI to create a group, move fields into or out of one, or reorder groups.
+- **Where to start**: the state layer is already in place. `collection-form.tsx` binds `fieldDefinitions` as a single `Controller`-bound `FieldDefinitionOrGroup[]` value, edited through typed `appendDefinition` / `removeDefinition` / `moveDefinition` helpers, which replaced the opaque `{ id }` rows that did not scale to authoring. Group authoring means adding helpers alongside those (create a group, move a definition into or out of one) and the UI to drive them. Do not move the array out to a `useReducer` outside react-hook-form: it would sit outside the resolver, so the Collection schema's refinements would not run and `formState.isDirty` would not flip. See [`forms.md`](./renderer/forms.md#why-it-is-built-this-way) and [`dynamic-form-field-generation.md`](./renderer/dynamic-form-field-generation.md).
 
 ## Entry table: value columns render empty
 

@@ -8,10 +8,13 @@ import { type SubmitHandler, useForm } from 'react-hook-form';
 import { CommitHistory } from '@renderer/components/commit-history';
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
-import { Button } from '@renderer/components/ui/button';
+import {
+  AppForm,
+  FormActions,
+  SubmitButton,
+} from '@renderer/components/ui/app-form';
 import { Card } from '@renderer/components/ui/card';
 import {
-  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -55,14 +58,10 @@ function UserProfilePage(): ReactElement {
   );
   const { mutateAsync: startApi } = useMutation(queryOptions.api.start);
   const { mutateAsync: stopApi } = useMutation(queryOptions.api.stop);
-  const { mutateAsync: setUser, isPending: isSettingUser } = useMutation(
-    queryOptions.user.set
-  );
+  const { mutateAsync: setUser } = useMutation(queryOptions.user.set);
   const formId = useId();
   const setUserForm = useForm<SetUserProps>({
-    resolver: async (data, context, options) => {
-      return zodResolver(setUserSchema)(data, context, options);
-    },
+    resolver: zodResolver(setUserSchema),
     defaultValues: {
       userType: 'local',
       name: '',
@@ -123,17 +122,11 @@ function UserProfilePage(): ReactElement {
 
   function Actions(): ReactElement {
     return (
-      <>
-        <Button
-          type="submit"
-          form={formId}
-          isLoading={isSettingUser}
-          disabled={setUserForm.formState.isDirty === false}
-          Icon={Check}
-        >
+      <FormActions form={setUserForm} id={formId}>
+        <SubmitButton requireDirty Icon={Check}>
           Save local User
-        </Button>
-      </>
+        </SubmitButton>
+      </FormActions>
     );
   }
 
@@ -173,153 +166,144 @@ function UserProfilePage(): ReactElement {
     >
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
         <Card className="py-0 lg:col-span-2">
-          <Form {...setUserForm}>
-            {/* noValidate: zod (through RHF) owns validation. Without it the
-            browser's native constraint check on required inputs blocks submit
-            before handleSubmit runs. */}
-            <form
-              id={formId}
-              noValidate
-              onSubmit={setUserForm.handleSubmit(onSetUser)}
+          <AppForm
+            form={setUserForm}
+            onSubmit={onSetUser}
+            id={formId}
+            mode={isGettingUser ? 'view' : 'edit'}
+          >
+            <PageSection
+              title="Local User"
+              description="Fill out your information below and watch it influence how your future changes will look like on the right."
+              className="rounded-t-xl border-t-0"
             >
-              <fieldset disabled={isGettingUser}>
-                <PageSection
-                  title="Local User"
-                  description="Fill out your information below and watch it influence how your future changes will look like on the right."
-                  className="rounded-t-xl border-t-0"
-                >
-                  <div className="grid gap-6">
-                    <FormField
-                      control={setUserForm.control}
-                      name="language"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel isRequired>Preferred language</FormLabel>
-                          <FormControl>
-                            <Select
-                              value={field.value}
-                              onValueChange={field.onChange}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {supportedLanguageSchema.options.map(
-                                  (option) => {
-                                    return (
-                                      <SelectItem key={option} value={option}>
-                                        {option}
-                                      </SelectItem>
-                                    );
-                                  }
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormDescription>
-                            Changing your preferred language will attempt to
-                            translate everything you see in elek.io Desktop. You
-                            can help translate elek.io Desktop by contributing
-                            to our{' '}
-                            <a
-                              href="https://github.com/elek-io/desktop"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              GitHub repository
-                            </a>
-                            .
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={setUserForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel isRequired>Full name</FormLabel>
-                          <FormControl>
-                            <FormInputField field={field} type="text" />
-                          </FormControl>
-                          <FormDescription>
-                            Your name will be used by others to identify changes
-                            made by you.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={setUserForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel isRequired>Email</FormLabel>
-                          <FormControl>
-                            <FormInputField field={field} type="email" />
-                          </FormControl>
-                          <FormDescription>
-                            Your email allows other members of Projects to
-                            contact you.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </PageSection>
-                <PageSection
-                  title="Local API"
-                  description={<LocalApiDescription />}
-                >
-                  <div className="grid gap-6">
-                    <FormField
-                      control={setUserForm.control}
-                      name="localApi.port"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel isRequired>Port</FormLabel>
-                          <FormControl>
-                            <FormInputField field={field} type="number" />
-                          </FormControl>
-                          <FormDescription>
-                            The port used to access the local API. Make sure it
-                            is not in use by another application.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={setUserForm.control}
-                      name="localApi.isEnabled"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-800">
-                          <div className="mr-4">
-                            <FormLabel isRequired>Enabled</FormLabel>
-                            <FormDescription>
-                              By enabling the local API it will start whenever
-                              elek.io Desktop is opened. This allows you to read
-                              local Project data from other applications.
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </PageSection>
-              </fieldset>
-            </form>
-          </Form>
+              <div className="grid gap-6">
+                <FormField
+                  control={setUserForm.control}
+                  name="language"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel isRequired>Preferred language</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {supportedLanguageSchema.options.map((option) => {
+                              return (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormDescription>
+                        Changing your preferred language will attempt to
+                        translate everything you see in elek.io Desktop. You can
+                        help translate elek.io Desktop by contributing to our{' '}
+                        <a
+                          href="https://github.com/elek-io/desktop"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          GitHub repository
+                        </a>
+                        .
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={setUserForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel isRequired>Full name</FormLabel>
+                      <FormControl>
+                        <FormInputField field={field} type="text" />
+                      </FormControl>
+                      <FormDescription>
+                        Your name will be used by others to identify changes
+                        made by you.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={setUserForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel isRequired>Email</FormLabel>
+                      <FormControl>
+                        <FormInputField field={field} type="email" />
+                      </FormControl>
+                      <FormDescription>
+                        Your email allows other members of Projects to contact
+                        you.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </PageSection>
+            <PageSection
+              title="Local API"
+              description={<LocalApiDescription />}
+            >
+              <div className="grid gap-6">
+                <FormField
+                  control={setUserForm.control}
+                  name="localApi.port"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel isRequired>Port</FormLabel>
+                      <FormControl>
+                        <FormInputField field={field} type="number" />
+                      </FormControl>
+                      <FormDescription>
+                        The port used to access the local API. Make sure it is
+                        not in use by another application.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={setUserForm.control}
+                  name="localApi.isEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-800">
+                      <div className="mr-4">
+                        <FormLabel isRequired>Enabled</FormLabel>
+                        <FormDescription>
+                          By enabling the local API it will start whenever
+                          elek.io Desktop is opened. This allows you to read
+                          local Project data from other applications.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </PageSection>
+          </AppForm>
         </Card>
         <aside className="grid grid-cols-1">
           <PageSection

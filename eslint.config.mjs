@@ -6,6 +6,44 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks';
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
 
+// Form guardrails. These make the fixed bug classes hard to
+// reintroduce; see contributing/renderer/forms.md. They are wired as
+// `no-restricted-syntax` selectors below. Because a rule's options fully replace
+// (not merge with) an earlier config's, every renderer block that touches
+// `no-restricted-syntax` re-lists the shared enum ban.
+const noEnumDeclaration = {
+  selector: 'TSEnumDeclaration',
+  message: 'Use const objects instead of enums for better tree-shaking',
+};
+// Only app-form.tsx may write a <form> element; every other form is an <AppForm>.
+const noRawForm = {
+  selector: "JSXOpeningElement[name.name='form']",
+  message:
+    'Render forms through <AppForm> (components/ui/app-form.tsx), which owns noValidate, submit wiring and stopPropagation.',
+};
+// Only SubmitButton (in app-form.tsx) may set a literal type="submit". A computed
+// type={...} slips through - acceptable, this is a backstop, not a proof.
+const noLiteralSubmitType = {
+  selector: "JSXAttribute[name.name='type'][value.value='submit']",
+  message:
+    'Use <SubmitButton>, which sets type=submit and the form association structurally.',
+};
+// Ban laundering a form object through `as unknown as UseFormReturn` / `... as
+// Control`. Two explicit selectors rather than one regex, so the config cannot
+// fail to parse. A backstop: an aliased or single-step cast slips through.
+const castLaunderingMessage =
+  'Do not launder a form object through `as unknown as UseFormReturn` / `as unknown as Control`. Shape the types so the cast is not needed (AGENTS.md, contributing/renderer/forms.md).';
+const noFormReturnLaunderingCast = {
+  selector:
+    "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword'][typeAnnotation.typeName.name='UseFormReturn']",
+  message: castLaunderingMessage,
+};
+const noControlLaunderingCast = {
+  selector:
+    "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword'][typeAnnotation.typeName.name='Control']",
+  message: castLaunderingMessage,
+};
+
 export default [
   // Global ignores
   {
@@ -63,13 +101,7 @@ export default [
       'no-var': 'error',
       eqeqeq: ['error', 'always', { null: 'ignore' }], // Enforces strict equality operators
       // Discourage enums in favor of const objects
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'TSEnumDeclaration',
-          message: 'Use const objects instead of enums for better tree-shaking',
-        },
-      ],
+      'no-restricted-syntax': ['error', noEnumDeclaration],
     },
   },
 
@@ -161,6 +193,50 @@ export default [
       'no-console': 'error',
     },
   },
+
+  // Form guardrails for the renderer (see the constants above and
+  // contributing/renderer/forms.md). Ban a raw <form>, a literal
+  // type="submit", and the whole-form laundering casts everywhere in the
+  // renderer. The two exemption blocks that follow narrow this for the files that
+  // legitimately need it. The enum ban is re-listed because these options replace
+  // the base block's rather than merge with it.
+  {
+    files: ['src/renderer/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        noEnumDeclaration,
+        noRawForm,
+        noLiteralSubmitType,
+        noFormReturnLaunderingCast,
+        noControlLaunderingCast,
+      ],
+    },
+  },
+
+  // app-form.tsx is the single blessed home for a <form> element and the literal
+  // type="submit" (inside SubmitButton), so drop those two bans here. The enum
+  // and form-cast bans still apply (app-form has neither, and must not gain one).
+  {
+    files: ['src/renderer/components/ui/app-form.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        noEnumDeclaration,
+        noFormReturnLaunderingCast,
+        noControlLaunderingCast,
+      ],
+    },
+  },
+
+  // The cast ban is global. The two remaining whole-form casts (project-form.tsx
+  // and collection-form.tsx, the RHF generic-component path tax) each carry a
+  // narrowly scoped `eslint-disable-next-line` at the cast site instead of a
+  // file-wide exemption, so any new whole-form launder in those files still
+  // fails. asset-form.tsx casts field names (`as FieldPath<T>`) rather than the
+  // whole form, and entry-form.tsx dropped its cast once FormFieldFromDefinition
+  // took a defaulted TTransformedValues.
+  // @todo Retire the two remaining casts (e.g. per-mode non-generic components).
 
   // Prettier must be last
   eslintConfigPrettier,

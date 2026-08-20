@@ -21,6 +21,7 @@ Then proceed to the specific topics based on your interests or contribution goal
 - **[Routing](./renderer/routing.md)** - File-based routing, layout routes, hash history, and why data is fetched in components rather than route guards
 - **[Loading and Updating Data](./renderer/loading-and-updating-data.md)** - TanStack Query patterns for data fetching and mutations
 - **[Error Handling](./error-handling.md)** - how a `CoreError` keeps its `type` across IPC, how errors surface in the UI, the guide to handling expected errors in place, and where things are logged locally and to Sentry
+- **[Forms](./renderer/forms.md)** - The shared form layer every form uses: the `AppForm` and `SubmitButton` primitives, detached submit buttons, handling submit errors by type, form typing, the typed field wrappers, and the enforced invariants
 - **[Dynamic Form Field Generation](./renderer/dynamic-form-field-generation.md)** - How user-defined forms work with field definitions
 - **[Markdown Editor](./renderer/markdown-editor.md)** - The Milkdown based mdast editor for markdown fields: the tree bridge, feature gating, and reference nodes
 - **[Breadcrumb Navigation](./renderer/breadcrumb-navigation.md)** - Route-based breadcrumb system for hierarchical navigation

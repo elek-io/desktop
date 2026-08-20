@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { DownloadCloud, Plus } from 'lucide-react';
@@ -9,6 +10,11 @@ import {
   ProjectCard,
   ProjectCardSkeleton,
 } from '@renderer/components/project-card';
+import {
+  AppForm,
+  FormActions,
+  SubmitButton,
+} from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -27,7 +33,6 @@ import {
   EmptyTitle,
 } from '@renderer/components/ui/empty';
 import {
-  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -39,7 +44,7 @@ import {
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import queryOptions from '@renderer/queries/options';
 
-import { type CloneProjectProps } from '@elek-io/core';
+import { type CloneProjectProps, cloneProjectSchema } from '@elek-io/core';
 
 export const Route = createFileRoute('/projects/')({
   component: ListProjectsPage,
@@ -53,12 +58,14 @@ function ListProjectsPage(): ReactElement {
     })
   );
   const cloneProjectForm = useForm<CloneProjectProps>({
+    resolver: zodResolver(cloneProjectSchema),
     defaultValues: {
       url: '',
     },
   });
-  const { mutateAsync: cloneProject, isPending: isCloningProject } =
-    useMutation(queryOptions.projects.clone);
+  const { mutateAsync: cloneProject } = useMutation(
+    queryOptions.projects.clone
+  );
   const [isCloningDialogOpen, setIsCloningDialogOpen] = useState(false);
   const cloneFormId = useId();
 
@@ -144,42 +151,32 @@ function ListProjectsPage(): ReactElement {
           </DialogHeader>
 
           <DialogBody>
-            <Form {...cloneProjectForm}>
-              {/* noValidate: zod (through RHF) owns validation. Without it the
-              browser's native constraint check on required inputs blocks submit
-              before handleSubmit runs. */}
-              <form
-                id={cloneFormId}
-                noValidate
-                onSubmit={cloneProjectForm.handleSubmit(onCloneProject)}
-              >
-                <FormField
-                  control={cloneProjectForm.control}
-                  name="url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel isRequired>URL</FormLabel>
-                      <FormControl>
-                        <FormInputField field={field} type="text" />
-                      </FormControl>
-                      <FormDescription />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </form>
-            </Form>
+            <AppForm
+              form={cloneProjectForm}
+              onSubmit={onCloneProject}
+              id={cloneFormId}
+            >
+              <FormField
+                control={cloneProjectForm.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel isRequired>URL</FormLabel>
+                    <FormControl>
+                      <FormInputField field={field} type="text" />
+                    </FormControl>
+                    <FormDescription />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </AppForm>
           </DialogBody>
 
           <DialogFooter>
-            <Button
-              type="submit"
-              form={cloneFormId}
-              Icon={DownloadCloud}
-              isLoading={isCloningProject}
-            >
-              Clone
-            </Button>
+            <FormActions form={cloneProjectForm} id={cloneFormId}>
+              <SubmitButton Icon={DownloadCloud}>Clone</SubmitButton>
+            </FormActions>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -51,7 +51,7 @@ Rules the bridge enforces:
 | `rawHtml`                                              | `remarkHtmlTransformer`, `remarkPreserveEmptyLinePlugin`                                      |
 | any GFM node (tables, strikethrough, footnotes, tasks) | `remarkGFMPlugin`                                                                             |
 
-Heading depth restriction is UI-level (the toolbar only offers `features.headings` depths); a pasted disallowed depth is caught by the generated entry schema at save. Pasting markdown text that uses a disabled feature degrades to plain text - if that ever proves too disruptive, the documented fallback is to register the full schema and gate only input rules and toolbar, letting zod reject at save.
+Heading depths are restricted for typed input, the toolbar and keyboard shortcuts: the toolbar offers only `features.headings` depths, and [`plugins/restricted-heading.ts`](../../src/renderer/components/markdown/plugins/restricted-heading.ts) replaces Milkdown's stock input rule and keymap (both of which always accept 1-6) with versions built from the configured depths, so `#### ` and `Mod-Alt-4` do nothing in a field that disallows depth 4. A _pasted_ disallowed depth still rides through the shared heading schema and is caught by the generated entry schema at save. Pasting markdown text that uses a disabled feature degrades to plain text - if that ever proves too disruptive, the documented fallback is to register the full schema and gate only input rules and toolbar, letting zod reject at save.
 
 ## Reference nodes
 

@@ -1,20 +1,33 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useEffect, useId, type ReactElement } from 'react';
+import { useEffect, useId, useState, type ReactElement } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 
 import { EntryForm } from '@renderer/components/forms/entry-form';
 import { Page } from '@renderer/components/page';
+import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@renderer/components/ui/dialog';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { defaultEntryValue } from '@renderer/lib/entry';
 import { queryOptions } from '@renderer/queries';
 
 import {
+  type CoreErrorType,
   flattenFieldDefinitions,
   getUpdateEntrySchemaFromFieldDefinitions,
   type UpdateEntryProps,
@@ -25,6 +38,15 @@ export const Route = createFileRoute(
 )({
   component: UpdateEntryPage,
 });
+
+// Copy for a blocked update, keyed by CoreError type.
+const conflictDescriptions: Partial<Record<CoreErrorType, string>> = {
+  Conflict:
+    'One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again.',
+};
+
+const conflictFallback =
+  'This Entry could not be saved. Please review your values and try again.';
 
 function UpdateEntryPage(): ReactElement {
   const router = useRouter();
@@ -47,9 +69,22 @@ function UpdateEntryPage(): ReactElement {
       id: entryId,
     })
   );
-  const { mutateAsync: updateEntry, isPending: isUpdatingEntry } = useMutation(
-    queryOptions.entries.update
-  );
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+  const [conflictError, setConflictError] = useState<unknown>(null);
+  // A unique-value collision is handled in place on this form.
+  // See contributing/error-handling.md.
+  const {
+    mutateAsync: updateEntry,
+    isPending: isUpdatingEntry,
+    handleError: handleConflict,
+  } = useAppMutation(queryOptions.entries.update, {
+    handled: {
+      Conflict: (error) => {
+        setConflictError(error);
+        setIsConflictDialogOpen(true);
+      },
+    },
+  });
   const generatedUpdateEntrySchema =
     collection && project
       ? getUpdateEntrySchemaFromFieldDefinitions(
@@ -108,14 +143,20 @@ function UpdateEntryPage(): ReactElement {
   ]);
 
   const onUpdateEntry: SubmitHandler<UpdateEntryProps> = async (entry) => {
-    await updateEntry(entry);
-    await router.navigate({
-      to: '/projects/$projectId/collections/$collectionId',
-      params: {
-        projectId,
-        collectionId,
-      },
-    });
+    try {
+      await updateEntry(entry);
+      await router.navigate({
+        to: '/projects/$projectId/collections/$collectionId',
+        params: {
+          projectId,
+          collectionId,
+        },
+      });
+    } catch (error) {
+      // A unique-value collision is surfaced in place by the dialog below. Any
+      // other failure was already routed to the boundary, so this is a no-op.
+      handleConflict(error);
+    }
   };
 
   // @todo Should map to a Value defined by the user (which could also be used in the Collection index page and breadcrumb to always show a "title" of the Entry)
@@ -131,14 +172,8 @@ function UpdateEntryPage(): ReactElement {
 
   function Actions(): ReactElement {
     return (
-      <>
-        <Button
-          type="submit"
-          form={formId}
-          Icon={Check}
-          isLoading={isUpdatingEntry}
-          disabled={updateEntryForm.formState.isDirty === false}
-        >
+      <FormActions form={updateEntryForm} id={formId}>
+        <SubmitButton requireDirty Icon={Check}>
           Update{' '}
           {collection
             ? translateContent({
@@ -146,8 +181,8 @@ function UpdateEntryPage(): ReactElement {
                 record: collection.name.singular,
               })
             : 'Entry'}
-        </Button>
-      </>
+        </SubmitButton>
+      </FormActions>
     );
   }
 
@@ -155,16 +190,45 @@ function UpdateEntryPage(): ReactElement {
     return <></>;
   }
 
+  const { type: conflictErrorType } = parseIpcError(conflictError);
+
   return (
-    <Page title={title} description={<Description />} actions={<Actions />}>
-      <EntryForm
-        id={formId}
-        entryForm={updateEntryForm}
-        fieldDefinitions={collection.fieldDefinitions}
-        project={project}
-        isViewOnly={isReadingEntry || isUpdatingEntry}
-        onFormSubmit={onUpdateEntry}
-      />
-    </Page>
+    <>
+      <Page title={title} description={<Description />} actions={<Actions />}>
+        <EntryForm
+          id={formId}
+          entryForm={updateEntryForm}
+          fieldDefinitions={collection.fieldDefinitions}
+          project={project}
+          isViewOnly={isReadingEntry || isUpdatingEntry}
+          onFormSubmit={onUpdateEntry}
+        />
+      </Page>
+
+      <Dialog
+        open={isConflictDialogOpen}
+        onOpenChange={setIsConflictDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Could not save this Entry</DialogTitle>
+            <DialogDescription>
+              {describeCoreError(
+                conflictErrorType,
+                conflictDescriptions,
+                conflictFallback
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Close
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

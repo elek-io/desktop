@@ -1,8 +1,9 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import type {
   CreateEntryProps,
   Entry,
+  MdAstRoot,
   ReferencedValue,
   SupportedLanguage,
 } from '@elek-io/core';
@@ -31,6 +32,43 @@ export function temporalValue(
   content: Partial<Record<SupportedLanguage, string | null>>
 ): CreateEntryProps['values'][string] {
   return stringValue(content);
+}
+
+/**
+ * Build an mdast tree holding a single paragraph. A paragraph and its text need
+ * no markdown feature enabled, so this is valid content for a field definition
+ * with every feature off.
+ */
+export function mdAstParagraph(text: string): MdAstRoot {
+  return {
+    type: 'root',
+    children: [
+      { type: 'paragraph', children: [{ type: 'text', value: text }] },
+    ],
+  };
+}
+
+/**
+ * Build a translatable markdown Entry Value. Core stores an mdast tree per
+ * language, not a markdown string (see Core's fields docs), so pass a tree from
+ * `mdAstParagraph` or `null` for an empty field.
+ */
+export function markdownValue(
+  content: Partial<Record<SupportedLanguage, MdAstRoot | null>>
+): CreateEntryProps['values'][string] {
+  return { objectType: 'value', valueType: 'mdast', content };
+}
+
+/**
+ * The markdown field's editable surface, the ProseMirror `contenteditable` the
+ * Milkdown editor renders inside the wrapper `MarkdownEditor` draws.
+ *
+ * Located by class rather than by role on purpose: what a spec asserts here is
+ * whether it is editable at all, and a disabled editor deliberately stops
+ * exposing the textbox role, so a role locator could not find it to check.
+ */
+export function markdownEditorSurface(page: Page): Locator {
+  return page.locator('.markdown-editor [contenteditable]');
 }
 
 /**

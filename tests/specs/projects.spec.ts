@@ -266,8 +266,21 @@ test.describe('Projects', () => {
       mainWindow.getByRole('button', { name: 'Remove en' })
     ).toBeVisible();
 
-    // Removing a non-default language drops its chip and dirties the form.
+    // Removing a non-default language is confirmed first: Core writes the new
+    // settings without checking content, so the removal orphans anything already
+    // translated into it. Cancelling keeps the chip.
     await mainWindow.getByRole('button', { name: 'Remove de' }).click();
+    await expect(
+      mainWindow.getByText('Remove de from this Project?')
+    ).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'Cancel' }).click();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Remove de' })
+    ).toBeVisible();
+
+    // Confirming drops its chip and dirties the form.
+    await mainWindow.getByRole('button', { name: 'Remove de' }).click();
+    await mainWindow.getByRole('button', { name: 'Remove language' }).click();
     await expect(
       mainWindow.getByRole('button', { name: 'Remove de' })
     ).toBeHidden();
@@ -330,7 +343,7 @@ test.describe('Projects', () => {
 
     // The clearing half (empty URL removes the origin) is dropped: an empty
     // submit resolves in Core but leaves a non-null value rather than clearing
-    // it, so the origin is not actually cleared. See the backlog (P2-05).
+    // it, so the origin is not actually cleared.
   });
 
   test('reload lists multiple projects without duplication or loss', async ({
@@ -381,7 +394,7 @@ test.describe('Projects', () => {
     // plain filesystem path (what setupRemote returns). clone stores that path as
     // the Project's origin, and the list card's RemoteOriginBadge renders it, so
     // this also exercises the badge's fallback for an origin that is not a
-    // parseable URL (before the fix, new URL(path) threw and crashed the card).
+    // parseable URL, where new URL(path) would throw.
     await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
     const dialog = mainWindow.getByRole('dialog');
     await expect(dialog.getByText('Clone a Project by URL')).toBeVisible();
@@ -398,6 +411,35 @@ test.describe('Projects', () => {
     await expect(dialog).toBeHidden();
     await expect(mainWindow.getByText('Cloned Project')).toBeVisible();
     await expect(mainWindow.getByText('No Projects yet')).toBeHidden();
+  });
+
+  test('rejects a clone with an empty URL client-side', async ({
+    mainWindow,
+  }) => {
+    // cloneProjectSchema.url is a required string and FormInputField normalizes an
+    // empty input to null, so a cleared URL is the client-rejectable case: the
+    // resolver flags it before any IPC call, rather than sending an empty URL to
+    // Core.
+    await setUserViaIpc(mainWindow);
+
+    await navigate(mainWindow, '#/projects');
+    await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog.getByText('Clone a Project by URL')).toBeVisible();
+
+    // On open the URL field is not flagged (no validation has run).
+    const url = dialog.getByLabel('URL', { exact: true });
+    await expect(url).toHaveAttribute('aria-invalid', 'false');
+
+    // Type then clear, so the field value normalizes to null, and submit. The
+    // resolver flags URL invalid and clones nothing: the dialog stays open and
+    // the route stays on the Projects list, proving the reject was client-side.
+    await url.fill('placeholder');
+    await url.fill('');
+    await dialog.getByRole('button', { name: 'Clone' }).click();
+    await expect(url).toHaveAttribute('aria-invalid', 'true');
+    await expect(dialog).toBeVisible();
+    await expect(mainWindow).toHaveURL(/#\/projects$/);
   });
 
   test('routes an unexpected delete failure to the root error boundary', async ({

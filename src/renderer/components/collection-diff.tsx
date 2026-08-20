@@ -181,7 +181,6 @@ export function CollectionDiff({
         <CollectionForm
           project={project}
           collectionForm={collectionFormAfter}
-          onFormSubmit={() => {}}
           isViewOnly
         />
       </DiffContainer>
@@ -195,7 +194,6 @@ export function CollectionDiff({
         <CollectionForm
           project={project}
           collectionForm={collectionFormBefore}
-          onFormSubmit={() => {}}
           isViewOnly
         />
       </DiffContainer>
@@ -210,7 +208,6 @@ export function CollectionDiff({
           <CollectionForm
             project={project}
             collectionForm={collectionFormBefore}
-            onFormSubmit={() => {}}
             isViewOnly
           />
         </DiffContainer>
@@ -219,7 +216,6 @@ export function CollectionDiff({
           <CollectionForm
             project={project}
             collectionForm={collectionFormAfter}
-            onFormSubmit={() => {}}
             isViewOnly
           />
         </DiffContainer>

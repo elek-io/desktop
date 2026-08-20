@@ -228,6 +228,46 @@ test.describe('Assets', () => {
     ).toBeEnabled();
   });
 
+  test('disables the asset update submit while the mutation is in flight', async ({
+    mainWindow,
+    electronApp,
+  }, testInfo) => {
+    // The Update submit gates on the form submitting (RHF isSubmitting, which
+    // spans the awaited mutateAsync). Hang the update handler so the in-flight
+    // window is observable rather than racing a fast resolve.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const filePath = makeTempFile(testInfo, 'logo.png', pngBytes);
+    await createAssetViaIpc(mainWindow, { projectId: project.id, filePath });
+
+    await navigateToAssets(mainWindow, project.id);
+
+    // Open the update dialog and dirty the form, so Update leaves the dirty gate
+    // and is enabled before the submit.
+    await mainWindow.getByRole('button', { name: 'Update' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog
+      .getByLabel('Asset description', { exact: true })
+      .fill('An edited description');
+    const updateButton = dialog.getByRole('button', { name: 'Update' });
+    await expect(updateButton).toBeEnabled();
+
+    // Make the update never resolve, so the form stays submitting after the click
+    // and the in-flight disabled state is stable to assert.
+    await electronApp.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler('core:assets:update');
+      ipcMain.handle('core:assets:update', async () => {
+        await new Promise(() => {});
+      });
+    });
+
+    // Submitting keeps the form in flight, so the button disables and does not
+    // re-enable while the mutation is pending.
+    await updateButton.click();
+    await expect(updateButton).toBeDisabled();
+  });
+
   test('surfaces a blocked delete in place when the asset is referenced', async ({
     mainWindow,
   }, testInfo) => {

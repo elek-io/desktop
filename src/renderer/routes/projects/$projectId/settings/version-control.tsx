@@ -7,9 +7,12 @@ import { type SubmitHandler, useForm } from 'react-hook-form';
 
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
-import { Button } from '@renderer/components/ui/button';
 import {
-  Form,
+  AppForm,
+  FormActions,
+  SubmitButton,
+} from '@renderer/components/ui/app-form';
+import {
   FormControl,
   FormDescription,
   FormField,
@@ -39,18 +42,11 @@ function ProjectSettingsVersionControlPage(): ReactElement {
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
-  const {
-    mutateAsync: setRemoteOriginUrl,
-    isPending: isSettingRemoteOriginUrl,
-  } = useMutation(queryOptions.projects.setRemoteOriginUrl);
+  const { mutateAsync: setRemoteOriginUrl } = useMutation(
+    queryOptions.projects.setRemoteOriginUrl
+  );
   const remoteOriginUrlForm = useForm<SetRemoteOriginUrlProjectProps>({
-    resolver: async (data, context, options) => {
-      return zodResolver(setRemoteOriginUrlProjectSchema)(
-        data,
-        context,
-        options
-      );
-    },
+    resolver: zodResolver(setRemoteOriginUrlProjectSchema),
     defaultValues: {
       id: projectId,
       url: '',
@@ -86,47 +82,36 @@ function ProjectSettingsVersionControlPage(): ReactElement {
       description={<Description />}
       actions={<Actions />}
     >
-      <Form {...remoteOriginUrlForm}>
-        {/* noValidate: zod (through RHF) owns validation. Without it the
-        browser's native url check on the remote input blocks submit before
-        handleSubmit runs. */}
-        <form
-          noValidate
-          onSubmit={remoteOriginUrlForm.handleSubmit(onSetRemoteOriginUrl)}
-        >
-          <PageSection
-            title="Remote"
-            description="A Projects remote is a place that makes it accessible for other users. By adding a remote you are able to work with multiple others together on the same Project."
-            actions={
-              <Button
-                type="submit"
-                Icon={Check}
-                isLoading={isSettingRemoteOriginUrl}
-                disabled={remoteOriginUrlForm.formState.isDirty === false}
-              >
+      <AppForm form={remoteOriginUrlForm} onSubmit={onSetRemoteOriginUrl}>
+        <PageSection
+          title="Remote"
+          description="A Projects remote is a place that makes it accessible for other users. By adding a remote you are able to work with multiple others together on the same Project."
+          actions={
+            <FormActions form={remoteOriginUrlForm}>
+              <SubmitButton requireDirty Icon={Check}>
                 Save changes
-              </Button>
-            }
-          >
-            <div className="grid grid-cols-12 gap-6">
-              <FormField
-                control={remoteOriginUrlForm.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem className="col-span-12">
-                    <FormLabel isRequired>Remote URL</FormLabel>
-                    <FormControl>
-                      <FormInputField field={field} type="url" />
-                    </FormControl>
-                    <FormDescription />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </PageSection>
-        </form>
-      </Form>
+              </SubmitButton>
+            </FormActions>
+          }
+        >
+          <div className="grid grid-cols-12 gap-6">
+            <FormField
+              control={remoteOriginUrlForm.control}
+              name="url"
+              render={({ field }) => (
+                <FormItem className="col-span-12">
+                  <FormLabel isRequired>Remote URL</FormLabel>
+                  <FormControl>
+                    <FormInputField field={field} type="url" />
+                  </FormControl>
+                  <FormDescription />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </PageSection>
+      </AppForm>
     </Page>
   );
 }

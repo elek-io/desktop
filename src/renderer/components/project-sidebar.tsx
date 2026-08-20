@@ -1,5 +1,4 @@
 import { parseIpcError } from '@root/src/shared/ipcError';
-import { useMutation } from '@tanstack/react-query';
 import { Link, type ToPathOption } from '@tanstack/react-router';
 import {
   Layers,
@@ -45,6 +44,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
@@ -106,9 +106,7 @@ function ProjectNavigation(): React.JSX.Element {
   );
 }
 
-// Reason-specific copy for a failed sync, keyed by the CoreError type preserved
-// across IPC. Unlisted types (and non-Core errors) fall back to the generic
-// sentence below, so the modal still explains that nothing was pushed.
+// Copy for a failed sync, keyed by CoreError type.
 const syncErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   Conflict:
     'A change on the remote conflicts with your local work, so nothing was pushed. Resolve it and try again.',
@@ -128,27 +126,26 @@ export function ProjectSidebar(): React.JSX.Element {
     isFetching: isFetchingProjectChanges,
     refetch: refetchProjectChanges,
   } = useQueryNoError(queryOptions.projects.getChanges(project));
-  const { mutateAsync: synchronizeProject, isPending: isSynchronizingProject } =
-    useMutation({
-      ...queryOptions.projects.synchronize,
-      // Only a failed sync we can explain is handled in place by the dialog
-      // below: a remote conflict (Conflict) or an unreachable/unsupported remote
-      // (PreconditionFailed). Every other failure is unexpected, so let it reach
-      // the root error boundary, which logs it and reports it to Sentry.
-      throwOnError: (error) => {
-        const { type } = parseIpcError(error);
-        return type !== 'Conflict' && type !== 'PreconditionFailed';
-      },
-      onError: () => {
-        // The in-place dialog is the surface for the handled reasons, so suppress
-        // the wrapper's error toast. Unexpected failures are logged and reported
-        // by the boundary instead.
-      },
-    });
 
   const [isSyncConflictDialogOpen, setIsSyncConflictDialogOpen] =
     useState(false);
   const [syncError, setSyncError] = useState<unknown>(null);
+  // A sync failure we can explain is handled in place.
+  // See contributing/error-handling.md.
+  const openSyncConflictDialog = (error: unknown): void => {
+    setSyncError(error);
+    setIsSyncConflictDialogOpen(true);
+  };
+  const {
+    mutateAsync: synchronizeProject,
+    isPending: isSynchronizingProject,
+    handleError: handleSyncError,
+  } = useAppMutation(queryOptions.projects.synchronize, {
+    handled: {
+      Conflict: openSyncConflictDialog,
+      PreconditionFailed: openSyncConflictDialog,
+    },
+  });
 
   if (isReadingProject) {
     return <ProjectSidebarSkeleton />;
@@ -171,15 +168,7 @@ export function ProjectSidebar(): React.JSX.Element {
                   try {
                     await synchronizeProject({ id: project.id });
                   } catch (error) {
-                    const { type } = parseIpcError(error);
-                    // A remote conflict (e.g. a rebase that orphans a reference)
-                    // or an unreachable/unsupported remote is explained in place.
-                    // Any other failure was already routed to the root error
-                    // boundary, so there is nothing to handle here.
-                    if (type === 'Conflict' || type === 'PreconditionFailed') {
-                      setSyncError(error);
-                      setIsSyncConflictDialogOpen(true);
-                    }
+                    handleSyncError(error);
                   }
                 }}
                 isLoading={isSynchronizingProject}

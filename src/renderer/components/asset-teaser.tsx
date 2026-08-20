@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@renderer/components/ui/alert-dialog';
+import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import { ButtonGroup } from '@renderer/components/ui/button-group';
 import {
@@ -55,6 +56,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@renderer/components/ui/tooltip';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { cn, formatBytes } from '@renderer/lib/utils';
@@ -67,8 +69,7 @@ import {
   type UpdateAssetProps,
 } from '@elek-io/core';
 
-// Why the delete was blocked, keyed by the CoreError type preserved across IPC.
-// Unlisted types (and non-Core errors) fall back to the generic sentence below.
+// Copy for a blocked delete, keyed by CoreError type.
 const deleteErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   Conflict:
     'This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again.',
@@ -85,26 +86,22 @@ export function AssetTeaser(
   const { mutateAsync: updateAsset } = useMutation(queryOptions.assets.update);
   const [isUpdateAssetDialogOpen, setIsUpdateAssetDialogOpen] =
     useState<boolean>(false);
-  const { mutateAsync: deleteAsset } = useMutation({
-    ...queryOptions.assets.delete,
-    // Only a referenced Asset is handled in place by the dialog below: Core
-    // rejects deleting an Asset that Entries still reference (Conflict) without
-    // removing anything. Every other failure is unexpected, so let it reach the
-    // root error boundary, which logs it and reports it to Sentry.
-    throwOnError: (error) => parseIpcError(error).type !== 'Conflict',
-    onError: () => {
-      // The in-place dialog is the surface for the handled Conflict, so suppress
-      // the wrapper's error toast. Unexpected failures are logged and reported by
-      // the boundary instead.
-    },
-  });
   const [isDeleteErrorDialogOpen, setIsDeleteErrorDialogOpen] =
     useState<boolean>(false);
   const [deleteError, setDeleteError] = useState<unknown>(null);
+  // An Asset that Entries still reference is handled in place.
+  // See contributing/error-handling.md.
+  const { mutateAsync: deleteAsset, handleError: handleDeleteError } =
+    useAppMutation(queryOptions.assets.delete, {
+      handled: {
+        Conflict: (error) => {
+          setDeleteError(error);
+          setIsDeleteErrorDialogOpen(true);
+        },
+      },
+    });
   const updateAssetForm = useForm<UpdateAssetProps>({
-    resolver: async (data, context, options) => {
-      return zodResolver(updateAssetSchema)(data, context, options);
-    },
+    resolver: zodResolver(updateAssetSchema),
     defaultValues: {
       id: props.id,
       name: props.name,
@@ -206,14 +203,7 @@ export function AssetTeaser(
     try {
       await deleteAsset({ ...props });
     } catch (error) {
-      const { type } = parseIpcError(error);
-      // Core blocks deleting an Asset that Entries still reference (Conflict), so
-      // surface that in place and explain why. Any other failure was already
-      // routed to the root error boundary, so there is nothing to handle here.
-      if (type === 'Conflict') {
-        setDeleteError(error);
-        setIsDeleteErrorDialogOpen(true);
-      }
+      handleDeleteError(error);
     }
   };
 
@@ -348,15 +338,11 @@ export function AssetTeaser(
               </DialogBody>
 
               <DialogFooter>
-                <Button
-                  type="submit"
-                  form={updateAssetFormId}
-                  variant="outline"
-                  Icon={Edit2Icon}
-                  disabled={updateAssetForm.formState.isDirty === false}
-                >
-                  Update
-                </Button>
+                <FormActions form={updateAssetForm} id={updateAssetFormId}>
+                  <SubmitButton requireDirty variant="outline" Icon={Edit2Icon}>
+                    Update
+                  </SubmitButton>
+                </FormActions>
               </DialogFooter>
             </DialogContent>
           </Dialog>

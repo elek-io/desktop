@@ -5,6 +5,8 @@ import type {
   DeleteProjectProps,
   Project,
   SetRemoteOriginUrlProjectProps,
+  SupportedLanguage,
+  UpdateProjectProps,
 } from '@elek-io/core';
 
 import { navigate } from './navigation.js';
@@ -32,6 +34,44 @@ export async function createProjectViaIpc(
 ): Promise<Project> {
   const props: CreateProjectProps = { ...defaultProjectProps, ...overrides };
   return page.evaluate(async (p) => window.ipc.core.projects.create(p), props);
+}
+
+/**
+ * Update a Project directly over IPC, bypassing the UI. `props` is the full
+ * `UpdateProjectProps`, so pass a spread of the Project with the parts adjusted.
+ */
+export async function updateProjectViaIpc(
+  page: Page,
+  props: UpdateProjectProps
+): Promise<Project> {
+  return page.evaluate(async (p) => window.ipc.core.projects.update(p), props);
+}
+
+/**
+ * Add a language to a Project's supported set directly over IPC.
+ *
+ * Core writes only the Project file, so everything written before keeps the
+ * languages it had. That is the real way a Collection ends up missing a
+ * language a later save then demands, which the strict language-aware form
+ * schemas validate against.
+ */
+export async function addProjectLanguageViaIpc(
+  page: Page,
+  project: Project,
+  language: SupportedLanguage
+): Promise<Project> {
+  return updateProjectViaIpc(page, {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    settings: {
+      ...project.settings,
+      language: {
+        ...project.settings.language,
+        supported: [...project.settings.language.supported, language],
+      },
+    },
+  });
 }
 
 /**
