@@ -11,6 +11,7 @@ import {
   navigateToCollection,
   numberFieldDefinition,
   rangeFieldDefinition,
+  referenceFieldDefinition,
   textFieldDefinition,
   timeFieldDefinition,
   updateCollectionViaIpc,
@@ -204,6 +205,67 @@ test.describe('Entries', () => {
     await expect(
       mainWindow.getByRole('cell', { name: 'Original title' })
     ).toBeHidden();
+  });
+
+  test('saves an entry reference selected through the picker', async ({
+    mainWindow,
+  }) => {
+    // Core's valueContentReferenceToEntrySchema requires `collectionId`
+    // alongside `id` and `objectType` (an asset reference does not), and
+    // refines it against the definition's `ofCollections`. The picker builds
+    // the reference, so a missing collectionId makes every entry-reference
+    // field unsaveable. Every other reference spec seeds values over IPC with
+    // the correct shape, which is why this has to drive the real picker.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // The Collection being referenced, holding one Entry to point at.
+    const target = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Author' }, plural: { en: 'Authors' } },
+      description: { en: 'Authors created by the E2E tests' },
+      slug: { singular: 'author', plural: 'authors' },
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: target.id,
+      values: { title: stringValue({ en: 'Ada Lovelace' }) },
+    });
+
+    // The referring Collection: a Title plus an optional single entry reference.
+    const referring = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition(), referenceFieldDefinition()],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: referring.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Referring article' });
+
+    // Drive the real picker rather than seeding the value. The trigger carries
+    // the field's label as its accessible name ("Select Entries" is only its
+    // text), which is what associates the control with its label.
+    await mainWindow.getByRole('button', { name: 'Related' }).click();
+    const picker = mainWindow.getByRole('dialog', { name: 'Select Entries' });
+    await expect(picker).toBeVisible();
+    await picker.getByRole('button', { name: 'Ada Lovelace' }).click();
+    await mainWindow.keyboard.press('Escape');
+    await expect(picker).toBeHidden();
+
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+
+    // Redirecting to the Collection detail is how Core's success surfaces: the
+    // reference validated and was written. A reference missing collectionId
+    // fails the generated schema, so the form would never submit and the URL
+    // would stay on the create route.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${referring.id}$`)
+    );
+    await expect(
+      mainWindow.getByRole('cell', { name: 'Referring article' })
+    ).toBeVisible();
   });
 
   test('validates required and format fields, respecting the dirty gate', async ({

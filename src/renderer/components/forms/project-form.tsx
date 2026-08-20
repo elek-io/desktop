@@ -8,6 +8,16 @@ import {
 } from 'react-hook-form';
 
 import { PageSection } from '@renderer/components/page-section';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog';
 import { AppForm } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import { Chip } from '@renderer/components/ui/chip';
@@ -93,6 +103,22 @@ export function ProjectForm<
     isDeleteDefaultLanguageDialogOpen,
     setIsDeleteDefaultLanguageDialogOpen,
   ] = useState(false);
+  // Removing a language is a major, irreversible change: Core writes the new
+  // settings without checking content, so every translation stored in that
+  // language is orphaned in place. Confirm before staging it.
+  // See node_modules/@elek-io/core/docs/releases.md.
+  const [languagePendingRemoval, setLanguagePendingRemoval] =
+    useState<SupportedLanguage | null>(null);
+
+  function removeLanguage(language: SupportedLanguage): void {
+    projectForm.setValue(
+      'settings.language.supported',
+      projectForm
+        .watch('settings.language.supported')
+        .filter((value) => value !== language),
+      { shouldValidate: true, shouldDirty: true }
+    );
+  }
   const supportedLanguages = supportedLanguageSchema.options.map((option) => {
     return {
       value: option,
@@ -157,7 +183,7 @@ export function ProjectForm<
                     <FormControl>
                       <div>
                         <ul className="flex flex-wrap">
-                          {field.value.map((language, index) => {
+                          {field.value.map((language) => {
                             return (
                               <li key={language} className="mr-2 mb-2">
                                 <Chip className="py-0 pr-0">
@@ -177,23 +203,7 @@ export function ProjectForm<
                                           true
                                         );
                                       } else {
-                                        field.value.splice(index, 1);
-                                        projectForm.setValue(
-                                          'settings.language.supported',
-                                          [
-                                            ...projectForm
-                                              .watch(
-                                                'settings.language.supported'
-                                              )
-                                              .filter(
-                                                (value) => value !== language
-                                              ),
-                                          ],
-                                          {
-                                            shouldValidate: true,
-                                            shouldDirty: true,
-                                          }
-                                        );
+                                        setLanguagePendingRemoval(language);
                                       }
                                     }}
                                   >
@@ -263,7 +273,10 @@ export function ProjectForm<
                     </FormControl>
                     <FormDescription>
                       Select which languages this Projects content has to be
-                      translated into
+                      translated into. Adding one means every existing
+                      Collection and Entry needs a translation for it before it
+                      can be saved again, and removing one orphans the content
+                      already translated into it.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -317,6 +330,43 @@ export function ProjectForm<
               }}
             />
           </div>
+
+          <AlertDialog
+            open={languagePendingRemoval !== null}
+            onOpenChange={(open) => {
+              if (open === false) {
+                setLanguagePendingRemoval(null);
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Remove {languagePendingRemoval} from this Project?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Any content already translated into {languagePendingRemoval}{' '}
+                  stays in the Collection and Entry files but is no longer
+                  reachable, and saving does not remove it for you. This is a
+                  breaking change for anything consuming this Project&apos;s
+                  content. You can still discard it by leaving without saving.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    if (languagePendingRemoval !== null) {
+                      removeLanguage(languagePendingRemoval);
+                    }
+                    setLanguagePendingRemoval(null);
+                  }}
+                >
+                  Remove language
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <Dialog
             open={isDeleteDefaultLanguageDialogOpen}

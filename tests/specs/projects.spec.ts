@@ -266,8 +266,21 @@ test.describe('Projects', () => {
       mainWindow.getByRole('button', { name: 'Remove en' })
     ).toBeVisible();
 
-    // Removing a non-default language drops its chip and dirties the form.
+    // Removing a non-default language is confirmed first: Core writes the new
+    // settings without checking content, so the removal orphans anything already
+    // translated into it. Cancelling keeps the chip.
     await mainWindow.getByRole('button', { name: 'Remove de' }).click();
+    await expect(
+      mainWindow.getByText('Remove de from this Project?')
+    ).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'Cancel' }).click();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Remove de' })
+    ).toBeVisible();
+
+    // Confirming drops its chip and dirties the form.
+    await mainWindow.getByRole('button', { name: 'Remove de' }).click();
+    await mainWindow.getByRole('button', { name: 'Remove language' }).click();
     await expect(
       mainWindow.getByRole('button', { name: 'Remove de' })
     ).toBeHidden();

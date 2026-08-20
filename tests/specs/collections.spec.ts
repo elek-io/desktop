@@ -386,9 +386,7 @@ test.describe('Collections', () => {
     await expect(sheet.getByText('Type of options')).toBeVisible();
 
     await sheet.getByLabel('Label', { exact: true }).fill('Priority');
-    await sheet
-      .getByLabel('Description', { exact: true })
-      .fill('How urgent this is');
+    await sheet.getByLabel('Description').fill('How urgent this is');
 
     // Fill the first option's label; its value auto-derives to a slug. The
     // sr-only per-option labels are what make this addressable by role/name; they
@@ -404,6 +402,49 @@ test.describe('Collections', () => {
     ).toBeVisible();
 
     // Creating the Collection reaches Core with the select definition. A uuid
+    // detail route (never 'create') means Core accepted it.
+    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
+    );
+  });
+
+  // A Field's Description is optional in Core (nullable), so a Field added
+  // without one must save. The authoring form leaves every language of the
+  // Description empty by default and normalizes that to Core's null, rather than
+  // sending an empty string Core rejects. Reaching the Collection detail proves
+  // Core accepted a Field whose description is null.
+  test('adds a field definition with no description', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, {
+      namePlural: 'Articles',
+      nameSingular: 'Article',
+      description: 'The articles of this blog',
+      slugPlural: 'articles',
+      slugSingular: 'article',
+    });
+
+    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
+    const sheet = mainWindow.getByRole('dialog', {
+      name: 'Add a Field to this Collection',
+    });
+    await expect(sheet).toBeVisible();
+
+    // Fill only the Label (the slug auto-derives). Deliberately leave the
+    // Description empty, the case that used to block the add.
+    await sheet.getByLabel('Label', { exact: true }).fill('Title');
+
+    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
+    // The sheet closes only after the definition is appended, so a hidden sheet
+    // proves an empty-description Field was accepted.
+    await expect(sheet).toBeHidden();
+    await expect(mainWindow.getByText('Title', { exact: true })).toBeVisible();
+
+    // Creating the Collection reaches Core with a null-description Field. A uuid
     // detail route (never 'create') means Core accepted it.
     await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
     await expect(mainWindow).toHaveURL(
@@ -444,9 +485,7 @@ test.describe('Collections', () => {
       .click();
 
     await sheet.getByLabel('Label', { exact: true }).fill('Rating');
-    await sheet
-      .getByLabel('Description', { exact: true })
-      .fill('How good the article is');
+    await sheet.getByLabel('Description').fill('How good the article is');
 
     // Range's default, minimum and maximum are required numbers, so their labels
     // carry no "- optional" suffix and match exactly, unlike the text field's
@@ -501,9 +540,7 @@ test.describe('Collections', () => {
     await mainWindow.getByRole('option', { name: 'date', exact: true }).click();
 
     await sheet.getByLabel('Label', { exact: true }).fill('Published');
-    await sheet
-      .getByLabel('Description', { exact: true })
-      .fill('When the article went live');
+    await sheet.getByLabel('Description').fill('When the article went live');
 
     // The date default value is optional, so leave it empty and add the field.
     await mainWindow.getByRole('button', { name: 'Add definition' }).click();
@@ -559,9 +596,7 @@ test.describe('Collections', () => {
     await mainWindow.getByRole('option', { name: 'slug', exact: true }).click();
 
     await sheet.getByLabel('Label', { exact: true }).fill('Permalink');
-    await sheet
-      .getByLabel('Description', { exact: true })
-      .fill('The permalink of the article');
+    await sheet.getByLabel('Description').fill('The permalink of the article');
 
     // The source switch carries its sibling field's label as its accessible
     // name, so it is addressable by role/name. Toggling it stores the text
@@ -617,7 +652,7 @@ test.describe('Collections', () => {
 
     await sheet.getByLabel('Label', { exact: true }).fill('Cover');
     await sheet
-      .getByLabel('Description', { exact: true })
+      .getByLabel('Description')
       .fill('The cover image of the article');
 
     // The min/max Asset counts are optional, so leave them empty and add.
@@ -671,9 +706,7 @@ test.describe('Collections', () => {
       .click();
 
     await sheet.getByLabel('Label', { exact: true }).fill('Article');
-    await sheet
-      .getByLabel('Description', { exact: true })
-      .fill('The reviewed article');
+    await sheet.getByLabel('Description').fill('The reviewed article');
 
     // The Collections query resolves into a toggle per Collection, each carrying
     // its plural name as its accessible name. Toggling
@@ -732,9 +765,7 @@ test.describe('Collections', () => {
       .click();
 
     await sheet.getByLabel('Label', { exact: true }).fill('Body');
-    await sheet
-      .getByLabel('Description', { exact: true })
-      .fill('The body of the article');
+    await sheet.getByLabel('Description').fill('The body of the article');
 
     // The feature toggles carry their label as their accessible name, one block
     // feature and one inline feature here. Task list

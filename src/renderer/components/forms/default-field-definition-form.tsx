@@ -48,6 +48,70 @@ import {
 export type AuthorableFieldType =
   Exclude<FieldType, 'select'> | 'stringSelect' | 'numberSelect';
 
+/**
+ * Field types where Core pins `isRequired` to a literal, so the switch shows a
+ * fixed fact instead of offering a choice. Both always carry a value.
+ */
+const alwaysRequiredFieldTypes: readonly AuthorableFieldType[] = [
+  'toggle',
+  'range',
+];
+
+/**
+ * Field types where Core pins `isUnique` to a literal. `slug` is forced true,
+ * every other entry is forced false: uniqueness is only meaningful for string
+ * values, and Core rejects it on number, reference, component and mdast types.
+ */
+const fixedUniquenessFieldTypes: readonly AuthorableFieldType[] = [
+  'slug',
+  'toggle',
+  'number',
+  'range',
+  'numberSelect',
+  'asset',
+  'entry',
+  'dynamic',
+  'markdown',
+];
+
+/**
+ * The reason a type's uniqueness is fixed, shown under the locked switch so the
+ * disabled control explains itself rather than looking broken.
+ */
+function uniquenessNote(fieldType: AuthorableFieldType): string | null {
+  switch (fieldType) {
+    case 'slug':
+      return 'Slugs are always unique, so a single Entry can be identified by it.';
+    case 'toggle':
+      return 'Toggles cannot be unique, since they can only be checked or unchecked.';
+    case 'number':
+    case 'range':
+    case 'numberSelect':
+      return 'Number fields cannot be unique.';
+    case 'asset':
+    case 'entry':
+      return 'Reference fields cannot be unique.';
+    case 'dynamic':
+      return 'Dynamic fields cannot be unique.';
+    case 'markdown':
+      return 'Markdown fields cannot be unique.';
+    // String types where uniqueness is a real choice, so there is nothing to
+    // explain. Listed rather than defaulted so a new Core field type is a lint
+    // error here until it is classified.
+    case 'text':
+    case 'textarea':
+    case 'email':
+    case 'url':
+    case 'ipv4':
+    case 'date':
+    case 'time':
+    case 'datetime':
+    case 'telephone':
+    case 'stringSelect':
+      return null;
+  }
+}
+
 interface DefaultFieldDefinitionFormProps<
   T extends FieldValues,
 > extends HTMLAttributes<HTMLFormElement> {
@@ -139,7 +203,7 @@ function DefaultFieldDefinitionForm<
         name={base(`description.${currentLanguage}`)}
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired>Description</FormLabel>
+            <FormLabel isRequired={false}>Description</FormLabel>
             <TranslatableFormTextareaField
               title="Description"
               description="Describe what to input into this field. This text will be
@@ -149,8 +213,9 @@ function DefaultFieldDefinitionForm<
               supportedLanguages={supportedLanguages}
             />
             <FormDescription>
-              Describe what to input into this field. This text will be
-              displayed under the field to guide users.
+              Optional. Describe what to input into this field. This text is
+              displayed under the field to guide users. Leave every language
+              empty for no description, or fill them all.
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -208,6 +273,15 @@ function DefaultFieldDefinitionForm<
                     </i>
                   </>
                 )}
+                {fieldType === 'range' && (
+                  <>
+                    <Separator className="my-2" />
+                    <i>
+                      Ranges are always required, since the slider always
+                      returns a number.
+                    </i>
+                  </>
+                )}
               </FormDescription>
               <FormMessage />
             </div>
@@ -215,7 +289,7 @@ function DefaultFieldDefinitionForm<
               <Switch
                 checked={field.value}
                 onCheckedChange={field.onChange}
-                disabled={fieldType === 'toggle'}
+                disabled={alwaysRequiredFieldTypes.includes(fieldType)}
               />
             </FormControl>
           </FormItem>
@@ -232,56 +306,20 @@ function DefaultFieldDefinitionForm<
               <FormDescription>
                 You won&apos;t be able to create an Entry if there is an
                 existing Entry with identical content.
-                {fieldType === 'toggle' && (
+                {uniquenessNote(fieldType) !== null && (
                   <>
                     <Separator className="my-2" />
-                    <i>
-                      Toggles cannot be unique, since they can only be checked
-                      or unchecked.
-                    </i>
-                  </>
-                )}
-                {(fieldType === 'asset' || fieldType === 'entry') && (
-                  <>
-                    <Separator className="my-2" />
-                    <i>Reference fields cannot be unique.</i>
-                  </>
-                )}
-                {fieldType === 'slug' && (
-                  <>
-                    <Separator className="my-2" />
-                    <i>
-                      Slugs are always unique, so a single Entry can be
-                      identified by it.
-                    </i>
-                  </>
-                )}
-                {fieldType === 'numberSelect' && (
-                  <>
-                    <Separator className="my-2" />
-                    <i>Number select fields cannot be unique.</i>
-                  </>
-                )}
-                {fieldType === 'markdown' && (
-                  <>
-                    <Separator className="my-2" />
-                    <i>Markdown fields cannot be unique.</i>
+                    <i>{uniquenessNote(fieldType)}</i>
                   </>
                 )}
               </FormDescription>
+              <FormMessage />
             </div>
             <FormControl>
               <Switch
                 checked={field.value}
                 onCheckedChange={field.onChange}
-                disabled={
-                  fieldType === 'toggle' ||
-                  fieldType === 'asset' ||
-                  fieldType === 'entry' ||
-                  fieldType === 'slug' ||
-                  fieldType === 'numberSelect' ||
-                  fieldType === 'markdown'
-                }
+                disabled={fixedUniquenessFieldTypes.includes(fieldType)}
               />
             </FormControl>
           </FormItem>

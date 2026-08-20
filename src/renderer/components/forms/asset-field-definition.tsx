@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type ReactElement } from 'react';
 
+import { AssetMimeTypePicker } from '@renderer/components/forms/asset-mime-type-picker';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 import {
   DefinitionDraft,
@@ -29,55 +30,72 @@ import {
 //
 // The min/max bounds are nullable int>=1 Asset counts, a different shape from
 // the scalar char/number bounds, so they stay inline instead of using MinMaxRow.
-// `ofAssetMimeTypes` has no control yet but still gets its empty default,
-// because Core requires the key (see contributing/not-yet-implemented.md).
 
 function AssetExtras({
   form,
 }: DefinitionExtrasProps<AssetFieldDefinition>): ReactElement {
   return (
-    <div className="flex flex-row items-center justify-between space-x-2">
+    <>
+      <div className="flex flex-row items-center justify-between space-x-2">
+        <FormField
+          control={form.control}
+          name="min"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel isRequired={false}>Minimum</FormLabel>
+              <FormControl>
+                <FormInputField field={field} type="number" />
+              </FormControl>
+              <FormDescription>
+                The minimum number of Assets the user needs to select.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="max"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel isRequired={false}>Maximum</FormLabel>
+              <FormControl>
+                <FormInputField field={field} type="number" />
+              </FormControl>
+              <FormDescription>
+                The maximum number of Assets the user is able to select.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
       <FormField
         control={form.control}
-        name="min"
+        name="ofAssetMimeTypes"
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired={false}>Minimum</FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="number" />
-            </FormControl>
+            <FormLabel isRequired={false}>Restrict to file types</FormLabel>
             <FormDescription>
-              The minimum number of Assets the user needs to select.
+              Only Assets of the selected file types can be referenced. If none
+              are selected, Assets of any type are available.
             </FormDescription>
+            <AssetMimeTypePicker
+              value={field.value}
+              onChange={field.onChange}
+            />
             <FormMessage />
           </FormItem>
         )}
       />
-      <FormField
-        control={form.control}
-        name="max"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired={false}>Maximum</FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="number" />
-            </FormControl>
-            <FormDescription>
-              The maximum number of Assets the user is able to select.
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </div>
+    </>
   );
 }
 
 const assetSpec: DefinitionSpec<AssetFieldDefinition> = {
   authorableFieldType: 'asset',
   resolver: zodResolver(assetFieldDefinitionSchema),
-  // Reference fields are never unique. ofAssetMimeTypes has no authoring control
-  // yet but is required by Core, so it defaults to empty (any mime type).
+  // Reference fields are never unique. An empty ofAssetMimeTypes means any type.
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
     id: uuid(),

@@ -200,6 +200,39 @@ follow:
   assignable without variance errors. They take
   `UseFormReturn<TFieldValues, unknown, TTransformedValues>`.
 
+### Resolve against Core's language-aware schema, not the wire schema
+
+Core exports two flavours of each Collection/Component/Entry schema. The bare
+one (`updateCollectionSchema`) is the wire schema, where
+`partialTranslatableStringSchema` makes every language key optional. The
+language-aware factory (`getUpdateCollectionSchemaFromLanguages(languages)` and
+its create/component/entry siblings, from Core's `strictEntitySchema.ts`) adds
+the rule Core enforces on the way in: a non-empty string for every Project
+language.
+
+Resolve a form against the factory, not the wire schema, so client validation
+matches what Core will accept. The gap the wire schema leaves open is real: a
+Collection written when the Project had one language has no key for a language
+added later, and the wire schema permits that while Core rejects it. The factory
+flags the missing language on its own field (Core reports the nested path, e.g.
+`fieldDefinitions.0.fieldDefinitions.1.label.de`, since 0.22.0).
+
+Build the schema each render from the loaded Project's languages, falling back
+to an empty set until it loads, exactly as the Entry routes do:
+
+```typescript
+const schema =
+  isReadingProject === false
+    ? getUpdateCollectionSchemaFromLanguages(
+        project.settings.language.supported
+      )
+    : getUpdateCollectionSchemaFromLanguages([]);
+const form = useForm({ resolver: zodResolver(schema) /* ... */ });
+```
+
+This keeps Core the single source of truth: the form needs no compensating
+pre-seed and no refinement of its own.
+
 `ProjectForm`, `CollectionForm` and `EntryForm` each view their generic form as a
 concrete `Update*Props` internally, because react-hook-form's `FieldPath` cannot
 resolve a literal path for an unresolved generic. Those three

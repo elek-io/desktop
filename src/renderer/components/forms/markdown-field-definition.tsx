@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { type ReactElement } from 'react';
 import { type Resolver } from 'react-hook-form';
 
+import { AssetMimeTypePicker } from '@renderer/components/forms/asset-mime-type-picker';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 import {
   DefinitionDraft,
@@ -129,6 +130,7 @@ function MarkdownExtras({
   const enabledHeadings = form.watch('features.headings');
   const listsEnabled = form.watch('features.lists');
   const entryReferencesEnabled = form.watch('features.entryReferences');
+  const assetReferencesEnabled = form.watch('features.assetReferences');
   const selectedCollectionIds = form.watch('ofCollections');
 
   function toggleHeadingDepth(
@@ -174,6 +176,15 @@ function MarkdownExtras({
               // Core rejects task list items without lists
               if (feature.key === 'lists' && checked === false) {
                 form.setValue('features.taskListItems', false);
+              }
+              // Turning a reference feature off hides its restriction picker,
+              // so clear the restriction with it rather than storing a list
+              // that nothing reads.
+              if (feature.key === 'entryReferences' && checked === false) {
+                form.setValue('ofCollections', []);
+              }
+              if (feature.key === 'assetReferences' && checked === false) {
+                form.setValue('ofAssetMimeTypes', []);
               }
             }}
           />
@@ -313,6 +324,29 @@ function MarkdownExtras({
                   })
                 )}
               </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : null}
+
+      {assetReferencesEnabled === true ? (
+        <FormField
+          control={form.control}
+          name="ofAssetMimeTypes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel isRequired={false}>
+                Restrict Asset references to file types
+              </FormLabel>
+              <FormDescription>
+                Only Assets of the selected file types can be referenced. If
+                none are selected, Assets of any type are available.
+              </FormDescription>
+              <AssetMimeTypePicker
+                value={field.value}
+                onChange={field.onChange}
+              />
               <FormMessage />
             </FormItem>
           )}

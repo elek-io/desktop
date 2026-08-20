@@ -167,6 +167,36 @@ export interface DefinitionDraftProps {
 }
 
 /**
+ * Wraps a field-definition resolver so an all-blank `description` reaches Core
+ * as `null`, its canonical "no description" value.
+ *
+ * Core makes `description` optional (nullable) but rejects a present-but-empty
+ * language, so an empty UI state must be coerced to `null` rather than kept as
+ * `{ en: '' }`. The base form seeds every language, which makes Core's member
+ * schema force each to be filled once any is (matching Core's all-or-nothing
+ * rule), while a wholly blank description means the user wants none. This only
+ * normalizes input to Core's own canonical value, it adds no rule of its own,
+ * so validation stays entirely Core's.
+ */
+function withEmptyDescriptionAsNull<Def extends FieldDefinitionBase>(
+  resolver: Resolver<Def>
+): Resolver<Def> {
+  return (values, context, options): ReturnType<Resolver<Def>> => {
+    const description = values.description;
+    const hasText =
+      description !== null &&
+      Object.values(description).some(
+        (value) => typeof value === 'string' && value.trim() !== ''
+      );
+    return resolver(
+      { ...values, description: hasText ? description : null },
+      context,
+      options
+    );
+  };
+}
+
+/**
  * One authoring form, driven by a single spec. The Add Field sheet remounts it
  * when the picker changes type, so exactly one is live at a time.
  */
@@ -182,7 +212,7 @@ export function DefinitionDraft<
   fieldDefinitions,
 }: DefinitionDraftProps & { spec: DefinitionSpec<Def> }): ReactElement {
   const form = useForm<Def, unknown, Def>({
-    resolver: spec.resolver,
+    resolver: withEmptyDescriptionAsNull(spec.resolver),
     // makeDefaults returns a full Def and DefaultValues<Def> is its DeepPartial,
     // but RHF cannot prove the subtype for an unresolved generic Def.
     defaultValues: spec.makeDefaults(supportedLanguages) as DefaultValues<Def>,

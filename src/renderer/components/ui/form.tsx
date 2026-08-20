@@ -546,6 +546,7 @@ interface FormDateFieldProps<
 function FormDateField<TFieldValues extends FieldValues>({
   field,
   className,
+  disabled,
   ...props
 }: FormDateFieldProps<TFieldValues>): React.ReactElement {
   const dateFromValue = React.useMemo(() => {
@@ -576,6 +577,7 @@ function FormDateField<TFieldValues extends FieldValues>({
           className
         )}
         {...props}
+        disabled={disabled}
         value={field.value ?? ''}
         onChange={(event) => {
           field.onChange(event.target.value || null);
@@ -586,6 +588,7 @@ function FormDateField<TFieldValues extends FieldValues>({
         <DatePicker
           variant="ghost"
           size="xs"
+          disabled={disabled}
           date={dateFromValue}
           setDate={(value) => {
             const newDate =
@@ -614,6 +617,7 @@ interface FormDatetimeFieldProps<
 function FormDatetimeField<TFieldValues extends FieldValues>({
   field,
   className,
+  disabled,
   ...props
 }: FormDatetimeFieldProps<TFieldValues>): React.ReactElement {
   const dateFromValue = React.useMemo(() => {
@@ -645,6 +649,7 @@ function FormDatetimeField<TFieldValues extends FieldValues>({
           className
         )}
         {...props}
+        disabled={disabled}
         value={dateToLocalInputValue(dateFromValue)}
         onChange={(event) => {
           field.onChange(
@@ -659,6 +664,7 @@ function FormDatetimeField<TFieldValues extends FieldValues>({
         <DatePicker
           variant="ghost"
           size="xs"
+          disabled={disabled}
           date={dateFromValue}
           setDate={(value) => {
             const newDate =
@@ -886,7 +892,9 @@ function FormSlugField<TFieldValues extends FieldValues>({
   const derivedOrNull = derived === '' ? null : derived;
 
   React.useEffect(() => {
-    if (sourcePaths.length === 0) {
+    // A read-only field must not be rewritten when its sources change either,
+    // otherwise isDisabled only locks the input and not the value behind it.
+    if (sourcePaths.length === 0 || disabled) {
       return;
     }
     const current: unknown = field.value;
@@ -899,7 +907,7 @@ function FormSlugField<TFieldValues extends FieldValues>({
       lastDerivedRef.current = derivedOrNull;
       field.onChange(derivedOrNull);
     }
-  }, [field, derivedOrNull, sourcePaths]);
+  }, [field, derivedOrNull, sourcePaths, disabled]);
 
   return (
     <InputGroup>
@@ -930,6 +938,7 @@ function FormSlugField<TFieldValues extends FieldValues>({
             type="button"
             variant="ghost"
             size="xs"
+            disabled={disabled}
             Icon={RefreshCwIcon}
             onClick={() => {
               lastDerivedRef.current = derivedOrNull;
@@ -1045,7 +1054,21 @@ function FormAssetField<TFieldValues extends FieldValues>({
     );
   }
 
-  // Resolve selected refs to full Asset objects for display
+  // Only offer Assets the definition allows. Core enforces ofAssetMimeTypes at
+  // write time (EntryService.validateValueReferences reads each Asset's real
+  // mimeType), so without this the user picks a disallowed Asset and only finds
+  // out when saving fails. Matches the markdown asset-reference picker.
+  const selectableAssets: Asset[] = isReadingAssets
+    ? []
+    : fieldDefinition.ofAssetMimeTypes.length === 0
+      ? assetList.list
+      : assetList.list.filter((asset) =>
+          fieldDefinition.ofAssetMimeTypes.includes(asset.mimeType)
+        );
+
+  // Resolve selected refs to full Asset objects for display. Resolved against the
+  // full list, not the selectable one, so an Asset that predates a mime-type
+  // restriction still renders instead of silently vanishing.
   const selectedAssets: Asset[] = isReadingAssets
     ? []
     : selectedRefs
@@ -1129,13 +1152,15 @@ function FormAssetField<TFieldValues extends FieldValues>({
                   );
                 })}
               </div>
-            ) : assetList.list.length === 0 ? (
+            ) : selectableAssets.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No assets available. Add assets to the project first.
+                {fieldDefinition.ofAssetMimeTypes.length === 0
+                  ? 'No assets available. Add assets to the project first.'
+                  : `No assets of an allowed type available. This Field accepts ${fieldDefinition.ofAssetMimeTypes.join(', ')}.`}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                {assetList.list.map((asset) => {
+                {selectableAssets.map((asset) => {
                   const isSelected = selectedIds.has(asset.id);
                   const isDisabledOption = !isSelected && maxReached;
 
@@ -1247,23 +1272,29 @@ function FormEntryField<TFieldValues extends FieldValues>({
   const maxReached =
     fieldDefinition.max !== null && selectedRefs.length >= fieldDefinition.max;
 
-  function toggleEntry(entryId: string): void {
+  /**
+   * Core's `valueContentReferenceToEntrySchema` requires `collectionId`
+   * alongside `id` and `objectType`, and refines it against the definition's
+   * `ofCollections`. The collection is therefore taken from the selected
+   * Entry's own collection, not inferred later.
+   */
+  function setRefs(refs: ValueContentReferenceToEntry[]): void {
+    field.onChange(refs);
+  }
+
+  function toggleEntry(entryId: string, collectionId: Collection['id']): void {
     if (selectedIds.has(entryId)) {
-      field.onChange(
-        selectedRefs.filter((ref) => ref.id !== entryId) as typeof field.value
-      );
+      setRefs(selectedRefs.filter((ref) => ref.id !== entryId));
     } else if (maxReached === false) {
-      field.onChange([
+      setRefs([
         ...selectedRefs,
-        { id: entryId, objectType: 'entry' as const },
-      ] as typeof field.value);
+        { id: entryId, objectType: 'entry', collectionId },
+      ]);
     }
   }
 
   function removeEntry(entryId: string): void {
-    field.onChange(
-      selectedRefs.filter((ref) => ref.id !== entryId) as typeof field.value
-    );
+    setRefs(selectedRefs.filter((ref) => ref.id !== entryId));
   }
 
   /**
@@ -1417,7 +1448,9 @@ function FormEntryField<TFieldValues extends FieldValues>({
                               key={entry.id}
                               type="button"
                               disabled={isDisabledOption}
-                              onClick={() => toggleEntry(entry.id)}
+                              onClick={() =>
+                                toggleEntry(entry.id, collection.id)
+                              }
                               className={cn(
                                 'flex w-full items-center rounded-md border-2 px-3 py-2 text-left transition-all',
                                 isSelected === true

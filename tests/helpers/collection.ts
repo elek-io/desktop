@@ -410,9 +410,9 @@ export async function addFieldDefinition(
 
   // The "Input type" Select defaults to "text", so no change is needed here.
   await sheet.getByLabel('Label', { exact: true }).fill(options.label);
-  await sheet
-    .getByLabel('Description', { exact: true })
-    .fill(options.description);
+  // A Field's Description is optional, so its label carries an "- optional"
+  // suffix. Match by prefix. Filling an optional Field is still valid.
+  await sheet.getByLabel('Description').fill(options.description);
 
   // The text field's bounds labels carry an "- optional" suffix (they are not
   // required), so match by prefix rather than exactly.

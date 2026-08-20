@@ -190,11 +190,13 @@ Their inputs fetch data from within the form. `FormAssetField` and `FormEntryFie
 
 Their definition forms add type-specific options:
 
-- The asset definition form ([`asset-field-definition.tsx`](../../src/renderer/components/forms/asset-field-definition.tsx)) exposes `min` / `max` (how many Assets may be selected) through its spec's `Extras`.
+- The asset definition form ([`asset-field-definition.tsx`](../../src/renderer/components/forms/asset-field-definition.tsx)) exposes `min` / `max` (how many Assets may be selected) plus `ofAssetMimeTypes` through its spec's `Extras`.
 - The entry definition form ([`entry-field-definition.tsx`](../../src/renderer/components/forms/entry-field-definition.tsx)) adds an `ofCollections` list that restricts which Collections can be referenced (backed by a Collections query), plus `min` / `max`.
 
-> [!NOTE]
-> Core's asset definition also carries `ofAssetMimeTypes`, which the asset definition form does not expose yet. Keep that in mind before assuming the asset form is complete.
+`ofAssetMimeTypes` is authored through the shared [`asset-mime-type-picker.tsx`](../../src/renderer/components/forms/asset-mime-type-picker.tsx), used by both the asset spec and the markdown spec (where it constrains `assetReference` targets and only shows while `features.assetReferences` is on). It offers the distinct MIME types of the Project's own Assets rather than a hardcoded universe, and an empty selection means "any type".
+
+> [!IMPORTANT]
+> A reference value's stored shape is not symmetric. An asset reference is `{ id, objectType: 'asset' }`, but Core's `valueContentReferenceToEntrySchema` also requires `collectionId` on an **entry** reference, and refines it against the definition's `ofCollections`. `FormEntryField` therefore takes the collection from the selected Entry's own collection at the point of selection. Do not reintroduce a cast over `field.onChange` here: the missing `collectionId` was invisible to `tsc` for exactly that reason, and it made every entry-reference field unsaveable.
 
 ## Validation with Zod
 

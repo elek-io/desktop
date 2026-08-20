@@ -48,12 +48,6 @@ Authoring and rendering are two independent sides; a type can gain one before th
 - **Where to start**: wire the Edit button to open the sheet with the matching per-type form hydrated from the existing definition, and replace via the field array on submit.
 - **Notes**: `select` (options lists) and `markdown` (feature toggles) raise the priority - those are the definitions users will want to revise. Editing also raises data questions Core should answer first, like what happens to stored Values referencing a removed select option.
 
-## `ofAssetMimeTypes`: asset field and markdown definition forms
-
-- **Core support**: `assetFieldDefinitionSchema` and `markdownFieldDefinitionSchema` carry `ofAssetMimeTypes` to restrict which mime types an Asset (or a markdown assetReference) may use.
-- **Client today**: neither definition form exposes it, so it always stays at its default (empty, any type). Both registry specs still set `ofAssetMimeTypes: []` in their defaults because Core requires the key. The markdown editor's asset picker already filters by it when it is set through Core or the API.
-- **Where to start**: add a mime type selector shared by the asset and markdown authoring specs ([`asset-field-definition.tsx`](../src/renderer/components/forms/asset-field-definition.tsx) and [`markdown-field-definition.tsx`](../src/renderer/components/forms/markdown-field-definition.tsx)), surfaced through each spec's `Extras`.
-
 ## Markdown: v1 simplifications
 
 - **Definition `defaultValue` stays null**: Core allows a default mdast tree applied to every language of a new Entry, but the definition form does not offer an editor for it. Authoring one would couple a mounted editor to the feature toggles being edited in the same form, and definitions cannot be edited afterwards anyway (see [Field definition editing](#field-definition-editing)).

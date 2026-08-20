@@ -99,9 +99,35 @@ export function CollectionForm<
   const appendDefinition = (definition: FieldDefinition): void => {
     fieldDefinitionsField.onChange([...definitions, definition]);
   };
+  // Removing a definition also scrubs it from every slug field's
+  // ofFieldDefinitions. Core's slugSourceReferencesSuperRefinement rejects a
+  // source id that no longer exists in the Collection, and a fieldDefinitions[i]
+  // error has no control to land on here, so a stale id would silently block
+  // every later save with no visible reason.
   const removeDefinition = (id: string): void => {
+    const withoutSource = (definition: FieldDefinition): FieldDefinition =>
+      definition.fieldType === 'slug' &&
+      definition.ofFieldDefinitions.includes(id)
+        ? {
+            ...definition,
+            ofFieldDefinitions: definition.ofFieldDefinitions.filter(
+              (sourceId) => sourceId !== id
+            ),
+          }
+        : definition;
+
     fieldDefinitionsField.onChange(
-      definitions.filter((definition) => definition.id !== id)
+      definitions
+        .filter((definition) => definition.id !== id)
+        .map((definition) =>
+          'isGroup' in definition
+            ? {
+                ...definition,
+                fieldDefinitions:
+                  definition.fieldDefinitions.map(withoutSource),
+              }
+            : withoutSource(definition)
+        )
     );
   };
   const moveDefinition = (activeId: string, overId: string): void => {
