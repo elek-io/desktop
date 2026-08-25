@@ -18,6 +18,7 @@ import { Button } from '@renderer/components/ui/button';
 import { ScrollArea, ScrollBar } from '@renderer/components/ui/scroll-area';
 import { Toaster } from '@renderer/components/ui/sonner';
 import { UserHeader } from '@renderer/components/user-header';
+import { errorLogAttributes } from '@renderer/lib/logError';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
 
@@ -45,11 +46,10 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
 
   // A CoreError that crossed IPC arrives with its type, message and Core's origin
   // stack encoded into the message. Decode all of it so we show and log clean
-  // copy, never the raw sentinel JSON. A non-Core error (route or JS error) has
-  // no encoded stack, so fall back to its own stack, which carries no sentinel to
-  // leak.
-  const { message, stack } = parseIpcError(error);
-  const displayStack = stack ?? error.stack;
+  // copy, never the raw sentinel JSON. A non-Core error (route or JS error) keeps
+  // its own stack, which `parseIpcError` falls back to, so this is never empty
+  // and never carries a sentinel to leak.
+  const { message, stack: displayStack } = parseIpcError(error);
 
   // In an effect, not the render body. This component holds state now (the
   // report dialog), so logging inline would rewrite the same entry on every
@@ -58,9 +58,9 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
     void window.ipc.core.logger.error({
       source: 'desktop',
       message: `Uncaught route error: ${message}`,
-      meta: { error: { message, stack: displayStack } },
+      meta: errorLogAttributes(error),
     });
-  }, [message, displayStack]);
+  }, [message, error]);
 
   function Description(): ReactElement {
     return (

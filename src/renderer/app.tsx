@@ -1,6 +1,5 @@
 import '@fontsource-variable/montserrat';
 import '@fontsource/roboto';
-import { parseIpcError } from '@root/src/shared/ipcError';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
@@ -9,6 +8,10 @@ import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from '@renderer/components/theme-provider';
 import { router } from '@renderer/index';
 import '@renderer/index.css';
+import {
+  COMPONENT_STACK_ATTRIBUTE,
+  errorLogAttributes,
+} from '@renderer/lib/logError';
 import { queryClient } from '@renderer/queries';
 
 /**
@@ -23,7 +26,7 @@ import { queryClient } from '@renderer/queries';
  *   extends `React.Component`). It holds `updater` and `_reactInternals`, so it
  *   has functions and circular references. Only `componentStack` is forwarded.
  * - `error` is `unknown`, so a thrown non-Error object need not be cloneable.
- *   `parseIpcError` reduces any value to a message and a stack, and decodes a
+ *   `errorLogAttributes` reduces any value to strings, and decodes a
  *   `CoreError` that crossed IPC on the way, so the copy matches what the error
  *   boundary shows.
  */
@@ -33,8 +36,6 @@ function logReactError(
   error: unknown,
   errorInfo: { componentStack?: string | undefined }
 ): void {
-  const decoded = parseIpcError(error);
-
   // Swallow a failed log rather than `void`ing it. This runs on the error path,
   // where an unhandled rejection would be picked up by the global handler in
   // `renderer/index.ts`, which logs the same way and would fail the same way.
@@ -42,8 +43,10 @@ function logReactError(
     source: 'desktop',
     message,
     meta: {
-      error: { message: decoded.message, stack: decoded.stack },
-      componentStack: errorInfo.componentStack,
+      ...errorLogAttributes(error),
+      ...(errorInfo.componentStack === undefined
+        ? {}
+        : { [COMPONENT_STACK_ATTRIBUTE]: errorInfo.componentStack }),
     },
   }).catch(() => undefined);
 }

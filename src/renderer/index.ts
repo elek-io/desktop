@@ -1,6 +1,7 @@
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createHashHistory, createRouter } from '@tanstack/react-router';
 
+import { errorLogAttributes } from '@renderer/lib/logError';
 import { routeTree } from '@renderer/routeTree.gen';
 
 /**
@@ -23,13 +24,13 @@ import { routeTree } from '@renderer/routeTree.gen';
  * raised from inside this handler would come straight back to it.
  */
 function reportToCore(message: string, error: unknown): void {
-  const { message: decoded, stack } = parseIpcError(error);
+  const { message: decoded } = parseIpcError(error);
 
   void window.ipc.core.logger
     .error({
       source: 'desktop',
       message: `${message}: ${decoded}`,
-      meta: { error: { message: decoded, stack } },
+      meta: errorLogAttributes(error),
     })
     .catch(() => undefined);
 }

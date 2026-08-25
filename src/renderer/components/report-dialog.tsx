@@ -47,6 +47,7 @@ import {
 } from '@renderer/components/ui/form';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
+import { errorLogAttributes } from '@renderer/lib/logError';
 import { queryOptions } from '@renderer/queries';
 
 import {
@@ -277,12 +278,12 @@ function useSendReport(onSent: () => void): {
       // log. Every type is handled here, so without this the failure would
       // never be written down at all. What the user wrote is deliberately not
       // part of it, the same way Core keeps a report out of its own log files.
-      const { type, message, stack } = parseIpcError(error);
+      const { message } = parseIpcError(error);
       void window.ipc.core.logger
         .error({
           source: 'desktop',
           message: `Failed to send a report: ${message}`,
-          meta: { type, error: { message, stack } },
+          meta: errorLogAttributes(error),
         })
         .catch(() => undefined);
     }

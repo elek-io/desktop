@@ -606,7 +606,7 @@ packages:
     hasBin: true
 
   '@elek-io/core@file:../core/elek-io-core-0.23.0.tgz':
-    resolution: {integrity: sha512-HmAPXVb/yJIGxBNzHm1XhFGLTNQSS+R9+79fxYcxmmSwDD3fZqfIlYc2nlIjMTbA8t2hb3n86p9PSlZuUu4GRQ==, tarball: file:../core/elek-io-core-0.23.0.tgz}
+    resolution: {integrity: sha512-fI3Xj6bUNjwdYF0Y2EjwUkamq54J96sm9fiQP9CsRutIkV5BDeTyNoJjhrj7XYeUmNWKSRe909hIgxSVTslr6g==, tarball: file:../core/elek-io-core-0.23.0.tgz}
     version: 0.23.0
     hasBin: true
     peerDependencies:

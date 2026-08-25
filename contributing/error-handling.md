@@ -19,7 +19,7 @@ The main and renderer processes are separate, so an error thrown by a handler do
 To keep all three, the main and renderer sides cooperate through one small cross process module, [`src/shared/ipcError.ts`](/src/shared/ipcError.ts). It imports `CoreErrorType` type only, so it carries no runtime dependency on Core and bundles into both processes.
 
 1. **Encode in main.** The single `ipcMain.handle` wrapper in [`src/main/index.ts`](/src/main/index.ts) (the one loop that registers every channel) try/catches the handler call. A thrown `CoreError` is re-thrown as `new Error(serializeCoreError(error.type, error.message, error.stack))`, which packs the `type`, message and Core's own origin `stack` into the message behind a sentinel string. Anything that is not a `CoreError` propagates unchanged.
-2. **Decode in the renderer.** `parseIpcError(error)` returns `{ type?, message, stack? }`. It finds the sentinel by substring, so it is robust to Electron prefixing the message, validates the decoded `type` against the known `CoreErrorType` values, and returns the clean message plus Core's stack. For a non `CoreError`, or a malformed payload, it returns just the raw message and `type`/`stack` are absent.
+2. **Decode in the renderer.** `parseIpcError(error)` returns `{ type?, message, stack? }`. It finds the sentinel by substring, so it is robust to Electron prefixing the message, validates the decoded `type` against the known `CoreErrorType` values, and returns the clean message plus Core's stack. A non `CoreError` has no `type`, and keeps its own `stack`, which is the only one it has. A malformed payload degrades to the raw message with neither, because `error.stack` still holds the encoded form there and returning it would leak the sentinel.
 
 Because the sentinel is located by substring and the type is validated, decoding never throws and always degrades to the raw message. This is why the renderer can safely call `parseIpcError` on any caught value, `CoreError` or not.
 
@@ -45,7 +45,7 @@ Some `CoreError`s are raised by normal user actions and are recoverable. A `409`
 
 Use the [`useAppMutation`](/src/renderer/hooks/useAppMutation.ts) hook when a specific Core guard should stay on the page instead of hitting the boundary. It is the single home for this pattern, so the "expected" set is defined once and the boundary opt-out can never drift from the in-place dispatch.
 
-1. **Declare the handled `type`s with their in-place handlers.** Give `useAppMutation(options, { handled })` a `handled` map from each `CoreError` `type` to the callback that drives its UI. From that map the hook sets `throwOnError` to a predicate returning `false` only for the handled `type`s (so just those reach the caller's `catch` and every other failure still hits the boundary) plus an `onError` that suppresses the wrapper's toast and log **for the handled `type`s only** and delegates to the wrapped options' `onError` for everything else. Suppression is per type, not per mutation: an unexpected failure on an in-place mutation keeps its `{ method, objectType }` log, exactly like on a plain `useMutation`. Never a blanket `throwOnError: false`.
+1. **Declare the handled `type`s with their in-place handlers.** Give `useAppMutation(options, { handled })` a `handled` map from each `CoreError` `type` to the callback that drives its UI. From that map the hook sets `throwOnError` to a predicate returning `false` only for the handled `type`s (so just those reach the caller's `catch` and every other failure still hits the boundary) plus an `onError` that suppresses the wrapper's toast and log **for the handled `type`s only** and delegates to the wrapped options' `onError` for everything else. Suppression is per type, not per mutation: an unexpected failure on an in-place mutation keeps its `elek.method`/`elek.object.type` log with the error on it, exactly like on a plain `useMutation`. Never a blanket `throwOnError: false`.
 
    ```tsx
    const { mutateAsync, handleError } = useAppMutation(
@@ -117,6 +117,33 @@ There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC
 | A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                 |
 | Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request |
 
+### What an error record carries
+
+A log file is the only thing we get from a user who zips their logs instead of sending a report, so the shape of an error record is a contract rather than a detail. Every renderer site that logs an error builds its attributes with `errorLogAttributes` from [`lib/logError.ts`](/src/renderer/lib/logError.ts), so the five of them cannot drift apart.
+
+Attributes are flat dotted keys, the same convention Core follows for its own records (see Core's `logAttributeNames`). The point is that one query answers a question across both sources: a grep for `exception.stacktrace` finds every stack in a file, whoever wrote it.
+
+| Attribute                         | What it holds                                                               |
+| --------------------------------- | --------------------------------------------------------------------------- |
+| `error.type`                      | The `CoreError` type. Absent for an error that never came from Core         |
+| `exception.type`                  | The JavaScript class, which is what tells a `TypeError` from a `RangeError` |
+| `exception.message`               | The decoded message, never the raw sentinel payload                         |
+| `exception.stacktrace`            | Core's origin stack for a `CoreError`, the error's own stack otherwise      |
+| `elek.react.component_stack`      | React's component stack, on the root callbacks only                         |
+| `elek.method`, `elek.object.type` | Which mutation, on the mutation wrapper's records                           |
+
+**A stack is always present.** It used to be absent for anything that was not a `CoreError`, because `parseIpcError` returned the decoded stack or nothing, and only the root boundary fell back to `error.stack`. So an ordinary renderer bug, the one class you cannot reproduce from a description, reached the log with no frames at all. `parseIpcError` now falls back to the error's own stack in its no-sentinel branch. The fallback is deliberately not in the malformed-payload branch, where `error.stack` still holds the encoded form and returning it would leak the sentinel onto the error screen.
+
+**What is deliberately not logged.** The mutation wrapper logs neither `variables` nor `context`. `context` holds the QueryClient, whose functions and circular references would fail the structured clone and lose the log silently. `variables` is the mutation payload, which for an Entry is the content the user wrote, and Core never writes that to a log file.
+
+### Which build wrote a log file
+
+A record's `resource` carries `service.name`, `os.type` and `host.arch`, plus `service.version`. This matters because a chunk name in a component stack is content hashed, so a frame is only resolvable against the exact build that emitted it, and a log file zipped and mailed to us carries no report body to say which that was.
+
+Core stamps its own version on its own records and cannot read ours, so Core takes `log.hostVersion` at construction and writes it on the records we log. [`src/main/index.ts`](/src/main/index.ts) passes `app.getVersion()`, so **every** `desktop` record identifies its build, not just the ones we remember to stamp. Leave it out and those records go back to carrying no version at all.
+
+The runtime underneath is the one thing that cannot ride on the Resource, and a rendering bug is often specific to one Chromium. `logIdentity` writes one `info` record per app start naming the Electron, Chromium and Node versions. They do not change while the app runs, so repeating them per record would be waste. A tail reaches back 24 hours, so a long-running app drops that record out of the window and loses the runtime detail. The version survives regardless.
+
 ### The two global renderer listeners
 
 React's root callbacks only see errors thrown during render. A rejected floated promise (the app is full of `void window.ipc.core.*` calls) or a throw inside a plain event handler reaches none of them. Sentry's browser SDK used to install `onerror` and `onunhandledrejection` itself, so removing it left those with no sink at all, and they would have been missing from the log tail a bug report attaches. [`renderer/index.ts`](/src/renderer/index.ts) now installs both at module scope.
@@ -138,13 +165,13 @@ Two main-process paths log through `console.error` behind an `eslint-disable-nex
 A single failed mutation that is not handled in place fans out on purpose:
 
 1. A `toast.error` from the wrapper's `onError`.
-2. A local Core logger error "Failed to ..." from the same `onError`, carrying the mutation meta.
+2. A local Core logger error "Failed to ..." from the same `onError`, carrying which mutation failed and the error itself.
 3. `throwOnError` re-throws into the root boundary, so `ErrorComponent` writes a second local Core logger error "Uncaught route error: ..." with the decoded message and stack.
 4. React's `onCaughtError` writes a third, carrying the component stack.
 
-The three local logs are not a bug. They carry different context, the mutation meta, the fatal route surface and the React component stack, and all three help when reading a session's logs.
+The three local logs are not a bug. They carry different context, which mutation failed, the fatal route surface and the React component stack, and all three help when reading a session's logs.
 
-A mutation using the in-place pattern drops steps 1 and 2 **for its handled `type`s**, which is the whole point of handling them in place. An unexpected `type` on the same mutation is not suppressed: it fans out exactly as above, boundary included. Suppressing per mutation instead of per type is the bug this shape avoids, since it silently costs an unexpected failure its `{ method, objectType }` log.
+A mutation using the in-place pattern drops steps 1 and 2 **for its handled `type`s**, which is the whole point of handling them in place. An unexpected `type` on the same mutation is not suppressed: it fans out exactly as above, boundary included. Suppressing per mutation instead of per type is the bug this shape avoids, since it silently costs an unexpected failure its `elek.method`/`elek.object.type` log.
 
 ## User-initiated reports
 

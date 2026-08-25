@@ -60,6 +60,16 @@ export function serializeCoreError(
  * message (e.g. "Error invoking remote method ..."). Falls back to the raw
  * message for non-CoreError errors (route or plain JS errors) and any malformed
  * payload, so `type` is simply absent then.
+ *
+ * A plain error keeps its own `stack`. That is the only stack such an error
+ * has, and every caller logs what this returns, so dropping it left an ordinary
+ * renderer bug in the log file with no frames at all (verified in a packaged
+ * build). A CoreError still takes the sentinel branch below, so Core's origin
+ * stack keeps winning where there is one.
+ *
+ * The fallback is deliberately only in this branch. A malformed sentinel
+ * payload falls through to the bottom, where `error.stack` still holds the
+ * encoded form and returning it would leak the sentinel onto the error screen.
  */
 export function parseIpcError(error: unknown): {
   type?: CoreErrorType;
@@ -70,7 +80,8 @@ export function parseIpcError(error: unknown): {
   const sentinelIndex = raw.indexOf(IPC_CORE_ERROR_SENTINEL);
 
   if (sentinelIndex === -1) {
-    return { message: raw };
+    const stack = error instanceof Error ? error.stack : undefined;
+    return stack === undefined ? { message: raw } : { message: raw, stack };
   }
 
   const payload = raw.slice(sentinelIndex + IPC_CORE_ERROR_SENTINEL.length);

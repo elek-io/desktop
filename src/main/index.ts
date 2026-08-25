@@ -76,8 +76,15 @@ class Main {
    */
   private async onAppReady(): Promise<void> {
     this.core = new ElekIoCore({
-      log: { level: app.isPackaged ? 'info' : 'debug' },
+      log: {
+        level: app.isPackaged ? 'info' : 'debug',
+        // Stamps `service.version` on every record we log, so a log file sent
+        // without a report around it still says which build wrote it. Core
+        // stamps its own version on its own records and cannot read ours.
+        hostVersion: app.getVersion(),
+      },
     });
+    this.logIdentity(this.core);
     const user = await this.core.user.get();
 
     if (user && user.localApi.isEnabled) {
@@ -95,6 +102,33 @@ class Main {
     const window = this.createWindow();
     this.registerIpcMain(window, this.core);
     await this.loadWindow(window);
+  }
+
+  /**
+   * Writes which runtime is running, once per app start.
+   *
+   * Which build wrote a record is answered by `log.hostVersion` above, which
+   * puts our version on the Resource of every record we log. What that cannot
+   * carry is the runtime underneath, and a rendering bug is often specific to
+   * one Chromium. Those three versions do not change while the app runs, so
+   * once per start is enough and repeating them per record would be waste.
+   *
+   * A tail reaches back 24 hours, so an app left running for days drops this
+   * record out of the window. That is survivable now: the version is on every
+   * record either way, and only the runtime detail goes with it.
+   */
+  private logIdentity(core: ElekIoCore): void {
+    const { electron, chrome, node } = process.versions;
+
+    core.logger.info({
+      source: 'desktop',
+      message: `Desktop ${app.getVersion()} starting (electron ${electron}, chrome ${chrome}, node ${node})`,
+      meta: {
+        'elek.desktop.runtime.electron': electron,
+        'elek.desktop.runtime.chrome': chrome,
+        'elek.desktop.runtime.node': node,
+      },
+    });
   }
 
   /**
