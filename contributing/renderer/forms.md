@@ -12,7 +12,10 @@ on top, documented in [dynamic-form-field-generation.md](./dynamic-form-field-ge
 The four shared form components live in [`components/forms/`](../../src/renderer/components/forms/)
 (project, collection, entry and asset), and the field-definition authoring engine
 adds a fifth in the same folder. The remaining forms are written inline in their
-route. To find every form in the app, `grep -rn "<AppForm" src/renderer`.
+route, except the two in
+[`report-dialog.tsx`](../../src/renderer/components/report-dialog.tsx), which are
+reached from the header and from the root error boundary rather than from a route.
+To find every form in the app, `grep -rn "<AppForm" src/renderer`.
 
 ## Form invariants
 
@@ -109,6 +112,14 @@ which owns the policies that used to be pasted at each call site:
 - **`mode="view"`** renders the form read-only through a disabled `<fieldset>` and
   makes submit a no-op. It also reaches the render registry through the
   `AppFormContext`, see [View-only forms and diffs](#view-only-forms-and-diffs).
+- **`fieldsetClassName`** styles that inner `<fieldset>`. It exists because the
+  fieldset sits between the `<form>` and its content, so a caller laying the form
+  out cannot reach it, and its default sizing breaks any containment the caller
+  set up. The report dialog is the case: `DialogContent` is a three-row grid whose
+  middle row scrolls while the footer stays put, and without a
+  `flex min-h-0 flex-1 flex-col` fieldset the scroll area is unbounded and the
+  footer is pushed off. Style it through this prop rather than working around it
+  at the call site, since `AppForm` owns that element.
 
 ## Detached submit buttons
 
@@ -357,6 +368,9 @@ these contracts are easy to get subtly wrong and Core validates tightly:
   the stored value keeps its string or number type.
 - `FormRangeField` bridges the Radix `Slider`'s `number[]` and the single number
   the Value holds.
+- `FormToggleField` binds a Radix `Switch` to a boolean. It is exported for
+  hand-written forms too (the report dialog's "Also send my logs"), not only
+  reached through the render registry.
 - `FormAssetField` and `FormEntryField` hold an array of `{ id, objectType }`
   references, fetch their selectable objects with TanStack Query from inside the
   form, and enforce the definition's `max` in the UI.

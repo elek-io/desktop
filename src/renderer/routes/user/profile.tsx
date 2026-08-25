@@ -64,6 +64,10 @@ function UserProfilePage(): ReactElement {
     resolver: zodResolver(setUserSchema),
     defaultValues: {
       userType: 'local',
+      // A local User never has an elek.io account id, which is what tells the
+      // two kinds of User apart. Runtime only, since the form is typed by the
+      // whole SetUserProps union.
+      id: null,
       name: '',
       email: '',
       language: 'en',

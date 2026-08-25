@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 
 import { IPC_CORE_ERROR_SENTINEL } from '../../src/shared/ipcError.js';
 import { test } from '../fixtures/electronApp.js';
+import { dismissDialog } from '../helpers/dialog.js';
 import { navigate, verifyCurrentRouteHash } from '../helpers/navigation.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -51,13 +52,15 @@ test.describe('Root error boundary', () => {
     // The desktop app shows a decoded message (via parseIpcError) and, in the
     // technical detail block, the decoded Core origin stack. Neither carries the
     // raw IPC sentinel JSON, so the whole error view is free of it. The message
-    // is a plain `<p>` with no ARIA role, so still key its visibility off that
-    // paragraph, then assert the sentinel is absent from the entire main region
-    // (the `<pre>` included, which before the fix still leaked the encoded form).
+    // is a plain `<p>` with no ARIA role, so key its visibility off the Page's
+    // card body, which holds it and not the Page header's description. Scoping
+    // structurally rather than filtering the description out by text keeps this
+    // from breaking every time the boundary's copy is reworded. Then assert the
+    // sentinel is absent from the entire main region (the `<pre>` included,
+    // which before the fix still leaked the encoded form).
     const errorMessage = mainWindow
       .getByRole('main')
-      .locator('p')
-      .filter({ hasNotText: 'Unfortunately' });
+      .locator('[data-slot="card-content"] p');
     await expect(errorMessage).toBeVisible();
     await expect(mainWindow.getByRole('main')).not.toContainText(
       IPC_CORE_ERROR_SENTINEL
@@ -68,5 +71,52 @@ test.describe('Root error boundary', () => {
     await mainWindow.getByRole('button', { name: 'Back to Projects' }).click();
     await verifyCurrentRouteHash(mainWindow, '#/projects');
     await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+  });
+
+  test('the boundary offers to report the problem, prefilled', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+
+    await navigate(
+      mainWindow,
+      '#/projects/00000000-0000-0000-0000-000000000000/dashboard'
+    );
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeVisible({ timeout: 20000 });
+
+    // Nothing is reported automatically any more, so the boundary has to ask.
+    // It is the primary action, since the crash is the moment the report is
+    // worth most and the user will not go hunting for the header button.
+    const report = mainWindow.getByRole('button', {
+      name: 'Report this problem',
+    });
+    await expect(report).toBeVisible();
+    await report.click();
+
+    // It opens the bug form, not the feedback one: the user is not here to
+    // share an opinion.
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole('heading', { name: 'Report a bug' })
+    ).toBeVisible();
+
+    // A report is one message, so the boundary hands over the decoded error and
+    // the stack inside it. The user does not have to retype what the screen
+    // already shows, and none of it leaks the raw sentinel.
+    const message = dialog.getByLabel('What went wrong?');
+    await expect(message).not.toHaveValue('');
+    await expect(message).not.toHaveValue(new RegExp(IPC_CORE_ERROR_SENTINEL));
+
+    // Logs default ON here and only here: they are the point of a crash report,
+    // and the user is looking at the failure while deciding.
+    await expect(dialog.getByLabel('Also send my logs')).toBeChecked();
+
+    // Dismissing the dialog leaves the boundary's own recovery working.
+    await dismissDialog(mainWindow);
+    await mainWindow.getByRole('button', { name: 'Back to Projects' }).click();
+    await verifyCurrentRouteHash(mainWindow, '#/projects');
   });
 });

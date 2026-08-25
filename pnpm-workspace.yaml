@@ -3,8 +3,6 @@
 # map of package -> boolean. Kept in the same style as Core's config.
 # See https://pnpm.io/settings#allowbuilds
 allowBuilds:
-  # Downloads the sentry-cli binary used by @sentry/vite-plugin during builds.
-  '@sentry/cli': true
   # Native engine behind Tailwind v4, required by @tailwindcss/vite.
   '@tailwindcss/oxide': true
   # dugite is Core's git engine. Its postinstall downloads the embedded git

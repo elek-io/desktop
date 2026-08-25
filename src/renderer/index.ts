@@ -1,24 +1,47 @@
-/**
- * Enables Sentry for error tracking, performance monitoring, and session replay in the Electron renderer process.
- *
- * @see https://docs.sentry.io/platforms/javascript/guides/electron/#framework-specific-sdks
- * @see https://docs.sentry.io/platforms/javascript/guides/react/
- * @see https://docs.sentry.io/platforms/javascript/guides/react/tracing/
- * @see https://docs.sentry.io/platforms/javascript/guides/react/features/tanstack-router/
- */
-import { decodeCoreErrorForSentry } from '@root/src/shared/sentryCoreError';
-import { init } from '@sentry/electron/renderer';
-import {
-  init as reactInit,
-  reactErrorHandler,
-  tanstackRouterBrowserTracingIntegration,
-  browserProfilingIntegration,
-  replayIntegration,
-  defaultStackParser,
-} from '@sentry/react';
+import { parseIpcError } from '@root/src/shared/ipcError';
 import { createHashHistory, createRouter } from '@tanstack/react-router';
 
+import { errorLogAttributes } from '@renderer/lib/logError';
 import { routeTree } from '@renderer/routeTree.gen';
+
+/**
+ * Last-resort sink for the renderer.
+ *
+ * React's root callbacks in `app.tsx` only see errors thrown during render.
+ * Anything outside that, a rejected floated promise (the app is full of
+ * `void window.ipc.core.*` calls) or an error in a plain event handler, reached
+ * no sink at all once Sentry's browser SDK was removed, which installed these
+ * two listeners itself. They would be missing from the log tail a bug report
+ * attaches, which is the one thing meant to replace it.
+ *
+ * The main process needs no equivalent. Core's logger builds its winston
+ * transport with `handleExceptions` and `handleRejections`, so winston installs
+ * the matching `process.on` handlers and an uncaught throw there already lands
+ * in Core's log files.
+ *
+ * Installed at module scope so it is in place before the app mounts, and both
+ * listeners swallow a failed log rather than floating it, since a rejection
+ * raised from inside this handler would come straight back to it.
+ */
+function reportToCore(message: string, error: unknown): void {
+  const { message: decoded } = parseIpcError(error);
+
+  void window.ipc.core.logger
+    .error({
+      source: 'desktop',
+      message: `${message}: ${decoded}`,
+      meta: errorLogAttributes(error),
+    })
+    .catch(() => undefined);
+}
+
+window.addEventListener('unhandledrejection', (event) => {
+  reportToCore('Unhandled promise rejection', event.reason);
+});
+
+window.addEventListener('error', (event) => {
+  reportToCore('Uncaught error', event.error ?? event.message);
+});
 
 // Create a new router instance
 const hashHistory = createHashHistory(); // Use hash based routing since in production electron just loads the index.html via the file protocol
@@ -41,37 +64,4 @@ declare module '@tanstack/react-router' {
   }
 }
 
-// E2E tests set NODE_ENV to disable Sentry, so test runs do not report
-// errors, traces or replays. A disabled client also never sets up its
-// integrations, so profiling and replay stay dormant under test without
-// having to gate the integrations array here
-const sentryEnabled = window.ipc.electron.process.env['NODE_ENV'] !== 'test';
-
-init(
-  {
-    dsn: 'https://06f2163a40c4c4f404c41860f46a104b@o4511706089259008.ingest.de.sentry.io/4511706092535888',
-    enabled: sentryEnabled,
-    integrations: [
-      tanstackRouterBrowserTracingIntegration(router),
-      browserProfilingIntegration(),
-      replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
-    ],
-    sampleRate: 1.0, // For error events @todo change this to a lower number once more people are using Desktop
-    tracesSampleRate: 1.0, // For tracing events @todo change this to a lower number once more people are using Desktop
-    profilesSampleRate: 1.0, // For profiling events @todo change this to a lower number once more people are using Desktop
-    replaysOnErrorSampleRate: 1.0, // Always send a session replay when an error was thrown
-    tracePropagationTargets: ['localhost', /^https:\/\/api\.elek\.io/],
-    // Decode any CoreError encoded at the IPC boundary into a readable message
-    // and rebuild its stacktrace from Core's forwarded origin stack
-    beforeSend: (event) => {
-      decodeCoreErrorForSentry(event, defaultStackParser);
-      return event;
-    },
-  },
-  reactInit
-);
-
-export { reactErrorHandler, router };
+export { router };

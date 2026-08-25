@@ -8,15 +8,17 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
-import { type ReactElement } from 'react';
+import { ArrowLeft, MessageSquare, RefreshCw } from 'lucide-react';
+import { useEffect, useState, type ReactElement } from 'react';
 
 import { AppHeader } from '@renderer/components/app-header';
 import { Page } from '@renderer/components/page';
+import { ReportDialog } from '@renderer/components/report-dialog';
 import { Button } from '@renderer/components/ui/button';
 import { ScrollArea, ScrollBar } from '@renderer/components/ui/scroll-area';
 import { Toaster } from '@renderer/components/ui/sonner';
 import { UserHeader } from '@renderer/components/user-header';
+import { errorLogAttributes } from '@renderer/lib/logError';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
 
@@ -40,28 +42,33 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
   const router = useRouter();
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
   // A CoreError that crossed IPC arrives with its type, message and Core's origin
   // stack encoded into the message. Decode all of it so we show and log clean
-  // copy, never the raw sentinel JSON. A non-Core error (route or JS error) has
-  // no encoded stack, so fall back to its own stack, which carries no sentinel to
-  // leak.
-  const { message, stack } = parseIpcError(error);
-  const displayStack = stack ?? error.stack;
+  // copy, never the raw sentinel JSON. A non-Core error (route or JS error) keeps
+  // its own stack, which `parseIpcError` falls back to, so this is never empty
+  // and never carries a sentinel to leak.
+  const { message, stack: displayStack } = parseIpcError(error);
 
-  void window.ipc.core.logger.error({
-    source: 'desktop',
-    message: `Uncaught route error: ${message}`,
-    meta: { error: { message, stack: displayStack } },
-  });
+  // In an effect, not the render body. This component holds state now (the
+  // report dialog), so logging inline would rewrite the same entry on every
+  // open and close, inflating exactly the log tail a bug report attaches.
+  useEffect(() => {
+    void window.ipc.core.logger.error({
+      source: 'desktop',
+      message: `Uncaught route error: ${message}`,
+      meta: errorLogAttributes(error),
+    });
+  }, [message, error]);
 
   function Description(): ReactElement {
     return (
       <>
-        Unfortunately you&apos;ve encountered an error. But don&apos;t worry, if
-        you have allowed us to send error reports we know about and will take
-        care of it soon. If you need additional help, please contact our
-        support.
+        Something went wrong and this screen is all we can show you. Nothing
+        about it was sent to us automatically, so we only find out if you tell
+        us. Reporting it takes a moment and we have already filled in what we
+        know.
       </>
     );
   }
@@ -76,9 +83,13 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Projects
         </Button>
-        <Button variant="default" onClick={() => location.reload()}>
+        <Button variant="outline" onClick={() => location.reload()}>
           <RefreshCw className="mr-2 h-4 w-4" />
           Reload
+        </Button>
+        <Button variant="default" onClick={() => setIsReportDialogOpen(true)}>
+          <MessageSquare className="mr-2 h-4 w-4" />
+          Report this problem
         </Button>
       </>
     );
@@ -98,6 +109,30 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
           </ScrollArea>
         </div>
       </Page>
+
+      {/*
+        The crash is the moment a report is worth most and the moment the user
+        is least likely to go looking for the header button, so the boundary
+        opens the same dialog itself, already carrying what we know. Logs
+        default to on here: they are the point of a crash report, and the user
+        is looking at the failure while deciding.
+      */}
+      <ReportDialog
+        open={isReportDialogOpen}
+        onOpenChange={setIsReportDialogOpen}
+        defaultMode="bug"
+        defaultIncludeLogs
+        prefill={{
+          message: `What I was doing when this happened:\n\n\n---\nTechnical detail, filled in automatically:\n\n${message}\n\n${displayStack ?? 'No stack available.'}`,
+        }}
+      />
+
+      {/*
+        This screen replaces RootComponent outright, so it does not inherit its
+        Toaster. Without one here a sent report closes its dialog and leaves no
+        evidence it worked, and the user sends it again.
+      */}
+      <Toaster />
     </>
   );
 }

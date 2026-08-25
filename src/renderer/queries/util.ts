@@ -7,6 +7,8 @@ import {
 } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+import { errorLogAttributes } from '@renderer/lib/logError';
+
 import {
   objectTypeSchema,
   z,
@@ -30,9 +32,23 @@ const logableMutationMetaSchema = z.object({
     'start',
     'stop',
   ]),
-  objectType: z.enum([...objectTypeSchema.options, 'api', 'user']),
+  objectType: z.enum([...objectTypeSchema.options, 'api', 'user', 'report']),
 });
 type LogableMutationMeta = z.infer<typeof logableMutationMetaSchema>;
+
+/**
+ * Which mutation a record is about, under the names Core declares for exactly
+ * this (`elek.method`, `elek.object.type`), so one query answers it across both
+ * sources.
+ */
+function mutationLogAttributes(
+  meta: LogableMutationMeta
+): Record<string, unknown> {
+  return {
+    'elek.method': meta.method,
+    'elek.object.type': meta.objectType,
+  };
+}
 
 /**
  * Custom mutation options wrapper with automatic display
@@ -46,6 +62,15 @@ type LogableMutationMeta = z.infer<typeof logableMutationMetaSchema>;
  * It adds `throwOnError: true` to propagate errors to the nearest error boundary (__root.tsx).
  *
  * Additionally it logs all mutations with Core to enable full E2E debugging.
+ * A failure carries the error itself, not just which mutation failed, so the
+ * record explains itself instead of having to be paired with Core's own by
+ * timestamp.
+ *
+ * It deliberately logs neither `variables` nor `context`. `context` holds the
+ * QueryClient, whose functions and circular references would fail the structured
+ * clone and lose the log silently, and `variables` is the payload, which for an
+ * Entry is the content the user wrote. Core never writes that to a log file and
+ * neither do we.
  */
 export function customMutationOptions<
   TData = unknown,
@@ -79,12 +104,7 @@ export function customMutationOptions<
         await window.ipc.core.logger.error({
           source: 'desktop',
           message: 'Detected mutation without meta',
-          meta: {
-            data,
-            variables,
-            result,
-            context,
-          },
+          meta: errorLogAttributes(logableMutationMeta.error),
         });
       } else {
         toast.success(
@@ -94,15 +114,13 @@ export function customMutationOptions<
         await window.ipc.core.logger.info({
           source: 'desktop',
           message: `Successfully ${logableMutationMeta.data.method}ed ${logableMutationMeta.data.objectType}`,
-          meta: {
-            ...logableMutationMeta.data,
-          },
+          meta: mutationLogAttributes(logableMutationMeta.data),
         });
       }
 
       originalOnSuccess(data, variables, result, context);
     },
-    onError: async (error, variables, result, context) => {
+    onError: async (error, _variables, _result, context) => {
       const logableMutationMeta = logableMutationMetaSchema.safeParse(
         context.meta
       );
@@ -111,12 +129,7 @@ export function customMutationOptions<
         await window.ipc.core.logger.error({
           source: 'desktop',
           message: 'Detected mutation without meta',
-          meta: {
-            error,
-            variables,
-            result,
-            context,
-          },
+          meta: errorLogAttributes(error),
         });
       } else {
         toast.error(
@@ -127,7 +140,8 @@ export function customMutationOptions<
           source: 'desktop',
           message: `Failed to ${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`,
           meta: {
-            ...logableMutationMeta.data,
+            ...mutationLogAttributes(logableMutationMeta.data),
+            ...errorLogAttributes(error),
           },
         });
       }

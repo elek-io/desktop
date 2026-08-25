@@ -1,9 +1,4 @@
 import {
-  init as sentryInit,
-  captureException as sentryCaptureException,
-  flush as sentryFlush,
-} from '@sentry/electron/main';
-import {
   app,
   BrowserWindow,
   type BrowserWindowConstructorOptions,
@@ -22,29 +17,8 @@ import ElekIoCore, { CoreError } from '@elek-io/core';
 
 import icon from '../../resources/icon.png?asset';
 import { serializeCoreError } from '../shared/ipcError.js';
-import { decodeCoreErrorForSentry } from '../shared/sentryCoreError.js';
 
 // import { updateElectronApp } from 'update-electron-app';
-
-export class SecurityError extends Error {
-  constructor(message: string) {
-    super(message);
-
-    this.name = 'SecurityError';
-  }
-}
-
-sentryInit({
-  dsn: 'https://06f2163a40c4c4f404c41860f46a104b@o4511706089259008.ingest.de.sentry.io/4511706092535888',
-  enableRendererProfiling: true, // @see https://docs.sentry.io/platforms/javascript/guides/electron/profiling/
-  // E2E tests set NODE_ENV to prevent reporting from test runs
-  enabled: process.env['NODE_ENV'] !== 'test',
-  // Decode any CoreError encoded at the IPC boundary into a readable message
-  beforeSend: (event) => {
-    decodeCoreErrorForSentry(event);
-    return event;
-  },
-});
 
 class Main {
   public readonly customFileProtocol: string = 'elek-io-local-file';
@@ -72,16 +46,12 @@ class Main {
 
     // Register app events
     app.on('ready', () => {
-      void this.onAppReady().catch(async (error: unknown) => {
+      void this.onAppReady().catch((error: unknown) => {
         // Exit instead of leaving a running app without a window,
         // otherwise initialization failures hang silently.
         // Not using Core's logger since it may be what failed to initialize
         // eslint-disable-next-line no-console
         console.error('Failed to initialize the app', error);
-        sentryCaptureException(error);
-        // Let Sentry deliver the event before the process exits. Resolves
-        // immediately when Sentry is disabled, as it is under NODE_ENV=test
-        await sentryFlush(2000);
         app.exit(1);
       });
     });
@@ -106,8 +76,15 @@ class Main {
    */
   private async onAppReady(): Promise<void> {
     this.core = new ElekIoCore({
-      log: { level: app.isPackaged ? 'info' : 'debug' },
+      log: {
+        level: app.isPackaged ? 'info' : 'debug',
+        // Stamps `service.version` on every record we log, so a log file sent
+        // without a report around it still says which build wrote it. Core
+        // stamps its own version on its own records and cannot read ours.
+        hostVersion: app.getVersion(),
+      },
     });
+    this.logIdentity(this.core);
     const user = await this.core.user.get();
 
     if (user && user.localApi.isEnabled) {
@@ -125,6 +102,33 @@ class Main {
     const window = this.createWindow();
     this.registerIpcMain(window, this.core);
     await this.loadWindow(window);
+  }
+
+  /**
+   * Writes which runtime is running, once per app start.
+   *
+   * Which build wrote a record is answered by `log.hostVersion` above, which
+   * puts our version on the Resource of every record we log. What that cannot
+   * carry is the runtime underneath, and a rendering bug is often specific to
+   * one Chromium. Those three versions do not change while the app runs, so
+   * once per start is enough and repeating them per record would be waste.
+   *
+   * A tail reaches back 24 hours, so an app left running for days drops this
+   * record out of the window. That is survivable now: the version is on every
+   * record either way, and only the runtime detail goes with it.
+   */
+  private logIdentity(core: ElekIoCore): void {
+    const { electron, chrome, node } = process.versions;
+
+    core.logger.info({
+      source: 'desktop',
+      message: `Desktop ${app.getVersion()} starting (electron ${electron}, chrome ${chrome}, node ${node})`,
+      meta: {
+        'elek.desktop.runtime.electron': electron,
+        'elek.desktop.runtime.chrome': chrome,
+        'elek.desktop.runtime.node': node,
+      },
+    });
   }
 
   /**
@@ -171,7 +175,6 @@ class Main {
         false
       ) {
         const errorMessage = `Prevented navigation to untrusted, external URL "${parsedUrl.toString()}" from "${webContents.getURL()}"`;
-        sentryCaptureException(new SecurityError(errorMessage));
         this.core?.logger.error({
           source: 'desktop',
           message: errorMessage,
@@ -298,7 +301,6 @@ class Main {
     ) {
       event.preventDefault();
       const errorMessage = `Prevented navigation to untrusted, internal URL "${parsedUrl.toString()}" from "${window.webContents.getURL()}"`;
-      sentryCaptureException(new SecurityError(errorMessage));
       this.core?.logger.error({
         source: 'desktop',
         message: errorMessage,
@@ -312,10 +314,10 @@ class Main {
   private registerCustomFileProtocol(): void {
     protocol.handle(this.customFileProtocol, async (request) => {
       if (!this.core) {
-        sentryCaptureException(
-          new Error(
-            'Trying to handle custom file protocol but Core is not initialized.'
-          )
+        // Not using Core's logger here, since Core is what is missing
+        // eslint-disable-next-line no-console
+        console.error(
+          'Trying to handle custom file protocol but Core is not initialized.'
         );
         return new Response('Internal Server Error', { status: 500 });
       }
@@ -341,11 +343,10 @@ class Main {
           )
         );
       } catch {
-        sentryCaptureException(
-          new SecurityError(
-            `Could not resolve requested file URL "${request.url}".`
-          )
-        );
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Could not resolve requested file URL "${request.url}".`,
+        });
         return forbidden;
       }
 
@@ -359,11 +360,10 @@ class Main {
         isWithin(absoluteFilePath, this.core.util.pathTo.projects) === false &&
         isWithin(absoluteFilePath, this.core.util.pathTo.tmp) === false
       ) {
-        sentryCaptureException(
-          new SecurityError(
-            `Tried to load file "${absoluteFilePath}" outside of the Projects or tmp directory.`
-          )
-        );
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Tried to load file "${absoluteFilePath}" outside of the Projects or tmp directory.`,
+        });
         return forbidden;
       }
 
@@ -385,11 +385,10 @@ class Main {
           realpath(this.core.util.pathTo.tmp),
         ]);
       } catch {
-        sentryCaptureException(
-          new SecurityError(
-            `Could not resolve the real path of "${absoluteFilePath}".`
-          )
-        );
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Could not resolve the real path of "${absoluteFilePath}".`,
+        });
         return forbidden;
       }
 
@@ -397,11 +396,10 @@ class Main {
         isWithin(resolvedFilePath, resolvedProjects) === false &&
         isWithin(resolvedFilePath, resolvedTmp) === false
       ) {
-        sentryCaptureException(
-          new SecurityError(
-            `Tried to load file "${absoluteFilePath}" resolving through a link to "${resolvedFilePath}" outside of the Projects or tmp directory.`
-          )
-        );
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Tried to load file "${absoluteFilePath}" resolving through a link to "${resolvedFilePath}" outside of the Projects or tmp directory.`,
+        });
         return forbidden;
       }
 
@@ -428,6 +426,9 @@ class Main {
       'core:logger:error': core.logger.error.bind(core.logger),
       'core:user:get': core.user.get.bind(core.user),
       'core:user:set': core.user.set.bind(core.user),
+      'core:cloud:reports:create': core.cloud.reports.create.bind(
+        core.cloud.reports
+      ),
       'core:projects:count': core.projects.count.bind(core.projects),
       'core:projects:create': core.projects.create.bind(core.projects),
       'core:projects:list': core.projects.list.bind(core.projects),
