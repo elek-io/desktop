@@ -1,4 +1,3 @@
-import { sentryVitePlugin } from '@sentry/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import viteReact from '@vitejs/plugin-react';
@@ -9,12 +8,6 @@ export default defineConfig({
   main: {
     // Dependencies are externalized by default since electron-vite 5 (build.externalizeDeps)
     build: { sourcemap: true },
-    plugins: [
-      sentryVitePlugin({
-        org: 'elek-io',
-        project: 'desktop',
-      }),
-    ],
   },
   preload: {
     build: {
@@ -33,9 +26,10 @@ export default defineConfig({
     },
   },
   renderer: {
-    // Emit source maps so @sentry/vite-plugin can upload them and symbolicate
-    // renderer (React UI) crashes. They are deleted after upload below, so they
-    // do not ship inside the asar.
+    // Emit source maps so a local build can be debugged with readable stack
+    // traces. electron-builder excludes out/renderer/**/*.map from the asar
+    // (see electron-builder.yml), so the multi-MB maps stay on disk and never
+    // ship inside the packaged app.
     build: { sourcemap: true },
     resolve: {
       alias: {
@@ -57,16 +51,6 @@ export default defineConfig({
       }),
       viteReact(),
       tailwindcss(),
-      sentryVitePlugin({
-        org: 'elek-io',
-        project: 'desktop',
-        // Delete the emitted .map files after upload so the multi-MB renderer
-        // source maps are not packaged into the shipped app. This runs only on
-        // `pnpm build`, not `pnpm dev`, so DevTools debugging is unaffected.
-        // Comment out filesToDeleteAfterUpload to keep the maps in a local
-        // `pnpm build` when you want to inspect out/.
-        sourcemaps: { filesToDeleteAfterUpload: ['./out/renderer/**/*.map'] },
-      }),
     ],
   },
 });

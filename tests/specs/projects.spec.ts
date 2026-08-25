@@ -456,8 +456,8 @@ test.describe('Projects', () => {
     // Conflict in place (the force-delete modal), so every other failure must
     // reach the root error boundary. This guards the throwOnError predicate
     // against a regression back to a blanket throwOnError: false, which would
-    // swallow the failure into the force-delete modal and drop it from the logs
-    // and Sentry. The guard-path force-delete specs above cannot catch that,
+    // swallow the failure into the force-delete modal and drop it from the
+    // logs entirely. The guard-path force-delete specs above cannot catch that,
     // since the modal still opens for the guard reasons either way.
     await stubCoreReject(electronApp, 'core:projects:delete');
 

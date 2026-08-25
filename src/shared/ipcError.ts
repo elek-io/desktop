@@ -29,6 +29,8 @@ const coreErrorTypes = new Set<string>(
     Conflict: true,
     PreconditionFailed: true,
     UpgradeFailed: true,
+    VersionSkew: true,
+    RateLimited: true,
     Internal: true,
   } satisfies Record<CoreErrorType, true>)
 );

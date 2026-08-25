@@ -30,7 +30,7 @@ const logableMutationMetaSchema = z.object({
     'start',
     'stop',
   ]),
-  objectType: z.enum([...objectTypeSchema.options, 'api', 'user']),
+  objectType: z.enum([...objectTypeSchema.options, 'api', 'user', 'report']),
 });
 type LogableMutationMeta = z.infer<typeof logableMutationMetaSchema>;
 

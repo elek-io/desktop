@@ -43,6 +43,11 @@ declare global {
         get: ElekIoCore['user']['get'];
         set: ElekIoCore['user']['set'];
       };
+      cloud: {
+        reports: {
+          create: ElekIoCore['cloud']['reports']['create'];
+        };
+      };
       projects: {
         create: ElekIoCore['projects']['create'];
         count: ElekIoCore['projects']['count'];

@@ -21,7 +21,7 @@ It prunes `devDependencies`. So the shipped app is the Electron runtime, plus th
 
 ### The "duplicate dependency references" log line
 
-During this collection electron-builder prints `duplicate dependency references` with a list of packages (for example `dugite`, `debug`, `@sentry/opentelemetry`). It is an `info` note, not a warning. "Duplicate" means referenced by more than one parent in the production tree, not copied more than once. These are diamond dependencies that pnpm deduped, and electron-builder collapses each to a single node, so every listed package still ships once. You can confirm it with `pnpm why <pkg> --prod`, which reports one version each. A second version in the pnpm store belongs only to `devDependencies` and is pruned before packaging. The line that would matter is `unresolved duplicate dependency references`, which is `warn` level and means a reference electron-builder could not resolve.
+During this collection electron-builder prints `duplicate dependency references` with a list of packages (for example `dugite`, `debug`, `semver`). It is an `info` note, not a warning. "Duplicate" means referenced by more than one parent in the production tree, not copied more than once. These are diamond dependencies that pnpm deduped, and electron-builder collapses each to a single node, so every listed package still ships once. You can confirm it with `pnpm why <pkg> --prod`, which reports one version each. A second version in the pnpm store belongs only to `devDependencies` and is pruned before packaging. The line that would matter is `unresolved duplicate dependency references`, which is `warn` level and means a reference electron-builder could not resolve.
 
 ## The rule for dependencies vs devDependencies
 
@@ -38,7 +38,7 @@ That only happens for code that was **externalized**, not bundled. Combined with
 Two more cases follow the same "is it required at runtime" test:
 
 - **Peer dependencies of a shipped package.** [`@elek-io/core`](../package.json) declares `dugite` and `zod` as required peers and `require()`s them at runtime in the main process. The client provides them, so they must be `dependencies`. Demote them and the app crashes on launch.
-- **Build only tools.** A Vite plugin like `@sentry/vite-plugin` runs only during the build, so it is a `devDependency` even though it is very much part of shipping the app. Left in `dependencies` it drags its `@sentry/cli` platform binary (tens of MB) into every packaged copy.
+- **Build only tools.** A Vite plugin like `@tailwindcss/vite` or `@tanstack/router-plugin` runs only during the build, so it is a `devDependency` even though it is very much part of shipping the app. Left in `dependencies` it drags itself, its platform binaries and its whole transitive tree into every packaged copy for no runtime benefit.
 
 ### Why this fails late
 

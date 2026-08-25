@@ -38,7 +38,7 @@ Two rules follow:
 - Prefer a library's built-in feature over hand-rolled code.
 - Avoid type casts. Shape the types so a cast is not needed.
 - Keep comments short and put deeper detail in the docs. Avoid em-dashes and semicolons, use simple sentences for readability.
-- Handle errors by type. When a handler catches some errors but not all, catch only the `CoreError` types you can act on in place and let the rest reach the root error boundary, which logs to Core and reports to Sentry. Never opt a whole mutation out with a blanket `throwOnError: false`. See [`contributing/error-handling.md`](./contributing/error-handling.md).
+- Handle errors by type. When a handler catches some errors but not all, catch only the `CoreError` types you can act on in place and let the rest reach the root error boundary, which logs to Core. Never opt a whole mutation out with a blanket `throwOnError: false`. The one mutation that handles every type is the report dialog's, because it can be mounted inside the error boundary's own fallback and so cannot rely on it, and it logs each failure explicitly to make up for the suppressed one. See [`contributing/error-handling.md`](./contributing/error-handling.md).
 
 ## Form invariants
 

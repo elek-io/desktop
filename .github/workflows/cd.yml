@@ -140,7 +140,3 @@ jobs:
         run: pnpm run build --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Lets @sentry/vite-plugin create the release and upload source maps so
-          # production crashes are symbolicated. The plugin reads this env var by
-          # default. Without it the build still succeeds, just without upload.
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
