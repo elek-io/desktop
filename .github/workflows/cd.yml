@@ -140,3 +140,7 @@ jobs:
         run: pnpm run build --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Points the app at the production elek.io Cloud instead of the dev API.
+          # Only this build sets it, since CI runs the same build script.
+          # See contributing/build-and-packaging.md.
+          MAIN_VITE_IS_RELEASE: 'true'

@@ -17,12 +17,12 @@ import { setUserViaIpc, waitForUserLoaded } from '../helpers/user.js';
  * reach is elek.io Cloud: the fixture points `ELEK_IO_CLOUD_URL` at a closed
  * loopback port, so every send fails as `PreconditionFailed`, which is both the
  * one failure the dialog is built to survive and a guarantee that no test sends
- * a report anywhere. Cloud's own `POST /management/v1/reports` does not exist
- * yet, so there is no success path to assert against.
+ * a report anywhere. Asserting a success path needs a local stub that answers
+ * like Cloud, which does not exist yet.
  *
- * @todo Once Cloud accepts a report, add: a successful send closes the dialog
- * and toasts, and a failure that is not `PreconditionFailed` reaches the root
- * error boundary.
+ * @todo Point the fixture at a local stub, then add: a successful send closes
+ * the dialog and toasts, and a refused send (`BadRequest`, `RateLimited`) shows
+ * the same in-place alert rather than reaching the root error boundary.
  */
 test.describe('Reporting a bug or feedback', () => {
   test('the report dialog opens from the header on any route', async ({

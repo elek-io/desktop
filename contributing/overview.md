@@ -104,7 +104,7 @@ const project = await window.ipc.core.projects.create({
 });
 ```
 
-The 37 channels are organized by namespace: `core:projects:*`, `core:collections:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*` and `electron:dialog:*`.
+The channels are organized by namespace: `core:projects:*`, `core:collections:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*`, `core:cloud:*` and `electron:dialog:*`.
 
 All Core methods are asynchronous in the renderer even when they are synchronous in Core, since every call crosses the IPC boundary. The `AsyncifyMethods` utility type in [`src/index.d.ts`](/src/index.d.ts) reflects this by wrapping every Core method's return value in a `Promise`.
 

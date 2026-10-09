@@ -31,6 +31,13 @@ class Main {
     'api.elek.io',
     'github.com',
   ];
+  // Only a release build, which CD marks with MAIN_VITE_IS_RELEASE, talks to
+  // the production elek.io Cloud. Every other build, dev and CI included, uses
+  // the dev API. See contributing/build-and-packaging.md.
+  private readonly cloudUrl =
+    import.meta.env.MAIN_VITE_IS_RELEASE === 'true'
+      ? 'https://api.elek.io'
+      : 'https://api.dev.elek.io';
   private core: ElekIoCore | null = null;
 
   constructor() {
@@ -82,6 +89,11 @@ class Main {
         // without a report around it still says which build wrote it. Core
         // stamps its own version on its own records and cannot read ours.
         hostVersion: app.getVersion(),
+      },
+      cloud: {
+        // Core ranks its option above ELEK_IO_CLOUD_URL, so check it here to
+        // let one set at launch still win. The E2E fixture relies on that.
+        url: process.env['ELEK_IO_CLOUD_URL'] ?? this.cloudUrl,
       },
     });
     this.logIdentity(this.core);

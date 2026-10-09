@@ -581,8 +581,8 @@ export interface ReportDialogProps {
  * halves: a bug report and a suggestion ask for genuinely different things, and
  * a single schema covering both would validate neither properly.
  *
- * This is the only thing in the app that sends anything off the machine, and it
- * only ever does so because the user typed it and pressed send. See
+ * This is the only thing in the app that sends anything to elek.io, and it only
+ * ever does so because the user typed it and pressed send. See
  * contributing/error-handling.md.
  */
 export function ReportDialog({

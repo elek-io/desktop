@@ -33,7 +33,22 @@ A user who hits a bug sends us a log file, and every stack in it points at the b
 
 The main process map is kept, at around 30 KB. It is the process we cannot open DevTools on, and while nothing consumes it automatically either, it resolves a frame by hand: `out/main/index.js:324:18` maps to `src/main/index.ts:448:17`.
 
-**If you ever turn `minify` on, archive the renderer maps first.** A chunk name is content hashed, so a frame is only resolvable against the exact build that emitted it, and a minified frame is only resolvable with that build's map. [cd.yml](../../.github/workflows/cd.yml) archives nothing today, which is fine only because nothing is minified. One artifact of around 9 MB per version covers every platform, since the renderer build does not vary by runner. Key it to the version a report carries, and prefer a CI artifact over a public release asset unless this source is already public, because a map is the source.
+**If you ever turn `minify` on, archive the renderer maps first.** A chunk name is content hashed, so a frame is only resolvable against the exact build that emitted it, and a minified frame is only resolvable with that build's map. [cd.yml](../.github/workflows/cd.yml) archives nothing today, which is fine only because nothing is minified. One artifact of around 9 MB per version covers every platform, since the renderer build does not vary by runner. Key it to the version a report carries, and prefer a CI artifact over a public release asset unless this source is already public, because a map is the source.
+
+## Which elek.io Cloud a build talks to
+
+Core sends everything bound for elek.io Cloud, which today is a report, to its `cloud.url` option. Core defaults that to production. The main process passes the option itself in [src/main/index.ts](../src/main/index.ts), so the build decides where reports go, not Core:
+
+| Build                                                                                            | Cloud API                 |
+| ------------------------------------------------------------------------------------------------ | ------------------------- |
+| The release build in [cd.yml](../.github/workflows/cd.yml)                                       | `https://api.elek.io`     |
+| Every other build: `pnpm dev`, `pnpm start`, `pnpm build`, and CI with the installers it uploads | `https://api.dev.elek.io` |
+
+A release is marked by `MAIN_VITE_IS_RELEASE=true`, which only the CD build step sets. electron-vite exposes every `MAIN_VITE_` variable of the build environment on `import.meta.env` in the main process and inlines its value, so the choice is fixed at build time and a shipped app carries no switch. It has to be an explicit flag. Neither `app.isPackaged` nor the Vite mode tells a release apart, because CI runs the same `pnpm run build` as CD and its installers are packaged too.
+
+Dev is the default, so nothing but a release can send to production. The cost is that a release built without the flag would quietly send reports to dev, so keep that line in cd.yml. To try a release build locally, run `MAIN_VITE_IS_RELEASE=true pnpm build`.
+
+`ELEK_IO_CLOUD_URL` set at launch wins over both, in every build. Core ranks its option above that variable, so the main process reads the variable first and only falls back to the build's URL. The E2E fixture relies on this to point every launch at a closed port (see [testing.md](./testing.md)), and it is how you point a build at a local stub.
 
 ## The rule for dependencies vs devDependencies
 

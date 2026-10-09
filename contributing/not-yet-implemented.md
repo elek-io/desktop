@@ -22,13 +22,16 @@ send end to end. What is left is on the other side of the wire.
 - **Core support**: complete. See
   [`reporting.md`](../node_modules/@elek-io/core/docs/reporting.md) in the Core
   package for the contract, what a log tail holds, and the error mapping.
-- **Cloud support**: none. `POST /management/v1/reports` does not exist yet, so
-  every send fails as `PreconditionFailed`, which is the failure the dialog is
-  built to survive: the alert appears and the user's text stays. Point
-  `ELEK_IO_CLOUD_URL` at a local stub to see a success path.
-- **Where to start**: implement the endpoint against `reportRequestSchema` and
-  answer `reportResponseSchema` (`201 { id }`). No Desktop change follows, and
-  this entry goes away.
+- **Cloud support**: dev only. `POST /management/v1/reports` is live on
+  `https://api.dev.elek.io`, which every build except a release talks to (see
+  [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)),
+  so `pnpm dev` shows the success path. Production, `https://api.elek.io`, is
+  not up yet. Until it is, every send from a release build fails as
+  `PreconditionFailed`, which is the failure the dialog is built to survive:
+  the alert appears and the user's text stays.
+- **Where to start**: bring the endpoint up on production against
+  `reportRequestSchema`, answering `reportResponseSchema` (`201 { id }`). No
+  Desktop change follows, and this entry goes away.
 
 Two things about the endpoint, since they are decisions rather than details:
 

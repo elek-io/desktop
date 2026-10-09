@@ -95,7 +95,7 @@ export async function launchApp(
   }
   env['ELEK_IO_DATA_DIR'] = dataDir;
   // Never let a test reach the real elek.io Cloud. Sending a report is the one
-  // thing in the app that leaves the machine and the reporting specs press Send,
+  // thing in the app that talks to elek.io and the reporting specs press Send,
   // so point Core at a closed loopback port. The connection is refused at once,
   // which is the PreconditionFailed the report dialog is built around, and it
   // needs neither a stub server nor a network.

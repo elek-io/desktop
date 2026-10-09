@@ -8,7 +8,7 @@ When you report a bug and attach your logs, the log is what we work from. Until 
 
 A failed action used to be logged as little as "Failed to clone project", with the reason recorded separately by Core and only findable by matching timestamps. It now carries the reason and the stack on the same line.
 
-Every log record now names the version of elek.io Desktop that wrote it, and each log file starts with the Electron, Chromium and Node versions underneath it. A log file sent on its own, without a report around it, could not previously be tied to a release at all.
+Every log record now names the version of elek.io Desktop that wrote it, and every app start records the Electron, Chromium and Node versions underneath it. A log file sent on its own, without a report around it, could not previously be tied to a release at all.
 
 Log records now name the error the same way Core already does, so one search finds everything relevant in a file rather than two.
 

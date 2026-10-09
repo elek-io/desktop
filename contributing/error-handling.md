@@ -29,7 +29,7 @@ The `stack` is what fills the technical detail block on the error screen and the
 
 ### Unexpected errors: the root error boundary
 
-By default, query and mutation failures are meant to be fatal to the current view. `throwOnError: true` is set app wide, by [`useQueryNoError`](/src/renderer/hooks/useQueryNoError.ts) for queries and by `customMutationOptions` ([`util.ts`](/src/renderer/queries/util.ts)) for mutations. The error is re-thrown during render and caught by the only `errorComponent` in the app, the root `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx). It replaces the whole view with a friendly error page whose only exits are Back to Projects and Reload.
+By default, query and mutation failures are meant to be fatal to the current view. `throwOnError: true` is set app wide, by [`useQueryNoError`](/src/renderer/hooks/useQueryNoError.ts) for queries and by `customMutationOptions` ([`util.ts`](/src/renderer/queries/util.ts)) for mutations. The error is re-thrown during render and caught by the only `errorComponent` in the app, the root `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx). It replaces the whole view with a friendly error page whose only exits are Back to Projects and Reload, plus Report this problem, which opens the report dialog on top of it.
 
 `ErrorComponent` runs the caught error through `parseIpcError`, so it shows and logs the clean message and never the raw sentinel payload. It uses the decoded stack too: for a CoreError that is Core's origin stack, and a non-Core error falls back to its own stack, so the technical detail block and the log never leak the encoded form either.
 
@@ -179,7 +179,7 @@ A mutation using the in-place pattern drops steps 1 and 2 **for its handled `typ
 
 ## User-initiated reports
 
-Because nothing is reported automatically, an error only reaches us if the user sends it. [`components/report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) is the only thing in the app that sends anything off the machine, and it only ever does so because the user typed it and pressed send.
+Because nothing is reported automatically, an error only reaches us if the user sends it. [`components/report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) is the only thing in the app that sends anything to elek.io, and it only ever does so because the user typed it and pressed send.
 
 It holds two independent forms behind one dialog. A bug report and a suggestion ask for genuinely different things, so a single schema covering both would validate neither properly. Each mode owns its own `useForm` and `AppForm` and is mounted with a `key`, so switching starts clean rather than carrying the other's state.
 
@@ -203,7 +203,7 @@ The log switch is the one field that sends data the user did not type, so its de
 
 Handling a type suppresses the wrapper's toast and log, and here that would mean no record at all, so `useSendReport` logs every failure explicitly, without what the user wrote. What is still not covered is an error carrying no type (a bug in our own IPC plumbing rather than a Core failure), which `useAppMutation` routes to the boundary by design.
 
-**The failure to design around is `PreconditionFailed`**, which is what a send answers with while Cloud cannot be reached, and what every send answers with today because `POST /management/v1/reports` does not exist yet. It keeps the dialog open with the text intact. `RateLimited` is its own type rather than a borrowed one, `BadRequest` covers a rejected body, and `Unauthorized` and `Internal` fall back to the same in-place alert. Core never retries, since a retry after a timeout can duplicate a report Cloud already accepted, so sending again is the user's decision.
+**The failure to design around is `PreconditionFailed`**, which is what a send answers with while Cloud cannot be reached. Until the production Cloud is up, that is every send from a release build. Every other build sends to the dev API (see [build-and-packaging.md](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)). It keeps the dialog open with the text intact. `RateLimited` is its own type rather than a borrowed one, `BadRequest` covers a rejected body, and `Unauthorized` and `Internal` fall back to the same in-place alert. Core never retries, since a retry after a timeout can duplicate a report Cloud already accepted, so sending again is the user's decision.
 
 > [!NOTE]
 > The E2E fixture points `ELEK_IO_CLOUD_URL` at a closed loopback port, so a spec can press Send and assert the `PreconditionFailed` path without a report ever leaving the machine. See [testing.md](./testing.md).
@@ -220,7 +220,7 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 | Unexpected mutation error                 | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
 | Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page | None by default                                                       |
 | Unhandled `type` on an in-place mutation  | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
-| Report send fails (unreachable, rejected) | Alert inside the dialog                       | None by default                                                       |
+| Report send fails (unreachable, rejected) | Alert inside the dialog                       | One error log from `useSendReport`, without what the user wrote       |
 | Route not found                           | `NotFoundComponent`                           | None                                                                  |
 | Main process security block               | Denied, no window                             | Core logger error                                                     |
 | App init failure                          | App exits                                     | console.error only, since Core may be what failed                     |
