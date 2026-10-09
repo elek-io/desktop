@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { version as desktopVersion } from '@root/package.json';
 import { parseIpcError } from '@root/src/shared/ipcError';
+import { errorLogAttributes } from '@root/src/shared/logError';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ExternalLink, Send } from 'lucide-react';
 import { useEffect, useId, useState, type ReactElement } from 'react';
@@ -47,7 +48,6 @@ import {
 } from '@renderer/components/ui/form';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
-import { errorLogAttributes } from '@renderer/lib/logError';
 import { queryOptions } from '@renderer/queries';
 
 import {
@@ -616,7 +616,17 @@ export function ReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      {/*
+        Only the X and Cancel close it. A stray Escape or a click beside the
+        dialog would otherwise throw away what the user wrote, which is the one
+        thing this dialog exists to keep. Radix's AlertDialog blocks outside
+        clicks the same way, but it still closes on Escape and has no X.
+      */}
+      <DialogContent
+        className="sm:max-w-xl"
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {mode === 'bug' ? 'Report a bug' : 'Share feedback'}

@@ -30,3 +30,14 @@ export async function switchReportMode(
   await dialog.getByRole('button', { name: mode, exact: true }).click();
   await expect(dialog.getByRole('heading', { name: mode })).toBeVisible();
 }
+
+/**
+ * Close the report dialog with its Cancel button. Escape and a click outside do
+ * not close it, so a stray one cannot throw away what the user wrote.
+ */
+export async function closeReportDialog(page: Page): Promise<void> {
+  const dialog = reportDialog(page);
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+}

@@ -1,4 +1,5 @@
 import { parseIpcError } from '@root/src/shared/ipcError';
+import { errorLogAttributes } from '@root/src/shared/logError';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import {
   type ErrorComponentProps,
@@ -18,7 +19,6 @@ import { Button } from '@renderer/components/ui/button';
 import { ScrollArea, ScrollBar } from '@renderer/components/ui/scroll-area';
 import { Toaster } from '@renderer/components/ui/sonner';
 import { UserHeader } from '@renderer/components/user-header';
-import { errorLogAttributes } from '@renderer/lib/logError';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
 

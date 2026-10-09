@@ -1,3 +1,4 @@
+import { errorLogAttributes } from '@root/src/shared/logError';
 import {
   mutationOptions,
   type DefaultError,
@@ -6,8 +7,6 @@ import {
   type UseMutationOptions,
 } from '@tanstack/react-query';
 import { toast } from 'sonner';
-
-import { errorLogAttributes } from '@renderer/lib/logError';
 
 import {
   objectTypeSchema,

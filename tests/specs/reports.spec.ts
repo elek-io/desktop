@@ -1,28 +1,23 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
-import { dismissDialog } from '../helpers/dialog.js';
 import { navigate } from '../helpers/navigation.js';
 import {
+  closeReportDialog,
   openReportDialogFromHeader,
   switchReportMode,
 } from '../helpers/report.js';
 import { setUserViaIpc, waitForUserLoaded } from '../helpers/user.js';
 
 /**
- * These cover opening, switching, validating, sending and dismissing the report
- * dialog.
+ * These cover opening, switching, validating and closing the report dialog, and
+ * a send that cannot reach Cloud.
  *
- * A send really does go through `core.cloud.reports.create`. What it cannot
- * reach is elek.io Cloud: the fixture points `ELEK_IO_CLOUD_URL` at a closed
- * loopback port, so every send fails as `PreconditionFailed`, which is both the
- * one failure the dialog is built to survive and a guarantee that no test sends
- * a report anywhere. Asserting a success path needs a local stub that answers
- * like Cloud, which does not exist yet.
- *
- * @todo Point the fixture at a local stub, then add: a successful send closes
- * the dialog and toasts, and a refused send (`BadRequest`, `RateLimited`) shows
- * the same in-place alert rather than reaching the root error boundary.
+ * A send really does go through `core.cloud.reports.create`. Here it cannot
+ * reach elek.io Cloud: the fixture points `ELEK_IO_CLOUD_URL` at a closed
+ * loopback port, so every send fails as `PreconditionFailed`, the one failure
+ * the dialog is built to survive. What Cloud answers, an accepted report or a
+ * refused one, is covered against a local stub in report-delivery.spec.ts.
  */
 test.describe('Reporting a bug or feedback', () => {
   test('the report dialog opens from the header on any route', async ({
@@ -43,7 +38,7 @@ test.describe('Reporting a bug or feedback', () => {
       dialog.getByRole('button', { name: 'Open an issue on GitHub' })
     ).toBeVisible();
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('the report dialog is reachable before a User exists', async ({
@@ -66,7 +61,7 @@ test.describe('Reporting a bug or feedback', () => {
     await expect(dialog.getByLabel('Name - optional')).toHaveValue('');
     await expect(dialog.getByLabel('Email - optional')).toHaveValue('');
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('the contact block is prefilled from the local User', async ({
@@ -86,7 +81,7 @@ test.describe('Reporting a bug or feedback', () => {
       'test@elek.io'
     );
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('reopening returns to the mode the caller asked for', async ({
@@ -97,7 +92,7 @@ test.describe('Reporting a bug or feedback', () => {
 
     const dialog = await openReportDialogFromHeader(mainWindow);
     await switchReportMode(dialog, 'Share feedback');
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
 
     // Radix never fires onOpenChange for an open driven by the `open` prop, so
     // the reset runs from an effect instead. Without it this reopens on the
@@ -107,7 +102,7 @@ test.describe('Reporting a bug or feedback', () => {
       reopened.getByRole('heading', { name: 'Report a bug' })
     ).toBeVisible();
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('switching between the bug and feedback forms swaps the fields', async ({
@@ -133,7 +128,7 @@ test.describe('Reporting a bug or feedback', () => {
       dialog.getByLabel('What would you like to tell us?')
     ).toBeVisible();
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('the log switch is off by default when reporting from the header', async ({
@@ -149,7 +144,7 @@ test.describe('Reporting a bug or feedback', () => {
     // error-boundary.spec.ts covers.
     await expect(dialog.getByLabel('Also send my logs')).not.toBeChecked();
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('an empty report reports what is missing instead of doing nothing', async ({
@@ -174,7 +169,7 @@ test.describe('Reporting a bug or feedback', () => {
       'true'
     );
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('half a contact is reported rather than silently dropped', async ({
@@ -200,7 +195,7 @@ test.describe('Reporting a bug or feedback', () => {
     );
     await expect(dialog).toBeVisible();
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 
   test('a send that cannot reach Cloud keeps the dialog and the text', async ({
@@ -222,7 +217,36 @@ test.describe('Reporting a bug or feedback', () => {
     await expect(dialog.getByText('Could not send this report')).toBeVisible();
     await expect(dialog.getByLabel('What went wrong?')).toHaveValue(message);
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
+  });
+
+  test('Escape and a click outside keep the dialog and the text', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    await navigate(mainWindow, '#/projects');
+
+    const dialog = await openReportDialogFromHeader(mainWindow);
+    const message = 'The Entry list jumps back to page one after every save.';
+    await dialog.getByLabel('What went wrong?').fill(message);
+
+    // Either would close an ordinary dialog and throw away what was written,
+    // so only the X and Cancel close this one.
+    await mainWindow.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+
+    // The overlay's bottom left corner is beside the centered dialog and clear
+    // of the header's window drag region, which swallows clicks.
+    const overlay = mainWindow.locator('[data-slot="dialog-overlay"]');
+    const box = await overlay.boundingBox();
+    if (box === null) {
+      throw new Error('The dialog overlay is not rendered');
+    }
+    await overlay.click({ position: { x: 5, y: box.height - 5 } });
+    await expect(dialog).toBeVisible();
+
+    await expect(dialog.getByLabel('What went wrong?')).toHaveValue(message);
+    await closeReportDialog(mainWindow);
   });
 
   test('the report form emits no native constraint attributes', async ({
@@ -247,6 +271,6 @@ test.describe('Reporting a bug or feedback', () => {
     // marked and the message is the unmarked default.
     await expect(dialog.getByLabel('Email - optional')).toBeVisible();
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
   });
 });

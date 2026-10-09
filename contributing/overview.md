@@ -43,12 +43,14 @@ The Main process is a single `Main` class (instantiated at the bottom of [`src/m
 
 On `app.on('ready')` the `onAppReady()` method:
 
-1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise).
+1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise, and the elek.io Cloud URL this build talks to, see [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)).
 2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`. If it fails to start, for example because the port is in use, the failure is logged and the app launches with the API off.
 3. Registers the custom file protocol.
 4. Creates the first window (`createWindow()`), registers the IPC handlers for it (`registerIpcMain()`), then loads the renderer into it (`loadWindow()`).
 
 The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. The handlers only touch the window when invoked, so it just needs to exist (be created) at registration time, not be loaded. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
+
+If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
 
 Other lifecycle events: `activate` (macOS dock click) recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS.
 

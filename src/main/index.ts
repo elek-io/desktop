@@ -17,6 +17,7 @@ import ElekIoCore, { CoreError } from '@elek-io/core';
 
 import icon from '../../resources/icon.png?asset';
 import { serializeCoreError } from '../shared/ipcError.js';
+import { errorLogAttributes } from '../shared/logError.js';
 
 // import { updateElectronApp } from 'update-electron-app';
 
@@ -53,14 +54,9 @@ class Main {
 
     // Register app events
     app.on('ready', () => {
-      void this.onAppReady().catch((error: unknown) => {
-        // Exit instead of leaving a running app without a window,
-        // otherwise initialization failures hang silently.
-        // Not using Core's logger since it may be what failed to initialize
-        // eslint-disable-next-line no-console
-        console.error('Failed to initialize the app', error);
-        app.exit(1);
-      });
+      void this.onAppReady().catch(async (error: unknown) =>
+        this.onAppReadyFailed(error)
+      );
     });
     app.on('activate', () => {
       void this.onAppActivate();
@@ -116,6 +112,7 @@ class Main {
             error instanceof CoreError && error.type === 'Conflict'
               ? `Could not start the local API because port ${user.localApi.port} is already in use`
               : 'Could not start the local API',
+          meta: errorLogAttributes(error),
         });
       }
     }
@@ -131,6 +128,38 @@ class Main {
     const window = this.createWindow();
     this.registerIpcMain(window, this.core);
     await this.loadWindow(window);
+  }
+
+  /**
+   * Ends a start that failed, instead of leaving a running app without a window.
+   *
+   * A packaged app has no console anyone sees, so the error is shown in a native
+   * box too. When Core got far enough to exist, the error also goes to its log
+   * file, and disposing Core flushes that record before the process exits. Core
+   * may be what failed, so the console and the box never depend on it.
+   */
+  private async onAppReadyFailed(error: unknown): Promise<void> {
+    // eslint-disable-next-line no-console
+    console.error('Failed to initialize the app', error);
+
+    if (this.core !== null) {
+      try {
+        this.core.logger.error({
+          source: 'desktop',
+          message: 'Failed to initialize the app',
+          meta: errorLogAttributes(error),
+        });
+        await this.core.dispose();
+      } catch {
+        // The console line above and the box below still report it
+      }
+    }
+
+    dialog.showErrorBox(
+      'elek.io Desktop could not start',
+      `${error instanceof Error ? error.message : String(error)}\n\nIf this keeps happening, please open an issue at https://github.com/elek-io/desktop/issues`
+    );
+    app.exit(1);
   }
 
   /**
@@ -371,10 +400,11 @@ class Main {
             request.url.replace(`${this.customFileProtocol}://`, 'file://')
           )
         );
-      } catch {
+      } catch (error) {
         this.core.logger.error({
           source: 'desktop',
           message: `Could not resolve requested file URL "${request.url}".`,
+          meta: errorLogAttributes(error),
         });
         return forbidden;
       }
@@ -413,10 +443,11 @@ class Main {
           realpath(this.core.util.pathTo.projects),
           realpath(this.core.util.pathTo.tmp),
         ]);
-      } catch {
+      } catch (error) {
         this.core.logger.error({
           source: 'desktop',
           message: `Could not resolve the real path of "${absoluteFilePath}".`,
+          meta: errorLogAttributes(error),
         });
         return forbidden;
       }

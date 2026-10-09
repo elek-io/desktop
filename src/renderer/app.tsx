@@ -1,5 +1,9 @@
 import '@fontsource-variable/montserrat';
 import '@fontsource/roboto';
+import {
+  COMPONENT_STACK_ATTRIBUTE,
+  errorLogAttributes,
+} from '@root/src/shared/logError';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
@@ -8,10 +12,6 @@ import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from '@renderer/components/theme-provider';
 import { router } from '@renderer/index';
 import '@renderer/index.css';
-import {
-  COMPONENT_STACK_ATTRIBUTE,
-  errorLogAttributes,
-} from '@renderer/lib/logError';
 import { queryClient } from '@renderer/queries';
 
 /**

@@ -106,24 +106,26 @@ Core's `api.start()` rejects with a `Conflict` when something else holds the por
 
 There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC channels to Core's own logger, which writes to the console and to Core's log files. It is local diagnostics, always on, including under test, and nothing it writes leaves the machine.
 
-| When                                     | Where                                                                                | What                                                  |
-| ---------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."            |
-| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ...ed ..." plus a success toast   |
-| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to ..." plus an error toast            |
-| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"      |
-| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                         |
-| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"             |
-| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                 |
-| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."             |
-| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                          |
-| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record        |
-| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                 |
-| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request |
+| When                                     | Where                                                                                | What                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."              |
+| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ...ed ..." plus a success toast     |
+| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to ..." plus an error toast              |
+| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"        |
+| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                           |
+| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"               |
+| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                   |
+| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."               |
+| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                            |
+| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record          |
+| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                   |
+| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request   |
+| The local API fails to start at launch   | `onAppReady` in [`src/main/index.ts`](/src/main/index.ts)                            | error: "Could not start the local API ..."              |
+| The app fails to start                   | `onAppReadyFailed` in [`src/main/index.ts`](/src/main/index.ts)                      | error: "Failed to initialize the app", when Core exists |
 
 ### What an error record carries
 
-A log file is the only thing we get from a user who zips their logs instead of sending a report, so the shape of an error record is a contract rather than a detail. Every renderer site that logs an error builds its attributes with `errorLogAttributes` from [`lib/logError.ts`](/src/renderer/lib/logError.ts), so the five of them cannot drift apart.
+A log file is the only thing we get from a user who zips their logs instead of sending a report, so the shape of an error record is a contract rather than a detail. Every site that logs an error, in either process, builds its attributes with `errorLogAttributes` from [`shared/logError.ts`](/src/shared/logError.ts), so they cannot drift apart. In the main process a CoreError arrives as the instance itself rather than encoded by IPC, so its type is read off it.
 
 Attributes are flat dotted keys, the same convention Core follows for its own records (see Core's `logAttributeNames`). The point is that one query answers a question across both sources: a grep for `exception.stacktrace` finds every stack in a file, whoever wrote it.
 
@@ -162,7 +164,9 @@ React's root callbacks only see errors thrown during render. A rejected floated 
 
 ### The main process cannot always use Core's logger
 
-Two main-process paths log through `console.error` behind an `eslint-disable-next-line no-console` instead: the app initialization failure handler, and the custom file protocol's "Core is not initialized" guard. In both, Core is either what failed or not there yet, so its logger is not available. Every other main-process path uses `this.core.logger.error`.
+Two main-process paths log through `console.error` behind an `eslint-disable-next-line no-console`: the app initialization failure handler, and the custom file protocol's "Core is not initialized" guard. In both, Core may be what failed or not there yet. Every other main-process path uses `this.core.logger.error`.
+
+The initialization failure handler, `onAppReadyFailed`, does more than that, because a packaged app has no console anyone sees. When Core got far enough to exist, it also writes the error to Core's logger and disposes Core, which flushes that record to the log file before the process exits. Then it shows the error in a native box, pointing to GitHub issues since the in-app report needs a running app, and exits.
 
 ### What one unexpected mutation failure produces
 
@@ -205,8 +209,10 @@ Handling a type suppresses the wrapper's toast and log, and here that would mean
 
 **The failure to design around is `PreconditionFailed`**, which is what a send answers with while Cloud cannot be reached. Until the production Cloud is up, that is every send from a release build. Every other build sends to the dev API (see [build-and-packaging.md](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)). It keeps the dialog open with the text intact. `RateLimited` is its own type rather than a borrowed one, `BadRequest` covers a rejected body, and `Unauthorized` and `Internal` fall back to the same in-place alert. Core never retries, since a retry after a timeout can duplicate a report Cloud already accepted, so sending again is the user's decision.
 
+**Only the X and Cancel close the dialog.** Escape and a click outside are blocked with Radix's own `onEscapeKeyDown` and `onInteractOutside` on `DialogContent`, because either would throw away what the user wrote. `AlertDialog` was not used for this: it blocks outside clicks the same way, but it still closes on Escape, has no X, and announces itself as an alert rather than a form.
+
 > [!NOTE]
-> The E2E fixture points `ELEK_IO_CLOUD_URL` at a closed loopback port, so a spec can press Send and assert the `PreconditionFailed` path without a report ever leaving the machine. See [testing.md](./testing.md).
+> The E2E fixture points `ELEK_IO_CLOUD_URL` at a closed loopback port, so a spec can press Send and assert the `PreconditionFailed` path without a report ever leaving the machine. A spec that needs Cloud to answer, or to refuse, uses the local stub in `tests/fixtures/cloudStub.ts`. See [testing.md](./testing.md).
 
 ## Testing implications
 
@@ -223,4 +229,4 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 | Report send fails (unreachable, rejected) | Alert inside the dialog                       | One error log from `useSendReport`, without what the user wrote       |
 | Route not found                           | `NotFoundComponent`                           | None                                                                  |
 | Main process security block               | Denied, no window                             | Core logger error                                                     |
-| App init failure                          | App exits                                     | console.error only, since Core may be what failed                     |
+| App init failure                          | Native error box, then the app exits          | console.error, plus a Core logger error when Core exists              |

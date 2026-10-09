@@ -2,9 +2,8 @@ import { expect, type Page } from '@playwright/test';
 
 import { IPC_CORE_ERROR_SENTINEL } from '../../src/shared/ipcError.js';
 import { test } from '../fixtures/electronApp.js';
-import { dismissDialog } from '../helpers/dialog.js';
 import { navigate, verifyCurrentRouteHash } from '../helpers/navigation.js';
-import { reportDialog } from '../helpers/report.js';
+import { closeReportDialog, reportDialog } from '../helpers/report.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
 /**
@@ -113,7 +112,7 @@ test.describe('Root error boundary', () => {
     await expect(dialog.getByLabel('Also send my logs')).toBeChecked();
 
     // Dismissing the dialog leaves the boundary's own recovery working.
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
     await mainWindow.getByRole('button', { name: 'Back to Projects' }).click();
     await verifyCurrentRouteHash(mainWindow, '#/projects');
   });
@@ -141,7 +140,7 @@ test.describe('Root error boundary', () => {
     await expect(dialog.getByText('Could not send this report')).toBeVisible();
     await expect(dialog.getByLabel('What went wrong?')).toHaveValue(message);
 
-    await dismissDialog(mainWindow);
+    await closeReportDialog(mainWindow);
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeVisible();

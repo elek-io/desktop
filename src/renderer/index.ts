@@ -1,7 +1,7 @@
 import { parseIpcError } from '@root/src/shared/ipcError';
+import { errorLogAttributes } from '@root/src/shared/logError';
 import { createHashHistory, createRouter } from '@tanstack/react-router';
 
-import { errorLogAttributes } from '@renderer/lib/logError';
 import { routeTree } from '@renderer/routeTree.gen';
 
 /**

@@ -35,7 +35,7 @@ const coreErrorTypes = new Set<string>(
   } satisfies Record<CoreErrorType, true>)
 );
 
-function isCoreErrorType(value: unknown): value is CoreErrorType {
+export function isCoreErrorType(value: unknown): value is CoreErrorType {
   return typeof value === 'string' && coreErrorTypes.has(value);
 }
 
