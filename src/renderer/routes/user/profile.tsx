@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@renderer/components/ui/select';
 import { Switch } from '@renderer/components/ui/switch';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { useUser } from '@renderer/hooks/useUser';
@@ -56,7 +57,6 @@ function UserProfilePage(): ReactElement {
   const { data: isLocalApiRunning } = useQueryNoError(
     queryOptions.api.isRunning()
   );
-  const { mutateAsync: startApi } = useMutation(queryOptions.api.start);
   const { mutateAsync: stopApi } = useMutation(queryOptions.api.stop);
   const { mutateAsync: setUser } = useMutation(queryOptions.user.set);
   const formId = useId();
@@ -77,6 +77,23 @@ function UserProfilePage(): ReactElement {
       },
     },
   });
+
+  const { mutateAsync: startApi, handleError: handleStartApiError } =
+    useAppMutation(queryOptions.api.start, {
+      handled: {
+        // Something else holds the port. Mark the field, so the User can pick
+        // another port and save again.
+        Conflict: () =>
+          setUserForm.setError(
+            'localApi.port',
+            {
+              message:
+                'This port is already in use by another application. Choose a different one.',
+            },
+            { shouldFocus: true }
+          ),
+      },
+    });
 
   // Reset form with user data when it loads
   useEffect(() => {
@@ -148,11 +165,18 @@ function UserProfilePage(): ReactElement {
   }
 
   const onSetUser: SubmitHandler<SetUserProps> = async (props) => {
-    const user = await setUser(props);
-
-    if (user.localApi.isEnabled === true && isLocalApiRunning === false) {
-      await startApi(user.localApi.port);
+    // Start the API before saving, so a port in use saves nothing and the form
+    // keeps what was entered to correct the port and save again.
+    if (props.localApi.isEnabled === true && isLocalApiRunning === false) {
+      try {
+        await startApi(props.localApi.port);
+      } catch (error) {
+        handleStartApiError(error);
+        return;
+      }
     }
+
+    const user = await setUser(props);
 
     if (user.localApi.isEnabled === false && isLocalApiRunning === true) {
       await stopApi();

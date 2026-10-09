@@ -44,7 +44,7 @@ The Main process is a single `Main` class (instantiated at the bottom of [`src/m
 On `app.on('ready')` the `onAppReady()` method:
 
 1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise).
-2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`.
+2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`. If it fails to start, for example because the port is in use, the failure is logged and the app launches with the API off.
 3. Registers the custom file protocol.
 4. Creates the first window (`createWindow()`), registers the IPC handlers for it (`registerIpcMain()`), then loads the renderer into it (`loadWindow()`).
 

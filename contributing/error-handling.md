@@ -9,7 +9,7 @@ This is the single reference for how elek.io Desktop handles errors end to end: 
 
 Two kinds of error reach the renderer, and the difference drives everything below.
 
-- **`CoreError`** is thrown by a Core operation and travels to the renderer through an IPC channel. It is the app's expected failure shape. Core raises a `CoreError` with a `type` (`NotFound`, `BadRequest`, `Unauthorized`, `Conflict`, `PreconditionFailed`, `UpgradeFailed`, `Internal`) and a matching `statusCode`. The `type` is the stable, machine readable contract, like an HTTP status code. See Core's [error-handling doc](../node_modules/@elek-io/core/docs/error-handling.md) for the full table.
+- **`CoreError`** is thrown by a Core operation and travels to the renderer through an IPC channel. It is the app's expected failure shape. Core raises a `CoreError` with a `type` (`NotFound`, `BadRequest`, `Unauthorized`, `Conflict`, `PreconditionFailed`, `UpgradeFailed`, `VersionSkew`, `RateLimited`, `Internal`) and a matching `statusCode`. The `type` is the stable, machine readable contract, like an HTTP status code. See Core's [error-handling doc](../node_modules/@elek-io/core/docs/error-handling.md) for the full table.
 - **Renderer errors** are ordinary JavaScript or React errors: a route that fails to load, a render that throws, a bug. These are not `CoreError`s and carry no `type`.
 
 ## Preserving `CoreError.type` across IPC
@@ -97,6 +97,10 @@ All the sites below build their mutation with `useAppMutation`, so the "predicat
 ### Example: entry unique-value collision (P2-10)
 
 The Entry create and update forms ([`collections/$collectionId/create.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx) and [`$entryId/update.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx)) are the two form-submit sites that handle in place, not deletes or syncs. Core rejects an Entry whose value collides with another Entry on a unique field with a `Conflict` (see Core's [fields doc](../node_modules/@elek-io/core/docs/fields.md#uniqueness)). Each form's create/update mutation `handles` only `Conflict`; the submit handler awaits `mutateAsync` inside try/catch and calls `handleError`, which opens a controlled "Could not save this Entry" dialog whose description uses `describeCoreError` with a `Conflict` override explaining the collision. The submit does not navigate, so the form stays on the create/update route with its values intact to edit and retry. Any other failure propagates to the boundary, which the "routes an unexpected create failure to the root error boundary" spec guards against a regression to a blanket opt-out.
+
+### Example: local API port in use
+
+Core's `api.start()` rejects with a `Conflict` when something else holds the port (see Core's [local-api doc](../node_modules/@elek-io/core/docs/local-api.md)). Both places that start the API `handle` only `Conflict`. The profile form ([`routes/user/profile.tsx`](/src/renderer/routes/user/profile.tsx)) starts the API before it saves the User, and its handler marks the Port field with `setError`. So a busy port saves nothing and the form stays dirty to pick another port and save again. The Local API switch in the user menu ([`components/user-dropdown.tsx`](/src/renderer/components/user-dropdown.tsx)) has no field to mark, so its handler shows a toast that points to the profile. A toast action would not help here, because the open menu blocks pointer events outside itself, while its Profile item sits right above the switch. At launch the main process does the same in its own way: it logs the failure and opens the app with the API off (see [overview.md](./overview.md#application-lifecycle)).
 
 ## Logging: where, what, and when
 
@@ -188,7 +192,7 @@ It holds two independent forms behind one dialog. A bug report and a suggestion 
 
 **What is sent.** Only what the user typed, plus a `desktop` block naming the app version and the Electron, Chromium and Node versions under it, which Core cannot know. Core fills in the two things it owns: its own version and the machine it runs on, and, when the switch is on, a tail of its own log files. Desktop never reads a log file, which keeps all file IO in Core.
 
-**The contact is a whole User or nothing.** Core's `user` field takes a `User` or `null` and [reads neither for you](/node_modules/@elek-io/core/docs/reporting.md), so what the dialog holds is exactly what is sent. `reportContactSchema` prefills it from the cached User, leaves the name and email editable so somebody can be reached at an address their commits are not signed with, and folds an untouched block back to `null` on the way out. Half a contact is a validation error rather than a silent drop, because there is no shape between a whole User and nobody. `includeLogs` is consent, so Core answers it with what `logs` holds and never sends it on.
+**The contact is a whole User or nothing.** Core's `user` field takes a `User` or `null` and [reads neither for you](/node_modules/@elek-io/core/docs/reporting.md), so what the dialog holds is exactly what is sent. `reportContactSchema` prefills it from the cached User, leaves the name and email editable so somebody can be reached at an address their commits are not signed with, and folds an untouched block back to `null` on the way out. Half a contact is a validation error rather than a silent drop, because there is no shape between a whole User and nobody. `hasLogConsent` is consent, so Core answers it with what `logs` holds and never sends it on.
 
 The log switch is the one field that sends data the user did not type, so its description says plainly what a tail holds: the ids of Projects, Collections and Entries, the files they live in and the actions taken, but never the content written or the names given. Keep that in step with [Core's own account of a tail](/node_modules/@elek-io/core/docs/reporting.md), since it is what the consent rests on.
 
@@ -210,13 +214,13 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 
 ## Quick reference
 
-| Scenario                                  | UI surface              | Local log                                                             |
-| ----------------------------------------- | ----------------------- | --------------------------------------------------------------------- |
-| Unexpected query error                    | Root error boundary     | Boundary error log plus the `onCaughtError` log                       |
-| Unexpected mutation error                 | Root error boundary     | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
-| Handled `CoreError` `type` (in place)     | Dialog on the same page | None by default                                                       |
-| Unhandled `type` on an in-place mutation  | Root error boundary     | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
-| Report send fails (unreachable, rejected) | Alert inside the dialog | None by default                                                       |
-| Route not found                           | `NotFoundComponent`     | None                                                                  |
-| Main process security block               | Denied, no window       | Core logger error                                                     |
-| App init failure                          | App exits               | console.error only, since Core may be what failed                     |
+| Scenario                                  | UI surface                                    | Local log                                                             |
+| ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
+| Unexpected query error                    | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
+| Unexpected mutation error                 | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
+| Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page | None by default                                                       |
+| Unhandled `type` on an in-place mutation  | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
+| Report send fails (unreachable, rejected) | Alert inside the dialog                       | None by default                                                       |
+| Route not found                           | `NotFoundComponent`                           | None                                                                  |
+| Main process security block               | Denied, no window                             | Core logger error                                                     |
+| App init failure                          | App exits                                     | console.error only, since Core may be what failed                     |

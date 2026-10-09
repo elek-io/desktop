@@ -121,7 +121,7 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
         open={isReportDialogOpen}
         onOpenChange={setIsReportDialogOpen}
         defaultMode="bug"
-        defaultIncludeLogs
+        defaultHasLogConsent
         prefill={{
           message: `What I was doing when this happened:\n\n\n---\nTechnical detail, filled in automatically:\n\n${message}\n\n${displayStack ?? 'No stack available.'}`,
         }}

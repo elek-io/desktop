@@ -88,7 +88,24 @@ class Main {
     const user = await this.core.user.get();
 
     if (user && user.localApi.isEnabled) {
-      this.core.api.start(user.localApi.port);
+      // Awaited, because start() settles once the port is bound or rejects, and
+      // an unawaited rejection here would reach onAppReady's catch and exit the
+      // app. A port already in use must not stop the app from launching, so the
+      // failure is logged and the local API stays off. The User sees it off on
+      // their profile page, which reads core.api.isRunning, and can start it
+      // again there on a free port. Telling them why at launch needs a channel
+      // from the main process to the renderer, which does not exist yet.
+      try {
+        await this.core.api.start(user.localApi.port);
+      } catch (error) {
+        this.core.logger.error({
+          source: 'desktop',
+          message:
+            error instanceof CoreError && error.type === 'Conflict'
+              ? `Could not start the local API because port ${user.localApi.port} is already in use`
+              : 'Could not start the local API',
+        });
+      }
     }
 
     this.registerCustomFileProtocol();

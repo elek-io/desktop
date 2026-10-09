@@ -41,7 +41,7 @@
     "test:report": "playwright show-report"
   },
   "dependencies": {
-    "@elek-io/core": "file:/home/nils/Development/core/elek-io-core-0.23.0.tgz",
+    "@elek-io/core": "0.24.0",
     "dugite": "3.2.2",
     "electron-updater": "6.8.9",
     "zod": "4.4.3"

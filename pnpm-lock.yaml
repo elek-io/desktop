@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@elek-io/core':
-        specifier: file:/home/nils/Development/core/elek-io-core-0.23.0.tgz
-        version: file:../core/elek-io-core-0.23.0.tgz(dugite@3.2.2)(typescript@6.0.3)(zod@4.4.3)
+        specifier: 0.24.0
+        version: 0.24.0(dugite@3.2.2)(typescript@6.0.3)(zod@4.4.3)
       dugite:
         specifier: 3.2.2
         version: 3.2.2
@@ -605,9 +605,8 @@ packages:
     engines: {node: '>=14.14'}
     hasBin: true
 
-  '@elek-io/core@file:../core/elek-io-core-0.23.0.tgz':
-    resolution: {integrity: sha512-fI3Xj6bUNjwdYF0Y2EjwUkamq54J96sm9fiQP9CsRutIkV5BDeTyNoJjhrj7XYeUmNWKSRe909hIgxSVTslr6g==, tarball: file:../core/elek-io-core-0.23.0.tgz}
-    version: 0.23.0
+  '@elek-io/core@0.24.0':
+    resolution: {integrity: sha512-gOIEM6rFUB/2lgwEv3q8GT0Oops8eCQjQKqw3xuXgrCQWYOqpT9pAA8gu8fsYMZKnFLZO5VUg3FhV81DtTyFlQ==}
     hasBin: true
     peerDependencies:
       astro: ^6.1.3 || ^7.0.0
@@ -2362,6 +2361,7 @@ packages:
   '@xmldom/xmldom@0.8.13':
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   abbrev@4.0.0:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}
@@ -6001,14 +6001,14 @@ snapshots:
     dependencies:
       cross-dirname: 0.1.0
       debug: 4.4.3
-      fs-extra: 11.3.6
+      fs-extra: 11.4.0
       minimist: 1.2.8
       postject: 1.0.0-alpha.6
     transitivePeerDependencies:
       - supports-color
     optional: true
 
-  '@elek-io/core@file:../core/elek-io-core-0.23.0.tgz(dugite@3.2.2)(typescript@6.0.3)(zod@4.4.3)':
+  '@elek-io/core@0.24.0(dugite@3.2.2)(typescript@6.0.3)(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 2.0.12(hono@4.12.32)
       '@hono/zod-openapi': 1.5.1(hono@4.12.32)(zod@4.4.3)

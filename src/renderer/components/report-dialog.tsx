@@ -398,11 +398,11 @@ function ReportFooter<
 
 function BugReportForm({
   prefill,
-  defaultIncludeLogs,
+  defaultHasLogConsent,
   onSent,
 }: {
   prefill: ReportPrefill;
-  defaultIncludeLogs: boolean;
+  defaultHasLogConsent: boolean;
   onSent: () => void;
 }): ReactElement {
   const formId = useId();
@@ -415,7 +415,7 @@ function BugReportForm({
       type: 'bug' as const,
       message: prefill.message?.slice(0, MESSAGE_MAX_LENGTH) ?? '',
       user: contact,
-      includeLogs: defaultIncludeLogs,
+      hasLogConsent: defaultHasLogConsent,
       desktop: describeDesktop(),
     },
   });
@@ -455,7 +455,7 @@ function BugReportForm({
 
           <FormField
             control={form.control}
-            name="includeLogs"
+            name="hasLogConsent"
             render={({ field }) => (
               <FormItem>
                 <div className="flex items-center gap-3">
@@ -571,7 +571,7 @@ export interface ReportDialogProps {
    * Whether "Also send my logs" starts on. Off from the header, on from the
    * error boundary, where the logs are the point.
    */
-  defaultIncludeLogs?: boolean;
+  defaultHasLogConsent?: boolean;
 }
 
 /**
@@ -590,7 +590,7 @@ export function ReportDialog({
   onOpenChange,
   defaultMode = 'bug',
   prefill = {},
-  defaultIncludeLogs = false,
+  defaultHasLogConsent = false,
 }: ReportDialogProps): ReactElement {
   const [mode, setMode] = useState<ReportMode>(defaultMode);
 
@@ -643,7 +643,7 @@ export function ReportDialog({
           <BugReportForm
             key="bug"
             prefill={prefill}
-            defaultIncludeLogs={defaultIncludeLogs}
+            defaultHasLogConsent={defaultHasLogConsent}
             onSent={() => onOpenChange(false)}
           />
         ) : (
