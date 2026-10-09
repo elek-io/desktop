@@ -4,7 +4,7 @@
 
 Add an in-app way to report a bug or send feedback.
 
-With no automatic error reporting, a problem only reaches us if you tell us about it. A "Feedback" button now sits in the header on every screen, and the error screen offers to report the problem it is showing, with the message and technical detail already filled in.
+With no automatic error reporting, a problem only reaches us if you tell us about it. A "Feedback" button now sits in the header on every screen, and the error screen offers to report the problem it is showing, with logs switched on since they already hold the error.
 
 A bug report can optionally carry the last 24 hours of this machine's logs. It is off by default everywhere except the error screen, and the form says plainly what a log holds: the ids of your Projects, Collections and Entries, the files they live in and the actions you took, never the content you wrote or the names you gave it. Feedback never carries logs at all.
 

@@ -67,8 +67,8 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
       <>
         Something went wrong and this screen is all we can show you. Nothing
         about it was sent to us automatically, so we only find out if you tell
-        us. Reporting it takes a moment and we have already filled in what we
-        know.
+        us. Reporting it takes a moment: tell us what you were doing, and the
+        logs it sends along show us the error.
       </>
     );
   }
@@ -113,18 +113,16 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
       {/*
         The crash is the moment a report is worth most and the moment the user
         is least likely to go looking for the header button, so the boundary
-        opens the same dialog itself, already carrying what we know. Logs
-        default to on here: they are the point of a crash report, and the user
-        is looking at the failure while deciding.
+        opens the same dialog itself. Logs default to on here: the effect above
+        already wrote this error and its stack into them, so they carry the
+        technical detail and the message is left to the user. Copying the error
+        into the message would send it even with the logs switched off.
       */}
       <ReportDialog
         open={isReportDialogOpen}
         onOpenChange={setIsReportDialogOpen}
         defaultMode="bug"
         defaultHasLogConsent
-        prefill={{
-          message: `What I was doing when this happened:\n\n\n---\nTechnical detail, filled in automatically:\n\n${message}\n\n${displayStack ?? 'No stack available.'}`,
-        }}
       />
 
       {/*

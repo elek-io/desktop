@@ -60,24 +60,11 @@ import {
   type CoreErrorType,
   type CreateReportBase,
   type CreateReportProps,
-  type User,
 } from '@elek-io/core';
 
 const GITHUB_ISSUES_URL = 'https://github.com/elek-io/desktop/issues';
 
-/**
- * Read off the schema rather than hand-copied, so a cap that changes in Core
- * cannot drift from the value used to trim a prefilled field. A field with no
- * upper bound gives `null`, and `slice(0, undefined)` keeps the whole string.
- */
-const MESSAGE_MAX_LENGTH =
-  createReportBaseSchema.shape.message.maxLength ?? undefined;
-
 export type ReportMode = 'bug' | 'feedback';
-
-export interface ReportPrefill {
-  message?: string;
-}
 
 /**
  * Describes the application the report was written in, which is the one part of
@@ -182,9 +169,7 @@ const feedbackReportFormSchema = createFeedbackReportSchema.extend({
  */
 function useCachedContact(): ReportContact {
   const queryClient = useQueryClient();
-  const user = queryClient.getQueryData<User | null>(
-    queryOptions.user.get().queryKey
-  );
+  const user = queryClient.getQueryData(queryOptions.user.get().queryKey);
 
   if (!user) {
     return {
@@ -199,12 +184,19 @@ function useCachedContact(): ReportContact {
   return { ...user, name: user.name, email: user.email };
 }
 
-/** Copy for a failed report, keyed by CoreError type. */
-const reportErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
+/** Copy for a failed feedback send, keyed by CoreError type. */
+const feedbackErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   PreconditionFailed:
     'We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment.',
   RateLimited:
     'Too many reports were sent from here recently. Your text is still here, so you can try again in a few minutes.',
+  BadRequest:
+    'elek.io Cloud rejected this report. Shortening it usually helps.',
+};
+
+/** The bug form's copy, which differs only where the logs can be left out. */
+const bugErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
+  ...feedbackErrorDescriptions,
   BadRequest:
     'elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps.',
 };
@@ -296,7 +288,13 @@ function useSendReport(onSent: () => void): {
  * A failed send that we can explain stays inside the dialog, so the user does
  * not lose what they wrote.
  */
-function ReportError({ error }: { error: unknown }): ReactElement | null {
+function ReportError({
+  error,
+  descriptions,
+}: {
+  error: unknown;
+  descriptions: Partial<Record<CoreErrorType, string>>;
+}): ReactElement | null {
   if (error === null) {
     return null;
   }
@@ -308,32 +306,36 @@ function ReportError({ error }: { error: unknown }): ReactElement | null {
       <AlertCircle />
       <AlertTitle>Could not send this report</AlertTitle>
       <AlertDescription>
-        {describeCoreError(type, reportErrorDescriptions, reportErrorFallback)}
+        {describeCoreError(type, descriptions, reportErrorFallback)}
       </AlertDescription>
     </Alert>
   );
 }
 
 /**
- * The contact block, shared by both forms. Generic over the form shape, so only
- * the field names are cast rather than the whole form. Same approach as
- * `AssetForm`, see contributing/renderer/forms.md.
+ * The contact block, shared by both forms. Generic over the form shape, and the
+ * caller passes the two field paths in where its form type is concrete, so they
+ * are checked without a cast. See contributing/renderer/forms.md.
  */
 function ContactFields<
   TFieldValues extends FieldValues,
   TTransformedValues extends FieldValues = TFieldValues,
 >({
   form,
+  nameField,
+  emailField,
   purpose,
 }: {
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  nameField: NoInfer<FieldPath<TFieldValues>>;
+  emailField: NoInfer<FieldPath<TFieldValues>>;
   purpose: string;
 }): ReactElement {
   return (
     <>
       <FormField
         control={form.control}
-        name={'user.name' as FieldPath<TFieldValues>}
+        name={nameField}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Name</FormLabel>
@@ -348,7 +350,7 @@ function ContactFields<
 
       <FormField
         control={form.control}
-        name={'user.email' as FieldPath<TFieldValues>}
+        name={emailField}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Email</FormLabel>
@@ -357,8 +359,7 @@ function ContactFields<
             </FormControl>
             <FormDescription>
               Only so we can come back to you about this {purpose}. Both are
-              prefilled from your local User and both are yours to change. Leave
-              them empty to send this anonymously.
+              yours to change. Leave them empty to send this anonymously.
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -397,11 +398,9 @@ function ReportFooter<
 }
 
 function BugReportForm({
-  prefill,
   defaultHasLogConsent,
   onSent,
 }: {
-  prefill: ReportPrefill;
   defaultHasLogConsent: boolean;
   onSent: () => void;
 }): ReactElement {
@@ -413,7 +412,7 @@ function BugReportForm({
     resolver: zodResolver(bugReportFormSchema),
     defaultValues: {
       type: 'bug' as const,
-      message: prefill.message?.slice(0, MESSAGE_MAX_LENGTH) ?? '',
+      message: '',
       user: contact,
       hasLogConsent: defaultHasLogConsent,
       desktop: describeDesktop(),
@@ -430,7 +429,7 @@ function BugReportForm({
         fieldsetClassName="flex min-h-0 flex-1 flex-col"
       >
         <DialogBody>
-          <ReportError error={sendError} />
+          <ReportError error={sendError} descriptions={bugErrorDescriptions} />
 
           <FormField
             control={form.control}
@@ -442,16 +441,21 @@ function BugReportForm({
                   <FormTextareaField field={field} rows={8} />
                 </FormControl>
                 <FormDescription>
-                  Tell us what happened and what you expected instead. If you
-                  can, what you did just before it happened is usually what lets
-                  us reproduce it.
+                  What you did just before it happened, roughly when, and what
+                  you expected instead. That is usually what lets us find it in
+                  the logs and reproduce it.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <ContactFields form={form} purpose="report" />
+          <ContactFields
+            form={form}
+            nameField="user.name"
+            emailField="user.email"
+            purpose="report"
+          />
 
           <FormField
             control={form.control}
@@ -529,7 +533,10 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
         fieldsetClassName="flex min-h-0 flex-1 flex-col"
       >
         <DialogBody>
-          <ReportError error={sendError} />
+          <ReportError
+            error={sendError}
+            descriptions={feedbackErrorDescriptions}
+          />
 
           <FormField
             control={form.control}
@@ -551,7 +558,12 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
             )}
           />
 
-          <ContactFields form={form} purpose="feedback" />
+          <ContactFields
+            form={form}
+            nameField="user.name"
+            emailField="user.email"
+            purpose="feedback"
+          />
         </DialogBody>
       </AppForm>
 
@@ -565,8 +577,6 @@ export interface ReportDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Which form to open on. Defaults to the bug report. */
   defaultMode?: ReportMode;
-  /** Seeds the bug form, so a crash can hand over what it already knows. */
-  prefill?: ReportPrefill;
   /**
    * Whether "Also send my logs" starts on. Off from the header, on from the
    * error boundary, where the logs are the point.
@@ -589,7 +599,6 @@ export function ReportDialog({
   open,
   onOpenChange,
   defaultMode = 'bug',
-  prefill = {},
   defaultHasLogConsent = false,
 }: ReportDialogProps): ReactElement {
   const [mode, setMode] = useState<ReportMode>(defaultMode);
@@ -642,7 +651,6 @@ export function ReportDialog({
         {mode === 'bug' ? (
           <BugReportForm
             key="bug"
-            prefill={prefill}
             defaultHasLogConsent={defaultHasLogConsent}
             onSent={() => onOpenChange(false)}
           />

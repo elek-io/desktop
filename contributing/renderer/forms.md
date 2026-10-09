@@ -314,7 +314,9 @@ literal path for an unresolved generic. Those two
 `as unknown as UseFormReturn<...>` casts are the one documented exception to the
 cast guardrail below, each carrying an inline comment and a `@todo`. `AssetForm`
 avoids even that by staying generic and casting only field names
-(`as FieldPath<T>`).
+(`as FieldPath<T>`). The report dialog's `ContactFields` needs no cast at all:
+its callers pass the field paths in, where the form type is concrete, so a wrong
+path is a compile error at the call site.
 
 `EntryForm` used to be a third. Its cast changed no field values at all: it only
 erased the third generic, because `FormFieldFromDefinition` declared its `form`
