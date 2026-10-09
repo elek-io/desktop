@@ -1,7 +1,9 @@
 import { Link, useRouter } from '@tanstack/react-router';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageSquare } from 'lucide-react';
+import { useState } from 'react';
 import { Fragment } from 'react/jsx-runtime';
 
+import { ReportDialog } from '@renderer/components/report-dialog';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -24,6 +26,7 @@ export function UserHeader(): React.JSX.Element {
     userQuery: { data: user, isPending: isGettingUser },
   } = useUser();
   const { breadcrumbs } = useBreadcrumb();
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
   return (
     <div className="flex w-full border-b bg-sidebar">
@@ -64,12 +67,32 @@ export function UserHeader(): React.JSX.Element {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
+        {/*
+          Deliberately outside the user check: reporting a problem must not
+          depend on having finished onboarding, since a broken first run is
+          exactly the thing worth reporting.
+        */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mr-2"
+          onClick={() => setIsReportDialogOpen(true)}
+          Icon={MessageSquare}
+        >
+          Feedback
+        </Button>
+
         {isGettingUser ? (
           <UserDropdownSkeleton />
         ) : user === null ? null : (
           <UserDropdown user={user} />
         )}
       </div>
+
+      <ReportDialog
+        open={isReportDialogOpen}
+        onOpenChange={setIsReportDialogOpen}
+      />
     </div>
   );
 }

@@ -474,7 +474,7 @@ Mutations already have `onSuccess` handlers that update the necessary caches. Us
 Data loading and mutations lean on the app's error handling defaults:
 
 - `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
-- All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. Sentry capture is wired separately.
-- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation opts out at its call site with `throwOnError: false` and a no-op `onError`, then handles the rejection in place. The force-delete and sync-conflict modals do this today.
+- All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. That is the only sink, and nothing it writes leaves the machine.
+- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete and sync-conflict modals do this today.
 
-The full picture, including how `CoreError.type` survives IPC, the step-by-step guide to handling an expected error in place with those two worked examples, and exactly where and when things are logged locally and to Sentry, lives in the dedicated [Error Handling](../error-handling.md) doc.
+The full picture, including how `CoreError.type` survives IPC, the step-by-step guide to handling an expected error in place with those worked examples, and exactly where and when things are logged, lives in the dedicated [Error Handling](../error-handling.md) doc.

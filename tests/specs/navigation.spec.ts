@@ -76,10 +76,12 @@ test.describe('Navigation', () => {
     const versionTrigger = mainWindow.getByRole('banner').getByRole('button');
     await versionTrigger.click();
 
-    // "Report an issue" plus a version row per component render in the dropdown.
+    // Only version rows render in the dropdown now. Reporting used to live here
+    // as a "Report an issue" link out to GitHub and moved to the in-app dialog
+    // behind the header's Feedback button, covered by reports.spec.ts.
     await expect(
       mainWindow.getByRole('menuitem', { name: 'Report an issue' })
-    ).toBeVisible();
+    ).toBeHidden();
     const versionRows = [
       'elek.io Desktop',
       'elek.io Core',

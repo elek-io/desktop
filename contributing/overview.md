@@ -43,12 +43,14 @@ The Main process is a single `Main` class (instantiated at the bottom of [`src/m
 
 On `app.on('ready')` the `onAppReady()` method:
 
-1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise).
-2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`.
+1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise, and the elek.io Cloud URL this build talks to, see [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)).
+2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`. If it fails to start, for example because the port is in use, the failure is logged and the app launches with the API off.
 3. Registers the custom file protocol.
 4. Creates the first window (`createWindow()`), registers the IPC handlers for it (`registerIpcMain()`), then loads the renderer into it (`loadWindow()`).
 
 The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. The handlers only touch the window when invoked, so it just needs to exist (be created) at registration time, not be loaded. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
+
+If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
 
 Other lifecycle events: `activate` (macOS dock click) recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS.
 
@@ -104,7 +106,7 @@ const project = await window.ipc.core.projects.create({
 });
 ```
 
-The 37 channels are organized by namespace: `core:projects:*`, `core:collections:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*` and `electron:dialog:*`.
+The channels are organized by namespace: `core:projects:*`, `core:collections:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*`, `core:cloud:*` and `electron:dialog:*`.
 
 All Core methods are asynchronous in the renderer even when they are synchronous in Core, since every call crosses the IPC boundary. The `AsyncifyMethods` utility type in [`src/index.d.ts`](/src/index.d.ts) reflects this by wrapping every Core method's return value in a `Promise`.
 
@@ -118,7 +120,7 @@ All Core methods are asynchronous in the renderer even when they are synchronous
 > [!NOTE]
 > The two `electron:dialog:*` channels are special-cased in the registration loop: the main `BrowserWindow` is injected as the first argument before the bound handler is called. Every `core:*` channel is called with the renderer's arguments unchanged.
 
-**Error serialization at the handler loop:** the same single `ipcMain.handle` wrapper also try/catches the handler call. A structured clone across the IPC boundary drops the `CoreError` subclass and its custom `type`/`statusCode` fields, reducing the error to the plain `Error` shape (message and stack). To preserve the reason a Core operation failed with, the wrapper catches a thrown `CoreError` and re-throws `new Error(serializeCoreError(error.type, error.message))`, which packs the `type` into the message behind a sentinel. Everything that is not a `CoreError` propagates unchanged. The renderer decodes it with `parseIpcError` from the shared module [`src/shared/ipcError.ts`](/src/shared/ipcError.ts), which is bundled into both processes. The full story, including how the renderer maps the decoded `type` to reason-specific copy and how it is decoded for Sentry too, is in [Error Handling](./error-handling.md).
+**Error serialization at the handler loop:** the same single `ipcMain.handle` wrapper also try/catches the handler call. A structured clone across the IPC boundary drops the `CoreError` subclass and its custom `type`/`statusCode` fields, reducing the error to the plain `Error` shape (message and stack). To preserve the reason a Core operation failed with, the wrapper catches a thrown `CoreError` and re-throws `new Error(serializeCoreError(error.type, error.message))`, which packs the `type` into the message behind a sentinel. Everything that is not a `CoreError` propagates unchanged. The renderer decodes it with `parseIpcError` from the shared module [`src/shared/ipcError.ts`](/src/shared/ipcError.ts), which is bundled into both processes. The full story, including how the renderer maps the decoded `type` to reason-specific copy, is in [Error Handling](./error-handling.md).
 
 ### Project Structure
 
@@ -245,7 +247,7 @@ Both projects are `composite`, so the `check-types:node` / `check-types:web` scr
 
 The app is built with [electron-vite](https://electron-vite.org/), which uses three separate configs in `electron.vite.config.ts`:
 
-- **Main process** - ESM output, source maps enabled, Sentry plugin for error tracking
+- **Main process** - ESM output, source maps enabled
 - **Preload script** - CommonJS output (required by Electron's sandbox) with no external dependencies
 - **Renderer process** - the TanStack Router plugin (auto-generates `routeTree.gen.ts`), the Vite React plugin, Tailwind CSS via `@tailwindcss/vite`, and automatic code-splitting on routes
 
@@ -254,7 +256,7 @@ For how these three builds decide what ships in the packaged app, the resulting 
 ### Known Considerations
 
 - DevTools are opened automatically in development via `window.webContents.openDevTools()` in [`src/main/index.ts:242`](/src/main/index.ts) (the development branch of `loadWindow`). The packaged branch keeps a commented-out call to uncomment when debugging a production build.
-- Sentry is initialized in two separate places, the main process ([`src/main/index.ts`](/src/main/index.ts)) and the renderer ([`src/renderer/index.ts`](/src/renderer/index.ts)), both at 100% sampling. The renderer also enables session replay. Lowering sampling or disabling telemetry means editing both init sites. Both inits share a `beforeSend` hook (`decodeCoreErrorForSentry` from [`src/shared/sentryCoreError.ts`](/src/shared/sentryCoreError.ts)) that rewrites a CoreError serialized at the IPC boundary back into a readable message and adds a `core_error_type` tag, so a captured CoreError does not show up as the raw sentinel payload. It is the same decode the renderer applies for display (see the [IPC error serialization](#ipc-architecture) note), reused so Sentry and the UI agree. For the full logging picture, local and Sentry, see [Error Handling](./error-handling.md).
+- The app sends no telemetry. There is no remote error tracker, no tracing and no session replay, so an error only ever reaches Core's local log files unless the user reports it themselves. For the full logging picture see [Error Handling](./error-handling.md). Why Sentry was removed, and what is planned instead, lives in the Cloud repository's `contributing/observability.md`.
 - Auto-update is currently disabled. The `update-electron-app` call in the `Main` constructor is commented out, and the `electron-updater` dependency is not imported anywhere, so there is no active auto-update path.
 - All Core methods are async in the renderer even when synchronous in Core (the IPC boundary requires it)
 - The preload script must be CommonJS due to Electron's sandboxing limitations

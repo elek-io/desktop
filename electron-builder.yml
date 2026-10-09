@@ -17,6 +17,11 @@ files:
   - '!{test-results,playwright-report}/*'
   - '!{AGENTS.md,CLAUDE.md,components.json,eslint.config.mjs,.node-version}'
   - '!{playwright.config.ts,pnpm-workspace.yaml,.prettierrc.json}'
+  # The renderer source maps are multiple MB and nothing reads them at runtime,
+  # so keep them out of the asar. They stay in out/renderer for local debugging.
+  # The main process maps are small and are kept, since a main crash is the one
+  # we cannot inspect in DevTools.
+  - '!out/renderer/**/*.map'
 extraMetadata:
   name: 'elek-io-desktop' # Overwrites package.json name, since it cannot handle special characters
 asarUnpack:

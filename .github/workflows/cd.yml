@@ -140,7 +140,7 @@ jobs:
         run: pnpm run build --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Lets @sentry/vite-plugin create the release and upload source maps so
-          # production crashes are symbolicated. The plugin reads this env var by
-          # default. Without it the build still succeeds, just without upload.
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Points the app at the production elek.io Cloud instead of the dev API.
+          # Only this build sets it, since CI runs the same build script.
+          # See contributing/build-and-packaging.md.
+          MAIN_VITE_IS_RELEASE: 'true'

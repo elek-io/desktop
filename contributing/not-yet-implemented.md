@@ -11,6 +11,42 @@ When you find a Core capability that the client cannot use yet (a field type wit
 
 Remove an entry once the feature works end to end.
 
+## Reporting a bug or feedback to Cloud
+
+The Desktop and Core halves are both done. The dialog, both forms, the header
+button, the error boundary's "Report this problem", the IPC channel
+`core:cloud:reports:create` and `core.cloud.reports.create()` all work, and
+[`tests/specs/reports.spec.ts`](../tests/specs/reports.spec.ts) drives a real
+send end to end. What is left is on the other side of the wire.
+
+- **Core support**: complete. See
+  [`reporting.md`](../node_modules/@elek-io/core/docs/reporting.md) in the Core
+  package for the contract, what a log tail holds, and the error mapping.
+- **Cloud support**: dev only. `POST /management/v1/reports` is live on
+  `https://api.dev.elek.io`, which every build except a release talks to (see
+  [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)),
+  so `pnpm dev` shows the success path. Production, `https://api.elek.io`, is
+  not up yet. Until it is, every send from a release build fails as
+  `PreconditionFailed`, which is the failure the dialog is built to survive:
+  the alert appears and the user's text stays.
+- **Where to start**: bring the endpoint up on production against
+  `reportRequestSchema`, answering `reportResponseSchema` (`201 { id }`). No
+  Desktop change follows, and this entry goes away.
+
+Two things about the endpoint, since they are decisions rather than details:
+
+- **No credential today.** Core holds no Cloud session, and requiring an account
+  would leave the button dead for the whole alpha, which is exactly when the
+  feedback matters. Rate limit per IP. Everything in the body is self-declared:
+  whether a sender is who they claim is a question a credential answers, never a
+  question the body answers, which is why there is no `isVerified` field to set.
+- **When Cloud sign-in lands**, the same endpoint accepts
+  `Authorization: Bearer <session>`. A request either carries a session or it
+  does not, so nothing in the body changes and neither does Desktop.
+
+Caps are 5000 characters of message and 2 MB of total body, both of which Core
+enforces before sending.
+
 ## Field types
 
 Core's `fieldTypeSchema` defines 18 field types. The client implements a subset.

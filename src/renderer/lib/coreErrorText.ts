@@ -18,6 +18,10 @@ const GENERIC_CORE_ERROR_TEXT: Record<CoreErrorType, string> = {
   PreconditionFailed:
     'A required condition was not met, so the action was stopped.',
   UpgradeFailed: 'Upgrading this Project did not work.',
+  VersionSkew:
+    'This was written by a newer version of elek.io. Update to open it.',
+  RateLimited:
+    'Too much was sent from here recently. Please try again shortly.',
   Internal: 'Something went wrong. Please try again.',
 };
 

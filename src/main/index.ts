@@ -1,9 +1,4 @@
 import {
-  init as sentryInit,
-  captureException as sentryCaptureException,
-  flush as sentryFlush,
-} from '@sentry/electron/main';
-import {
   app,
   BrowserWindow,
   type BrowserWindowConstructorOptions,
@@ -22,29 +17,9 @@ import ElekIoCore, { CoreError } from '@elek-io/core';
 
 import icon from '../../resources/icon.png?asset';
 import { serializeCoreError } from '../shared/ipcError.js';
-import { decodeCoreErrorForSentry } from '../shared/sentryCoreError.js';
+import { errorLogAttributes } from '../shared/logError.js';
 
 // import { updateElectronApp } from 'update-electron-app';
-
-export class SecurityError extends Error {
-  constructor(message: string) {
-    super(message);
-
-    this.name = 'SecurityError';
-  }
-}
-
-sentryInit({
-  dsn: 'https://06f2163a40c4c4f404c41860f46a104b@o4511706089259008.ingest.de.sentry.io/4511706092535888',
-  enableRendererProfiling: true, // @see https://docs.sentry.io/platforms/javascript/guides/electron/profiling/
-  // E2E tests set NODE_ENV to prevent reporting from test runs
-  enabled: process.env['NODE_ENV'] !== 'test',
-  // Decode any CoreError encoded at the IPC boundary into a readable message
-  beforeSend: (event) => {
-    decodeCoreErrorForSentry(event);
-    return event;
-  },
-});
 
 class Main {
   public readonly customFileProtocol: string = 'elek-io-local-file';
@@ -57,6 +32,13 @@ class Main {
     'api.elek.io',
     'github.com',
   ];
+  // Only a release build, which CD marks with MAIN_VITE_IS_RELEASE, talks to
+  // the production elek.io Cloud. Every other build, dev and CI included, uses
+  // the dev API. See contributing/build-and-packaging.md.
+  private readonly cloudUrl =
+    import.meta.env.MAIN_VITE_IS_RELEASE === 'true'
+      ? 'https://api.elek.io'
+      : 'https://api.dev.elek.io';
   private core: ElekIoCore | null = null;
 
   constructor() {
@@ -72,18 +54,9 @@ class Main {
 
     // Register app events
     app.on('ready', () => {
-      void this.onAppReady().catch(async (error: unknown) => {
-        // Exit instead of leaving a running app without a window,
-        // otherwise initialization failures hang silently.
-        // Not using Core's logger since it may be what failed to initialize
-        // eslint-disable-next-line no-console
-        console.error('Failed to initialize the app', error);
-        sentryCaptureException(error);
-        // Let Sentry deliver the event before the process exits. Resolves
-        // immediately when Sentry is disabled, as it is under NODE_ENV=test
-        await sentryFlush(2000);
-        app.exit(1);
-      });
+      void this.onAppReady().catch(async (error: unknown) =>
+        this.onAppReadyFailed(error)
+      );
     });
     app.on('activate', () => {
       void this.onAppActivate();
@@ -106,12 +79,42 @@ class Main {
    */
   private async onAppReady(): Promise<void> {
     this.core = new ElekIoCore({
-      log: { level: app.isPackaged ? 'info' : 'debug' },
+      log: {
+        level: app.isPackaged ? 'info' : 'debug',
+        // Stamps `service.version` on every record we log, so a log file sent
+        // without a report around it still says which build wrote it. Core
+        // stamps its own version on its own records and cannot read ours.
+        hostVersion: app.getVersion(),
+      },
+      cloud: {
+        // Core ranks its option above ELEK_IO_CLOUD_URL, so check it here to
+        // let one set at launch still win. The E2E fixture relies on that.
+        url: process.env['ELEK_IO_CLOUD_URL'] ?? this.cloudUrl,
+      },
     });
+    this.logIdentity(this.core);
     const user = await this.core.user.get();
 
     if (user && user.localApi.isEnabled) {
-      this.core.api.start(user.localApi.port);
+      // Awaited, because start() settles once the port is bound or rejects, and
+      // an unawaited rejection here would reach onAppReady's catch and exit the
+      // app. A port already in use must not stop the app from launching, so the
+      // failure is logged and the local API stays off. The User sees it off on
+      // their profile page, which reads core.api.isRunning, and can start it
+      // again there on a free port. Telling them why at launch needs a channel
+      // from the main process to the renderer, which does not exist yet.
+      try {
+        await this.core.api.start(user.localApi.port);
+      } catch (error) {
+        this.core.logger.error({
+          source: 'desktop',
+          message:
+            error instanceof CoreError && error.type === 'Conflict'
+              ? `Could not start the local API because port ${user.localApi.port} is already in use`
+              : 'Could not start the local API',
+          meta: errorLogAttributes(error),
+        });
+      }
     }
 
     this.registerCustomFileProtocol();
@@ -125,6 +128,65 @@ class Main {
     const window = this.createWindow();
     this.registerIpcMain(window, this.core);
     await this.loadWindow(window);
+  }
+
+  /**
+   * Ends a start that failed, instead of leaving a running app without a window.
+   *
+   * A packaged app has no console anyone sees, so the error is shown in a native
+   * box too. When Core got far enough to exist, the error also goes to its log
+   * file, and disposing Core flushes that record before the process exits. Core
+   * may be what failed, so the console and the box never depend on it.
+   */
+  private async onAppReadyFailed(error: unknown): Promise<void> {
+    // eslint-disable-next-line no-console
+    console.error('Failed to initialize the app', error);
+
+    if (this.core !== null) {
+      try {
+        this.core.logger.error({
+          source: 'desktop',
+          message: 'Failed to initialize the app',
+          meta: errorLogAttributes(error),
+        });
+        await this.core.dispose();
+      } catch {
+        // The console line above and the box below still report it
+      }
+    }
+
+    dialog.showErrorBox(
+      'elek.io Desktop could not start',
+      `${error instanceof Error ? error.message : String(error)}\n\nIf this keeps happening, please open an issue at https://github.com/elek-io/desktop/issues`
+    );
+    app.exit(1);
+  }
+
+  /**
+   * Writes which runtime is running, once per app start.
+   *
+   * Which build wrote a record is answered by `log.hostVersion` above, which
+   * puts our version on the Resource of every record we log. What that cannot
+   * carry is the runtime underneath, and a rendering bug is often specific to
+   * one Chromium. Those three versions do not change while the app runs, so
+   * once per start is enough and repeating them per record would be waste.
+   *
+   * A tail reaches back 24 hours, so an app left running for days drops this
+   * record out of the window. That is survivable now: the version is on every
+   * record either way, and only the runtime detail goes with it.
+   */
+  private logIdentity(core: ElekIoCore): void {
+    const { electron, chrome, node } = process.versions;
+
+    core.logger.info({
+      source: 'desktop',
+      message: `Desktop ${app.getVersion()} starting (electron ${electron}, chrome ${chrome}, node ${node})`,
+      meta: {
+        'elek.desktop.runtime.electron': electron,
+        'elek.desktop.runtime.chrome': chrome,
+        'elek.desktop.runtime.node': node,
+      },
+    });
   }
 
   /**
@@ -171,7 +233,6 @@ class Main {
         false
       ) {
         const errorMessage = `Prevented navigation to untrusted, external URL "${parsedUrl.toString()}" from "${webContents.getURL()}"`;
-        sentryCaptureException(new SecurityError(errorMessage));
         this.core?.logger.error({
           source: 'desktop',
           message: errorMessage,
@@ -298,7 +359,6 @@ class Main {
     ) {
       event.preventDefault();
       const errorMessage = `Prevented navigation to untrusted, internal URL "${parsedUrl.toString()}" from "${window.webContents.getURL()}"`;
-      sentryCaptureException(new SecurityError(errorMessage));
       this.core?.logger.error({
         source: 'desktop',
         message: errorMessage,
@@ -312,10 +372,10 @@ class Main {
   private registerCustomFileProtocol(): void {
     protocol.handle(this.customFileProtocol, async (request) => {
       if (!this.core) {
-        sentryCaptureException(
-          new Error(
-            'Trying to handle custom file protocol but Core is not initialized.'
-          )
+        // Not using Core's logger here, since Core is what is missing
+        // eslint-disable-next-line no-console
+        console.error(
+          'Trying to handle custom file protocol but Core is not initialized.'
         );
         return new Response('Internal Server Error', { status: 500 });
       }
@@ -340,12 +400,12 @@ class Main {
             request.url.replace(`${this.customFileProtocol}://`, 'file://')
           )
         );
-      } catch {
-        sentryCaptureException(
-          new SecurityError(
-            `Could not resolve requested file URL "${request.url}".`
-          )
-        );
+      } catch (error) {
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Could not resolve requested file URL "${request.url}".`,
+          meta: errorLogAttributes(error),
+        });
         return forbidden;
       }
 
@@ -359,11 +419,10 @@ class Main {
         isWithin(absoluteFilePath, this.core.util.pathTo.projects) === false &&
         isWithin(absoluteFilePath, this.core.util.pathTo.tmp) === false
       ) {
-        sentryCaptureException(
-          new SecurityError(
-            `Tried to load file "${absoluteFilePath}" outside of the Projects or tmp directory.`
-          )
-        );
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Tried to load file "${absoluteFilePath}" outside of the Projects or tmp directory.`,
+        });
         return forbidden;
       }
 
@@ -384,12 +443,12 @@ class Main {
           realpath(this.core.util.pathTo.projects),
           realpath(this.core.util.pathTo.tmp),
         ]);
-      } catch {
-        sentryCaptureException(
-          new SecurityError(
-            `Could not resolve the real path of "${absoluteFilePath}".`
-          )
-        );
+      } catch (error) {
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Could not resolve the real path of "${absoluteFilePath}".`,
+          meta: errorLogAttributes(error),
+        });
         return forbidden;
       }
 
@@ -397,11 +456,10 @@ class Main {
         isWithin(resolvedFilePath, resolvedProjects) === false &&
         isWithin(resolvedFilePath, resolvedTmp) === false
       ) {
-        sentryCaptureException(
-          new SecurityError(
-            `Tried to load file "${absoluteFilePath}" resolving through a link to "${resolvedFilePath}" outside of the Projects or tmp directory.`
-          )
-        );
+        this.core.logger.error({
+          source: 'desktop',
+          message: `Tried to load file "${absoluteFilePath}" resolving through a link to "${resolvedFilePath}" outside of the Projects or tmp directory.`,
+        });
         return forbidden;
       }
 
@@ -428,6 +486,9 @@ class Main {
       'core:logger:error': core.logger.error.bind(core.logger),
       'core:user:get': core.user.get.bind(core.user),
       'core:user:set': core.user.set.bind(core.user),
+      'core:cloud:reports:create': core.cloud.reports.create.bind(
+        core.cloud.reports
+      ),
       'core:projects:count': core.projects.count.bind(core.projects),
       'core:projects:create': core.projects.create.bind(core.projects),
       'core:projects:list': core.projects.list.bind(core.projects),
