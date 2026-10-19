@@ -111,7 +111,7 @@ const syncErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   Conflict:
     'A change on the remote conflicts with your local work, so nothing was pushed. Resolve it and try again.',
   PreconditionFailed:
-    'Could not reach the remote or it does not support the required features.',
+    "Couldn't reach the remote, or it holds something besides this Project, such as a README your Git host created. Nothing was pushed.",
 };
 
 const syncErrorFallback =
