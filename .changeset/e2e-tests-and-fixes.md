@@ -4,7 +4,7 @@
 
 Add an end-to-end Playwright test suite and the fixes it surfaced.
 
-Errors from Core now carry their type across IPC, so the renderer handles the ones it can act on in place and lets the rest reach the root error boundary. Force-deleting a project with local changes and resolving a sync conflict now show a specific message per reason, and the Core origin stack is forwarded to Sentry so those crashes stay symbolicated. The error boundary shows the decoded stack instead of the raw sentinel.
+Errors from Core now carry their type across IPC, so the renderer handles the ones it can act on in place and lets the rest reach the root error boundary. Force-deleting a project with local changes and resolving a sync conflict now show a specific message per reason, and the Core origin stack survives the trip across IPC. The error boundary shows the decoded stack instead of the raw sentinel.
 
 Accessibility: buttons default to type "button" so they no longer submit their form by accident, forms carry explicit ids so a submit button placed outside the form still targets it, and native validation is replaced by zod through react-hook-form. Single-language translatable fields regained their id, aria-describedby and aria-invalid, and back and forward navigation got proper labels.
 

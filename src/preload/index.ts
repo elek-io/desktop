@@ -52,6 +52,12 @@ const ipc: ContextBridgeApi = {
       get: async (...args) => ipcRenderer.invoke('core:user:get', ...args),
       set: async (...args) => ipcRenderer.invoke('core:user:set', ...args),
     },
+    cloud: {
+      reports: {
+        create: async (...args) =>
+          ipcRenderer.invoke('core:cloud:reports:create', ...args),
+      },
+    },
     projects: {
       count: async (...args) =>
         ipcRenderer.invoke('core:projects:count', ...args),

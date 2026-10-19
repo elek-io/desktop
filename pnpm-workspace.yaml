@@ -3,8 +3,6 @@
 # map of package -> boolean. Kept in the same style as Core's config.
 # See https://pnpm.io/settings#allowbuilds
 allowBuilds:
-  # Downloads the sentry-cli binary used by @sentry/vite-plugin during builds.
-  '@sentry/cli': true
   # Native engine behind Tailwind v4, required by @tailwindcss/vite.
   '@tailwindcss/oxide': true
   # dugite is Core's git engine. Its postinstall downloads the embedded git
@@ -19,6 +17,8 @@ allowBuilds:
   # ships prebuilt in @esbuild/<platform>, which the JS API resolves directly,
   # so its postinstall build is redundant. Same reasoning as in Core.
   esbuild: false
+minimumReleaseAgeExclude:
+  - '@elek-io/core@0.24.0'
 # Do not reuse pnpm's cache of postinstall (side effect) output. Since pnpm 8.7
 # the content addressable store keeps such files as plain copies, not symlinks.
 # dugite's postinstall lays down git, whose git-core is ~145 symlinks to one

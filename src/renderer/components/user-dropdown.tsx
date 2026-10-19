@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { Moon, Sun, ChevronDown, ExternalLinkIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Avatar, AvatarSkeleton } from '@renderer/components/ui/avatar';
 import { Button } from '@renderer/components/ui/button';
@@ -22,6 +23,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu';
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { useTheme, type Theme } from '@renderer/hooks/useTheme';
 import { queryOptions } from '@renderer/queries';
@@ -33,9 +35,21 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
   const { data: isLocalApiRunning } = useQueryNoError(
     queryOptions.api.isRunning()
   );
-  const { mutateAsync: startApi, isPending: isStartingApi } = useMutation(
-    queryOptions.api.start
-  );
+  const {
+    mutateAsync: startApi,
+    handleError: handleStartApiError,
+    isPending: isStartingApi,
+  } = useAppMutation(queryOptions.api.start, {
+    handled: {
+      // Something else holds the port. There is no form here to mark, so point
+      // to the profile, where the port is changed.
+      Conflict: () =>
+        toast.error(`Port ${user.localApi.port} is already in use`, {
+          description:
+            'Choose a different port on your profile to start the local API.',
+        }),
+    },
+  });
   const { mutateAsync: stopApi, isPending: isStoppingApi } = useMutation(
     queryOptions.api.stop
   );
@@ -88,9 +102,17 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
               <div className="">
                 <Switch
                   checked={isLocalApiRunning ?? false}
-                  onCheckedChange={async (checked) =>
-                    checked ? startApi(user.localApi.port) : stopApi()
-                  }
+                  onCheckedChange={async (checked) => {
+                    if (checked === false) {
+                      await stopApi();
+                      return;
+                    }
+                    try {
+                      await startApi(user.localApi.port);
+                    } catch (error) {
+                      handleStartApiError(error);
+                    }
+                  }}
                 />
               </div>
             </div>

@@ -63,6 +63,13 @@ export function testDataDirs(testInfo: TestInfo): {
 }
 
 /**
+ * A closed loopback port, where a send is refused at once. Core maps that to
+ * `PreconditionFailed`, which is the failure the report dialog is built around,
+ * and it needs neither a stub server nor a network.
+ */
+const UNREACHABLE_CLOUD_URL = 'http://127.0.0.1:1';
+
+/**
  * Launch the unpacked build for the current platform.
  *
  * Extracted from the `electronApp` fixture so a spec can relaunch against the
@@ -72,11 +79,12 @@ export function testDataDirs(testInfo: TestInfo): {
  * (Chromium profile, localStorage, caches) via Chromium's --user-data-dir switch,
  * which Electron honors without any test-only code in the app. Both default to a
  * short per-test dir (see testDataDirs), overridable to reuse a dir across a
- * relaunch.
+ * relaunch. ELEK_IO_CLOUD_URL points every launch at a closed port unless a
+ * spec passes a local stub, so no test can send a report to a real Cloud.
  */
 export async function launchApp(
   testInfo: TestInfo,
-  overrides: { dataDir?: string; userDataDir?: string } = {}
+  overrides: { dataDir?: string; userDataDir?: string; cloudUrl?: string } = {}
 ): Promise<ElectronApplication> {
   const appInfo = parseElectronApp(findUnpackedBuild());
 
@@ -92,8 +100,11 @@ export async function launchApp(
       env[key] = value;
     }
   }
-  env['NODE_ENV'] = 'test';
   env['ELEK_IO_DATA_DIR'] = dataDir;
+  // Never let a test reach a real elek.io Cloud, dev included, or every run
+  // would file reports there. Sending a report is the one thing in the app that
+  // talks to elek.io and the reporting specs press Send.
+  env['ELEK_IO_CLOUD_URL'] = overrides.cloudUrl ?? UNREACHABLE_CLOUD_URL;
   // Electron based terminals like the one in VSCode set this variable,
   // which would turn the launched app into a plain Node process
   // and fail the launch with "Process failed to launch!"
@@ -132,6 +143,12 @@ export async function launchApp(
  */
 export const test = base.extend<{
   /**
+   * Where the app sends a report. A closed port by default, overridden with a
+   * local stub by the specs that need Cloud to answer (see cloudStub.ts).
+   */
+  cloudUrl: string;
+
+  /**
    * The Electron application instance
    */
   electronApp: ElectronApplication;
@@ -164,8 +181,12 @@ export const test = base.extend<{
   allowedConsoleErrors: [{ patterns: [] }, { option: true }],
 
   // eslint-disable-next-line no-empty-pattern
-  electronApp: async ({}, use, testInfo) => {
-    const app = await launchApp(testInfo);
+  cloudUrl: async ({}, use) => {
+    await use(UNREACHABLE_CLOUD_URL);
+  },
+
+  electronApp: async ({ cloudUrl }, use, testInfo) => {
+    const app = await launchApp(testInfo, { cloudUrl });
 
     // Use the app in tests
     await use(app);

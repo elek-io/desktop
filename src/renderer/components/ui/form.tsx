@@ -2141,6 +2141,7 @@ export {
   FormField,
   FormDateField,
   FormDatetimeField,
+  FormToggleField,
   FormFieldFromDefinition,
   FormFieldDefinitionPreview,
 };

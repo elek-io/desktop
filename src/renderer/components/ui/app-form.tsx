@@ -63,6 +63,14 @@ export interface AppFormProps<
    */
   mode?: 'edit' | 'view';
   className?: string;
+  /**
+   * Classes for the `<fieldset>` AppForm wraps its children in. Needed because
+   * that element sits between the form and its content, so a caller laying the
+   * form out (a dialog whose body scrolls while its footer stays put) cannot
+   * reach it otherwise and its default sizing breaks the containment. Exposing
+   * it keeps that fix here rather than as a workaround at each call site.
+   */
+  fieldsetClassName?: string;
   children: ReactNode;
 }
 
@@ -80,6 +88,7 @@ export function AppForm<
   id,
   mode = 'edit',
   className,
+  fieldsetClassName,
   children,
 }: AppFormProps<TFieldValues, TTransformedValues>): ReactNode {
   const generatedId = useId();
@@ -175,7 +184,7 @@ export function AppForm<
           className={className}
           onSubmit={handleSubmit}
         >
-          <fieldset disabled={mode === 'view'}>
+          <fieldset disabled={mode === 'view'} className={fieldsetClassName}>
             {unsurfacedErrors.length > 0 ? (
               <div
                 ref={unsurfacedRef}

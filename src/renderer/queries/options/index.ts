@@ -1,5 +1,6 @@
 import { apiOptions } from './apiOptions';
 import { assetOptions } from './assetOptions';
+import { cloudOptions } from './cloudOptions';
 import { collectionOptions } from './collectionOptions';
 import { entryOptions } from './entryOptions';
 import { projectOptions } from './projectOptions';
@@ -15,4 +16,5 @@ export default {
   entries: entryOptions,
   user: userOptions,
   api: apiOptions,
+  cloud: cloudOptions,
 };

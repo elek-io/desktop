@@ -107,6 +107,14 @@ test.describe('Main-process security', () => {
 
       expect(mainWindow.url().startsWith(appDocument ?? appUrl)).toBe(true);
       expect(mainWindow.url()).not.toContain('example.com');
+
+      // A navigation started while the app is still loading makes Electron
+      // reject that load, which used to end the app right after the checks
+      // above. The fixture skips its own checks on a closed window and would
+      // hide that, so assert here that our document still runs. Not through a
+      // web-first assertion like toHaveTitle, which waits for the blocked
+      // navigation to finish and never sees it do so.
+      expect(await mainWindow.evaluate(() => 'ipc' in globalThis)).toBe(true);
     });
   });
 

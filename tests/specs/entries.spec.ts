@@ -700,7 +700,7 @@ test.describe('Entries', () => {
     // failure must reach the root error boundary. This guards the useAppMutation
     // predicate against a regression back to a blanket throwOnError: false, which
     // would swallow an unexpected failure into the in-place dialog and drop it
-    // from the logs and Sentry (see error-handling.md and the projects delete
+    // from the logs entirely (see error-handling.md and the projects delete
     // spec for the full rationale).
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);

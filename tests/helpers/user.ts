@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import type { SetUserProps, User } from '@elek-io/core';
 
@@ -21,6 +21,9 @@ export async function setUserViaIpc(
 ): Promise<User> {
   const props: LocalUserProps = {
     userType: 'local',
+    // A local User never has an elek.io account id. It is what tells the two
+    // kinds of User apart, so it is set rather than left off.
+    id: null,
     name: 'Test User',
     email: 'test@elek.io',
     language: 'en',
@@ -48,4 +51,21 @@ export async function navigateToUserProfile(page: Page): Promise<void> {
  */
 export async function apiIsRunningViaIpc(page: Page): Promise<boolean> {
   return page.evaluate(async () => window.ipc.core.api.isRunning());
+}
+
+/**
+ * Wait until the User set over IPC has reached the renderer's query cache.
+ *
+ * The report dialog reads its contact block out of that cache at the moment it
+ * opens (see report-dialog.tsx), so a dialog opened while the user query is
+ * still loading shows an empty contact even though a User exists. The header's
+ * user dropdown carries the name, so it appearing is the signal.
+ */
+export async function waitForUserLoaded(
+  page: Page,
+  name = 'Test User'
+): Promise<void> {
+  await expect(
+    page.getByRole('button', { name: new RegExp(name) })
+  ).toBeVisible();
 }

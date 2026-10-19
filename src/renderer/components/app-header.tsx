@@ -1,5 +1,5 @@
 import { version as desktopVersion, dependencies } from '@root/package.json';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@renderer/components/ui/button';
@@ -35,23 +35,6 @@ export function AppHeader(): React.JSX.Element {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="window-not-draggable-area mt-4 mr-2 w-56">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() =>
-                window.open(
-                  'https://github.com/elek-io/desktop/issues',
-                  '_blank'
-                )
-              }
-            >
-              Report an issue
-              <DropdownMenuAddOn>
-                <ExternalLink className="h-4 w-4" />
-              </DropdownMenuAddOn>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem>
               elek.io Desktop
