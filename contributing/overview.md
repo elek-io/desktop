@@ -50,7 +50,7 @@ On `app.on('ready')` the `onAppReady()` method:
 
 The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. The handlers only touch the window when invoked, so it just needs to exist (be created) at registration time, not be loaded. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
 
-If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
+If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. One rejection is not a failed start: Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing, and `loadWindow()` logs a warning and carries on. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
 
 Other lifecycle events: `activate` (macOS dock click) recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS.
 

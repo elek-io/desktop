@@ -293,23 +293,43 @@ class Main {
    * registered.
    */
   private async loadWindow(window: BrowserWindow): Promise<void> {
-    if (app.isPackaged) {
-      // Desktop is in production
-      // Load the static index.html directly
-      await window.loadFile(Path.join(__dirname, `../renderer/index.html`));
-      // Uncomment to debug a production build
-      // window.webContents.openDevTools();
-    } else {
-      // Desktop is in development
-      if (this.rendererUrl === undefined) {
-        throw new Error(`"process.env['ELECTRON_RENDERER_URL']" is empty`);
+    try {
+      if (app.isPackaged) {
+        // Desktop is in production
+        // Load the static index.html directly
+        await window.loadFile(Path.join(__dirname, `../renderer/index.html`));
+        // Uncomment to debug a production build
+        // window.webContents.openDevTools();
+      } else {
+        // Desktop is in development
+        if (this.rendererUrl === undefined) {
+          throw new Error(`"process.env['ELECTRON_RENDERER_URL']" is empty`);
+        }
+        this.core?.logger.info({
+          source: 'desktop',
+          message: `Loading frontend in development by URL: ${this.rendererUrl}`,
+        });
+        await window.loadURL(this.rendererUrl);
+        window.webContents.openDevTools();
       }
-      this.core?.logger.info({
-        source: 'desktop',
-        message: `Loading frontend in development by URL: ${this.rendererUrl}`,
-      });
-      await window.loadURL(this.rendererUrl);
-      window.webContents.openDevTools();
+    } catch (error) {
+      // Electron rejects a pending load with ERR_ABORTED as soon as another
+      // main frame navigation starts, even one the navigation guard blocks. Our
+      // document is already showing by then, since only it can start one, so
+      // the window keeps working. Any other failure means it could not load.
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ERR_ABORTED'
+      ) {
+        this.core?.logger.warn({
+          source: 'desktop',
+          message: 'Loading the window was interrupted by another navigation',
+          meta: errorLogAttributes(error),
+        });
+        return;
+      }
+      throw error;
     }
   }
 
