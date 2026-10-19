@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { DownloadCloud, Plus } from 'lucide-react';
 import { type ReactElement, useId, useState } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
@@ -26,6 +26,7 @@ import {
 } from '@renderer/components/ui/dialog';
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -41,6 +42,7 @@ import {
   FormMessage,
 } from '@renderer/components/ui/form';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
+import { useCloudAccount } from '@renderer/hooks/useCloudAccount';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import queryOptions from '@renderer/queries/options';
 
@@ -52,6 +54,7 @@ export const Route = createFileRoute('/projects/')({
 
 function ListProjectsPage(): ReactElement {
   const router = useRouter();
+  const account = useCloudAccount();
   const { data: projects, isPending: isListingProjects } = useQueryNoError(
     queryOptions.projects.list({
       limit: 0,
@@ -142,6 +145,20 @@ function ListProjectsPage(): ReactElement {
                 creating a new or cloning an existing Project.
               </EmptyDescription>
             </EmptyHeader>
+            {/* Signed out, the Welcome points to the Projects on elek.io Cloud */}
+            {account === 'local' ? (
+              <EmptyContent>
+                <p className="text-sm text-muted-foreground">
+                  <Link
+                    to="/projects/sign-in"
+                    className="text-foreground underline underline-offset-4 hover:text-primary"
+                  >
+                    Sign in
+                  </Link>{' '}
+                  to open your Projects on elek.io Cloud.
+                </p>
+              </EmptyContent>
+            ) : null}
           </Empty>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">

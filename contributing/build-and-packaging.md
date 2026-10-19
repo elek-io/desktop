@@ -37,7 +37,7 @@ The main process map is kept, at around 30 KB. It is the process we cannot open 
 
 ## Which elek.io Cloud a build talks to
 
-Core sends everything bound for elek.io Cloud, which today is a report, to its `cloud.url` option. Core defaults that to production. The main process passes the option itself in [src/main/index.ts](../src/main/index.ts), so the build decides where reports go, not Core:
+Core sends everything bound for elek.io Cloud, which today is a report and signing in to an account, to its `cloud.url` option. Core defaults that to production. The main process passes the option itself in [src/main/index.ts](../src/main/index.ts), so the build decides where reports and accounts go, not Core:
 
 | Build                                                                                            | Cloud API                 |
 | ------------------------------------------------------------------------------------------------ | ------------------------- |
@@ -49,6 +49,12 @@ A release is marked by `MAIN_VITE_IS_RELEASE=true`, which only the CD build step
 Dev is the default, so nothing but a release can send to production. The cost is that a release built without the flag would quietly send reports to dev, so keep that line in cd.yml. To try a release build locally, run `MAIN_VITE_IS_RELEASE=true pnpm build`.
 
 `ELEK_IO_CLOUD_URL` set at launch wins over both, in every build. Core ranks its option above that variable, so the main process reads the variable first and only falls back to the build's URL. The E2E fixture relies on this to point every launch at a closed port (see [testing.md](./testing.md)), and it is how you point a build at a local stub.
+
+A session signed in to one Cloud is no session on the other, since each build keeps its token under its own userData and a token only means something to the Cloud that issued it. See [Signing in to elek.io Cloud](./cloud-account.md).
+
+## Electron fuses
+
+[electron-builder.yml](../electron-builder.yml) sets no fuses, so every fuse keeps Electron's default. Keep `RunAsNode` on if fuses are ever set. Core's credential helper for git to elek.io Cloud's hosts, which comes with a later Core and dugite 3.2.3, runs Desktop's own binary with `ELECTRON_RUN_AS_NODE=1`, and with the fuse off every git call to Cloud would fail to authenticate.
 
 ## The rule for dependencies vs devDependencies
 

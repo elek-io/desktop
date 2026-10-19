@@ -47,8 +47,9 @@ test.describe('Reporting a bug or feedback', () => {
     // No setUserViaIpc on purpose. The button sits outside user-header's
     // `user === null` check because a broken first run is the thing most worth
     // reporting, and every other spec here seeds a User, so without this one a
-    // refactor that moved the button inside that branch would pass CI.
-    await navigate(mainWindow, '#/projects');
+    // refactor that moved the button inside that branch would pass CI. Without
+    // a User the app shows the First start, so the report starts there.
+    await navigate(mainWindow, '#/welcome');
 
     const dialog = await openReportDialogFromHeader(mainWindow);
     await expect(

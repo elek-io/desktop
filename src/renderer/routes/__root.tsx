@@ -4,9 +4,11 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import {
   type ErrorComponentProps,
   HeadContent,
+  Navigate,
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ArrowLeft, MessageSquare, RefreshCw } from 'lucide-react';
@@ -19,6 +21,7 @@ import { Button } from '@renderer/components/ui/button';
 import { ScrollArea, ScrollBar } from '@renderer/components/ui/scroll-area';
 import { Toaster } from '@renderer/components/ui/sonner';
 import { UserHeader } from '@renderer/components/user-header';
+import { useUser } from '@renderer/hooks/useUser';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
 
@@ -178,12 +181,40 @@ function NotFoundComponent(): ReactElement {
   );
 }
 
+/**
+ * Sends a start without a User to the First start, and leaves it once a User
+ * exists. Decided here from the User query rather than in a route's
+ * beforeLoad, since it depends on data. See contributing/renderer/routing.md.
+ */
+function FirstStartRedirect(): ReactElement | null {
+  const {
+    userQuery: { data: user, isPending: isGettingUser },
+  } = useUser();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+
+  if (isGettingUser) {
+    return null;
+  }
+  const isOnFirstStart =
+    pathname === '/welcome' || pathname.startsWith('/welcome/');
+  if (user === null && isOnFirstStart === false) {
+    return <Navigate to="/welcome" replace />;
+  }
+  if (user !== null && isOnFirstStart) {
+    return <Navigate to="/projects" replace />;
+  }
+  return null;
+}
+
 function RootComponent(): ReactElement {
   return (
     <>
       <HeadContent />
       <UserProvider>
         <BreadcrumbProvider>
+          <FirstStartRedirect />
           <AppHeader />
           <UserHeader />
           <Outlet />

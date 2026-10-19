@@ -1,8 +1,16 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
-import { Moon, Sun, ChevronDown, ExternalLinkIcon } from 'lucide-react';
+import {
+  Moon,
+  Sun,
+  ChevronDown,
+  ExternalLinkIcon,
+  LogInIcon,
+  LogOutIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
+import { AccountLine } from '@renderer/components/cloud-account';
 import { Avatar, AvatarSkeleton } from '@renderer/components/ui/avatar';
 import { Button } from '@renderer/components/ui/button';
 import {
@@ -24,6 +32,7 @@ import {
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
+import { useCloudAccount } from '@renderer/hooks/useCloudAccount';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { useTheme, type Theme } from '@renderer/hooks/useTheme';
 import { queryOptions } from '@renderer/queries';
@@ -55,6 +64,12 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
   );
   const { theme, setTheme } = useTheme();
   const localApiUrl = `http://localhost:${user.localApi.port}`;
+  const account = useCloudAccount();
+  // Signing out asks nothing: every copy on this computer stays, and signing
+  // in again resumes sync. The toast comes from the mutation's meta.
+  const { mutateAsync: signOut } = useMutation(
+    queryOptions.cloud.account.signOut
+  );
 
   return (
     <DropdownMenu>
@@ -67,7 +82,12 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
           <Avatar className="h-8 w-8 rounded-lg" name={user.name} />
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{user.name}</span>
-            <span className="truncate text-xs">{user.email}</span>
+            {/* Where the person works, without opening the menu */}
+            {account === null ? (
+              <span className="h-4" />
+            ) : (
+              <AccountLine state={account} />
+            )}
           </div>
           <ChevronDown className="ml-auto size-4" />
         </Button>
@@ -156,6 +176,35 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
+        </DropdownMenuGroup>
+
+        {account === null ? null : <DropdownMenuSeparator />}
+
+        <DropdownMenuGroup>
+          {account === 'local' ? (
+            <DropdownMenuItem
+              onClick={async () => router.navigate({ to: '/projects/sign-in' })}
+            >
+              <LogInIcon />
+              Sign in to elek.io Cloud
+            </DropdownMenuItem>
+          ) : null}
+          {account === 'paused' ? (
+            <DropdownMenuItem
+              onClick={async () =>
+                router.navigate({ to: '/projects/sign-in-again' })
+              }
+            >
+              <LogInIcon />
+              Sign in again
+            </DropdownMenuItem>
+          ) : null}
+          {account === 'cloud' || account === 'paused' ? (
+            <DropdownMenuItem onClick={async () => signOut()}>
+              <LogOutIcon />
+              Sign out
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

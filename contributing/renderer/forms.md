@@ -14,7 +14,10 @@ The four shared form components live in [`components/forms/`](../../src/renderer
 adds a fifth in the same folder. The remaining forms are written inline in their
 route, except the two in
 [`report-dialog.tsx`](../../src/renderer/components/report-dialog.tsx), which are
-reached from the header and from the root error boundary rather than from a route.
+reached from the header and from the root error boundary rather than from a route,
+and the three account forms in
+[`cloud-account-forms.tsx`](../../src/renderer/components/cloud-account-forms.tsx),
+which two routes each render, see [routing](./routing.md#the-first-start).
 To find every form in the app, `grep -rn "<AppForm" src/renderer`.
 
 ## Form invariants
@@ -275,6 +278,17 @@ follow:
   assignable without variance errors. They take
   `UseFormReturn<TFieldValues, unknown, TTransformedValues>`.
 
+### Saying which field is empty
+
+Core's field schemas carry their own messages, and in zod 4 a schema's message
+wins over an error map passed to the resolver. An empty name therefore reads as
+breaking Core's rule against `|`. Where a form should say what an empty field
+asks for, put `requiredField(schema, message)` from
+[`lib/requiredField.ts`](../../src/renderer/lib/requiredField.ts) in front of
+Core's field schema with `.extend()`. It checks for a value, `null` included,
+then pipes into Core's schema, so Core still checks everything else. The First
+start and the account forms use it.
+
 ### Resolve against Core's language-aware schema, not the wire schema
 
 Core exports two flavours of each Collection/Component/Entry schema. The bare
@@ -370,6 +384,10 @@ these contracts are easy to get subtly wrong and Core validates tightly:
   the stored value keeps its string or number type.
 - `FormRangeField` bridges the Radix `Slider`'s `number[]` and the single number
   the Value holds.
+- `FormPasswordField` is a password with a button that shows it. Its value stays
+  a string, since Core's account schemas take no `null` and an empty password
+  is one not typed yet. Its input sits inside an input group, so it takes the
+  `id` and `aria-*` itself, and is used without a `FormControl`.
 - `FormToggleField` binds a Radix `Switch` to a boolean. It is exported for
   hand-written forms too (the report dialog's "Also send my logs"), not only
   reached through the render registry.

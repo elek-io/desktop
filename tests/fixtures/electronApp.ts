@@ -84,7 +84,13 @@ const UNREACHABLE_CLOUD_URL = 'http://127.0.0.1:1';
  */
 export async function launchApp(
   testInfo: TestInfo,
-  overrides: { dataDir?: string; userDataDir?: string; cloudUrl?: string } = {}
+  overrides: {
+    dataDir?: string;
+    userDataDir?: string;
+    cloudUrl?: string;
+    /** Set on top of the inherited environment, such as a broken D-Bus */
+    env?: Record<string, string>;
+  } = {}
 ): Promise<ElectronApplication> {
   const appInfo = parseElectronApp(findUnpackedBuild());
 
@@ -109,6 +115,7 @@ export async function launchApp(
   // which would turn the launched app into a plain Node process
   // and fail the launch with "Process failed to launch!"
   delete env['ELECTRON_RUN_AS_NODE'];
+  Object.assign(env, overrides.env);
 
   // No main script argument on purpose, packaged builds load their bundled
   // app on their own. Playwright adds --no-sandbox on Linux itself, so

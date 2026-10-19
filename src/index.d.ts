@@ -3,6 +3,8 @@ import type { Dialog } from 'electron';
 
 import type ElekIoCore from '@elek-io/core';
 
+import type { CloudAccountHandlers } from './shared/cloudAccount.js';
+
 /**
  * Utility type that transforms all methods in an object to return Promises.
  * This reflects the async nature of IPC communication - even if the underlying
@@ -47,6 +49,8 @@ declare global {
         reports: {
           create: ElekIoCore['cloud']['reports']['create'];
         };
+        // Wrappers of core.cloud.account that never hand back the token
+        account: CloudAccountHandlers;
       };
       projects: {
         create: ElekIoCore['projects']['create'];
@@ -85,7 +89,15 @@ declare global {
       };
     }>;
   }
+  /**
+   * What the main process tells the renderer on its own. Each subscription
+   * returns the function that ends it.
+   */
+  interface ContextBridgeEvents {
+    onCloudAccountChanged: (listener: () => void) => () => void;
+  }
   interface Window {
     ipc: ContextBridgeApi;
+    events: ContextBridgeEvents;
   }
 }

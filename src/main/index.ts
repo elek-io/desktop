@@ -6,6 +6,7 @@ import {
   ipcMain,
   net,
   protocol,
+  safeStorage,
   screen,
   shell,
 } from 'electron';
@@ -16,8 +17,15 @@ import Path from 'path';
 import ElekIoCore, { CoreError } from '@elek-io/core';
 
 import icon from '../../resources/icon.png?asset';
+import { cloudAccountChangedChannel } from '../shared/cloudAccount.js';
 import { serializeCoreError } from '../shared/ipcError.js';
 import { errorLogAttributes } from '../shared/logError.js';
+import {
+  CloudTokenStore,
+  cloudAccountHandlers,
+  preferSecretServiceOnLinux,
+  type StoredToken,
+} from './cloudSession.js';
 
 // import { updateElectronApp } from 'update-electron-app';
 
@@ -40,8 +48,23 @@ class Main {
       ? 'https://api.elek.io'
       : 'https://api.dev.elek.io';
   private core: ElekIoCore | null = null;
+  // Set once the app starts to quit, so a load it cuts short is not mistaken
+  // for a failed start
+  private isQuitting = false;
 
   constructor() {
+    // One Desktop at a time. Two would share one elek.io Cloud session, whose
+    // newest git token revokes the older ones, and write one data directory.
+    // A second launch quits and brings the running window forward instead.
+    if (app.requestSingleInstanceLock() === false) {
+      app.quit();
+      return;
+    }
+    app.on('second-instance', () => this.onAppSecondInstance());
+
+    // Before the app is ready, since Chromium picks its keyring at startup
+    preferSecretServiceOnLinux();
+
     // Allow the vite dev server to do HMR in development
     if (app.isPackaged === false && this.rendererUrl !== undefined) {
       this.allowedHostnamesToLoadInternal.push(this.rendererUrl);
@@ -61,6 +84,9 @@ class Main {
     app.on('activate', () => {
       void this.onAppActivate();
     });
+    app.on('before-quit', () => {
+      this.isQuitting = true;
+    });
     app.on('window-all-closed', () => this.onAppAllWindowsClosed());
     app.on('web-contents-created', (event, webContents) =>
       this.onAppWebContentsCreated(event, webContents)
@@ -78,6 +104,11 @@ class Main {
    * Needs to be called once Electron has finished initializing
    */
   private async onAppReady(): Promise<void> {
+    // The elek.io Cloud session's token lives under Electron's userData and
+    // is handed back to Core here. See contributing/cloud-account.md.
+    const tokenStore = new CloudTokenStore(app.getPath('userData'));
+    const stored = await tokenStore.load();
+
     this.core = new ElekIoCore({
       log: {
         level: app.isPackaged ? 'info' : 'debug',
@@ -90,9 +121,11 @@ class Main {
         // Core ranks its option above ELEK_IO_CLOUD_URL, so check it here to
         // let one set at launch still win. The E2E fixture relies on that.
         url: process.env['ELEK_IO_CLOUD_URL'] ?? this.cloudUrl,
+        ...(stored.token === null ? {} : { token: stored.token }),
       },
     });
     this.logIdentity(this.core);
+    this.keepCloudSession(this.core, tokenStore, stored);
     const user = await this.core.user.get();
 
     if (user && user.localApi.isEnabled) {
@@ -187,6 +220,100 @@ class Main {
         'elek.desktop.runtime.node': node,
       },
     });
+  }
+
+  /**
+   * Keeps the stored copy of the elek.io Cloud token in step with Core's, and
+   * checks a stored session once per start.
+   *
+   * Core tells every token it keeps or drops, with null for a dropped one, so
+   * nothing else has to track it. The check runs without being awaited: it can
+   * wait 15 seconds for an unreachable Cloud, and the app must not. Each change
+   * is announced to the renderer, which reads the account state again.
+   */
+  private keepCloudSession(
+    core: ElekIoCore,
+    tokenStore: CloudTokenStore,
+    stored: StoredToken
+  ): void {
+    if (stored.problem !== undefined) {
+      core.logger.warn({
+        source: 'desktop',
+        message:
+          'Could not use the stored elek.io Cloud session, so signing in again is needed',
+        meta: errorLogAttributes(stored.problem),
+      });
+    }
+    if (process.platform === 'linux') {
+      core.logger.info({
+        source: 'desktop',
+        message: `The elek.io Cloud session is kept with ${safeStorage.getSelectedStorageBackend()}`,
+      });
+    }
+
+    core.cloud.account.onTokenChange(async (token) => {
+      try {
+        if (token === null) {
+          await tokenStore.clear();
+        } else if ((await tokenStore.save(token)) === 'memory') {
+          core.logger.warn({
+            source: 'desktop',
+            message:
+              'Keeping the elek.io Cloud session in memory only, since this system has no keyring to encrypt it with. Signing in again is needed after a restart',
+          });
+        }
+      } catch (error) {
+        core.logger.error({
+          source: 'desktop',
+          message: 'Could not store the elek.io Cloud session',
+          meta: errorLogAttributes(error),
+        });
+      }
+      this.notifyCloudAccountChanged();
+    });
+
+    if (stored.token !== null) {
+      void this.checkStoredSession(core);
+    }
+  }
+
+  /**
+   * Asks elek.io Cloud whether the stored session is still live. Core drops a
+   * token that is not, and the User stays `cloud`, which shows Sync paused. A
+   * live one brings the User up to date with the account. Unreachable keeps
+   * the token, since only Cloud can say it ended.
+   */
+  private async checkStoredSession(core: ElekIoCore): Promise<void> {
+    try {
+      await core.cloud.account.read();
+    } catch (error) {
+      core.logger.warn({
+        source: 'desktop',
+        message:
+          'Could not check the stored elek.io Cloud session, so it is kept as it is',
+        meta: errorLogAttributes(error),
+      });
+    }
+    this.notifyCloudAccountChanged();
+  }
+
+  /** Tells every window that the account state may have changed */
+  private notifyCloudAccountChanged(): void {
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send(cloudAccountChangedChannel);
+    }
+  }
+
+  /** Brings the running window forward when Desktop is launched again */
+  private onAppSecondInstance(): void {
+    const [window] = BrowserWindow.getAllWindows();
+    if (window === undefined) {
+      return;
+    }
+    if (window.isMinimized()) {
+      window.restore();
+    }
+    window.focus();
   }
 
   /**
@@ -317,6 +444,15 @@ class Main {
       // main frame navigation starts, even one the navigation guard blocks. Our
       // document is already showing by then, since only it can start one, so
       // the window keeps working. Any other failure means it could not load.
+      // Quitting or closing the window while it loads stops the load as well,
+      // which is no failed start either.
+      if (this.isQuitting || window.isDestroyed()) {
+        this.core?.logger.info({
+          source: 'desktop',
+          message: 'The window closed before it finished loading',
+        });
+        return;
+      }
       if (
         error instanceof Error &&
         'code' in error &&
@@ -494,6 +630,7 @@ class Main {
     window: Electron.BrowserWindow,
     core: ElekIoCore
   ): void {
+    const cloudAccount = cloudAccountHandlers(core);
     const channelToHandlerMap = {
       'electron:dialog:showOpenDialog': dialog.showOpenDialog,
       'electron:dialog:showSaveDialog': dialog.showSaveDialog,
@@ -509,6 +646,11 @@ class Main {
       'core:cloud:reports:create': core.cloud.reports.create.bind(
         core.cloud.reports
       ),
+      'core:cloud:account:signUp': cloudAccount.signUp,
+      'core:cloud:account:signIn': cloudAccount.signIn,
+      'core:cloud:account:signOut': cloudAccount.signOut,
+      'core:cloud:account:read': cloudAccount.read,
+      'core:cloud:account:hasToken': cloudAccount.hasToken,
       'core:projects:count': core.projects.count.bind(core.projects),
       'core:projects:create': core.projects.create.bind(core.projects),
       'core:projects:list': core.projects.list.bind(core.projects),
