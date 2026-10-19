@@ -41,16 +41,19 @@ Therefore the Renderer Process communicates with the Main Process via IPC (Inter
 
 The Main process is a single `Main` class (instantiated at the bottom of [`src/main/index.ts`](/src/main/index.ts)). Its constructor wires Electron app events, and the real work happens once Electron is ready.
 
+The constructor first takes the single instance lock. A second launch quits at once, and the running Desktop restores and focuses its window from the `second-instance` event, see [Signing in to elek.io Cloud](./cloud-account.md#one-desktop-at-a-time). On Linux it then asks Chromium for the Secret Service, which has to happen before the app is ready, see [Without encryption](./cloud-account.md#without-encryption).
+
 On `app.on('ready')` the `onAppReady()` method:
 
-1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise, and the elek.io Cloud URL this build talks to, see [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)).
-2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`. If it fails to start, for example because the port is in use, the failure is logged and the app launches with the API off.
-3. Registers the custom file protocol.
-4. Creates the first window (`createWindow()`), registers the IPC handlers for it (`registerIpcMain()`), then loads the renderer into it (`loadWindow()`).
+1. Reads the stored elek.io Cloud session's token from Electron's userData, see [Where the session lives](./cloud-account.md#where-the-session-lives).
+2. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise, the elek.io Cloud URL this build talks to, see [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to), and the stored token). It then subscribes to Core's token changes to keep the stored copy current, and checks a stored session with Cloud without awaiting it.
+3. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`. If it fails to start, for example because the port is in use, the failure is logged and the app launches with the API off.
+4. Registers the custom file protocol.
+5. Creates the first window (`createWindow()`), registers the IPC handlers for it (`registerIpcMain()`), then loads the renderer into it (`loadWindow()`).
 
-The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. The handlers only touch the window when invoked, so it just needs to exist (be created) at registration time, not be loaded. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
+The order in step 5 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. The handlers only touch the window when invoked, so it just needs to exist (be created) at registration time, not be loaded. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
 
-If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. One rejection is not a failed start: Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing, and `loadWindow()` logs a warning and carries on. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
+If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. One rejection is not a failed start: Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing, and `loadWindow()` logs a warning and carries on. Nor is a load cut short by quitting, or by closing the window before it loaded: the app tracks `before-quit`, and `loadWindow()` logs it and returns, rather than showing "could not start" while the app quits. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
 
 Other lifecycle events: `activate` (macOS dock click) recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS.
 
@@ -107,6 +110,10 @@ const project = await window.ipc.core.projects.create({
 ```
 
 The channels are organized by namespace: `core:projects:*`, `core:collections:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*`, `core:cloud:*` and `electron:dialog:*`.
+
+Most `core:*` channels bind a Core method directly. The `core:cloud:account:*` channels instead wrap `core.cloud.account` in `cloudAccountHandlers()` ([`src/main/cloudSession.ts`](/src/main/cloudSession.ts)), because signing in answers the session's token, which must not reach the renderer. See [What the renderer sees](./cloud-account.md#what-the-renderer-sees).
+
+**From main to renderer.** Every channel above is a call the renderer makes. One message runs the other way: `cloud:account:changed`, which the main process sends to every window when the elek.io Cloud session may have changed. The preload exposes it as `window.events.onCloudAccountChanged(listener)`, which returns the function that unsubscribes, and wraps the listener so the renderer never receives the IPC event object. Add a further one to `ContextBridgeEvents` in [`src/index.d.ts`](/src/index.d.ts) the same way.
 
 All Core methods are asynchronous in the renderer even when they are synchronous in Core, since every call crosses the IPC boundary. The `AsyncifyMethods` utility type in [`src/index.d.ts`](/src/index.d.ts) reflects this by wrapping every Core method's return value in a `Promise`.
 

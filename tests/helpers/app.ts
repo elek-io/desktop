@@ -15,14 +15,21 @@ import { launchApp, testDataDirs } from '../fixtures/electronApp.js';
  * same ELEK_IO_DATA_DIR and userData dir the fixture used. The returned window
  * is a new first window and is not covered by the `mainWindow` fixture's
  * console and axe teardown, which watch the original window.
+ *
+ * Pass the `cloudUrl` the first launch used, such as the Cloud stub's, or the
+ * relaunch talks to the closed port every launch defaults to.
  */
 export async function relaunchApp(
   testInfo: TestInfo,
-  app: ElectronApplication
+  app: ElectronApplication,
+  overrides: { cloudUrl?: string; env?: Record<string, string> } = {}
 ): Promise<{ app: ElectronApplication; window: Page }> {
   await app.close();
 
-  const relaunched = await launchApp(testInfo, testDataDirs(testInfo));
+  const relaunched = await launchApp(testInfo, {
+    ...testDataDirs(testInfo),
+    ...overrides,
+  });
   const window = await relaunched.firstWindow({ timeout: 20000 });
 
   return { app: relaunched, window };

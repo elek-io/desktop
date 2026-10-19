@@ -6,6 +6,8 @@ import type * as SwitchPrimitive from '@radix-ui/react-switch';
 import {
   CheckIcon,
   EditIcon,
+  EyeIcon,
+  EyeOffIcon,
   ImagePlusIcon,
   LanguagesIcon,
   ListPlusIcon,
@@ -90,7 +92,12 @@ import {
 } from '@elek-io/core';
 
 import { DatePicker } from './date-picker';
-import { InputGroup, InputGroupAddon } from './input-group';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from './input-group';
 import {
   Select,
   SelectContent,
@@ -342,6 +349,58 @@ export function FormInputField<TFieldValues extends FieldValues>({
       onChange={(event) => field.onChange(transform(event.target.value))}
       {...props}
     />
+  );
+}
+
+export interface FormPasswordFieldProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+> extends Omit<React.ComponentProps<'input'>, 'type' | 'value' | 'onChange'> {
+  field: ControllerRenderProps<TFieldValues, TName>;
+}
+
+/**
+ * A password with a button that shows it. Use it without a `FormControl`:
+ * the input sits inside a group, so it takes the id and `aria-*` itself.
+ *
+ * The value stays a string. An empty password is one not typed yet rather
+ * than a cleared value, and Core's account schemas take no null.
+ */
+export function FormPasswordField<TFieldValues extends FieldValues>({
+  field,
+  ...props
+}: FormPasswordFieldProps<TFieldValues>): React.ReactElement {
+  const [isShown, setIsShown] = React.useState(false);
+  const { error, formItemId, formDescriptionId, formMessageId } =
+    useFormField();
+
+  return (
+    <InputGroup>
+      <InputGroupInput
+        type={isShown ? 'text' : 'password'}
+        {...field}
+        value={field.value ?? ''}
+        id={formItemId}
+        aria-describedby={
+          error === undefined
+            ? formDescriptionId
+            : `${formDescriptionId} ${formMessageId}`
+        }
+        aria-invalid={error !== undefined}
+        {...props}
+      />
+      <InputGroupAddon align="inline-end">
+        <InputGroupButton
+          size="icon-xs"
+          onClick={() => setIsShown((shown) => !shown)}
+        >
+          {isShown ? <EyeOffIcon /> : <EyeIcon />}
+          <span className="sr-only">
+            {isShown ? 'Hide password' : 'Show password'}
+          </span>
+        </InputGroupButton>
+      </InputGroupAddon>
+    </InputGroup>
   );
 }
 

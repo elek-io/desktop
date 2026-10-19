@@ -16,7 +16,6 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { expectRejects } from '../helpers/ipc.js';
-import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -119,8 +118,10 @@ test.describe('IPC guards', () => {
     // the root error boundary); this observes the guard over IPC instead.
     await expectRejects(createProjectViaIpc(mainWindow));
 
-    // Nothing was created: the Projects list shows its empty state.
-    await navigate(mainWindow, '#/projects');
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    // Nothing was created. Without a User the app shows the First start, not
+    // the Projects list, so this asks Core directly.
+    expect(
+      await mainWindow.evaluate(async () => window.ipc.core.projects.count())
+    ).toBe(0);
   });
 });

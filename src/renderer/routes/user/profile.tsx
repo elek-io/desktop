@@ -120,19 +120,13 @@ function UserProfilePage(): ReactElement {
   };
   const localApiUrl = `http://localhost:${setUserForm.watch('localApi.port')}`;
 
-  function Description(): ReactElement {
-    if (user === null) {
-      return (
-        <>
-          Before we start you need to set up a local User first. Don&apos;t
-          worry, you are not creating an account and this information is only
-          saved locally on this device! Read more about{' '}
-          <a href="#">local Users in our documentation</a> if you have questions
-          about this step.
-        </>
-      );
-    }
+  // A cloud User follows its elek.io account, and Core brings the name and
+  // address back from it at every start, so they are shown but not edited
+  // here. Saving keeps the cloud User and its id. See
+  // contributing/cloud-account.md.
+  const isCloudUser = user?.userType === 'cloud';
 
+  function Description(): ReactElement {
     return (
       <>
         By editing your Users details, ... Read more about{' '}
@@ -187,7 +181,7 @@ function UserProfilePage(): ReactElement {
 
   return (
     <Page
-      title={user === null ? 'Welcome to elek.io Desktop' : 'User profile'}
+      title="User profile"
       description={<Description />}
       actions={<Actions />}
       layout="bare"
@@ -202,7 +196,11 @@ function UserProfilePage(): ReactElement {
           >
             <PageSection
               title="Local User"
-              description="Fill out your information below and watch it influence how your future changes will look like on the right."
+              description={
+                isCloudUser
+                  ? 'Your name and email address come from your elek.io Cloud account.'
+                  : 'Fill out your information below and watch it influence how your future changes will look like on the right.'
+              }
               className="rounded-t-xl border-t-0"
             >
               <div className="grid gap-6">
@@ -255,7 +253,12 @@ function UserProfilePage(): ReactElement {
                     <FormItem>
                       <FormLabel isRequired>Full name</FormLabel>
                       <FormControl>
-                        <FormInputField field={field} type="text" />
+                        <FormInputField
+                          field={field}
+                          type="text"
+                          readOnly={isCloudUser}
+                          className="read-only:bg-muted"
+                        />
                       </FormControl>
                       <FormDescription>
                         Your name will be used by others to identify changes
@@ -272,7 +275,12 @@ function UserProfilePage(): ReactElement {
                     <FormItem>
                       <FormLabel isRequired>Email</FormLabel>
                       <FormControl>
-                        <FormInputField field={field} type="email" />
+                        <FormInputField
+                          field={field}
+                          type="email"
+                          readOnly={isCloudUser}
+                          className="read-only:bg-muted"
+                        />
                       </FormControl>
                       <FormDescription>
                         Your email allows other members of Projects to contact

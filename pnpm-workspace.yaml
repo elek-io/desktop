@@ -18,7 +18,7 @@ allowBuilds:
   # so its postinstall build is redundant. Same reasoning as in Core.
   esbuild: false
 minimumReleaseAgeExclude:
-  - '@elek-io/core@0.24.0'
+  - '@elek-io/core@0.25.1'
 # Do not reuse pnpm's cache of postinstall (side effect) output. Since pnpm 8.7
 # the content addressable store keeps such files as plain copies, not symlinks.
 # dugite's postinstall lays down git, whose git-core is ~145 symlinks to one

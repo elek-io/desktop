@@ -9,6 +9,8 @@ import {
   type SaveDialogOptions,
 } from 'electron';
 
+import { cloudAccountChangedChannel } from '../shared/cloudAccount.js';
+
 const ipc: ContextBridgeApi = {
   electron: {
     process: electronAPI.process,
@@ -56,6 +58,18 @@ const ipc: ContextBridgeApi = {
       reports: {
         create: async (...args) =>
           ipcRenderer.invoke('core:cloud:reports:create', ...args),
+      },
+      account: {
+        signUp: async (...args) =>
+          ipcRenderer.invoke('core:cloud:account:signUp', ...args),
+        signIn: async (...args) =>
+          ipcRenderer.invoke('core:cloud:account:signIn', ...args),
+        signOut: async (...args) =>
+          ipcRenderer.invoke('core:cloud:account:signOut', ...args),
+        read: async (...args) =>
+          ipcRenderer.invoke('core:cloud:account:read', ...args),
+        hasToken: async (...args) =>
+          ipcRenderer.invoke('core:cloud:account:hasToken', ...args),
       },
     },
     projects: {
@@ -118,4 +132,16 @@ const ipc: ContextBridgeApi = {
   },
 };
 
+const events: ContextBridgeEvents = {
+  onCloudAccountChanged: (listener) => {
+    // Wrapped, so the renderer never receives the IPC event object
+    const handler = (): void => listener();
+    ipcRenderer.on(cloudAccountChangedChannel, handler);
+    return () => {
+      ipcRenderer.removeListener(cloudAccountChangedChannel, handler);
+    };
+  },
+};
+
 contextBridge.exposeInMainWorld('ipc', ipc);
+contextBridge.exposeInMainWorld('events', events);

@@ -30,8 +30,23 @@ const logableMutationMetaSchema = z.object({
     // API Lifecycle
     'start',
     'stop',
+    // elek.io Cloud account
+    'signUp',
+    'signIn',
+    'signOut',
   ]),
-  objectType: z.enum([...objectTypeSchema.options, 'api', 'user', 'report']),
+  objectType: z.enum([
+    ...objectTypeSchema.options,
+    'api',
+    'user',
+    'report',
+    'account',
+  ]),
+  /**
+   * Replaces the generic success toast and log line with the app's own copy,
+   * or turns the toast off with `false` when the page says what happened.
+   */
+  successToast: z.union([z.string(), z.literal(false)]).optional(),
 });
 type LogableMutationMeta = z.infer<typeof logableMutationMetaSchema>;
 
@@ -106,13 +121,18 @@ export function customMutationOptions<
           meta: errorLogAttributes(logableMutationMeta.error),
         });
       } else {
-        toast.success(
-          `${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`
-        );
+        const { method, objectType, successToast } = logableMutationMeta.data;
+
+        if (successToast !== false) {
+          toast.success(successToast ?? `${method} ${objectType}`);
+        }
 
         await window.ipc.core.logger.info({
           source: 'desktop',
-          message: `Successfully ${logableMutationMeta.data.method}ed ${logableMutationMeta.data.objectType}`,
+          message:
+            typeof successToast === 'string'
+              ? successToast
+              : `Successfully ${method}ed ${objectType}`,
           meta: mutationLogAttributes(logableMutationMeta.data),
         });
       }
