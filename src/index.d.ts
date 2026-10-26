@@ -61,6 +61,11 @@ declare global {
         setRemoteOriginUrl: ElekIoCore['projects']['setRemoteOriginUrl'];
         delete: ElekIoCore['projects']['delete'];
       };
+      releases: {
+        list: ElekIoCore['releases']['list'];
+        prepare: ElekIoCore['releases']['prepare'];
+        create: ElekIoCore['releases']['create'];
+      };
       assets: {
         list: ElekIoCore['assets']['list'];
         create: ElekIoCore['assets']['create'];

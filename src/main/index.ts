@@ -524,6 +524,9 @@ class Main {
         core.projects
       ),
       'core:projects:delete': core.projects.delete.bind(core.projects),
+      'core:releases:list': core.releases.list.bind(core.releases),
+      'core:releases:prepare': core.releases.prepare.bind(core.releases),
+      'core:releases:create': core.releases.create.bind(core.releases),
       'core:assets:list': core.assets.list.bind(core.assets),
       'core:assets:create': core.assets.create.bind(core.assets),
       'core:assets:read': core.assets.read.bind(core.assets),

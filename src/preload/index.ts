@@ -82,6 +82,14 @@ const ipc: ContextBridgeApi = {
       delete: async (...args) =>
         ipcRenderer.invoke('core:projects:delete', ...args),
     },
+    releases: {
+      list: async (...args) =>
+        ipcRenderer.invoke('core:releases:list', ...args),
+      prepare: async (...args) =>
+        ipcRenderer.invoke('core:releases:prepare', ...args),
+      create: async (...args) =>
+        ipcRenderer.invoke('core:releases:create', ...args),
+    },
     assets: {
       list: async (...args) => ipcRenderer.invoke('core:assets:list', ...args),
       create: async (...args) =>
