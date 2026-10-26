@@ -27,6 +27,8 @@ const logableMutationMetaSchema = z.object({
     'save',
     // Git remote
     'synchronize',
+    // Releases
+    'release',
     // API Lifecycle
     'start',
     'stop',
@@ -58,6 +60,10 @@ function mutationLogAttributes(
  * The display of a notification depends on the availability of the meta object with
  * method and objectType keys, which is enforced here too.
  *
+ * `toasts` replaces the text both notifications are built from, for a mutation
+ * whose outcome needs to be said in words rather than as `{method} {objectType}`.
+ * Without it the generated text is used, so an existing mutation reads the same.
+ *
  * It adds `throwOnError: true` to propagate errors to the nearest error boundary (__root.tsx).
  *
  * Additionally it logs all mutations with Core to enable full E2E debugging.
@@ -85,14 +91,22 @@ export function customMutationOptions<
     context: MutationFunctionContext
   ) => Promise<unknown> | unknown;
   meta: LogableMutationMeta;
+  toasts?: {
+    success: (data: TData) => string;
+    error: string;
+  };
 }): Omit<
   UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
   'mutationKey'
 > {
-  const originalOnSuccess = options.onSuccess;
+  const {
+    onSuccess: originalOnSuccess,
+    toasts,
+    ...mutationOnlyOptions
+  } = options;
 
   return mutationOptions({
-    ...options,
+    ...mutationOnlyOptions,
     throwOnError: true,
     onSuccess: async (data, variables, result, context) => {
       const logableMutationMeta = logableMutationMetaSchema.safeParse(
@@ -107,12 +121,14 @@ export function customMutationOptions<
         });
       } else {
         toast.success(
-          `${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`
+          toasts
+            ? toasts.success(data)
+            : `${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`
         );
 
         await window.ipc.core.logger.info({
           source: 'desktop',
-          message: `Successfully ${logableMutationMeta.data.method}ed ${logableMutationMeta.data.objectType}`,
+          message: `Successfully ran ${logableMutationMeta.data.method} on ${logableMutationMeta.data.objectType}`,
           meta: mutationLogAttributes(logableMutationMeta.data),
         });
       }
@@ -132,12 +148,14 @@ export function customMutationOptions<
         });
       } else {
         toast.error(
-          `${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`
+          toasts
+            ? toasts.error
+            : `${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`
         );
 
         await window.ipc.core.logger.error({
           source: 'desktop',
-          message: `Failed to ${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`,
+          message: `Failed to run ${logableMutationMeta.data.method} on ${logableMutationMeta.data.objectType}`,
           meta: {
             ...mutationLogAttributes(logableMutationMeta.data),
             ...errorLogAttributes(error),
