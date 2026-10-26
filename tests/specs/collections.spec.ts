@@ -893,9 +893,15 @@ test.describe('Collections', () => {
     await expect(
       mainWindow.getByText('Could not save this Collection')
     ).toBeVisible();
+    // Asserted whole, because every sentence of it carries a claim: that
+    // nothing was saved, and that taking out a Field an Entry has written in is
+    // what was refused. Core raises the same Conflict for a taken slug and for
+    // changes needing per-Entry resolutions, so the text names those too.
     await expect(
-      mainWindow.getByText('your Field changes affect Entries that already')
-    ).toBeVisible();
+      mainWindow.getByRole('dialog').locator('[data-slot="dialog-description"]')
+    ).toHaveText(
+      'Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now.'
+    );
     await dismissDialog(mainWindow);
 
     // Nothing was saved, so the route stays on the update form.

@@ -72,7 +72,7 @@ const deleteErrorFallback =
 // below `type`.
 const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   Conflict:
-    'Saving was blocked, for one of two reasons. Either another Collection in this Project already uses one of these slugs, or your Field changes affect Entries that already exist and have to be resolved first. Resolving Entries is not supported in the app yet, so if the slugs are free, revert the Field changes for now.',
+    'Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now.',
 };
 
 const saveErrorFallback =
