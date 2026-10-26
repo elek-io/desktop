@@ -52,6 +52,28 @@ export async function stubCoreReject(
 }
 
 /**
+ * Replace a Core IPC handler so its next call never settles, to make the
+ * in-flight window of a mutation stable to assert instead of racing a fast
+ * resolve. A control that waits while its call is in flight is observed this
+ * way: the button's waiting state cannot be caught otherwise.
+ *
+ * Mirrors `stubCoreReject`, including why it has to run in the main process.
+ * The call never settles, so the test ends with it pending, which is fine since
+ * the app is closed in teardown.
+ */
+export async function stubCoreHang(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    ipcMain.removeHandler(ch);
+    ipcMain.handle(ch, async () => {
+      await new Promise(() => {});
+    });
+  }, channel);
+}
+
+/**
  * Replace a Core IPC handler so its next call answers with a canned value, to
  * drive a shape of Core's answer the UI has to render but the app cannot
  * produce itself yet.

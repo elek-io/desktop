@@ -12,7 +12,11 @@ import {
   stringValue,
   updateEntryViaIpc,
 } from '../helpers/entry.js';
-import { stubCoreReject, stubCoreResolve } from '../helpers/ipc.js';
+import {
+  stubCoreHang,
+  stubCoreReject,
+  stubCoreResolve,
+} from '../helpers/ipc.js';
 import { verifyCurrentRouteHash } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
@@ -214,6 +218,33 @@ test.describe('Releases', () => {
     await expect(dialog.getByText('Major', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Version 0.1.0 becomes')).toBeVisible();
     await expect(dialog.getByText('1.0.0', { exact: true })).toBeVisible();
+  });
+
+  test('says on the button that it is waiting while the Release runs', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+
+    await navigateToReleases(mainWindow, project.id);
+    await openReleaseDialog(mainWindow);
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(
+      dialog.getByRole('button', { name: 'Create Release' })
+    ).toBeVisible();
+
+    // Make the Release never settle, so the waiting state is stable to assert
+    // instead of racing a fast resolve.
+    await stubCoreHang(electronApp, 'core:releases:create');
+
+    await dialog.getByRole('button', { name: 'Create Release' }).click();
+
+    // The button says it is waiting and takes no second press.
+    const waiting = dialog.getByRole('button', { name: 'Creating Release' });
+    await expect(waiting).toBeVisible();
+    await expect(waiting).toBeDisabled();
   });
 
   test('marks a preview Release rather than listing it as a Release', async ({
