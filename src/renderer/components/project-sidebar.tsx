@@ -11,6 +11,7 @@ import {
   RefreshCw,
   DownloadCloud,
   UploadCloud,
+  Rocket,
 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -76,6 +77,11 @@ const projectNavigation: {
     name: 'History',
     to: '/projects/$projectId/history',
     icon: History,
+  },
+  {
+    name: 'Releases',
+    to: '/projects/$projectId/releases',
+    icon: Rocket,
   },
   {
     name: 'Settings',
