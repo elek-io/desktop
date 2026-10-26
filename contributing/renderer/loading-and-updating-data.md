@@ -16,7 +16,7 @@ The base configuration for all queries and mutations is in [`client.ts`](../../s
 
 ### Query and Mutation Options
 
-All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `collectionOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `apiOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
+All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `releaseOptions.ts`, `collectionOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `cloudOptions.ts`, `apiOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
 
 - Typed wrappers around IPC calls
 - Query keys for cache management
@@ -40,6 +40,10 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
 
 // commit history of a project
 ['projects', projectId, 'history'];
+
+// the Releases of a project, and what a Release would publish right now
+['projects', projectId, 'current', 'releases', 'list'];
+['projects', projectId, 'current', 'releases', 'pending'];
 
 // collections in a project
 ['projects', projectId, 'current', 'collections', 'list'];
@@ -322,6 +326,18 @@ customMutationOptions({
 
 This metadata is used by the query client to automatically display success/error toasts and log all mutations for debugging.
 
+Pass `toasts` as well when `{method} {objectType}` is not something to show a
+user. It replaces the text of both notifications and nothing else, so a mutation
+without it reads exactly as before. `releases.create` is the one that uses it,
+since "Release 0.1.0 created" is the outcome an editor should read:
+
+```typescript
+toasts: {
+  success: (result) => `Release ${result.version} created`,
+  error: 'Could not create a Release',
+},
+```
+
 ## Cache Management
 
 ### Automatic Cache Updates
@@ -476,5 +492,6 @@ Data loading and mutations lean on the app's error handling defaults:
 - `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
 - All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. That is the only sink, and nothing it writes leaves the machine.
 - An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete and sync-conflict modals do this today.
+- One query does the same in its own layer. `releases.prepare` catches the `CoreError` types the Release dialog can explain inside its `queryFn` and returns them as a `refused` outcome, re-throwing everything else so its `throwOnError: true` still reaches the boundary. The caught set is the same map the dialog's copy comes from, so the two cannot drift apart.
 
 The full picture, including how `CoreError.type` survives IPC, the step-by-step guide to handling an expected error in place with those worked examples, and exactly where and when things are logged, lives in the dedicated [Error Handling](../error-handling.md) doc.

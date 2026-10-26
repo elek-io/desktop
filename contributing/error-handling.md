@@ -80,7 +80,7 @@ Keep dialog titles and button labels stable, since the E2E specs assert them. On
 
 A `type` handled this way is intentionally invisible to the standard logging (see [Logging](#logging-where-what-and-when)): only the in place UI reacts. The `type`s you did not handle are unaffected, they still propagate to the boundary and are logged and toasted as usual, because the suppression is keyed on the same `handled` map. If you also want a handled `type` recorded, log it explicitly in the `catch`.
 
-All the sites below build their mutation with `useAppMutation`, so the "predicate returns false only for X" behavior described in each is what the helper derives from that site's `handled` map.
+Every mutation below is built with `useAppMutation`, so the "predicate returns false only for X" behavior described in each is what the helper derives from that site's `handled` map. One read does the same thing in the query layer, where there is no mutation to hold the map, see the Release example.
 
 ### Example: sync conflict
 
@@ -114,26 +114,40 @@ The Entry create and update forms ([`collections/$collectionId/create.tsx`](/src
 
 Core's `api.start()` rejects with a `Conflict` when something else holds the port (see Core's [local-api doc](../node_modules/@elek-io/core/docs/local-api.md)). Both places that start the API `handle` only `Conflict`. The profile form ([`routes/user/profile.tsx`](/src/renderer/routes/user/profile.tsx)) starts the API before it saves the User, and its handler marks the Port field with `setError`. So a busy port saves nothing and the form stays dirty to pick another port and save again. The Local API switch in the user menu ([`components/user-dropdown.tsx`](/src/renderer/components/user-dropdown.tsx)) has no field to mark, so its handler shows a toast that points to the profile. A toast action would not help here, because the open menu blocks pointer events outside itself, while its Profile item sits right above the switch. At launch the main process does the same in its own way: it logs the failure and opens the app with the API off (see [overview.md](./overview.md#application-lifecycle)).
 
+### Example: a Release Core refuses, and one it cannot even read
+
+The Release dialog ([`components/release-dialog.tsx`](/src/renderer/components/release-dialog.tsx)) answers in place on both of its halves, and it is the one site where a read does so too.
+
+**Making the Release.** Its `create` mutation `handles` `PreconditionFailed`, `Unauthorized` and `Internal`, each storing the error so one line above Create Release describes it through `describeCoreError` with `RELEASE_CREATE_REFUSALS` ([`lib/release.ts`](/src/renderer/lib/release.ts)). Three types rather than one, because `create()` commits, fetches and pushes, and Core's [table of git errors](../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations) puts a remote that moved on or cannot take a Release under `PreconditionFailed`, refused credentials under `Unauthorized`, and a git command that failed at all, most often an unreachable repository, under `Internal`. All three are recoverable in the same way: Core unwinds every step of a failed Release before the error arrives (see its [releases doc](../node_modules/@elek-io/core/docs/releases.md)), so nothing was released, the dialog says so, and pressing the same button again retries. `Conflict`, `NotFound`, `BadRequest`, `VersionSkew` and `UpgradeFailed` are not handled and reach the boundary, which the "routes an unexpected Release failure to the root error boundary" spec guards.
+
+Handling `Internal` in place is the exception to make on purpose, not a habit. It is right here because every failure of this one call has the same, true, actionable answer, and because it is what keeps Core's raw message off the screen: a git failure's message belongs to git, and a Release talks to a remote whose URL may carry a credential.
+
+**Reading what a Release would publish.** `releases.prepare` ([`releaseOptions.ts`](/src/renderer/queries/options/releaseOptions.ts)) is a query, so it has no `handled` map. Its `queryFn` catches the same shape of refusal itself and answers `{ status: 'refused', errorType }` instead, re-throwing every other failure so `throwOnError: true` still routes it to the boundary. The set of caught types is the keys of `RELEASE_READ_REFUSALS`, the map the dialog's copy comes from, so the two cannot drift apart, exactly as `handled` cannot drift from the `throwOnError` predicate.
+
+A refusal is modeled as an outcome of the read rather than a failure of it because it reads like one: Core already answers "nothing to release" with a null bump rather than an error, and "synchronize this Project first" is the same kind of answer. Both leave the dialog open with something the editor can act on.
+
+Two causes the dialog cannot tell apart, both under `PreconditionFailed`, are the same pair the Clone dialog carries: a Project whose `draft` is behind, which the line is written for, and a git that cannot load a shared library it needs, where the line is wrong. The structured `cause` that would separate them is dropped at the IPC boundary, so this waits on the same change.
+
 ## Logging: where, what, and when
 
 There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC channels to Core's own logger, which writes to the console and to Core's log files. It is local diagnostics, always on, including under test, and nothing it writes leaves the machine.
 
-| When                                     | Where                                                                                | What                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."              |
-| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ...ed ..." plus a success toast     |
-| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to ..." plus an error toast              |
-| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"        |
-| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                           |
-| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"               |
-| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                   |
-| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."               |
-| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                            |
-| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record          |
-| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                   |
-| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request   |
-| The local API fails to start at launch   | `onAppReady` in [`src/main/index.ts`](/src/main/index.ts)                            | error: "Could not start the local API ..."              |
-| The app fails to start                   | `onAppReadyFailed` in [`src/main/index.ts`](/src/main/index.ts)                      | error: "Failed to initialize the app", when Core exists |
+| When                                     | Where                                                                                | What                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."               |
+| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ran ... on ..." plus a success toast |
+| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to run ... on ..." plus an error toast    |
+| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"         |
+| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                            |
+| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"                |
+| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                    |
+| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."                |
+| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                             |
+| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record           |
+| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                    |
+| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request    |
+| The local API fails to start at launch   | `onAppReady` in [`src/main/index.ts`](/src/main/index.ts)                            | error: "Could not start the local API ..."               |
+| The app fails to start                   | `onAppReadyFailed` in [`src/main/index.ts`](/src/main/index.ts)                      | error: "Failed to initialize the app", when Core exists  |
 
 ### What an error record carries
 
@@ -185,7 +199,7 @@ The initialization failure handler, `onAppReadyFailed`, does more than that, bec
 A single failed mutation that is not handled in place fans out on purpose:
 
 1. A `toast.error` from the wrapper's `onError`.
-2. A local Core logger error "Failed to ..." from the same `onError`, carrying which mutation failed and the error itself.
+2. A local Core logger error "Failed to run ... on ..." from the same `onError`, carrying which mutation failed and the error itself.
 3. `throwOnError` re-throws into the root boundary, so `ErrorComponent` writes a second local Core logger error "Uncaught route error: ..." with the decoded message and stack.
 4. React's `onCaughtError` writes a third, carrying the component stack.
 

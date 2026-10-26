@@ -47,6 +47,27 @@ Two things about the endpoint, since they are decisions rather than details:
 Caps are 5000 characters of message and 2 MB of total body, both of which Core
 enforces before sending.
 
+## Preview Releases
+
+A full Release works end to end. The Releases page, the Release dialog, the IPC
+channels `core:releases:list`, `core:releases:prepare` and
+`core:releases:create` and
+[`tests/specs/releases.spec.ts`](../tests/specs/releases.spec.ts) cut one
+through the UI against a local bare remote. A preview Release does not.
+
+- **Core support**: `core.releases.createPreview()`. It tags a pre-release
+  snapshot such as `1.1.0-preview.3` on `draft` and pushes `draft` and the tag,
+  without promoting anything into `main`. See
+  [`releases.md`](../node_modules/@elek-io/core/docs/releases.md) in the Core
+  package.
+- **Client today**: no UI and no `core:releases:createPreview` channel. A
+  preview made elsewhere does show in the Releases list, marked Preview, so it
+  is never read as the version a site builds from.
+- **Where to start**: a second outcome in the Release dialog or a control of its
+  own, plus the channel in [`index.d.ts`](../src/index.d.ts), the preload bridge
+  and the main process channel map. What a preview is for in elek.io Desktop is
+  undecided, so the product question comes before the code.
+
 ## Field types
 
 Core's `fieldTypeSchema` defines 18 field types. The client implements a subset.
