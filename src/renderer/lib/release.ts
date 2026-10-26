@@ -201,9 +201,11 @@ export function releaseReason(
  * planned for stays loud, see
  * [`contributing/error-handling.md`](../../../contributing/error-handling.md).
  *
- * Each text names only what Core raises that type for on this path, read off
- * Core's releases and git-and-sync docs. `prepare()` writes nothing, so the
- * causes are its own refusals plus what the fetch before it can hit.
+ * `prepare()` writes nothing, so the causes are its own refusals plus what the
+ * fetch before it can hit, read off Core's releases and git-and-sync docs.
+ * Where one type covers several of them, the text names the one an editor meets
+ * and what to do about it, in one sentence, and the rest are written down in
+ * [`contributing/error-handling.md`](../../../contributing/error-handling.md).
  */
 export const RELEASE_READ_REFUSALS: Partial<Record<CoreErrorType, string>> = {
   PreconditionFailed:
@@ -239,13 +241,15 @@ export const RELEASE_READ_RETRYABLE: ReadonlySet<CoreErrorType> = new Set([
  * the root error boundary.
  *
  * `create()` commits, fetches and pushes, so `Unauthorized` covers credentials
- * the repository refused, `PreconditionFailed` a remote that moved on or cannot
- * take a Release at all, and `Internal` a git command that failed, most often a
- * repository nothing can reach.
+ * the repository refused, `PreconditionFailed` a remote that moved on, and
+ * `Internal` a git command that failed, most often a repository nothing can
+ * reach. Each text is the read's sentence for the same type with the fact that
+ * nothing was released in front of it, so one cause is named per refusal, the
+ * same way round as above.
  */
 export const RELEASE_CREATE_REFUSALS: Partial<Record<CoreErrorType, string>> = {
   PreconditionFailed:
-    'Nothing was released, and this Project is exactly as it was. Either changes were saved or a Release was made on another computer, in which case synchronize this Project first, or the Git repository cannot take a Release, in which case ask whoever set it up.',
+    'Nothing was released, and this Project is exactly as it was. Changes were saved or a Release was made on another computer, so synchronize this Project first.',
   Unauthorized:
     'Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project.',
   Internal:

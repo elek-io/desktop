@@ -126,7 +126,13 @@ Handling `Internal` in place is the exception to make on purpose, not a habit. I
 
 A refusal is modeled as an outcome of the read rather than a failure of it because it reads like one: Core already answers "nothing to release" with a null bump rather than an error, and "synchronize this Project first" is the same kind of answer. Both leave the dialog open with something the editor can act on.
 
-Two causes the dialog cannot tell apart, both under `PreconditionFailed`, are the same pair the Clone dialog carries: a Project whose `draft` is behind, which the line is written for, and a git that cannot load a shared library it needs, where the line is wrong. The structured `cause` that would separate them is dropped at the IPC boundary, so this waits on the same change.
+`PreconditionFailed` covers more causes than either line names, and naming one is on purpose: a refusal says what the person in front of it met and what to do next, in one sentence, not every cause the type could stand for. The read's line is written for a `draft` behind the remote's and the create's for a remote that moved on between the read and the push, which are the two an editor meets. Core's [table of git errors](../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations) puts three more under the type on these two calls, and the line is wrong about each:
+
+- A Project not checked out on `draft`, which `prepare()` requires. A Project last written before Core renamed the branches is on `work`, and Core refuses the read with "Not on draft branch". Synchronizing does not help: the branches are renamed by hand first.
+- A remote that does not support the atomic push a Release needs. Core never falls back to separate pushes, because a push that lands `main` without `draft` breaks the rule a Release keeps.
+- A git that cannot load a shared library it needs, which is the cause the Clone dialog carries as well.
+
+The structured `cause` that would separate them is dropped at the IPC boundary, so splitting the lines waits on the same change as the Clone dialog's.
 
 ## Logging: where, what, and when
 

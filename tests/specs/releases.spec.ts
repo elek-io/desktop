@@ -460,10 +460,12 @@ test.describe('Releases', () => {
     await createRelease.click();
 
     // Core fetches inside create(), refuses, and unwinds every step it took, so
-    // the dialog stays open and the same button retries.
+    // the dialog stays open and the same button retries. The sentence names the
+    // cause the editor met and what to do about it, not every cause the type
+    // covers, and it is the read's sentence with that fact in front of it.
     await expect(
       dialog.getByText(
-        'Nothing was released, and this Project is exactly as it was. Either changes were saved or a Release was made on another computer, in which case synchronize this Project first, or the Git repository cannot take a Release, in which case ask whoever set it up.'
+        'Nothing was released, and this Project is exactly as it was. Changes were saved or a Release was made on another computer, so synchronize this Project first.'
       )
     ).toBeVisible();
     await expect(createRelease).toBeEnabled();
