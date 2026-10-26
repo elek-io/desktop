@@ -368,9 +368,11 @@ test.describe('Releases', () => {
     await expect(
       dialog.getByRole('button', { name: 'Create Release' })
     ).toBeHidden();
+    // Reading again cannot change this answer until the Project is
+    // synchronized, which happens outside the dialog, so nothing offers to.
     await expect(
       dialog.getByRole('button', { name: 'Try again' })
-    ).toBeVisible();
+    ).toBeHidden();
 
     // Nothing of Core's error reaches the screen: not its type, and not the
     // message it wrote, which names the branch Core refused on.
@@ -380,6 +382,47 @@ test.describe('Releases', () => {
     // Nothing was published, locally or on the remote.
     expect(localTags(path)).toEqual([]);
     expect(remoteTags(remote.path)).toEqual([]);
+  });
+
+  test('offers to read again when the remote cannot be reached, and reads it', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const path = projectPath(testDataDirs(testInfo).dataDir, project.id);
+    const remote = setupRemote(testInfo, { mirror: path });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: remote.url,
+    });
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+
+    // The repository is away before the dialog opens, so the read cannot reach
+    // it and refuses rather than comparing against a stale copy.
+    const gone = `${remote.path}-gone`;
+    renameSync(remote.path, gone);
+
+    await navigateToReleases(mainWindow, project.id);
+    await openReleaseDialog(mainWindow);
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(
+      dialog.getByText(
+        'The Git repository could not be reached, so check your connection and try again.'
+      )
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole('button', { name: 'Create Release' })
+    ).toBeHidden();
+
+    // This one a second read can clear on its own, so the dialog offers it, and
+    // once the repository answers again the Release is there to make.
+    const tryAgain = dialog.getByRole('button', { name: 'Try again' });
+    await expect(tryAgain).toBeVisible();
+    renameSync(gone, remote.path);
+    await tryAgain.click();
+    await expect(
+      dialog.getByRole('button', { name: 'Create Release' })
+    ).toBeVisible();
   });
 
   test('says nothing was released when the remote moves on after the diff was read', async ({

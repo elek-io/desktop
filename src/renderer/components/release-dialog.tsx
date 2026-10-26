@@ -27,6 +27,7 @@ import {
   RELEASE_CREATE_REFUSALS,
   RELEASE_READ_FALLBACK,
   RELEASE_READ_REFUSALS,
+  RELEASE_READ_RETRYABLE,
   type DescribedReleaseChange,
 } from '@renderer/lib/release';
 import { queryOptions } from '@renderer/queries';
@@ -147,7 +148,8 @@ export function ReleaseDialog({
               Close
             </Button>
           </DialogClose>
-          {pendingRelease?.status === 'refused' ? (
+          {pendingRelease?.status === 'refused' &&
+          RELEASE_READ_RETRYABLE.has(pendingRelease.errorType) ? (
             <Button
               type="button"
               variant="outline"

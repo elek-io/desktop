@@ -218,6 +218,19 @@ export const RELEASE_READ_FALLBACK =
   'What a Release would publish could not be read. Your changes on this computer are safe. Please try again.';
 
 /**
+ * The refusals a second read can clear on its own.
+ *
+ * A repository that could not be reached may be reachable a moment later, so
+ * reading again is the whole answer. The other two are not: both need something
+ * done outside this dialog first, synchronizing the Project or being let into
+ * the repository, so offering to read again would be a button that cannot
+ * change the answer.
+ */
+export const RELEASE_READ_RETRYABLE: ReadonlySet<CoreErrorType> = new Set([
+  'Internal',
+]);
+
+/**
  * Why a Release could not be made, per `CoreError` type.
  *
  * Core unwinds every step of a failed Release before the error arrives, so each
