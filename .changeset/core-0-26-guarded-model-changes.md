@@ -15,14 +15,21 @@ git branch -m work draft
 git branch -m production main
 ```
 
-If the Project synchronizes with a Git repository, rename the branches there too, from one copy only. Make `main` the repository's default branch at your Git host first, since most hosts refuse to delete the default branch. Then run:
+If the Project synchronizes with a Git repository, rename the branches there too, from one copy only. Send the two new names first:
 
 ```sh
-git push origin draft main
-git push origin --delete work production
+git push --no-verify origin draft main
+```
+
+The repository now has a `main`. Make it the default branch at your Git host, since most hosts refuse to delete the default branch. Then drop the old names and follow the new ones:
+
+```sh
+git push --no-verify origin --delete work production
 git branch -u origin/draft draft
 git branch -u origin/main main
 ```
+
+Both pushes skip a check with `--no-verify`. That check looks for Git LFS on your computer, and elek.io Desktop carries its own copy rather than installing one. Then synchronize the Project in elek.io Desktop, which uploads anything the pushes left behind.
 
 Every other copy then runs `git fetch --prune` and the two `git branch -u` lines.
 
@@ -35,4 +42,4 @@ What else changes when you synchronize:
 - A Git repository that asks for a password stops the synchronization with an error instead of opening a password prompt. Use an SSH key or a credential helper set up on this computer.
 - The Git that ships with elek.io Desktop asks for the TLS library Fedora, RHEL, openSUSE and NixOS carry, so synchronizing over HTTPS no longer fails on those systems for a `libcurl-gnutls.so.4` none of them ships.
 
-Two more changes reach you from this Core. A slug derived from a label no longer breaks at an apostrophe before punctuation, so "Ada's, blog" gives `adas-blog` where it gave `ada-s-blog`, and a slug already stored keeps its value. And a Field's character limits count an emoji as one character, so a limit of 2 takes two emoji.
+Two more changes reach you from this Core. A slug derived from a label no longer breaks at an apostrophe before punctuation, so "Ada's, blog" gives `adas-blog` where it gave `ada-s-blog`, and a slug already stored keeps its value. And a Field's character limits count in Unicode code points: a smiling face counts as one where it counted as two, and a flag counts as two where it counted as four. A limit of 2 therefore takes two smiling faces, or one flag.
