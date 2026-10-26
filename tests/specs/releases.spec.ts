@@ -604,10 +604,10 @@ test.describe('Releases', () => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
-    // Components have no UI and no IPC surface in the app yet, so the diff that
-    // carries one comes from a stubbed answer. What Core reports for a renamed
-    // Component slug is Core's (its releases doc lists it as major); showing it
-    // is the desktop app's.
+    // What Core reports for a renamed Component slug is Core's (its releases doc
+    // lists it as major), so the diff that carries one comes from a stubbed
+    // answer rather than from a rename arranged here. Showing it is the desktop
+    // app's.
     await stubCoreResolve(electronApp, 'core:releases:prepare', {
       project,
       bump: 'major',

@@ -2,6 +2,7 @@ import { type Page } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
 import { expectNoAxeViolations } from '../helpers/accessibility.js';
+import { createComponentViaIpc } from '../helpers/component.js';
 import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
@@ -34,6 +35,38 @@ const enforcedRoutes: {
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       return `#/projects/${project.id}/releases`;
+    },
+  },
+  // A Project's Components, empty.
+  {
+    name: '#/projects/:projectId/components',
+    disableRules: ['color-contrast'],
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      return `#/projects/${project.id}/components`;
+    },
+  },
+  // The Component create form, which puts the field definitions editor and its
+  // Add Field button under the scan.
+  {
+    name: '#/projects/:projectId/components/create',
+    disableRules: ['color-contrast'],
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      return `#/projects/${project.id}/components/create`;
+    },
+  },
+  // One Component's configure form, with a field definition preview and its
+  // reorder, edit and remove chrome.
+  {
+    name: '#/projects/:projectId/components/:componentId',
+    disableRules: ['color-contrast'],
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      const component = await createComponentViaIpc(page, {
+        projectId: project.id,
+      });
+      return `#/projects/${project.id}/components/${component.id}`;
     },
   },
 ];

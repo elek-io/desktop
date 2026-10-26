@@ -1657,6 +1657,9 @@ function FormDynamicField<TFieldValues extends FieldValues>({
   // The surrounding AppForm is the provider, so the inner fields reach the same
   // form without this leaf having to be handed it through the registry.
   const form = useFormContext<TFieldValues>();
+  // Bumped on every structural change, so the keyed fields container below
+  // remounts and each section's Controller re-reads its Value at its new index.
+  const [revision, setRevision] = React.useState(0);
   const { data: componentList, isPending: isReadingComponents } =
     useQueryNoError(queryOptions.components.list({ projectId, limit: 0 }));
 
@@ -1671,6 +1674,11 @@ function FormDynamicField<TFieldValues extends FieldValues>({
     );
   }
 
+  // Only the shape of the list is read from here: how many sections there are
+  // and which Component each is built from. The Values inside are stale as soon
+  // as somebody types into one, because react-hook-form only re-renders a
+  // Controller for a change at its own exact name, not for one below it. They
+  // are read from the form itself in `sections()` instead.
   const items: ComponentItemDraft[] = Array.isArray(field.value)
     ? field.value
     : [];
@@ -1706,9 +1714,32 @@ function FormDynamicField<TFieldValues extends FieldValues>({
     });
   }
 
+  /**
+   * The sections as the form holds them right now, Values included. Read from
+   * the form rather than from `field.value`, which does not see what somebody
+   * typed into a section since this field last changed.
+   */
+  function sections(): ComponentItemDraft[] {
+    const value: unknown = form.getValues(field.name);
+    return Array.isArray(value) ? value : [];
+  }
+
+  /**
+   * Writes the new list and remounts the fields of every section.
+   *
+   * Adding, removing or moving a section rebinds each one's fields at another
+   * index, and a mounted Controller does not re-read on a change above its own
+   * name, so without the remount the inputs would keep showing the old order's
+   * Values while the form held the new one.
+   */
+  function setSections(next: ComponentItemDraft[]): void {
+    field.onChange(next);
+    setRevision((previous) => previous + 1);
+  }
+
   function addSection(component: Component): void {
-    field.onChange([
-      ...items,
+    setSections([
+      ...sections(),
       {
         id: uuid(),
         componentId: component.id,
@@ -1721,15 +1752,16 @@ function FormDynamicField<TFieldValues extends FieldValues>({
   }
 
   function removeSection(index: number): void {
-    field.onChange(items.filter((_item, itemIndex) => itemIndex !== index));
+    setSections(sections().filter((_item, itemIndex) => itemIndex !== index));
   }
 
   function moveSection(index: number, offset: number): void {
+    const current = sections();
     const target = index + offset;
-    if (target < 0 || target >= items.length) {
+    if (target < 0 || target >= current.length) {
       return;
     }
-    field.onChange(arrayMove(items, index, target));
+    setSections(arrayMove(current, index, target));
   }
 
   return (
@@ -1744,10 +1776,15 @@ function FormDynamicField<TFieldValues extends FieldValues>({
           const name = componentName(item.componentId);
 
           return (
-            <div key={item.id} className="rounded-lg border p-4">
+            // Keyed by position, not by the item's id, because the form binds
+            // every field inside a section at its index too. The chrome below
+            // therefore keeps its identity across a move, so focus stays on the
+            // button that was pressed.
+            // eslint-disable-next-line react/no-array-index-key -- the index is the identity the form binding uses
+            <div key={index} className="rounded-lg border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
-                  {name}
+                  <span>{name}</span>
                   <span className="ml-2 font-normal text-muted-foreground">
                     Section {index + 1} of {items.length}
                   </span>
@@ -1786,7 +1823,10 @@ function FormDynamicField<TFieldValues extends FieldValues>({
               </div>
 
               {component === undefined ? null : (
-                <div className="mt-4 grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6">
+                <div
+                  key={revision}
+                  className="mt-4 grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6"
+                >
                   {component.fieldDefinitions.map((definition) => (
                     <FormFieldFromDefinition
                       key={definition.id}

@@ -7,6 +7,7 @@ import {
   type CreateCollectionProps,
   type DateFieldDefinition,
   type DatetimeFieldDefinition,
+  type DynamicFieldDefinition,
   type EmailFieldDefinition,
   type FieldType,
   type MarkdownFieldDefinition,
@@ -251,6 +252,35 @@ export function markdownFieldDefinition(
 }
 
 /**
+ * Build an optional dynamic FieldDefinition with a caller-supplied id. A dynamic
+ * field holds the sections of a page: an ordered list of Component items, which
+ * is the one Value shape that is a flat array rather than content per language.
+ * `ofComponents` empty means every Component of the Project is allowed, and Core
+ * pins `isUnique` to false. Pass `ofComponents` to restrict it to the
+ * Components a test arranged.
+ */
+export function dynamicFieldDefinition(
+  overrides: Partial<DynamicFieldDefinition> = {}
+): DynamicFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'sections',
+    label: { en: 'Sections' },
+    description: null,
+    isRequired: false,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'component',
+    fieldType: 'dynamic',
+    ofComponents: [],
+    min: null,
+    max: null,
+    ...overrides,
+  };
+}
+
+/**
  * The entry arm of the `ReferenceFieldDefinition` union (an `entry` reference,
  * as opposed to an `asset` one). Extracted so the builder's overrides are typed
  * against the concrete member rather than the whole union.
@@ -480,14 +510,21 @@ export async function fillCollectionFormTranslations(
  *
  * Use this directly when a spec inspects the sheet without adding anything (the
  * per-type locked switches), and through `addFieldDefinition` when it does add.
+ *
+ * `owner` names the sheet, since one editor authors both a Collection's and a
+ * Component's fields and the sheet says which it is adding to.
  */
 export async function openAddFieldSheet(
   page: Page,
-  fieldType: FieldType = 'text'
+  fieldType: FieldType = 'text',
+  owner: 'collection' | 'component' = 'collection'
 ): Promise<Locator> {
   await page.getByRole('button', { name: 'Add Field' }).click();
   const sheet = page.getByRole('dialog', {
-    name: 'Add a Field to this Collection',
+    name:
+      owner === 'collection'
+        ? 'Add a Field to this Collection'
+        : 'Add a Field to this Component',
   });
   await expect(sheet).toBeVisible();
 
@@ -506,6 +543,8 @@ export interface AddFieldDefinitionOptions {
   description: string;
   /** The "Input type" to pick. Defaults to the sheet's own default, `text`. */
   fieldType?: FieldType;
+  /** Which object the field is added to. Defaults to a Collection. */
+  owner?: 'collection' | 'component';
   /** Fills the field's "Minimum" control. */
   min?: number;
   /** Fills the field's "Maximum" control. */
@@ -514,6 +553,12 @@ export interface AddFieldDefinitionOptions {
   defaultValue?: string;
   /** Turns the "Unique" switch on. Only the string types allow it. */
   isUnique?: boolean;
+  /**
+   * Turns the "Required" switch off. A field defaults to required, and adding a
+   * required field with no default to a Collection or Component that already
+   * holds content is what Core refuses until each Entry is answered.
+   */
+  isRequired?: boolean;
   /**
    * Assert the add is REJECTED rather than accepted. `submitDefinition` only
    * closes the sheet after it appends the definition, so a still-open sheet
@@ -539,7 +584,7 @@ export async function addFieldDefinition(
   page: Page,
   options: AddFieldDefinitionOptions
 ): Promise<void> {
-  const sheet = await openAddFieldSheet(page, options.fieldType);
+  const sheet = await openAddFieldSheet(page, options.fieldType, options.owner);
 
   await sheet.getByLabel('Label', { exact: true }).fill(options.label);
   // A Field's Description is optional, so its label carries an "- optional"
@@ -559,6 +604,9 @@ export async function addFieldDefinition(
   }
   if (options.isUnique === true) {
     await sheet.getByRole('switch', { name: 'Unique' }).click();
+  }
+  if (options.isRequired === false) {
+    await sheet.getByRole('switch', { name: 'Required' }).click();
   }
 
   await page.getByRole('button', { name: 'Add definition' }).click();

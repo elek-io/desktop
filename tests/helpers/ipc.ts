@@ -113,14 +113,13 @@ export async function stubCoreHang(
 
 /**
  * Replace a Core IPC handler so its next call answers with a canned value, to
- * drive a shape of Core's answer the UI has to render but the app cannot
- * produce itself yet.
+ * drive a shape of Core's answer the UI has to render without arranging what
+ * Core computes it from.
  *
- * The one use today is a diff carrying a Component change: a Release renders
- * every change Core reports, while Components have no UI, no IPC surface and so
- * no way to be renamed from the app (see not-yet-implemented.md). Rendering
- * Core's answer is the desktop app's own responsibility, which is what this
- * asserts, and the diff's contents stay Core's to compute and test.
+ * The one use today is a Release diff carrying a Component change. A Release
+ * renders every change Core reports, and what Core reports for one is Core's to
+ * compute and test, so the answer is stubbed rather than arranged. Rendering it
+ * is the desktop app's own responsibility, which is what this asserts.
  *
  * Mirrors `stubCoreReject`: the app captures each handler by reference at
  * registration, so this removes the real one and registers a replacement in the
