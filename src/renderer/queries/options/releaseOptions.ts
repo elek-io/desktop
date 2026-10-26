@@ -107,6 +107,12 @@ export const releaseOptions = {
       });
       await context.client.invalidateQueries({
         queryKey: ['projects', variables.projectId],
+        // Everything but the dialog's own read of what a Release would
+        // publish. That one is read fresh on every open and kept out of the
+        // cache afterwards, so refetching it here would only put the dialog
+        // back on its skeleton while this mutation waits for the answer.
+        predicate: (query) =>
+          query.queryKey[3] !== 'releases' || query.queryKey[4] !== 'pending',
         refetchType: 'all',
       });
     },

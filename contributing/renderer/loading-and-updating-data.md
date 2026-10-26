@@ -326,6 +326,8 @@ customMutationOptions({
 
 This metadata is used by the query client to automatically display success/error toasts and log all mutations for debugging.
 
+The wrapper awaits the `onSuccess` it is given, so a mutation resolves only once its own cache updates are done. A caller that awaits `mutateAsync` and then closes a dialog or navigates can rely on what it reads next, and a rejection inside `onSuccess` reaches the mutation rather than becoming an unhandled rejection.
+
 Pass `toasts` as well when `{method} {objectType}` is not something to show a
 user. It replaces the text of both notifications and nothing else, so a mutation
 without it reads exactly as before. `releases.create` is the one that uses it,

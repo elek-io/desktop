@@ -133,7 +133,11 @@ export function customMutationOptions<
         });
       }
 
-      originalOnSuccess(data, variables, result, context);
+      // Awaited, so a mutation resolves only once its own onSuccess is done.
+      // A caller that awaits `mutateAsync` and then navigates or closes a
+      // dialog can rely on the cache being up to date, and a rejection here
+      // reaches the mutation instead of becoming an unhandled rejection.
+      await originalOnSuccess(data, variables, result, context);
     },
     onError: async (error, _variables, _result, context) => {
       const logableMutationMeta = logableMutationMetaSchema.safeParse(
