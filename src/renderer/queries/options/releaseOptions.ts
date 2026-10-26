@@ -11,6 +11,7 @@ import type {
 } from '@elek-io/core';
 
 import { customMutationOptions } from '../util';
+import { fetchProjectChanges, projectOptions } from './projectOptions';
 
 /**
  * What reading a pending Release answered: the diff a Release would publish, or
@@ -48,7 +49,7 @@ export const releaseOptions = {
     queryOptions({
       enabled: project !== undefined,
       queryKey: ['projects', project?.id, 'current', 'releases', 'pending'],
-      queryFn: async (): Promise<PendingRelease> => {
+      queryFn: async ({ client }): Promise<PendingRelease> => {
         const { id, remoteOriginUrl } = project!;
         try {
           if (remoteOriginUrl !== null) {
@@ -56,7 +57,19 @@ export const releaseOptions = {
             // against the remote as of the last fetch and could show a version
             // and changes that are not what a Release would publish.
             // getChanges() fetches, see Core's git-and-sync docs.
-            await window.ipc.core.projects.getChanges({ id });
+            const changes = await fetchProjectChanges(id);
+
+            // That fetch moved `origin`, so what it answered is the current
+            // count, while the sidebar's own copy refreshes only every three
+            // minutes and keeps Synchronize disabled until it does. Publishing
+            // it keeps the button usable the moment a refusal below tells the
+            // editor to synchronize. Only a successful read is published: a
+            // failed one belongs to this dialog, which answers it in place,
+            // and would otherwise take the sidebar to the error boundary.
+            client.setQueryData(
+              projectOptions.getChanges(project).queryKey,
+              changes
+            );
           }
           return {
             status: 'readable',

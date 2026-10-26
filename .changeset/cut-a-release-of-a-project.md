@@ -10,7 +10,7 @@ If the Project synchronizes with a Git repository, the Release is published ther
 
 When a Release cannot be made, nothing is released and the Project is left exactly as it was:
 
-- Changes were saved or a Release was made on another computer, so you synchronize first and release again.
+- Changes were saved or a Release was made on another computer, so you synchronize first and release again. The dialog reads the Git repository as it opens, so Synchronize is ready the moment the dialog asks you to use it.
 - The Git repository refused access or could not be reached, so you check your connection or ask whoever set up the Project, and press Create Release again.
 - Nothing has changed since the last Release, so the dialog says that and offers nothing to press.
 

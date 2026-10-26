@@ -343,6 +343,21 @@ test.describe('Releases', () => {
       url: remote.url,
     });
 
+    // The page is opened while the Project is still level with the remote, so
+    // the sidebar's count says there is nothing to synchronize and Synchronize
+    // is disabled. That count refreshes on its own only every three minutes,
+    // which is longer than an editor takes to act on the refusal below. The
+    // Refresh changes control is enabled once the first read landed, so this
+    // waits for the count rather than for a button that is disabled anyway.
+    await navigateToReleases(mainWindow, project.id);
+    const synchronize = mainWindow.getByRole('button', {
+      name: 'Synchronize',
+    });
+    await expect(
+      mainWindow.getByRole('button', { name: 'Refresh changes' })
+    ).toBeEnabled();
+    await expect(synchronize).toBeDisabled();
+
     // Something to release locally, and a remote that moved on out of band, so
     // the local `draft` lacks a commit the remote's holds.
     await createCollectionViaIpc(mainWindow, { projectId: project.id });
@@ -353,7 +368,6 @@ test.describe('Releases', () => {
       { method: 'update', reference: { objectType: 'project', id: project.id } }
     );
 
-    await navigateToReleases(mainWindow, project.id);
     await openReleaseDialog(mainWindow);
     const dialog = mainWindow.getByRole('dialog');
 
@@ -382,6 +396,12 @@ test.describe('Releases', () => {
     // Nothing was published, locally or on the remote.
     expect(localTags(path)).toEqual([]);
     expect(remoteTags(remote.path)).toEqual([]);
+
+    // The one thing the refusal asks for can be done right away. The read
+    // fetched, so the count behind Synchronize is the one the dialog just saw
+    // and not the stale zero the sidebar held when the page opened.
+    await dismissDialog(mainWindow);
+    await expect(synchronize).toBeEnabled();
   });
 
   test('offers to read again when the remote cannot be reached, and reads it', async ({

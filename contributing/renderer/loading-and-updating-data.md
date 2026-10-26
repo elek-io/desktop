@@ -344,6 +344,8 @@ toasts: {
 
 All mutations in the [`options/`](../../src/renderer/queries/options/) directory include `onSuccess` handlers that automatically update the cache. This ensures the UI reflects changes immediately without requiring refetches.
 
+A query that fetches something another query owns writes its answer there too. `releases.prepare` has to fetch `origin` before it diffs, which `prepare()` itself never does, so it calls `fetchProjectChanges` from [`projectOptions.ts`](../../src/renderer/queries/options/projectOptions.ts) and puts the result into the `['projects', projectId, 'current', 'changes']` cache from its `queryFn`'s `client`. That is the count behind the sidebar's Synchronize, which otherwise refreshes only every three minutes and would stay disabled right after the dialog told the editor to synchronize. It is written only when the call succeeded: a failure belongs to the dialog, which answers it in place, and writing it into the shared query would send the sidebar to the error boundary instead.
+
 ### The `mergeListWithObject` Helper
 
 Located at [`util.ts:144-195`](../../src/renderer/queries/util.ts), this helper function merges individual objects into paginated list caches:
