@@ -20,6 +20,7 @@ import {
 } from '@renderer/components/ui/dialog';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
+import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
@@ -78,11 +79,18 @@ function CreateEntryPage(): React.JSX.Element {
       },
     },
   });
+  // A dynamic field's Values are checked against the field definitions of the
+  // Components it embeds, so the schema needs Core's resolver for them.
+  const { componentResolver, isReadingComponents } =
+    useComponentResolver(projectId);
   const generatedCreateEntrySchema =
-    isReadingProject === false && isReadingCollection === false
+    isReadingProject === false &&
+    isReadingCollection === false &&
+    isReadingComponents === false
       ? getCreateEntrySchemaFromFieldDefinitions(
           flattenFieldDefinitions(collection.fieldDefinitions),
-          project.settings.language.supported
+          project.settings.language.supported,
+          componentResolver
         )
       : getCreateEntrySchemaFromFieldDefinitions([], []);
   const formId = useId();
@@ -172,7 +180,7 @@ function CreateEntryPage(): React.JSX.Element {
     );
   }
 
-  if (isReadingProject || isReadingCollection) {
+  if (isReadingProject || isReadingCollection || isReadingComponents) {
     return <></>;
   }
 
