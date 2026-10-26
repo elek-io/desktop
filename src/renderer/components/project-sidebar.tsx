@@ -1,6 +1,7 @@
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Link, type ToPathOption } from '@tanstack/react-router';
 import {
+  Blocks,
   Layers,
   LayoutDashboard,
   Settings,
@@ -72,6 +73,11 @@ const projectNavigation: {
     name: 'Collections',
     to: '/projects/$projectId/collections',
     icon: Layers,
+  },
+  {
+    name: 'Components',
+    to: '/projects/$projectId/components',
+    icon: Blocks,
   },
   {
     name: 'History',

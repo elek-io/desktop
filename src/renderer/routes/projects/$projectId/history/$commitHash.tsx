@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 
 import { AssetDiff } from '@renderer/components/asset-diff';
 import { CollectionDiff } from '@renderer/components/collection-diff';
+import { ComponentDiff } from '@renderer/components/component-diff';
 import { DiffContainerSkeleton } from '@renderer/components/diff-container';
 import { EntryDiff } from '@renderer/components/entry-diff';
 import { Page } from '@renderer/components/page';
@@ -71,6 +72,7 @@ function ProjectHistoryCommitPage(): ReactElement {
       case 'entry':
         return <EntryDiff project={project} commit={commit} />;
       case 'component':
+        return <ComponentDiff project={project} commit={commit} />;
       default:
         return <>Object changes</>;
     }

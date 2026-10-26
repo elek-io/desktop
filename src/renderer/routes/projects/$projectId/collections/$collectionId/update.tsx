@@ -180,11 +180,7 @@ function ProjectCollectionUpdate(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
-        A Collection holds information about how your content is structured.
-        <br />
-        Read more about <a href="#">Collections in the documentation</a>.
-      </>
+      <>A Collection holds information about how your content is structured.</>
     );
   }
 

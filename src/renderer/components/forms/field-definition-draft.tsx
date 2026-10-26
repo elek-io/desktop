@@ -23,6 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@renderer/components/ui/form';
+import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
 
 import {
   type FieldDefinition,
@@ -169,36 +170,6 @@ export interface DefinitionDraftProps {
   // it for the restrictions Core puts on a Component's fields.
   owner: FieldDefinitionsOwner;
   onAdd: (definition: FieldDefinition) => void;
-}
-
-/**
- * Wraps a field-definition resolver so an all-blank `description` reaches Core
- * as `null`, its canonical "no description" value.
- *
- * Core makes `description` optional (nullable) but rejects a present-but-empty
- * language, so an empty UI state must be coerced to `null` rather than kept as
- * `{ en: '' }`. The base form seeds every language, which makes Core's member
- * schema force each to be filled once any is (matching Core's all-or-nothing
- * rule), while a wholly blank description means the user wants none. This only
- * normalizes input to Core's own canonical value, it adds no rule of its own,
- * so validation stays entirely Core's.
- */
-function withEmptyDescriptionAsNull<Def extends FieldDefinitionBase>(
-  resolver: Resolver<Def>
-): Resolver<Def> {
-  return (values, context, options): ReturnType<Resolver<Def>> => {
-    const description = values.description;
-    const hasText =
-      description !== null &&
-      Object.values(description).some(
-        (value) => typeof value === 'string' && value.trim() !== ''
-      );
-    return resolver(
-      { ...values, description: hasText ? description : null },
-      context,
-      options
-    );
-  };
 }
 
 /**
