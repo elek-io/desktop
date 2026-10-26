@@ -128,7 +128,7 @@ A refusal is modeled as an outcome of the read rather than a failure of it becau
 
 `PreconditionFailed` covers more causes than either line names, and naming one is on purpose: a refusal says what the person in front of it met and what to do next, in one sentence, not every cause the type could stand for. The read's line is written for a `draft` behind the remote's and the create's for a remote that moved on between the read and the push, which are the two an editor meets. Core's [table of git errors](../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations) puts three more under the type on these two calls, and the line is wrong about each:
 
-- A Project not checked out on `draft`, which `prepare()` requires. A Project last written before Core renamed the branches is on `work`, and Core refuses the read with "Not on draft branch". Synchronizing does not help: the branches are renamed by hand first.
+- A Project not checked out on `draft`, which `prepare()` requires. A Project last written before Core renamed the branches is on `work`, and Core refuses the read with "Not on draft branch". Synchronizing is not the way out either, since Synchronize is disabled for such a Project. Its branches are renamed by hand.
 - A remote that does not support the atomic push a Release needs. Core never falls back to separate pushes, because a push that lands `main` without `draft` breaks the rule a Release keeps.
 - A git that cannot load a shared library it needs, which is the cause the Clone dialog carries as well.
 

@@ -63,9 +63,11 @@ export const releaseOptions = {
             // count, while the sidebar's own copy refreshes only every three
             // minutes and keeps Synchronize disabled until it does. Publishing
             // it keeps the button usable the moment a refusal below tells the
-            // editor to synchronize. Only a successful read is published: a
-            // failed one belongs to this dialog, which answers it in place,
-            // and would otherwise take the sidebar to the error boundary.
+            // editor to synchronize. Only a successful read is published, and
+            // the fetch itself stays outside the shared query: a failure
+            // belongs to this dialog, which answers it in place, while the
+            // shared query would retry it three times first and leave the
+            // dialog on its skeleton for the whole schedule.
             client.setQueryData(
               projectOptions.getChanges(project).queryKey,
               changes
