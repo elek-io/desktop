@@ -16,7 +16,7 @@ The base configuration for all queries and mutations is in [`client.ts`](../../s
 
 ### Query and Mutation Options
 
-All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `releaseOptions.ts`, `collectionOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `cloudOptions.ts`, `apiOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
+All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `releaseOptions.ts`, `collectionOptions.ts`, `componentOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `cloudOptions.ts`, `apiOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
 
 - Typed wrappers around IPC calls
 - Query keys for cache management
@@ -44,6 +44,10 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
 // the Releases of a project, and what a Release would publish right now
 ['projects', projectId, 'current', 'releases', 'list'];
 ['projects', projectId, 'current', 'releases', 'pending'];
+
+// components in a project, and one Component at HEAD
+['projects', projectId, 'current', 'components', 'list'];
+['projects', projectId, 'current', 'components', componentId, 'current'];
 
 // collections in a project
 ['projects', projectId, 'current', 'collections', 'list'];
@@ -453,6 +457,8 @@ onSuccess: (updatedItem, variables, _result, context) => {
 **Pros:** Instant UI updates, no network/IPC calls
 
 **Use for:** create, update, delete, user settings, API start/stop
+
+A Component update is the one mutation that also invalidates. Core cascades a field definition change into every Entry holding the Component, in the same commit, and which Entries those are is Core's to know rather than ours, so `componentOptions.update` drops the whole `['projects', projectId, 'current', 'collections']` subtree and lets it be read again. An Entry's query key sits under its Collection's, which is why it invalidates from `collections` down.
 
 #### 2. Query Invalidation (For Unknown Scope)
 

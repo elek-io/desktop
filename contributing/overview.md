@@ -106,7 +106,7 @@ const project = await window.ipc.core.projects.create({
 });
 ```
 
-The channels are organized by namespace: `core:projects:*`, `core:releases:*`, `core:collections:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*`, `core:cloud:*` and `electron:dialog:*`.
+The channels are organized by namespace: `core:projects:*`, `core:releases:*`, `core:collections:*`, `core:components:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*`, `core:cloud:*` and `electron:dialog:*`.
 
 All Core methods are asynchronous in the renderer even when they are synchronous in Core, since every call crosses the IPC boundary. The `AsyncifyMethods` utility type in [`src/index.d.ts`](/src/index.d.ts) reflects this by wrapping every Core method's return value in a `Promise`.
 
@@ -120,7 +120,7 @@ All Core methods are asynchronous in the renderer even when they are synchronous
 > [!NOTE]
 > The two `electron:dialog:*` channels are special-cased in the registration loop: the main `BrowserWindow` is injected as the first argument before the bound handler is called. Every `core:*` channel is called with the renderer's arguments unchanged.
 
-**Error serialization at the handler loop:** the same single `ipcMain.handle` wrapper also try/catches the handler call. A structured clone across the IPC boundary drops the `CoreError` subclass and its custom `type`/`statusCode` fields, reducing the error to the plain `Error` shape (message and stack). To preserve the reason a Core operation failed with, the wrapper catches a thrown `CoreError` and re-throws `new Error(serializeCoreError(error.type, error.message))`, which packs the `type` into the message behind a sentinel. Everything that is not a `CoreError` propagates unchanged. The renderer decodes it with `parseIpcError` from the shared module [`src/shared/ipcError.ts`](/src/shared/ipcError.ts), which is bundled into both processes. The full story, including how the renderer maps the decoded `type` to reason-specific copy, is in [Error Handling](./error-handling.md).
+**Error serialization at the handler loop:** the same single `ipcMain.handle` wrapper also try/catches the handler call. A structured clone across the IPC boundary drops the `CoreError` subclass and its custom `type`/`statusCode` fields, reducing the error to the plain `Error` shape (message and stack). To preserve the reason a Core operation failed with, the wrapper catches a thrown `CoreError` and re-throws `new Error(serializeCoreError(error.type, error.message, error.stack, error.cause))`, which packs the `type`, Core's own origin stack and the forwardable part of the cause into the message behind a sentinel. Everything that is not a `CoreError` propagates unchanged. The renderer decodes it with `parseIpcError` from the shared module [`src/shared/ipcError.ts`](/src/shared/ipcError.ts), which is bundled into both processes. The full story, including which causes cross and how the renderer maps the decoded `type` to reason-specific copy, is in [Error Handling](./error-handling.md).
 
 ### Project Structure
 
