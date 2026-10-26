@@ -6,7 +6,10 @@ import { join } from 'node:path';
 import type { GitMessage } from '@elek-io/core';
 
 /** The branch all content edits happen on (see Core's git-and-sync docs). */
-const WORK_BRANCH = 'work';
+const DRAFT_BRANCH = 'draft';
+
+/** The branch a Release promotes content to (see Core's git-and-sync docs). */
+const MAIN_BRANCH = 'main';
 
 /**
  * Build a Core-shaped commit message: a subject line followed by the git
@@ -62,31 +65,31 @@ export function setupRemote(
 }
 
 /**
- * Read the commit SHA of the `work` branch on a bare remote via `git ls-remote`.
+ * Read the commit SHA of the `draft` branch on a bare remote via `git ls-remote`.
  *
  * Runner-side corroboration for the sync specs: comparing this against the local
- * `work` SHA proves a round-trip actually reached the remote (P1-20), or that a
+ * `draft` SHA proves a round-trip actually reached the remote (P1-20), or that a
  * rejected sync pushed nothing (P1-21). This observes only the ref, not file
  * contents, so it stays within the desktop verification doctrine.
  */
-export function remoteWorkSha(remotePath: string): string {
+export function remoteDraftSha(remotePath: string): string {
   const output = execFileSync('git', [
     'ls-remote',
     remotePath,
-    `refs/heads/${WORK_BRANCH}`,
+    `refs/heads/${DRAFT_BRANCH}`,
   ])
     .toString()
     .trim();
   const sha = output.split(/\s/)[0];
   if (sha === undefined || sha === '') {
-    throw new Error(`No "${WORK_BRANCH}" ref found on remote "${remotePath}"`);
+    throw new Error(`No "${DRAFT_BRANCH}" ref found on remote "${remotePath}"`);
   }
   return sha;
 }
 
-/** Read the local `work` branch commit SHA of a Project's git repo. */
-export function localWorkSha(dir: string): string {
-  return execFileSync('git', ['-C', dir, 'rev-parse', WORK_BRANCH])
+/** Read the local `draft` branch commit SHA of a Project's git repo. */
+export function localDraftSha(dir: string): string {
+  return execFileSync('git', ['-C', dir, 'rev-parse', DRAFT_BRANCH])
     .toString()
     .trim();
 }
@@ -95,9 +98,9 @@ export function localWorkSha(dir: string): string {
  * Delete an Entry file directly on the bare remote, out of band, bypassing
  * Core's delete gate.
  *
- * Clones the bare to a throwaway working tree, removes the file on `work`,
- * commits, and pushes `work` back to the bare. This is how a test arranges a
- * remote whose `work` tree already holds a dangling reference (a reference whose
+ * Clones the bare to a throwaway working tree, removes the file on `draft`,
+ * commits, and pushes `draft` back to the bare. This is how a test arranges a
+ * remote whose `draft` tree already holds a dangling reference (a reference whose
  * target was deleted on the remote), a state Core's own delete gate would never
  * allow, so a following local synchronize hits the sync-time integrity gate.
  */
@@ -113,7 +116,7 @@ export function deleteEntryOnRemote(
   const env = { ...process.env, GIT_LFS_SKIP_SMUDGE: '1' };
 
   execFileSync('git', ['clone', remotePath, workTree], { env });
-  execFileSync('git', ['-C', workTree, 'checkout', WORK_BRANCH], { env });
+  execFileSync('git', ['-C', workTree, 'checkout', DRAFT_BRANCH], { env });
   execFileSync('git', ['-C', workTree, 'rm', relPath]);
   execFileSync('git', [
     '-C',
@@ -127,17 +130,19 @@ export function deleteEntryOnRemote(
     '-m',
     `Delete ${relPath} out of band`,
   ]);
-  execFileSync('git', ['-C', workTree, 'push', 'origin', WORK_BRANCH], { env });
+  execFileSync('git', ['-C', workTree, 'push', 'origin', DRAFT_BRANCH], {
+    env,
+  });
 }
 
 /**
  * Write a file and commit it on the bare remote as a Core-shaped commit, out of
- * band, then push it to `work`.
+ * band, then push it to `draft`.
  *
  * Clones the bare to a throwaway working tree, writes `file.relPath`, commits
  * with `message`'s Core trailers (so getChanges recognizes it, see
- * `coreCommitMessage`), and pushes `work` back to the bare. This advances the
- * remote's `work` by one commit that Core counts, so a local Project pointed at
+ * `coreCommitMessage`), and pushes `draft` back to the bare. This advances the
+ * remote's `draft` by one commit that Core counts, so a local Project pointed at
  * it becomes `behind` by one, the state the behind-path sync spec needs. The
  * file is plain (not under `lfs/**`), so no LFS object is involved.
  */
@@ -154,7 +159,7 @@ export function commitFileOnRemote(
   const env = { ...process.env, GIT_LFS_SKIP_SMUDGE: '1' };
 
   execFileSync('git', ['clone', remotePath, workTree], { env });
-  execFileSync('git', ['-C', workTree, 'checkout', WORK_BRANCH], { env });
+  execFileSync('git', ['-C', workTree, 'checkout', DRAFT_BRANCH], { env });
   writeFileSync(join(workTree, file.relPath), file.content);
   execFileSync('git', ['-C', workTree, 'add', file.relPath]);
   execFileSync('git', [
@@ -169,5 +174,69 @@ export function commitFileOnRemote(
     '-m',
     coreCommitMessage(message),
   ]);
-  execFileSync('git', ['-C', workTree, 'push', 'origin', WORK_BRANCH], { env });
+  execFileSync('git', ['-C', workTree, 'push', 'origin', DRAFT_BRANCH], {
+    env,
+  });
+}
+
+/**
+ * Rename branches on a bare remote, out of band.
+ *
+ * Renaming `draft` to `work` and `main` to `production` turns a mirror into
+ * the remote of a Project made before Core 0.25, which Core refuses to clone.
+ */
+export function renameBranchesOnRemote(
+  remotePath: string,
+  renames: Record<string, string>
+): void {
+  for (const [from, to] of Object.entries(renames)) {
+    execFileSync('git', ['-C', remotePath, 'branch', '-m', from, to]);
+  }
+}
+
+/** List the branch names a bare remote holds, via `git ls-remote --heads`. */
+export function remoteBranches(remotePath: string): string[] {
+  return execFileSync('git', ['ls-remote', '--heads', remotePath])
+    .toString()
+    .trim()
+    .split('\n')
+    .filter((line) => line !== '')
+    .map((line) => line.replace(/^\S+\s+refs\/heads\//, ''))
+    .sort();
+}
+
+/**
+ * Commit one unrelated file on a bare remote, out of band.
+ *
+ * Commits in a throwaway repository of its own and pushes `main` to the bare,
+ * so the remote holds refs that share no history with the Project. That is the
+ * repository a Git host creates with a README, which Core refuses to
+ * synchronize with (see Core's git-and-sync docs).
+ */
+export function commitUnrelatedFileOnRemote(
+  testInfo: TestInfo,
+  remotePath: string,
+  file: { relPath: string; content: string }
+): void {
+  const workTree = testInfo.outputPath('remote-unrelated-seed');
+  mkdirSync(workTree, { recursive: true });
+
+  // The branch is named here rather than taken from the runner's git config,
+  // which decides what `init` without -b calls the first branch
+  execFileSync('git', ['init', '-b', MAIN_BRANCH, workTree]);
+  writeFileSync(join(workTree, file.relPath), file.content);
+  execFileSync('git', ['-C', workTree, 'add', file.relPath]);
+  execFileSync('git', [
+    '-C',
+    workTree,
+    // Identity is set inline so the runner needs no global git config
+    '-c',
+    'user.name=E2E Remote',
+    '-c',
+    'user.email=e2e-remote@example.com',
+    'commit',
+    '-m',
+    `Add ${file.relPath}`,
+  ]);
+  execFileSync('git', ['-C', workTree, 'push', remotePath, MAIN_BRANCH]);
 }

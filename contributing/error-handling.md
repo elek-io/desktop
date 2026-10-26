@@ -84,7 +84,17 @@ All the sites below build their mutation with `useAppMutation`, so the "predicat
 
 ### Example: sync conflict
 
-[`components/project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`, most notably Core's sync time integrity gate rejecting a rebase that would push a dangling reference. The Synchronize mutation `handles` `Conflict` and `PreconditionFailed` in place, so `useAppMutation`'s predicate returns false only for those two. The `onClick` catches the rejection and calls `handleError(error)`, which for those two reasons stores it with `setSyncError(error)` and opens the "Could not synchronize this Project" dialog; any other failure propagates to the boundary. The dialog description calls `describeCoreError` with a small overrides map (`Conflict` explains the remote conflict, `PreconditionFailed` explains the remote could not be reached) and the previous generic sentence as the fallback. The title stays generic, so it still covers the handled reasons, while the description is now reason specific.
+[`components/project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`, most notably Core's sync time integrity gate rejecting a rebase that would push a dangling reference. The Synchronize mutation `handles` `Conflict` and `PreconditionFailed` in place, so `useAppMutation`'s predicate returns false only for those two. The `onClick` catches the rejection and calls `handleError(error)`, which for those two reasons stores it with `setSyncError(error)` and opens the "Could not synchronize this Project" dialog; any other failure propagates to the boundary. The dialog description calls `describeCoreError` with a small overrides map and a generic sentence as the fallback. The title stays generic, so it still covers the handled reasons, while the description is reason specific.
+
+Each override names only what Core raises that type for while synchronizing, read off Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#synchronizing):
+
+- `Conflict` is the integrity gate alone, so the text names a reference whose target is gone from the integrated tree and what to do about it.
+- `PreconditionFailed` has several causes, and the text names the three an editor meets: a repository holding something besides the Project, a repository whose Git LFS endpoint will not take the Assets, and a textual rebase conflict.
+- An unreachable repository is neither of the two types. The git command exits non-zero and Core raises `Internal`, or `Unauthorized` when the remote refused the credentials, so no override covers it and it reaches the root error boundary.
+
+### Example: a clone Core refuses
+
+The Clone dialog in [`routes/projects/index.tsx`](/src/renderer/routes/projects/index.tsx) `handles` only `PreconditionFailed`, which Core raises for a repository without a `draft` branch (see Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#cloning-an-existing-project)). Such a repository holds no Project, or one made before Core 0.25 renamed the branches, so the dialog stays open with the address and one line above its button: "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up." It names no version, because the version an editor would have to compare it against is the one that wrote the repository, which Desktop cannot read without cloning it. Any other failure, a `Conflict` for a Project already on this computer included, still reaches the boundary.
 
 ### Example: force delete a Project
 
