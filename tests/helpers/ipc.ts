@@ -50,3 +50,34 @@ export async function stubCoreReject(
     });
   }, channel);
 }
+
+/**
+ * Replace a Core IPC handler so its next call answers with a canned value, to
+ * drive a shape of Core's answer the UI has to render but the app cannot
+ * produce itself yet.
+ *
+ * The one use today is a diff carrying a Component change: a Release renders
+ * every change Core reports, while Components have no UI, no IPC surface and so
+ * no way to be renamed from the app (see not-yet-implemented.md). Rendering
+ * Core's answer is the desktop app's own responsibility, which is what this
+ * asserts, and the diff's contents stay Core's to compute and test.
+ *
+ * Mirrors `stubCoreReject`: the app captures each handler by reference at
+ * registration, so this removes the real one and registers a replacement in the
+ * main process. Scoped to the current test's app instance, so it does not leak.
+ * The value crosses the process boundary through Electron's structured clone,
+ * so it has to be plain data.
+ */
+export async function stubCoreResolve(
+  electronApp: ElectronApplication,
+  channel: string,
+  value: unknown
+): Promise<void> {
+  await electronApp.evaluate(
+    ({ ipcMain }, canned) => {
+      ipcMain.removeHandler(canned.channel);
+      ipcMain.handle(canned.channel, () => canned.value);
+    },
+    { channel, value }
+  );
+}

@@ -7,14 +7,15 @@ import {
 } from '../helpers/collection.js';
 import { navigate, verifyCurrentRouteHash } from '../helpers/navigation.js';
 import { createProjectViaIpc, navigateToAssets } from '../helpers/project.js';
+import { navigateToReleases } from '../helpers/release.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
 test.describe('Empty states', () => {
-  // Pin all four app-wide empty strings in one place, walked in an order that
-  // keeps each precondition true (project before assets, no collections before
-  // the sidebar empty state, a collection before its empty entry table). This
-  // is the single spot a renamed empty state is caught, so some overlap with
-  // the projects and entries specs is intentional.
+  // Pin all five app-wide empty strings in one place, walked in an order that
+  // keeps each precondition true (project before assets and Releases, no
+  // collections before the sidebar empty state, a collection before its empty
+  // entry table). This is the single spot a renamed empty state is caught, so
+  // some overlap with the projects, entries and releases specs is intentional.
   test('renders each area empty state when its total is zero', async ({
     mainWindow,
   }) => {
@@ -28,11 +29,15 @@ test.describe('Empty states', () => {
     await navigateToAssets(mainWindow, project.id);
     await expect(mainWindow.getByText('No Assets yet')).toBeVisible();
 
-    // 3. The project has no Collections, so the sidebar shows its empty state.
+    // 3. Nothing was published from the project, so Releases is empty.
+    await navigateToReleases(mainWindow, project.id);
+    await expect(mainWindow.getByText('No Releases yet')).toBeVisible();
+
+    // 4. The project has no Collections, so the sidebar shows its empty state.
     await navigate(mainWindow, `#/projects/${project.id}/collections`);
     await expect(mainWindow.getByText('No Collections found')).toBeVisible();
 
-    // 4. A Collection with no Entries shows the entry table empty state.
+    // 5. A Collection with no Entries shows the entry table empty state.
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
     });

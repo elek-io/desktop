@@ -65,33 +65,93 @@ export function setupRemote(
 }
 
 /**
- * Read the commit SHA of the `draft` branch on a bare remote via `git ls-remote`.
+ * Read the commit SHA of a branch on a bare remote via `git ls-remote`.
  *
- * Runner-side corroboration for the sync specs: comparing this against the local
- * `draft` SHA proves a round-trip actually reached the remote (P1-20), or that a
- * rejected sync pushed nothing (P1-21). This observes only the ref, not file
- * contents, so it stays within the desktop verification doctrine.
+ * Runner-side corroboration for the sync and Release specs: comparing this
+ * against the local SHA proves a round-trip actually reached the remote (P1-20),
+ * or that a rejected sync or Release pushed nothing (P1-21). This observes only
+ * the ref, not file contents, so it stays within the desktop verification
+ * doctrine.
  */
-export function remoteDraftSha(remotePath: string): string {
+export function remoteBranchSha(remotePath: string, branch: string): string {
   const output = execFileSync('git', [
     'ls-remote',
     remotePath,
-    `refs/heads/${DRAFT_BRANCH}`,
+    `refs/heads/${branch}`,
   ])
     .toString()
     .trim();
   const sha = output.split(/\s/)[0];
   if (sha === undefined || sha === '') {
-    throw new Error(`No "${DRAFT_BRANCH}" ref found on remote "${remotePath}"`);
+    throw new Error(`No "${branch}" ref found on remote "${remotePath}"`);
   }
   return sha;
 }
 
-/** Read the local `draft` branch commit SHA of a Project's git repo. */
-export function localDraftSha(dir: string): string {
-  return execFileSync('git', ['-C', dir, 'rev-parse', DRAFT_BRANCH])
+/** Read the commit SHA of the `draft` branch on a bare remote. */
+export function remoteDraftSha(remotePath: string): string {
+  return remoteBranchSha(remotePath, DRAFT_BRANCH);
+}
+
+/** Read the commit SHA of the `main` branch on a bare remote. */
+export function remoteMainSha(remotePath: string): string {
+  return remoteBranchSha(remotePath, MAIN_BRANCH);
+}
+
+/** Read a local branch's commit SHA of a Project's git repo. */
+export function localBranchSha(dir: string, branch: string): string {
+  return execFileSync('git', ['-C', dir, 'rev-parse', branch])
     .toString()
     .trim();
+}
+
+/** Read the local `draft` branch commit SHA of a Project's git repo. */
+export function localDraftSha(dir: string): string {
+  return localBranchSha(dir, DRAFT_BRANCH);
+}
+
+/** Read the local `main` branch commit SHA of a Project's git repo. */
+export function localMainSha(dir: string): string {
+  return localBranchSha(dir, MAIN_BRANCH);
+}
+
+/** The branch a Project's git repo is checked out on. */
+export function localCurrentBranch(dir: string): string {
+  return execFileSync('git', ['-C', dir, 'rev-parse', '--abbrev-ref', 'HEAD'])
+    .toString()
+    .trim();
+}
+
+/**
+ * List the tag names a Project's git repo holds.
+ *
+ * Core names a Release tag by a UUID and keeps the version in the tag's
+ * trailers, so a spec counts tags rather than matching a version string. The
+ * version itself is asserted through the UI, which is where it is the desktop
+ * app's responsibility.
+ */
+export function localTags(dir: string): string[] {
+  return execFileSync('git', ['-C', dir, 'tag', '--list'])
+    .toString()
+    .trim()
+    .split('\n')
+    .filter((line) => line !== '')
+    .sort();
+}
+
+/** List the tag names a bare remote holds, via `git ls-remote --tags`. */
+export function remoteTags(remotePath: string): string[] {
+  return (
+    execFileSync('git', ['ls-remote', '--tags', remotePath])
+      .toString()
+      .trim()
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => line.replace(/^\S+\s+refs\/tags\//, ''))
+      // An annotated tag also lists its dereferenced commit as "<name>^{}"
+      .filter((name) => !name.endsWith('^{}'))
+      .sort()
+  );
 }
 
 /**

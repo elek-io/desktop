@@ -6,6 +6,7 @@ import type {
   MdAstRoot,
   ReferencedValue,
   SupportedLanguage,
+  UpdateEntryProps,
 } from '@elek-io/core';
 
 import { navigate } from './navigation.js';
@@ -127,6 +128,25 @@ export async function createEntryViaIpc(
   }
 ): Promise<Entry> {
   return page.evaluate(async (p) => window.ipc.core.entries.create(p), props);
+}
+
+/**
+ * Update an Entry directly over IPC, bypassing the UI.
+ *
+ * Use this to arrange a precondition a test depends on but does not itself
+ * verify, such as a Project holding a changed Entry for a Release's diff. To
+ * exercise the update flow through the form, use the Entry update route.
+ */
+export async function updateEntryViaIpc(
+  page: Page,
+  props: {
+    projectId: string;
+    collectionId: string;
+    id: string;
+    values: UpdateEntryProps['values'];
+  }
+): Promise<Entry> {
+  return page.evaluate(async (p) => window.ipc.core.entries.update(p), props);
 }
 
 /**
