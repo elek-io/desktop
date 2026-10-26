@@ -65,7 +65,9 @@ function ListProjectsPage(): ReactElement {
   });
   // Core refuses a repository without a draft branch, which holds no Project
   // or one made before the branches were renamed. Said in the dialog, so the
-  // address can be corrected. See contributing/error-handling.md.
+  // address can be corrected. A git that cannot load a shared library raises
+  // the same type, which the renderer cannot tell apart.
+  // See contributing/error-handling.md.
   const [isCloneRefused, setIsCloneRefused] = useState(false);
   const { mutateAsync: cloneProject, handleError: handleCloneError } =
     useAppMutation(queryOptions.projects.clone, {
