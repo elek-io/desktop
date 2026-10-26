@@ -81,6 +81,17 @@ declare global {
         update: ElekIoCore['collections']['update'];
         delete: ElekIoCore['collections']['delete'];
       };
+      components: {
+        list: ElekIoCore['components']['list'];
+        count: ElekIoCore['components']['count'];
+        create: ElekIoCore['components']['create'];
+        read: ElekIoCore['components']['read'];
+        readBySlug: ElekIoCore['components']['readBySlug'];
+        history: ElekIoCore['components']['history'];
+        resolveComponentId: ElekIoCore['components']['resolveComponentId'];
+        update: ElekIoCore['components']['update'];
+        delete: ElekIoCore['components']['delete'];
+      };
       entries: {
         list: ElekIoCore['entries']['list'];
         create: ElekIoCore['entries']['create'];

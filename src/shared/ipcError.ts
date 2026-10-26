@@ -40,26 +40,78 @@ export function isCoreErrorType(value: unknown): value is CoreErrorType {
 }
 
 /**
- * Encodes a CoreError's type, message and stack into a single message string.
- * Called in the main process before re-throwing, so all three survive IPC. The
- * stack is Core's own origin stack, which the renderer-side IPC error lacks
- * (Electron reconstructs a frameless error). `undefined` stack is simply
- * omitted by JSON.stringify.
+ * Narrows a CoreError's `cause` to what may cross IPC, or `undefined`.
+ *
+ * Only structured data crosses, because the cause exists for a screen to branch
+ * on rather than to show. Two shapes are dropped on purpose:
+ *
+ * - An `Error`, a `ZodError` included, keeps none of its own fields through
+ *   JSON, so what would arrive is an empty object. Its message is already the
+ *   CoreError's message.
+ * - A primitive. Core passes git's raw stderr and stdout as the cause of a
+ *   push it refuses, and a remote URL there can carry a credential, so no
+ *   primitive cause is forwarded.
+ *
+ * The result is a JSON round trip, so the value it returns is a plain clone and
+ * re-serializing it cannot throw.
+ */
+function encodableCause(cause: unknown): unknown {
+  if (typeof cause !== 'object' || cause === null || cause instanceof Error) {
+    return undefined;
+  }
+
+  try {
+    // The parse is what rejects what the stringify cannot express. A circular
+    // value or a BigInt throws there, and a `toJSON` answering undefined makes
+    // the stringify answer undefined, which the parse then throws on, since
+    // TypeScript's own signature does not admit that return.
+    return JSON.parse(JSON.stringify(cause)) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Encodes a CoreError's type, message, stack and cause into a single message
+ * string. Called in the main process before re-throwing, so all four survive
+ * IPC. The stack is Core's own origin stack, which the renderer-side IPC error
+ * lacks (Electron reconstructs a frameless error). An `undefined` stack or
+ * cause is simply omitted by JSON.stringify, so an error Core raised without a
+ * cause encodes and decodes exactly as it did before the cause was carried.
+ *
+ * The cause is the issue list Core attaches to a `Conflict` it raises for a
+ * field definition change it cannot carry out, which is what lets a screen name
+ * the Entry to fix. See `entryIssuesOf` in the renderer's `lib/schemaChange.ts`,
+ * the one typed reader of it. Nothing renders or logs a cause raw.
  */
 export function serializeCoreError(
   type: CoreErrorType,
   message: string,
-  stack?: string
+  stack?: string,
+  cause?: unknown
 ): string {
-  return `${IPC_CORE_ERROR_SENTINEL}${JSON.stringify({ type, message, stack })}`;
+  return `${IPC_CORE_ERROR_SENTINEL}${JSON.stringify({
+    type,
+    message,
+    stack,
+    cause: encodableCause(cause),
+  })}`;
 }
 
 /**
- * Decodes an error received in the renderer back into its type and message.
+ * Decodes an error received in the renderer back into its type, message, stack
+ * and cause.
  * Locates the sentinel by substring, so it is robust to Electron prefixing the
  * message (e.g. "Error invoking remote method ..."). Falls back to the raw
  * message for non-CoreError errors (route or plain JS errors) and any malformed
  * payload, so `type` is simply absent then.
+ *
+ * The `cause` is absent whenever Core raised the error without one, or raised
+ * it with one the encoding does not forward. It is `unknown`, because what Core
+ * attaches differs per call, so read it through a typed reader rather than
+ * trusting its shape. `errorLogAttributes` leaves it out of every log record,
+ * which is what keeps an Entry's content and a git remote's URL out of a log
+ * file.
  *
  * A plain error keeps its own `stack`. That is the only stack such an error
  * has, and every caller logs what this returns, so dropping it left an ordinary
@@ -75,6 +127,7 @@ export function parseIpcError(error: unknown): {
   type?: CoreErrorType;
   message: string;
   stack?: string;
+  cause?: unknown;
 } {
   const raw = error instanceof Error ? error.message : String(error);
   const sentinelIndex = raw.indexOf(IPC_CORE_ERROR_SENTINEL);
@@ -100,9 +153,14 @@ export function parseIpcError(error: unknown): {
           'stack' in parsed && typeof parsed.stack === 'string'
             ? parsed.stack
             : undefined;
-        return stack === undefined
-          ? { type, message }
-          : { type, message, stack };
+        // Spread rather than branched, so an absent stack or cause leaves the
+        // key off entirely instead of present and undefined
+        return {
+          type,
+          message,
+          ...(stack === undefined ? {} : { stack }),
+          ...('cause' in parsed ? { cause: parsed.cause } : {}),
+        };
       }
     }
   } catch {
