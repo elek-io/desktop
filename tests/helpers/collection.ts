@@ -369,6 +369,23 @@ export async function updateCollectionViaIpc(
   );
 }
 
+/**
+ * Delete a Collection directly over IPC, bypassing the UI.
+ *
+ * Use this to arrange a precondition a test depends on but does not itself
+ * verify, for example a `draft` whose added and removed Collection nets to no
+ * change at all, which is what Core calls a patch Release.
+ */
+export async function deleteCollectionViaIpc(
+  page: Page,
+  props: { projectId: string; id: string }
+): Promise<void> {
+  await page.evaluate(
+    async (p) => window.ipc.core.collections.delete(p),
+    props
+  );
+}
+
 /** Route to a Collection's Entry list and confirm the app rendered there. */
 export async function navigateToCollection(
   page: Page,

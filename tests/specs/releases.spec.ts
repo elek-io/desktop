@@ -4,7 +4,10 @@ import { join } from 'node:path';
 
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import { expectNoAxeViolations } from '../helpers/accessibility.js';
-import { createCollectionViaIpc } from '../helpers/collection.js';
+import {
+  createCollectionViaIpc,
+  deleteCollectionViaIpc,
+} from '../helpers/collection.js';
 import { dismissDialog } from '../helpers/dialog.js';
 import {
   createEntryViaIpc,
@@ -15,6 +18,7 @@ import {
 import {
   stubCoreHang,
   stubCoreReject,
+  stubCoreRejectWithType,
   stubCoreResolve,
 } from '../helpers/ipc.js';
 import { verifyCurrentRouteHash } from '../helpers/navigation.js';
@@ -218,6 +222,51 @@ test.describe('Releases', () => {
     await expect(dialog.getByText('Major', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Version 0.1.0 becomes')).toBeVisible();
     await expect(dialog.getByText('1.0.0', { exact: true })).toBeVisible();
+  });
+
+  test('shows a Release that changes nothing a site reads as a Patch', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // A Collection added and removed again inside one draft. Core compares the
+    // released state against the current draft and never the commits between,
+    // so this nets to no classified change while draft is still ahead, which
+    // is the state Core calls a patch (see its releases doc).
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await deleteCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+
+    await navigateToReleases(mainWindow, project.id);
+    await openReleaseDialog(mainWindow);
+    const dialog = mainWindow.getByRole('dialog');
+
+    // The badge carries its word, so a Patch is never read by color alone.
+    await expect(
+      dialog.getByText(`Version ${CREATED_VERSION} becomes`)
+    ).toBeVisible();
+    await expect(dialog.getByText('0.0.2', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Patch', { exact: true })).toBeVisible();
+
+    // No change drove the bump, so the sentence says why without naming one,
+    // and there is no list of changes to show.
+    await expect(
+      dialog.getByText(
+        'This is a patch Release, because what a site reads is unchanged.',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(dialog.getByText('What changed')).toBeHidden();
+
+    // There is still something to publish, so the Release is offered.
+    await expect(
+      dialog.getByRole('button', { name: 'Create Release' })
+    ).toBeVisible();
   });
 
   test('says on the button that it is waiting while the Release runs', async ({
@@ -597,6 +646,85 @@ test.describe('Releases', () => {
     ).toBeVisible();
   });
 
+  test('says a repository that refused access cannot be read, and offers nothing to press', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+
+    // A remote that rejects the credentials, which no local repository can be
+    // arranged into. Core puts it under Unauthorized (see its git-and-sync
+    // error table), which is what a wrong or expired token gives.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:releases:prepare',
+      'Unauthorized'
+    );
+
+    await navigateToReleases(mainWindow, project.id);
+    await openReleaseDialog(mainWindow);
+    const dialog = mainWindow.getByRole('dialog');
+
+    await expect(
+      dialog.getByText(
+        'The Git repository refused access, so ask whoever set up this Project.'
+      )
+    ).toBeVisible();
+
+    // Neither button would change the answer: nothing can be released, and a
+    // second read refuses the same way until somebody is let into the
+    // repository, which happens outside this dialog.
+    await expect(
+      dialog.getByRole('button', { name: 'Create Release' })
+    ).toBeHidden();
+    await expect(
+      dialog.getByRole('button', { name: 'Try again' })
+    ).toBeHidden();
+
+    // The Core error type names itself to nobody.
+    await expect(mainWindow.getByText('Unauthorized')).toBeHidden();
+  });
+
+  test('releases nothing when the repository refuses access, and lets the editor retry', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+
+    await navigateToReleases(mainWindow, project.id);
+    await openReleaseDialog(mainWindow);
+    const dialog = mainWindow.getByRole('dialog');
+    const createRelease = dialog.getByRole('button', {
+      name: 'Create Release',
+    });
+    await expect(createRelease).toBeVisible();
+
+    // The push is what the credentials are rejected on, so the read succeeded
+    // and only the Release itself refuses.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:releases:create',
+      'Unauthorized'
+    );
+
+    await createRelease.click();
+
+    await expect(
+      dialog.getByText(
+        'Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project.'
+      )
+    ).toBeVisible();
+
+    // Core leaves nothing half made, so the same press tries again, and the
+    // type stays off the screen here too.
+    await expect(createRelease).toBeEnabled();
+    await expect(mainWindow.getByText('Unauthorized')).toBeHidden();
+  });
+
   test('routes an unexpected Release failure to the root error boundary', async ({
     mainWindow,
     electronApp,
@@ -611,8 +739,39 @@ test.describe('Releases', () => {
 
     // The Release handles only the three guard types in place, so every other
     // failure has to reach the root error boundary. Guards the throwOnError
-    // predicate against a regression to a blanket throwOnError: false.
+    // predicate against a regression to a blanket throwOnError: false. A plain
+    // Error carries no type at all, which is the predicate's first leg.
     await stubCoreReject(electronApp, 'core:releases:create');
+
+    await dialog.getByRole('button', { name: 'Create Release' }).click();
+
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeVisible();
+    await expect(mainWindow.getByText('Create a Release')).toBeHidden();
+  });
+
+  test('routes a Release failure of an unhandled type to the root error boundary', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+
+    await navigateToReleases(mainWindow, project.id);
+    await openReleaseDialog(mainWindow);
+    const dialog = mainWindow.getByRole('dialog');
+
+    // The predicate's second leg: a failure that does carry a CoreError type,
+    // but one the dialog has no answer for. Conflict stands for the four
+    // others the Release does not handle, and the dialog must not swallow it
+    // into a refusal line it has no text for.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:releases:create',
+      'Conflict'
+    );
 
     await dialog.getByRole('button', { name: 'Create Release' }).click();
 
