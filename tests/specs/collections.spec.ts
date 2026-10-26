@@ -16,13 +16,16 @@ import {
 import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
 import {
   createEntryViaIpc,
+  navigateToEntryUpdate,
   referenceValue,
   stringValue,
 } from '../helpers/entry.js';
+import { stubCoreReject } from '../helpers/ipc.js';
 import { reloadWindow } from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
   createProjectViaIpc,
+  navigateToHistory,
 } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -841,6 +844,223 @@ test.describe('Collections', () => {
     await expect(
       mainWindow.getByRole('button', { name: 'Save changes' })
     ).toBeEnabled();
+  });
+
+  // Core refuses a Collection update that would delete stored content, so
+  // removing a Field whose Values are filled in is blocked before anything is
+  // written (see Core's schema-changes docs).
+  test('refuses removing a Field an Entry holds a Value for, in place', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        subtitle: stringValue({ en: 'What ships today' }),
+      },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Subtitle field' })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    // The Conflict is surfaced in place by the save-blocked dialog rather than
+    // the root error boundary (the fixture's console check backs this up: an
+    // error reaching the boundary would log and fail the run).
+    await expect(
+      mainWindow.getByText('Could not save this Collection')
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText('your Field changes affect Entries that already')
+    ).toBeVisible();
+    await dismissDialog(mainWindow);
+
+    // Nothing was saved, so the route stays on the update form.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update$`)
+    );
+
+    // The Project got no commit for the refused update: the History lists the
+    // three creates that arranged this test and no Collection update.
+    await navigateToHistory(mainWindow, project.id);
+    await expect(
+      mainWindow.getByRole('link', { name: /create collection/i })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('link', { name: /update collection/i })
+    ).toHaveCount(0);
+
+    // Routing there reloaded the renderer, so the Entry form re-reads from Core:
+    // the Field is still there and still holds its Value.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(mainWindow.getByLabel('Subtitle')).toHaveValue(
+      'What ships today'
+    );
+  });
+
+  // The mirror of the refusal above: an update that drops no stored Value is
+  // never refused, so the editor can still take a Field out of a Collection
+  // nobody has written in yet.
+  test('saves removing a Field from a Collection with no Entries', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Subtitle field' })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    // Redirecting to the Collection detail is how Core's success surfaces, and
+    // the save-blocked dialog stays away.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    await expect(
+      mainWindow.getByText('Could not save this Collection')
+    ).toBeHidden();
+
+    // Reload so the form re-reads from Core, proving the removal persisted.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+    await expect(
+      mainWindow.getByRole('button', { name: 'Remove the Subtitle field' })
+    ).toHaveCount(0);
+  });
+
+  test('saves removing a Field whose Value is empty in every Entry', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+    // The Entry holds the Field, with nothing written in it for any language,
+    // so removing the Field deletes no content.
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        subtitle: stringValue({ en: null }),
+      },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Subtitle field' })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    await expect(
+      mainWindow.getByText('Could not save this Collection')
+    ).toBeHidden();
+  });
+
+  // The save-blocked dialog handles only Conflict in place, so every other
+  // failure must reach the root error boundary. Guards the throwOnError
+  // predicate against a regression to a blanket throwOnError: false.
+  test('routes an unexpected Collection save failure to the root error boundary', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+
+    await mainWindow
+      .getByLabel('Collection name (Plural)', { exact: true })
+      .fill('Guides');
+    await stubCoreReject(electronApp, 'core:collections:update');
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText('Could not save this Collection')
+    ).toBeHidden();
   });
   // A Collection written when the Project had one language is missing every
   // language added later. Core's language-aware update schema flags that on the
