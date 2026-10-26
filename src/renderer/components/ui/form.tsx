@@ -5,6 +5,8 @@ import { Slot } from '@radix-ui/react-slot';
 import type * as SwitchPrimitive from '@radix-ui/react-switch';
 import {
   CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   EditIcon,
   ImagePlusIcon,
   LanguagesIcon,
@@ -33,6 +35,7 @@ import { AssetDisplay } from '@renderer/components/asset-display';
 import { DragHandle } from '@renderer/components/drag-and-drop';
 import { MarkdownEditor } from '@renderer/components/markdown/markdown-editor';
 import { Button } from '@renderer/components/ui/button';
+import { ButtonGroup } from '@renderer/components/ui/button-group';
 import {
   Dialog,
   DialogBody,
@@ -219,8 +222,15 @@ function FormMessage({
   );
 }
 
-export interface FormSubtreeMessageProps<TFieldValues extends FieldValues> {
-  form: UseFormReturn<TFieldValues>;
+// TTransformedValues is defaulted and never read: only `form.control` is used
+// here, which is typed by TFieldValues alone. Carrying the generic lets a caller
+// pass its form as it is, instead of erasing the third generic through a cast.
+// See contributing/renderer/forms.md#form-typing.
+export interface FormSubtreeMessageProps<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+> {
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   name: FieldPath<TFieldValues>;
   className?: string;
 }
@@ -236,11 +246,17 @@ export interface FormSubtreeMessageProps<TFieldValues extends FieldValues> {
  * AppForm from reporting the same errors a second time.
  * See contributing/renderer/forms.md.
  */
-function FormSubtreeMessage<TFieldValues extends FieldValues>({
+function FormSubtreeMessage<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
   form,
   name,
   className,
-}: FormSubtreeMessageProps<TFieldValues>): React.ReactElement | null {
+}: FormSubtreeMessageProps<
+  TFieldValues,
+  TTransformedValues
+>): React.ReactElement | null {
   useErrorTarget(name);
   const { errors } = useFormState({ control: form.control, name });
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -1995,6 +2011,14 @@ interface FormFieldDefinitionPreviewProps {
   fieldDefinition: FieldDefinition;
   isDraggable?: boolean;
   isEditable?: boolean;
+  /**
+   * Moves this definition one place up or down. Undefined where that move does
+   * not exist, so the button renders disabled rather than vanishing and
+   * shifting the rest of the chrome. Reordering by dragging alone would fail
+   * WCAG 2.1.1 and 2.5.7, so both exist wherever one does.
+   */
+  onMoveUp?: (() => void) | undefined;
+  onMoveDown?: (() => void) | undefined;
   onDelete?: ((fieldDefinition: FieldDefinition) => void) | undefined;
   className?: string;
 }
@@ -2027,6 +2051,8 @@ function FormFieldDefinitionPreview({
   fieldDefinition,
   isDraggable = false,
   isEditable = false,
+  onMoveUp,
+  onMoveDown,
   onDelete,
   className,
 }: FormFieldDefinitionPreviewProps): React.ReactElement {
@@ -2060,29 +2086,36 @@ function FormFieldDefinitionPreview({
         className
       )}
     >
-      <div className="flex flex-col">
+      {/* A vertical ButtonGroup, so the stack's rounding and borders follow
+      the buttons that are actually there rather than a condition per button. */}
+      <ButtonGroup orientation="vertical">
         {isDraggable === true ? (
-          <DragHandle
-            id={fieldDefinition.id}
-            className={cn({
-              'rounded-b-none': isEditable === true || onDelete !== undefined,
-            })}
-          />
+          <>
+            <DragHandle id={fieldDefinition.id} />
+            <Button
+              Icon={ChevronUpIcon}
+              variant="secondary"
+              size="icon"
+              disabled={onMoveUp === undefined}
+              onClick={onMoveUp}
+            >
+              <span className="sr-only">Move the {label} field up</span>
+            </Button>
+            <Button
+              Icon={ChevronDownIcon}
+              variant="secondary"
+              size="icon"
+              disabled={onMoveDown === undefined}
+              onClick={onMoveDown}
+            >
+              <span className="sr-only">Move the {label} field down</span>
+            </Button>
+          </>
         ) : null}
         {isEditable === true ? (
           // Editing a field definition is not implemented yet (deliberate TODO),
           // so this stays disabled and named rather than silently doing nothing.
-          <Button
-            Icon={EditIcon}
-            variant="secondary"
-            size="icon"
-            disabled
-            className={cn({
-              'rounded-none': isDraggable === true && onDelete !== undefined,
-              'rounded-t-none': isDraggable === true,
-              'rounded-b-none': onDelete !== undefined,
-            })}
-          >
+          <Button Icon={EditIcon} variant="secondary" size="icon" disabled>
             <span className="sr-only">
               Edit the {label} field (not available yet)
             </span>
@@ -2094,14 +2127,11 @@ function FormFieldDefinitionPreview({
             variant="destructive"
             size="icon"
             onClick={() => onDelete(fieldDefinition)}
-            className={cn({
-              'rounded-t-none': isDraggable === true || isEditable === true,
-            })}
           >
             <span className="sr-only">Remove the {label} field</span>
           </Button>
         ) : null}
-      </div>
+      </ButtonGroup>
       <div className="flex w-full flex-col gap-2">
         <Label htmlFor={inputId} isRequired={fieldDefinition.isRequired}>
           {label}

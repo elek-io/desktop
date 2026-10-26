@@ -11,6 +11,7 @@ import {
 import {
   DefaultFieldDefinitionForm,
   type AuthorableFieldType,
+  type FieldDefinitionsOwner,
 } from '@renderer/components/forms/default-field-definition-form';
 import { AppForm } from '@renderer/components/ui/app-form';
 import {
@@ -159,10 +160,14 @@ export interface DefinitionSpec<Def extends FieldDefinitionBase> {
 export interface DefinitionDraftProps {
   id: string;
   existingSlugs: string[];
-  // The Collection's current definitions, threaded to the spec's Extras.
+  // The Collection's or Component's current definitions, threaded to the spec's
+  // Extras.
   fieldDefinitions: FieldDefinitionOrGroup[];
   supportedLanguages: SupportedLanguage[];
   defaultLanguage: SupportedLanguage;
+  // Which object the definition is being added to. The shared base form reads
+  // it for the restrictions Core puts on a Component's fields.
+  owner: FieldDefinitionsOwner;
   onAdd: (definition: FieldDefinition) => void;
 }
 
@@ -208,6 +213,7 @@ export function DefinitionDraft<
   existingSlugs,
   supportedLanguages,
   defaultLanguage,
+  owner,
   onAdd,
   fieldDefinitions,
 }: DefinitionDraftProps & { spec: DefinitionSpec<Def> }): ReactElement {
@@ -240,6 +246,7 @@ export function DefinitionDraft<
         fieldType={spec.authorableFieldType}
         currentLanguage={defaultLanguage}
         supportedLanguages={supportedLanguages}
+        owner={owner}
       >
         {Extras ? (
           <Extras

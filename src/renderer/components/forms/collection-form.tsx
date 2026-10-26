@@ -1,34 +1,20 @@
-import { arrayMove } from '@dnd-kit/sortable';
 import { type ReactElement } from 'react';
 import {
   type FieldValues,
   type SubmitHandler,
   type UseFormReturn,
-  useController,
 } from 'react-hook-form';
 
-import {
-  DraggableComponent,
-  SortableFieldArray,
-} from '@renderer/components/drag-and-drop';
-import { AddFieldSheet } from '@renderer/components/forms/add-field-sheet';
-import { PageSection } from '@renderer/components/page-section';
+import { FieldDefinitionsEditor } from '@renderer/components/forms/field-definitions-editor';
 import { AppForm } from '@renderer/components/ui/app-form';
-import {
-  FieldGroup,
-  FieldLegend,
-  FieldSet,
-} from '@renderer/components/ui/field';
 import {
   FormControl,
   FormDescription,
   FormField,
-  FormFieldDefinitionPreview,
   FormInputField,
   FormItem,
   FormLabel,
   FormMessage,
-  FormSubtreeMessage,
   TranslatableFormInputField,
   TranslatableFormTextareaField,
 } from '@renderer/components/ui/form';
@@ -39,11 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
-import { useProject } from '@renderer/hooks/useProject';
 
 import {
-  type FieldDefinition,
-  type FieldDefinitionOrGroup,
   type Project,
   type UpdateCollectionProps,
   supportedIconSchema,
@@ -77,70 +60,16 @@ export function CollectionForm<
   onFormSubmit = () => {},
   id,
 }: CollectionFormProps<TFieldValues, TTransformedValues>): ReactElement {
-  const { translateContent } = useProject();
   // The concrete fields use literal paths RHF cannot resolve for a generic T, so
   // view the form as the collection props for those. This is the documented
   // exception to the form-cast guardrail, scoped to the cast line below so the
-  // ban stays global for the rest of the file.
+  // ban stays global for the rest of the file. The field definitions editor
+  // needs no such view: it takes the form as it is and asserts only its own
+  // field name.
   // @todo Retire it (e.g. a per-mode non-generic component) and drop the suppression.
   const collectionForm =
     // eslint-disable-next-line no-restricted-syntax -- documented whole-form cast
     genericForm as unknown as UseFormReturn<UpdateCollectionProps>;
-
-  // The whole fieldDefinitions array is one Controller-bound value, not a
-  // useFieldArray, so RHF never walks the recursive union and the definitions keep
-  // their real ids. See contributing/renderer/forms.md.
-  const { field: fieldDefinitionsField } = useController({
-    control: collectionForm.control,
-    name: 'fieldDefinitions',
-  });
-  const definitions: FieldDefinitionOrGroup[] = fieldDefinitionsField.value;
-
-  // Typed edit helpers. Each produces a new array so RHF marks the form dirty.
-  // Update and group-nesting helpers do not exist yet, see
-  // contributing/not-yet-implemented.md.
-  const appendDefinition = (definition: FieldDefinition): void => {
-    fieldDefinitionsField.onChange([...definitions, definition]);
-  };
-  // Removing a definition also scrubs it from every slug field's
-  // ofFieldDefinitions. Core's slugSourceReferencesSuperRefinement rejects a
-  // source id that no longer exists in the Collection, and a fieldDefinitions[i]
-  // error has no control to land on here, so a stale id would silently block
-  // every later save with no visible reason.
-  const removeDefinition = (id: string): void => {
-    const withoutSource = (definition: FieldDefinition): FieldDefinition =>
-      definition.fieldType === 'slug' &&
-      definition.ofFieldDefinitions.includes(id)
-        ? {
-            ...definition,
-            ofFieldDefinitions: definition.ofFieldDefinitions.filter(
-              (sourceId) => sourceId !== id
-            ),
-          }
-        : definition;
-
-    fieldDefinitionsField.onChange(
-      definitions
-        .filter((definition) => definition.id !== id)
-        .map((definition) =>
-          'isGroup' in definition
-            ? {
-                ...definition,
-                fieldDefinitions:
-                  definition.fieldDefinitions.map(withoutSource),
-              }
-            : withoutSource(definition)
-        )
-    );
-  };
-  const moveDefinition = (activeId: string, overId: string): void => {
-    const oldIndex = definitions.findIndex((d) => d.id === activeId);
-    const newIndex = definitions.findIndex((d) => d.id === overId);
-    if (oldIndex === -1 || newIndex === -1) {
-      return;
-    }
-    fieldDefinitionsField.onChange(arrayMove(definitions, oldIndex, newIndex));
-  };
 
   return (
     <AppForm
@@ -285,84 +214,12 @@ export function CollectionForm<
         />
       </div>
 
-      <PageSection
-        title="Define this Collections Fields"
-        description="Add Fields to structure the Collections content and define how users interact with those Fields."
-        actions={
-          isViewOnly ? (
-            <></>
-          ) : (
-            <AddFieldSheet
-              project={project}
-              fieldDefinitions={definitions}
-              onAppend={appendDefinition}
-            />
-          )
-        }
-      >
-        {/* The definitions render as previews, not as bound fields, so a Core
-        refinement that lands on the array or on a definition inside it (a
-        duplicate slug, a stale slug source, a language a Field is missing) has no
-        FormMessage to land on. Without this, such an error would make Save a
-        silent no-op. See contributing/renderer/forms.md. */}
-        <FormSubtreeMessage
-          form={collectionForm}
-          name="fieldDefinitions"
-          className="mt-6"
-        />
-
-        <div className="mt-6 grid grid-cols-12 gap-6">
-          <SortableFieldArray items={definitions} onReorder={moveDefinition}>
-            {definitions.map((fieldDefinition) => {
-              // Groups are presentational. Authoring them is not supported yet,
-              // so members are shown read-only as a preview.
-              if ('isGroup' in fieldDefinition) {
-                return (
-                  <DraggableComponent
-                    key={fieldDefinition.id}
-                    id={fieldDefinition.id}
-                  >
-                    <FieldSet className="col-span-12">
-                      <FieldLegend>
-                        {translateContent({
-                          key: 'fieldDefinitionGroup.label',
-                          record: fieldDefinition.label,
-                        })}
-                      </FieldLegend>
-                      <FieldGroup className="grid grid-cols-12 gap-6">
-                        {fieldDefinition.fieldDefinitions.map((member) => (
-                          <FormFieldDefinitionPreview
-                            key={member.id}
-                            fieldDefinition={member}
-                          />
-                        ))}
-                      </FieldGroup>
-                    </FieldSet>
-                  </DraggableComponent>
-                );
-              }
-
-              return (
-                <DraggableComponent
-                  key={fieldDefinition.id}
-                  id={fieldDefinition.id}
-                >
-                  <FormFieldDefinitionPreview
-                    fieldDefinition={fieldDefinition}
-                    isDraggable={isViewOnly === false}
-                    isEditable={isViewOnly === false}
-                    onDelete={
-                      isViewOnly
-                        ? undefined
-                        : () => removeDefinition(fieldDefinition.id)
-                    }
-                  />
-                </DraggableComponent>
-              );
-            })}
-          </SortableFieldArray>
-        </div>
-      </PageSection>
+      <FieldDefinitionsEditor
+        form={genericForm}
+        project={project}
+        owner="collection"
+        isViewOnly={isViewOnly}
+      />
       {children}
     </AppForm>
   );

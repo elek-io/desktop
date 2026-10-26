@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { type ReactElement } from 'react';
 
 import { AssetDefinitionDraft } from '@renderer/components/forms/asset-field-definition';
+import { DynamicDefinitionDraft } from '@renderer/components/forms/dynamic-field-definition';
 import { EntryDefinitionDraft } from '@renderer/components/forms/entry-field-definition';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 import {
@@ -376,12 +377,22 @@ const rangeSpec: DefinitionSpec<RangeFieldDefinition> = {
 };
 
 /**
- * Field types Core defines but that cannot be authored yet. They still need a
- * registry entry to keep the Record exhaustive. The Add Field picker reads this
- * to disable them, so both facts stay together.
+ * Field types Core defines but that cannot be authored yet. Every type Core
+ * declares can be authored today, so this is empty. It stays because it is the
+ * one place the Add Field picker reads to disable a type, so a type Core adds
+ * before the client can draw it is listed here and nowhere else.
  */
-export const unauthorableFieldTypes: ReadonlySet<FieldType> = new Set([
-  'dynamic',
+export const unauthorableFieldTypes: ReadonlySet<FieldType> = new Set();
+
+/**
+ * Field types a Component cannot hold. Core's
+ * `forbidUniqueAndSlugInComponentSuperRefinement` rejects a `slug` field inside
+ * a Component, because uniqueness is enforced over a Collection's top level
+ * fields only. The Add Field picker reads this too, so the choice is never
+ * offered and then refused on save.
+ */
+export const fieldTypesForbiddenInComponents: ReadonlySet<FieldType> = new Set([
+  'slug',
 ]);
 
 /**
@@ -409,10 +420,5 @@ export const FIELD_DEFINITION_REGISTRY: Record<
   asset: (props) => <AssetDefinitionDraft {...props} />,
   entry: (props) => <EntryDefinitionDraft {...props} />,
   markdown: (props) => <MarkdownDefinitionDraft {...props} />,
-  // Unreachable through the picker, which disables it via unauthorableFieldTypes.
-  dynamic: () => (
-    <div className="rounded-md border border-dashed border-zinc-300 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-      This field type can&apos;t be authored yet.
-    </div>
-  ),
+  dynamic: (props) => <DynamicDefinitionDraft {...props} />,
 };

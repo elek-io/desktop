@@ -49,6 +49,15 @@ export type AuthorableFieldType =
   Exclude<FieldType, 'select'> | 'stringSelect' | 'numberSelect';
 
 /**
+ * Which object holds the field definitions being authored. A Collection and a
+ * Component share this whole authoring layer, and the owner is what decides the
+ * two restrictions Core puts on a Component's fields: no `slug` field type and
+ * no uniqueness. Declared here, the lowest file of the layer, so every file
+ * above it imports downward.
+ */
+export type FieldDefinitionsOwner = 'collection' | 'component';
+
+/**
  * Field types where Core pins `isRequired` to a literal, so the switch shows a
  * fixed fact instead of offering a choice. Both always carry a value.
  */
@@ -77,8 +86,19 @@ const fixedUniquenessFieldTypes: readonly AuthorableFieldType[] = [
 /**
  * The reason a type's uniqueness is fixed, shown under the locked switch so the
  * disabled control explains itself rather than looking broken.
+ *
+ * Inside a Component the answer is the same for every type, because Core
+ * enforces uniqueness over a Collection's top level fields only, so that case
+ * is answered before the type is even read.
  */
-function uniquenessNote(fieldType: AuthorableFieldType): string | null {
+function uniquenessNote(
+  fieldType: AuthorableFieldType,
+  owner: FieldDefinitionsOwner
+): string | null {
+  if (owner === 'component') {
+    return 'Fields of a Component cannot be unique, since the same Component is used in more than one place.';
+  }
+
   switch (fieldType) {
     case 'slug':
       return 'Slugs are always unique, so a single Entry can be identified by it.';
@@ -119,6 +139,7 @@ interface DefaultFieldDefinitionFormProps<
   supportedLanguages: SupportedLanguage[];
   currentLanguage: SupportedLanguage;
   fieldType: AuthorableFieldType;
+  owner: FieldDefinitionsOwner;
 }
 
 function DefaultFieldDefinitionForm<
@@ -129,6 +150,7 @@ function DefaultFieldDefinitionForm<
   supportedLanguages,
   children,
   fieldType,
+  owner,
 }: DefaultFieldDefinitionFormProps<T>): ReactElement {
   // Every FieldDefinition shares the base fields this component edits, but RHF's
   // FieldPath cannot reduce those literal paths for an unresolved generic T, so
@@ -306,10 +328,10 @@ function DefaultFieldDefinitionForm<
               <FormDescription>
                 You won&apos;t be able to create an Entry if there is an
                 existing Entry with identical content.
-                {uniquenessNote(fieldType) !== null && (
+                {uniquenessNote(fieldType, owner) !== null && (
                   <>
                     <Separator className="my-2" />
-                    <i>{uniquenessNote(fieldType)}</i>
+                    <i>{uniquenessNote(fieldType, owner)}</i>
                   </>
                 )}
               </FormDescription>
@@ -319,7 +341,10 @@ function DefaultFieldDefinitionForm<
               <Switch
                 checked={field.value}
                 onCheckedChange={field.onChange}
-                disabled={fixedUniquenessFieldTypes.includes(fieldType)}
+                disabled={
+                  owner === 'component' ||
+                  fixedUniquenessFieldTypes.includes(fieldType)
+                }
               />
             </FormControl>
           </FormItem>
