@@ -29,7 +29,7 @@ git branch -u origin/draft draft
 git branch -u origin/main main
 ```
 
-Both pushes skip a check with `--no-verify`. That check looks for Git LFS on your computer, and elek.io Desktop carries its own copy rather than installing one. Then synchronize the Project in elek.io Desktop, which uploads anything the pushes left behind.
+Both pushes pass `--no-verify`, which turns off every check Git runs before a push, not one in particular. In a Project elek.io Desktop set up, that is the check looking for Git LFS on your computer, and elek.io Desktop carries its own copy rather than installing one. If you added checks of your own to that repository, those are skipped too. Then synchronize the Project in elek.io Desktop, which uploads anything the pushes left behind.
 
 Every other copy then runs `git fetch --prune` and the two `git branch -u` lines.
 
