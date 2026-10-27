@@ -1,4 +1,4 @@
-import { type CoreErrorType } from '@elek-io/core';
+import { type CoreErrorType, type EntryIssue } from '@elek-io/core';
 
 /**
  * Cross-process helpers to preserve a CoreError's `type` across the IPC
@@ -40,10 +40,60 @@ export function isCoreErrorType(value: unknown): value is CoreErrorType {
 }
 
 /**
+ * The keys of one of Core's field definition issues that may cross IPC.
+ *
+ * Everything else an issue carries is content somebody wrote:
+ * `transformedValues` holds every Value of the Entry and `currentValue` the one
+ * that cannot follow the change. No screen reads either, and a refused change
+ * in a large Collection would otherwise pack every affected Entry's content
+ * into one message, so they are dropped here, at the boundary, rather than at
+ * the reader. The list is typed against Core's own `EntryIssue`, so a key
+ * renamed there fails to compile.
+ */
+const forwardedIssueKeys = [
+  'entryId',
+  'collectionId',
+  'fieldSlug',
+  'issue',
+] as const satisfies readonly (keyof EntryIssue)[];
+
+/**
+ * Whether a value is an object literal rather than a class instance, a `Date`,
+ * a `Map` or anything else with a prototype of its own. Such a value survives
+ * JSON as a string or as `{}`, which is not structured data a screen can branch
+ * on, so only the literal shape crosses.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+/**
+ * One element of an array cause, narrowed to what may cross.
+ *
+ * An element carrying Core's `issue` key is one of its field definition
+ * issues, so it crosses as the keys above and nothing else. Anything else
+ * crosses as it is, so a cause of another shape is not silently emptied.
+ */
+function encodableIssue(candidate: unknown): unknown {
+  if (isPlainObject(candidate) === false || 'issue' in candidate === false) {
+    return candidate;
+  }
+
+  return Object.fromEntries(
+    forwardedIssueKeys.map((key) => [key, candidate[key]])
+  );
+}
+
+/**
  * Narrows a CoreError's `cause` to what may cross IPC, or `undefined`.
  *
  * Only structured data crosses, because the cause exists for a screen to branch
- * on rather than to show. Two shapes are dropped on purpose:
+ * on rather than to show, so a cause is forwarded only when it is an array or a
+ * plain object. That drops two shapes on purpose:
  *
  * - An `Error`, a `ZodError` included, keeps none of its own fields through
  *   JSON, so what would arrive is an empty object. Its message is already the
@@ -56,7 +106,13 @@ export function isCoreErrorType(value: unknown): value is CoreErrorType {
  * re-serializing it cannot throw.
  */
 function encodableCause(cause: unknown): unknown {
-  if (typeof cause !== 'object' || cause === null || cause instanceof Error) {
+  const narrowed = Array.isArray(cause)
+    ? cause.map(encodableIssue)
+    : isPlainObject(cause)
+      ? cause
+      : undefined;
+
+  if (narrowed === undefined) {
     return undefined;
   }
 
@@ -65,7 +121,7 @@ function encodableCause(cause: unknown): unknown {
     // value or a BigInt throws there, and a `toJSON` answering undefined makes
     // the stringify answer undefined, which the parse then throws on, since
     // TypeScript's own signature does not admit that return.
-    return JSON.parse(JSON.stringify(cause)) as unknown;
+    return JSON.parse(JSON.stringify(narrowed)) as unknown;
   } catch {
     return undefined;
   }
@@ -81,8 +137,9 @@ function encodableCause(cause: unknown): unknown {
  *
  * The cause is the issue list Core attaches to a `Conflict` it raises for a
  * field definition change it cannot carry out, which is what lets a screen name
- * the Entry to fix. See `entryIssuesOf` in the renderer's `lib/schemaChange.ts`,
- * the one typed reader of it. Nothing renders or logs a cause raw.
+ * the Entry to fix. Each issue crosses as `forwardedIssueKeys` and nothing
+ * else. See `entryIssuesOf` in the renderer's `lib/schemaChange.ts`, the one
+ * typed reader of it. Nothing renders or logs a cause raw.
  */
 export function serializeCoreError(
   type: CoreErrorType,

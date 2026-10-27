@@ -33,8 +33,10 @@ const entryIssueTypes = new Set<string>(
  *
  * Deliberately narrower than Core's `EntryIssue`: that also carries
  * `transformedValues` and `currentValue`, which are the content somebody wrote,
- * and nothing on screen needs them. Reading only these four keeps an Entry's
- * content out of every component that renders a refusal.
+ * and nothing on screen needs them. The IPC boundary drops both before an issue
+ * crosses (`forwardedIssueKeys` in `shared/ipcError.ts`), so they never reach
+ * the renderer at all, and reading only these four keeps whatever does arrive
+ * out of every component that renders a refusal.
  */
 export interface SchemaChangeIssue {
   entryId: string;

@@ -27,12 +27,14 @@ The `stack` is what fills the technical detail block on the error screen and the
 
 ### What the `cause` carries, and what it does not
 
-`serializeCoreError` forwards a `cause` only when it is an array or a plain object. The cause exists for a screen to branch on, not to show, and two shapes are dropped on purpose:
+`serializeCoreError` forwards a `cause` only when it is an array or a plain object, meaning one whose prototype is `Object.prototype`. The cause exists for a screen to branch on, not to show, so everything else is dropped, and two shapes are worth naming:
 
 - **An `Error`**, a `ZodError` included. JSON keeps none of an Error's own fields, so what would arrive is an empty object, and its message is already the `CoreError`'s message.
 - **A primitive.** Core passes git's raw stderr and stdout as the cause of a push it refuses, and a remote URL there can carry a credential, so no primitive cause crosses.
 
-What is left is the issue list Core attaches to a `Conflict` it raises for a field definition change it cannot carry out alone (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). One typed reader reads it, `entryIssuesOf` in [`lib/schemaChange.ts`](/src/renderer/lib/schemaChange.ts), and it narrows each issue to the four fields a screen needs. `transformedValues` and `currentValue` are deliberately left behind, because those are the content somebody wrote.
+Anything with a prototype of its own goes the same way, because it does not survive JSON as structured data either: a `Date` would arrive as a string, a `Map` or a `Set` as `{}`.
+
+What is left is the issue list Core attaches to a `Conflict` it raises for a field definition change it cannot carry out alone (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). Each element of an array cause that carries Core's `issue` key crosses as the four fields a screen needs and nothing else, `forwardedIssueKeys` in `ipcError.ts`. `transformedValues` and `currentValue` stay in the main process, because those are the content somebody wrote: `transformedValues` holds every Value of the Entry, so a refused change in a large Collection would otherwise pack the content of each affected Entry into one message. One typed reader reads what arrives, `entryIssuesOf` in [`lib/schemaChange.ts`](/src/renderer/lib/schemaChange.ts), which validates it rather than trusting the payload.
 
 **No cause reaches a log record.** `errorLogAttributes` ([`shared/logError.ts`](/src/shared/logError.ts)) reads the decoded `type`, `message` and `stack` and nothing else, which is what keeps an Entry's content and a git remote's URL out of a log file. Nothing renders a cause raw either.
 
