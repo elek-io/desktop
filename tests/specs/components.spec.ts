@@ -1,6 +1,11 @@
 import { expect } from '@playwright/test';
 
-import { uuid } from '@elek-io/core';
+import {
+  uuid,
+  type DynamicFieldDefinition,
+  type FieldDefinition,
+  type FieldDefinitionGroup,
+} from '@elek-io/core';
 
 import { test } from '../fixtures/electronApp.js';
 import {
@@ -36,6 +41,24 @@ import { setUserViaIpc } from '../helpers/user.js';
 
 /** The route of one Component's configure page, by its uuid segment. */
 const componentRoute = /#\/projects\/[^/]+\/components\/[0-9a-f-]{36}$/;
+
+/**
+ * The one dynamic Field of a stored Collection or Component, read back to
+ * assert which Components it allows and that it kept its id. A group holds no
+ * Field the editor can edit, so only the top level is searched.
+ */
+function dynamicFieldOf(
+  fieldDefinitions: readonly (FieldDefinition | FieldDefinitionGroup)[]
+): DynamicFieldDefinition {
+  const found = fieldDefinitions.find(
+    (definition): definition is DynamicFieldDefinition =>
+      'isGroup' in definition === false && definition.fieldType === 'dynamic'
+  );
+  if (found === undefined) {
+    throw new Error('Expected a dynamic Field definition to be stored');
+  }
+  return found;
+}
 
 test.describe('Components', () => {
   test('creates a Component with a field through the form and lists it by name', async ({
@@ -76,12 +99,12 @@ test.describe('Components', () => {
     const project = await createProjectViaIpc(mainWindow);
     await navigateToComponentCreate(mainWindow, project.id);
 
-    // An editor has to learn before building a Component that a field cannot be
-    // revised afterwards, so it stands on the screen rather than being found by
+    // An editor has to learn before building a Component what a field takes
+    // after it was added, so it stands on the screen rather than being found by
     // trying. See contributing/not-yet-implemented.md.
     await expect(
       mainWindow.getByText(
-        'Changing a Field after it was added is not possible yet, so check its Label and Slug first.'
+        'A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.'
       )
     ).toBeVisible();
 
@@ -1146,5 +1169,408 @@ test.describe('Components', () => {
     await expect(
       mainWindow.getByText('Could not save this Component')
     ).toBeHidden();
+  });
+
+  // Every page's sections name their Components one by one, so a page gains a
+  // new kind of section only by allowing another Component on the Field that
+  // already holds its sections. Growing is safe where narrowing is not: Core
+  // strips nothing, so the sections an Entry holds survive untouched.
+  test('allows another Component on a Collection Field and keeps the sections its Entries hold', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    const quote = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Quote', de: 'Zitat' },
+      slug: 'quote',
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline', de: 'Schlagzeile' },
+        }),
+      ],
+    });
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero', de: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'tagline',
+          label: { en: 'Tagline', de: 'Slogan' },
+          isRequired: false,
+        }),
+      ],
+    });
+    const sections = dynamicFieldDefinition({
+      label: { en: 'Sections', de: 'Abschnitte' },
+      ofComponents: [quote.id],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'Articles', de: 'Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+        sections,
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day', de: 'Starttag' }),
+        sections: componentValue([
+          {
+            componentId: quote.id,
+            values: {
+              headline: stringValue({ en: 'We are live', de: 'Wir sind live' }),
+            },
+          },
+        ]),
+      },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+
+    // What can be changed about a Field and what cannot stands on the screen,
+    // rather than being found by pressing things.
+    await expect(
+      mainWindow.getByText(
+        'A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.'
+      )
+    ).toBeVisible();
+
+    // The edit control is offered for the dynamic Field only, so the text Field
+    // beside it carries none.
+    const editSections = mainWindow.getByRole('button', {
+      name: 'Allow more Components on the Sections field',
+    });
+    await expect(editSections).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: 'Allow more Components on the Title field',
+      })
+    ).toHaveCount(0);
+
+    // It sits in the Field's own chrome, so a keyboard reaches it in the order
+    // the screen reads, and opens it without a mouse. Move down is disabled on
+    // the last Field, which is why the tab from Move up lands here.
+    await mainWindow
+      .getByRole('button', { name: 'Move the Sections field up' })
+      .focus();
+    await mainWindow.keyboard.press('Tab');
+    await expect(editSections).toBeFocused();
+    await mainWindow.keyboard.press('Enter');
+
+    const sheet = mainWindow.getByRole('dialog', {
+      name: 'Allow more Components on Sections',
+    });
+    await expect(sheet).toBeVisible();
+
+    // The Component the Field allows already is listed as allowed in words. A
+    // switched off control would say nothing and no keyboard would reach it.
+    await expect(sheet.getByText('Allowed already:')).toBeVisible();
+    await expect(
+      sheet.getByRole('listitem').filter({ hasText: 'Quote' })
+    ).toBeVisible();
+    await expect(
+      sheet.getByRole('switch', { name: 'Quote', exact: true })
+    ).toHaveCount(0);
+
+    // Nothing else about the definition is editable here.
+    await expect(sheet.getByLabel('Label', { exact: true })).toHaveCount(0);
+    await expect(sheet.getByLabel('Slug', { exact: true })).toHaveCount(0);
+    await expect(sheet.getByLabel('Minimum')).toHaveCount(0);
+    await expect(sheet.getByLabel('Maximum')).toHaveCount(0);
+
+    // Only what can be added is offered, and there is nothing to allow until
+    // one is selected.
+    const heroSwitch = sheet.getByRole('switch', { name: 'Hero', exact: true });
+    await expect(heroSwitch).toBeVisible();
+    const allow = mainWindow.getByRole('button', {
+      name: 'Allow these Components',
+    });
+    await expect(allow).toBeDisabled();
+    await heroSwitch.click();
+    await expect(allow).toBeEnabled();
+    await allow.click();
+    await expect(sheet).toBeHidden();
+
+    // The edit dirties the Collection form, and the save is Core's own update.
+    const save = mainWindow.getByRole('button', { name: 'Save changes' });
+    await expect(save).toBeEnabled();
+    await save.click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+
+    // One commit, as every other change to a Collection lands.
+    await navigateToHistory(mainWindow, project.id);
+    await expect(
+      mainWindow.getByRole('link', { name: /update collection/i })
+    ).toHaveCount(1);
+
+    // The Field kept its id, which is what Core matches on, and its allowed
+    // Components only grew.
+    const stored = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const storedSections = dynamicFieldOf(stored.fieldDefinitions);
+    expect(storedSections.id).toBe(sections.id);
+    expect(storedSections.ofComponents).toEqual([quote.id, hero.id]);
+
+    // And the section the Entry holds came through the save untouched, in both
+    // languages.
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(storedEntries).toHaveLength(1);
+    expect(storedEntries[0]?.values['sections']).toEqual(
+      entry.values['sections']
+    );
+
+    // Reading the Entry back through its own form shows the same, and the
+    // second language is reached through the field's translations dialog.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Headline', { exact: true })
+    ).toHaveValue('We are live');
+    await mainWindow
+      .getByRole('button', { name: 'Edit translations for Headline' })
+      .click();
+    const translations = mainWindow.getByRole('dialog', { name: 'Headline' });
+    await expect(translations.getByLabel('de', { exact: true })).toHaveValue(
+      'Wir sind live'
+    );
+    await translations.getByRole('button', { name: 'Done' }).click();
+    await expect(translations).toBeHidden();
+
+    // The Entry can now gain a section of the Component that was just allowed.
+    await mainWindow.getByRole('button', { name: 'Add section' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Hero' }).click();
+    await expect(mainWindow.getByText('Section 2 of 2')).toBeVisible();
+    // An optional Field's label carries an " - optional" suffix, so it is
+    // matched by prefix.
+    await mainWindow.getByLabel('Tagline').fill('Content without a server');
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Headline', { exact: true })
+    ).toHaveValue('We are live');
+    await expect(mainWindow.getByLabel('Tagline')).toHaveValue(
+      'Content without a server'
+    );
+  });
+
+  // The editor exists once, so a Component's own dynamic Field grows the same
+  // way, and what that save reaches is said before it is pressed.
+  test('allows another Component on a Component Field and says what the save reaches', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    const quote = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Quote', de: 'Zitat' },
+      slug: 'quote',
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline', de: 'Schlagzeile' },
+        }),
+      ],
+    });
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero', de: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'tagline',
+          label: { en: 'Tagline', de: 'Slogan' },
+          isRequired: false,
+        }),
+      ],
+    });
+    const blocks = dynamicFieldDefinition({
+      slug: 'blocks',
+      label: { en: 'Blocks', de: 'Bausteine' },
+      ofComponents: [quote.id],
+    });
+    const container = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Container', de: 'Container' },
+      slug: 'container',
+      fieldDefinitions: [blocks],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'Articles', de: 'Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+        dynamicFieldDefinition({
+          label: { en: 'Sections', de: 'Abschnitte' },
+          ofComponents: [container.id],
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home', de: 'Start' }),
+        sections: componentValue([
+          {
+            componentId: container.id,
+            values: {
+              blocks: componentValue([
+                {
+                  componentId: quote.id,
+                  values: {
+                    headline: stringValue({ en: 'We are live', de: 'Live' }),
+                  },
+                },
+              ]),
+            },
+          },
+        ]),
+      },
+    });
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: container.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Component name', { exact: true })
+    ).toHaveValue('Container');
+
+    // Growing a Component's Field reaches the Entries that hold a section built
+    // from it, and the save says which and how many before it is pressed.
+    await expect(
+      mainWindow.getByText('Saving reaches 1 Collection and 1 Entry.')
+    ).toBeVisible();
+    await expect(mainWindow.getByText('Articles, 1 Entry')).toBeVisible();
+
+    await mainWindow
+      .getByRole('button', {
+        name: 'Allow more Components on the Blocks field',
+      })
+      .click();
+    const sheet = mainWindow.getByRole('dialog', {
+      name: 'Allow more Components on Blocks',
+    });
+    await expect(
+      sheet.getByRole('listitem').filter({ hasText: 'Quote' })
+    ).toBeVisible();
+    await sheet.getByRole('switch', { name: 'Hero', exact: true }).click();
+    await mainWindow
+      .getByRole('button', { name: 'Allow these Components' })
+      .click();
+    await expect(sheet).toBeHidden();
+
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/${project.id}/components$`)
+    );
+
+    // One commit again, and the Field grew without losing its id.
+    await navigateToHistory(mainWindow, project.id);
+    await expect(
+      mainWindow.getByRole('link', { name: /update component/i })
+    ).toHaveCount(1);
+
+    const stored = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: container.id,
+    });
+    const storedBlocks = dynamicFieldOf(stored.fieldDefinitions);
+    expect(storedBlocks.id).toBe(blocks.id);
+    expect(storedBlocks.ofComponents).toEqual([quote.id, hero.id]);
+
+    // The section inside the section survived the cascade with its Values.
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(storedEntries[0]?.values['sections']).toEqual(
+      entry.values['sections']
+    );
+  });
+
+  // An empty ofComponents allows every Component of the Project, so switching
+  // one on would narrow the Field to that one, which Core refuses as a loss and
+  // no screen can answer yet. Such a Field therefore offers nothing to add.
+  test('offers nothing to add on a Field that allows every Component', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createComponentViaIpc(mainWindow, { projectId: project.id });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition(), dynamicFieldDefinition()],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
+
+    await mainWindow
+      .getByRole('button', {
+        name: 'Allow more Components on the Sections field',
+      })
+      .click();
+    const sheet = mainWindow.getByRole('dialog', {
+      name: 'Allow more Components on Sections',
+    });
+    await expect(
+      sheet.getByText(
+        'This Field allows every Component of this Project, the ones added later included, so there is nothing to add.'
+      )
+    ).toBeVisible();
+    await expect(
+      sheet.getByRole('switch', { name: 'Teaser', exact: true })
+    ).toHaveCount(0);
+    await expect(
+      mainWindow.getByRole('button', { name: 'Allow these Components' })
+    ).toHaveCount(0);
   });
 });

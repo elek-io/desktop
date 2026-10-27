@@ -2374,7 +2374,12 @@ function FormFieldFromDefinition<
 interface FormFieldDefinitionPreviewProps {
   fieldDefinition: FieldDefinition;
   isDraggable?: boolean;
-  isEditable?: boolean;
+  /**
+   * Opens the editor for this definition. Undefined where nothing about it can
+   * be changed, so no edit control is rendered at all rather than a disabled
+   * one that says nothing and no keyboard reaches.
+   */
+  onEdit?: (() => void) | undefined;
   /**
    * Moves this definition one place up or down. Undefined where that move does
    * not exist, so the button renders disabled rather than vanishing and
@@ -2414,7 +2419,7 @@ function previewFieldValue(fieldDefinition: FieldDefinition): unknown {
 function FormFieldDefinitionPreview({
   fieldDefinition,
   isDraggable = false,
-  isEditable = false,
+  onEdit,
   onMoveUp,
   onMoveDown,
   onDelete,
@@ -2476,12 +2481,18 @@ function FormFieldDefinitionPreview({
             </Button>
           </>
         ) : null}
-        {isEditable === true ? (
-          // Editing a field definition is not implemented yet (deliberate TODO),
-          // so this stays disabled and named rather than silently doing nothing.
-          <Button Icon={EditIcon} variant="secondary" size="icon" disabled>
+        {onEdit !== undefined ? (
+          // A dynamic field is the only one with something to edit: the
+          // Components it allows. The name says that rather than "Edit", so
+          // pressing it holds no surprise.
+          <Button
+            Icon={EditIcon}
+            variant="secondary"
+            size="icon"
+            onClick={onEdit}
+          >
             <span className="sr-only">
-              Edit the {label} field (not available yet)
+              Allow more Components on the {label} field
             </span>
           </Button>
         ) : null}

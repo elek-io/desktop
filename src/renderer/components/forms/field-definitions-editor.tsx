@@ -1,5 +1,5 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import {
   useController,
   type FieldPath,
@@ -12,6 +12,7 @@ import {
   SortableFieldArray,
 } from '@renderer/components/drag-and-drop';
 import { AddFieldSheet } from '@renderer/components/forms/add-field-sheet';
+import { AllowComponentsSheet } from '@renderer/components/forms/allow-components-sheet';
 import { type FieldDefinitionsOwner } from '@renderer/components/forms/default-field-definition-form';
 import { PageSection } from '@renderer/components/page-section';
 import {
@@ -26,6 +27,7 @@ import {
 import { useProject } from '@renderer/hooks/useProject';
 
 import {
+  type DynamicFieldDefinition,
   type FieldDefinition,
   type FieldDefinitionOrGroup,
   type Project,
@@ -75,6 +77,12 @@ export function FieldDefinitionsEditor<
   TTransformedValues
 >): ReactElement {
   const { translateContent } = useProject();
+  // Which definition's allowed Components are being grown, by its own id. The
+  // sheet is mounted for that one definition rather than one per preview, so
+  // only one is ever live.
+  const [growingDefinitionId, setGrowingDefinitionId] = useState<string | null>(
+    null
+  );
   // Every form this serves holds the array under this key, but FieldPath cannot
   // resolve a literal path for an unresolved generic, so the name is asserted
   // once here. Casting the name rather than the whole form is the documented
@@ -87,10 +95,23 @@ export function FieldDefinitionsEditor<
   const definitions: FieldDefinitionOrGroup[] = fieldDefinitionsField.value;
 
   // Typed edit helpers. Each produces a new array so RHF marks the form dirty.
-  // Update and group-nesting helpers do not exist yet, see
+  // Group-nesting helpers do not exist yet, see
   // contributing/not-yet-implemented.md.
   const appendDefinition = (definition: FieldDefinition): void => {
     fieldDefinitionsField.onChange([...definitions, definition]);
+  };
+  // Puts a definition back in place of the one with the same id, which is how
+  // the only editable part of a definition is saved. A definition inside a
+  // group is not reached: a group's members are previews with no edit control,
+  // since groups cannot be authored at all.
+  const replaceDefinition = (definition: FieldDefinition): void => {
+    fieldDefinitionsField.onChange(
+      definitions.map((candidate) =>
+        'isGroup' in candidate || candidate.id !== definition.id
+          ? candidate
+          : definition
+      )
+    );
   };
   // Removing a definition also scrubs it from every slug field's
   // ofFieldDefinitions. Core's slugSourceReferencesSuperRefinement rejects a
@@ -148,6 +169,15 @@ export function FieldDefinitionsEditor<
       ? 'every Entry of this Collection'
       : 'every section built from this Component';
 
+  // The definition the sheet is open on. Read out of the array each render, so
+  // the sheet sees the ids and the allowed Components the array holds now.
+  const growing = definitions.find(
+    (definition): definition is DynamicFieldDefinition =>
+      'isGroup' in definition === false &&
+      definition.fieldType === 'dynamic' &&
+      definition.id === growingDefinitionId
+  );
+
   return (
     <PageSection
       title={
@@ -155,7 +185,7 @@ export function FieldDefinitionsEditor<
           ? "Define this Collection's Fields"
           : "Define this Component's Fields"
       }
-      description={`Add Fields to say what ${subject} holds. Changing a Field after it was added is not possible yet, so check its Label and Slug first.`}
+      description={`Add Fields to say what ${subject} holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`}
       actions={
         isViewOnly ? (
           <></>
@@ -215,7 +245,15 @@ export function FieldDefinitionsEditor<
                 <FormFieldDefinitionPreview
                   fieldDefinition={fieldDefinition}
                   isDraggable={isViewOnly === false}
-                  isEditable={isViewOnly === false}
+                  // The only editable part of a definition is which Components
+                  // a dynamic Field allows, so every other type is offered no
+                  // edit control rather than a disabled one.
+                  onEdit={
+                    isViewOnly === false &&
+                    fieldDefinition.fieldType === 'dynamic'
+                      ? () => setGrowingDefinitionId(fieldDefinition.id)
+                      : undefined
+                  }
                   onMoveUp={
                     isViewOnly === false && index > 0
                       ? () => moveDefinitionBy(index, -1)
@@ -237,6 +275,20 @@ export function FieldDefinitionsEditor<
           })}
         </SortableFieldArray>
       </div>
+
+      {/* Keyed by the definition, so the sheet's form is seeded from the one it
+      was opened on rather than from whichever was opened first. */}
+      {growing === undefined ? null : (
+        <AllowComponentsSheet
+          key={growing.id}
+          fieldDefinition={growing}
+          onAllow={(definition) => {
+            replaceDefinition(definition);
+            setGrowingDefinitionId(null);
+          }}
+          onClose={() => setGrowingDefinitionId(null)}
+        />
+      )}
     </PageSection>
   );
 }

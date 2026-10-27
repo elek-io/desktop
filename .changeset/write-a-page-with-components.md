@@ -22,6 +22,6 @@ When a change cannot be carried out, nothing is saved and the Component is exact
 - A Component cannot use itself, directly or through another Component, and the screen says so rather than failing.
 - A Component a Collection or another Component still uses cannot be deleted. Take it out of the fields that allow it first.
 
-A field still cannot be changed after it was added, to a Collection or to a Component, and both screens now say so where you add one, so you can check its label and slug first. A Component holds no slug field, and none of its fields can be unique, so neither is offered. Fields are reordered by dragging or with the Move up and Move down buttons, so a reorder no longer needs a mouse.
+Both screens now say, where you add a field, what can be changed about it afterwards and what cannot, so you can check its label and slug first. A Component holds no slug field, and none of its fields can be unique, so neither is offered. Fields are reordered by dragging or with the Move up and Move down buttons, so a reorder no longer needs a mouse.
 
 Every change to a Component shows in the Project's History, laid out like its own screen, read-only.

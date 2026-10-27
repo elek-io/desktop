@@ -89,11 +89,12 @@ Two restrictions are Core's and reach the authoring UI through the editor's `own
 
 When users create or update a Collection or a Component, they use one visual editor to define its fields.
 
-**Location:** [`components/forms/field-definitions-editor.tsx`](../../src/renderer/components/forms/field-definitions-editor.tsx) holds that editor, and `collection-form.tsx` and `component-form.tsx` each render it with their own `owner`. It is what owns the Add Field sheet, the previews, the reordering and the typed edit helpers, so a change to any of them reaches both object types at once.
+**Location:** [`components/forms/field-definitions-editor.tsx`](../../src/renderer/components/forms/field-definitions-editor.tsx) holds that editor, and `collection-form.tsx` and `component-form.tsx` each render it with their own `owner`. It is what owns the Add Field sheet, the sheet that grows a `dynamic` field, the previews, the reordering and the typed edit helpers, so a change to any of them reaches both object types at once.
 
 **Features:**
 
 - Add, remove, and reorder fields, by dragging or with the Move up and Move down buttons each preview carries. Dragging alone would fail WCAG 2.1.1 and 2.5.7, so both exist wherever one does
+- Allow more Components on a `dynamic` field that already exists, the one part of a definition that can be edited after it was added, see [Growing a dynamic field](#growing-a-dynamic-field)
 - Select field type (text, textarea, number, toggle, date, asset, entry, etc.)
 - Set labels and descriptions with multi-language support
 - Configure validation rules (min/max length, required, unique)
@@ -114,13 +115,22 @@ A spec ([`field-definition-draft.tsx`](../../src/renderer/components/forms/field
 
 **Type-specific context arrives through `DefinitionExtrasProps`, and it is shared.** Every `Extras` receives `form`, `currentLanguage`, `supportedLanguages` and the Collection's current `fieldDefinitions`, whether it needs them or not. Only `select` reads the languages (its option labels are translatable) and only `slug` reads the sibling definitions (to offer non-slug string fields as slug sources, whose real ids Core's `slugSourceReferencesSuperRefinement` then validates). When a new type needs context the others do not, widen this one shared type rather than branching in the shared base or the sheet.
 
-**A type's data fetching lives inside its own `Extras`.** The `entry` spec's `ofCollections` picker is backed by a Collections list query, and both the query and its `projectId` hook stay in the `Extras` component. The shared engine never learns that a query exists, which is what keeps `DefinitionDraft` free of per-type knowledge.
+**A type's data fetching lives inside its own `Extras`.** The `entry` spec's `ofCollections` picker is backed by a Collections list query, and both the query and its `projectId` hook stay in the `Extras` component. The `dynamic` spec's `Extras` keeps its Components list query one level further down, inside the `OfComponentsPicker` it shares with the sheet that grows an existing field. Either way the shared engine never learns that a query exists, which is what keeps `DefinitionDraft` free of per-type knowledge.
 
 **One spec may diverge between its form values and its resolver output.** `markdown` is the only case. Its recursive `defaultValue` mdast tree blows react-hook-form's path-type instantiation, and the form never edits it (v1 keeps markdown defaults null), so its form values pin `defaultValue` to null while the resolver still yields a full `MarkdownFieldDefinition`. That divergence is the single `as unknown as Resolver` cast in the authoring layer, and it lives at that one seam. Do not reach for it elsewhere.
 
 One field type is special: Core backs `select` with two schemas, one for text options and one for number options. The select authoring file ([`select-field-definition.tsx`](../../src/renderer/components/forms/select-field-definition.tsx)) holds a `DefinitionSpec` for each variant (`stringSelect` / `numberSelect`) and a value-type picker that mounts the matching one. The shared base form receives the resolved variant as its `fieldType`, which is why that prop is the widened `AuthorableFieldType` instead of Core's `FieldType`.
 
 The **Add Field sheet** ([`forms/add-field-sheet.tsx`](../../src/renderer/components/forms/add-field-sheet.tsx)) renders the field-type picker, looks the selected type up in the registry, renders that one entry in its body, and submits it with a single detached `SubmitButton` in its footer. `CollectionForm` ([`forms/collection-form.tsx`](../../src/renderer/components/forms/collection-form.tsx)) embeds `<AddFieldSheet>` and receives each new definition through an `onAppend` callback.
+
+### Growing a dynamic field
+
+A definition is add-only with one exception: a `dynamic` field can be given more Components after it was added, so a page can gain a new kind of section without losing the sections it has. Everything else about a definition is fixed once it is added, see [not-yet-implemented.md](../not-yet-implemented.md#field-definition-editing).
+
+- The Edit button in a preview's chrome opens it, and the editor passes `onEdit` for a `dynamic` field alone, so no other type renders that control at all.
+- [`forms/allow-components-sheet.tsx`](../../src/renderer/components/forms/allow-components-sheet.tsx) is the sheet: one `AppForm` over Core's `dynamicFieldDefinitionSchema`, seeded with the stored definition, whose submit hands the definition to the editor's `replaceDefinition` helper. The id and everything but `ofComponents` come back untouched, which is what keeps the sections Entries hold, since Core matches definitions by `id`.
+- **Only growing is offered, which is a limit on what the screen offers rather than a rule of its own.** Narrowing `ofComponents` strips every Component item no longer allowed, which Core refuses until the update accepts that loss, and showing what would go is not built yet. So the Components already allowed are listed in words instead of as a control that could be switched off, and a field whose `ofComponents` is empty already allows every Component of the Project and therefore offers nothing to add. Core stays the guard either way.
+- `OfComponentsPicker` ([`forms/dynamic-field-definition.tsx`](../../src/renderer/components/forms/dynamic-field-definition.tsx)) is the one picker both paths render: the Add Field sheet through the dynamic `Extras`, and this sheet with `lockedComponentIds` set to what the field allows already. What either offers is decided there rather than twice.
 
 > [!NOTE]
 > The type `Select` lists every Core `fieldType`. To add authoring for a new one, add a `DefinitionSpec` (and, for a complex type, a `<type>-field-definition.tsx` file), register it in `FIELD_DEFINITION_REGISTRY`, and remove it from `unauthorableFieldTypes`. The `Record<FieldType, ...>` type makes this non-optional: the registry does not compile until the new type has an entry. Confirm Core's `fieldTypeSchema` includes it.
@@ -166,7 +176,7 @@ Rendering is driven by a **registry** keyed on Core's `FieldType`, the RENDER fa
 
 - **`FormFieldFromDefinition`** (exported, the entry point) owns the single `FormField` / `Controller` at `name` and composes the label (which marks optional fields with an "- optional" suffix; the control carries `aria-required` for the required state), the registry leaf (through `TranslatableField` when translatable), the description and the validation message. Use it when rendering an Entry's fields.
 
-- **`FormFieldDefinitionPreview`** (exported) is the collection editor's non-editable preview. It draws the same label / leaf / description plus the drag / edit / delete chrome, but is **not** bound to a form: the leaf holds a static, disabled Value, so there are no phantom form paths and, when the selected renderer provides a form control, the label associates with a real (disabled) input, so those previews are addressable by `getByLabel`. The `dynamic` placeholder renders no control, so it is the exception and is not label-addressable.
+- **`FormFieldDefinitionPreview`** (exported) is the collection editor's non-editable preview. It draws the same label / leaf / description plus the drag / edit / delete chrome, but is **not** bound to a form: the leaf holds a static, disabled Value, so there are no phantom form paths and, when the selected renderer provides a form control, the label associates with a real (disabled) input, so those previews are addressable by `getByLabel`. Its edit control is rendered only where the caller passes `onEdit`, which the editor does for a `dynamic` definition alone, see [Growing a dynamic field](#growing-a-dynamic-field). A `dynamic` definition draws its sections editor rather than one input, so its preview carries no labelled form control and the `id` lands on that editor's group instead.
 
 ### Example Usage
 
@@ -306,7 +316,7 @@ const form = useForm({
 
 Entry forms submit like every other form in the app, through `AppForm` and a detached `SubmitButton`. That layer, along with `useAppMutation` for handling an expected `CoreError` in place (the Entry unique-value `Conflict` is the canonical case) and the [form typing rules](./forms.md#form-typing) that the generated schemas make necessary, is documented in [forms.md](./forms.md).
 
-One typing point is specific to this side. The field definitions editor binds `fieldDefinitions` as a single `Controller`-bound value, edited through typed append / remove / move helpers, not as a `useFieldArray` of opaque `{ id }` rows. react-hook-form cannot type a field array whose element is the deep `FieldDefinitionOrGroup` union, and the opaque rows previously overwrote the definitions' real ids, which was the latent slug-source id bug. Keeping the real ids is also what makes a Component's update safe: Core matches field definitions by `id`, so a new one would read as a removal plus an addition and drop the content of every Entry holding the Component. See [`field-definitions-editor.tsx`](../../src/renderer/components/forms/field-definitions-editor.tsx).
+One typing point is specific to this side. The field definitions editor binds `fieldDefinitions` as a single `Controller`-bound value, edited through typed append / replace / remove / move helpers, not as a `useFieldArray` of opaque `{ id }` rows. react-hook-form cannot type a field array whose element is the deep `FieldDefinitionOrGroup` union, and the opaque rows previously overwrote the definitions' real ids, which was the latent slug-source id bug. Keeping the real ids is also what makes a Component's update safe: Core matches field definitions by `id`, so a new one would read as a removal plus an addition and drop the content of every Entry holding the Component. See [`field-definitions-editor.tsx`](../../src/renderer/components/forms/field-definitions-editor.tsx).
 
 **Benefits:**
 
