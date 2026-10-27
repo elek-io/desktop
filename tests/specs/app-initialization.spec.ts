@@ -13,7 +13,7 @@ test.describe('App Initialization', () => {
     // Verify the title set by the root route
     await expect(mainWindow).toHaveTitle('elek.io Desktop');
 
-    // Verify the initial "/" to "/projects" redirect happened
-    await verifyCurrentRouteHash(mainWindow, '#/projects');
+    // "/" leads to "/projects", and without a User yet on to the First start
+    await verifyCurrentRouteHash(mainWindow, '#/welcome');
   });
 });

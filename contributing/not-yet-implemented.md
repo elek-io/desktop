@@ -40,12 +40,86 @@ Two things about the endpoint, since they are decisions rather than details:
   feedback matters. Rate limit per IP. Everything in the body is self-declared:
   whether a sender is who they claim is a question a credential answers, never a
   question the body answers, which is why there is no `isVerified` field to set.
-- **When Cloud sign-in lands**, the same endpoint accepts
+- **Since Desktop signs in**, Core sends a signed in person's report with
   `Authorization: Bearer <session>`. A request either carries a session or it
-  does not, so nothing in the body changes and neither does Desktop.
+  does not, so nothing in the body changed and neither did the report dialog.
+  A report with a session that ended is answered 401, which also pauses sync,
+  see [Signing in to elek.io Cloud](./cloud-account.md#what-the-renderer-sees).
 
 Caps are 5000 characters of message and 2 MB of total body, both of which Core
 enforces before sending.
+
+## elek.io Cloud in Desktop
+
+Signing in, signing up, signing out and a session that ended work end to end,
+see [Signing in to elek.io Cloud](./cloud-account.md). What the designs in the
+`ci` repository's `docs/desktop.md` add on top waits for Core or for Cloud.
+
+### Codes and a new password
+
+- **Core support**: none yet. elek.io Cloud sends no code, and Core has no call
+  to confirm an address with one, send it again, or reset a password.
+- **Client today**: placeholders without a function, as Nils decided on
+  2026-10-19. "Forgot your password?" stands disabled on Sign in and Sign in
+  again, and Create account's Email address says "You get a code there to
+  confirm it." A sign up answering `verification` and a sign in answering
+  `Conflict` say this version of Desktop can't confirm an address.
+- **Where to start**: `ForgotPasswordLink`, `failureCopy` and the `@todo`s in
+  [`cloud-account-forms.tsx`](../src/renderer/components/cloud-account-forms.tsx).
+  The code step and Reset password are designed in `ci`'s `docs/desktop.md`
+  under Signing in, with mockups at `?page=account&step=code`, `reset` and
+  `reset-code`.
+
+### The wait after too many attempts
+
+- **Core support**: `RateLimited` carries no `Retry-After` yet.
+- **Client today**: the button waits a fixed 10 seconds,
+  `RATE_LIMIT_WAIT_SECONDS` in
+  [`cloud-account-forms.tsx`](../src/renderer/components/cloud-account-forms.tsx).
+- **Where to start**: count down what Cloud sends once Core passes it on.
+
+### Projects on elek.io Cloud
+
+- **Core support**: pending. The calls that list, create, move and download
+  Projects on elek.io Cloud, and an organization's step, are not released.
+- **Client today**: none of it. The Projects page is one grid, Create Project
+  keeps Projects on this computer, and the Clone dialog takes a Git address.
+  "Sync paused" shows in the header only, since Desktop cannot tell which
+  Projects are on elek.io Cloud. The Welcome line for a signed in person, the
+  card listing what they can download, is not built either.
+- **Where to start**: `ci`'s `docs/desktop.md` under Screens and Sync, and
+  `plans/desktop-cloud.md` for what is still open there.
+
+### git to elek.io Cloud's hosts
+
+- **Core support**: pending. Core's credential helper comes in a later release
+  with dugite 3.2.3. It runs Desktop's own binary with `ELECTRON_RUN_AS_NODE=1`.
+- **Client today**: git reaches only remotes the machine can already reach.
+- **Notes**: keep Electron's `RunAsNode` fuse on, see
+  [build-and-packaging.md](./build-and-packaging.md#electron-fuses).
+
+### A Release
+
+- **Core support**: `core.releases`. Since Core 0.25 a Release refuses a `draft`
+  that lacks the remote's commits, and pushes `main`, `draft` and its tag in one
+  atomic push without a fallback.
+- **Client today**: no Release UI and no `core:releases:*` channel.
+- **Where to start**: when a Release lands, synchronize first whenever the
+  Project has a remote, so the version and the changes it shows are what gets
+  released. `ci`'s `plans/desktop-cloud.md` proposes doing that when the
+  Release dialog opens.
+
+### The Terms of Service and the Privacy Policy
+
+- **Client today**: the sign up notice links to `https://elek.io/terms` and
+  `https://elek.io/privacy`, which answer 404 until the website has them.
+- **Where to start**: nothing in Desktop, unless the addresses change.
+
+### Renaming the account
+
+- **Client today**: a cloud User's name and address are read-only on the
+  profile. Whether Desktop may rename the account is an open question in
+  Cloud's plans.
 
 ## Field types
 

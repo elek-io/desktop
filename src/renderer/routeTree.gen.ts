@@ -9,12 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as UserRouteImport } from './routes/user'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WelcomeIndexRouteImport } from './routes/welcome/index'
 import { Route as UserIndexRouteImport } from './routes/user/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
+import { Route as WelcomeSignInRouteImport } from './routes/welcome/sign-in'
+import { Route as WelcomeCreateAccountRouteImport } from './routes/welcome/create-account'
 import { Route as UserProfileRouteImport } from './routes/user/profile'
+import { Route as ProjectsSignInAgainRouteImport } from './routes/projects/sign-in-again'
+import { Route as ProjectsSignInRouteImport } from './routes/projects/sign-in'
+import { Route as ProjectsCreateAccountRouteImport } from './routes/projects/create-account'
 import { Route as ProjectsCreateRouteImport } from './routes/projects/create'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects/$projectId'
 import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects/$projectId/index'
@@ -37,6 +44,11 @@ import { Route as ProjectsProjectIdCollectionsCollectionIdEntryIdRouteImport } f
 import { Route as ProjectsProjectIdCollectionsCollectionIdEntryIdIndexRouteImport } from './routes/projects/$projectId/collections/$collectionId/$entryId/index'
 import { Route as ProjectsProjectIdCollectionsCollectionIdEntryIdUpdateRouteImport } from './routes/projects/$projectId/collections/$collectionId/$entryId/update'
 
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UserRoute = UserRouteImport.update({
   id: '/user',
   path: '/user',
@@ -52,6 +64,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WelcomeIndexRoute = WelcomeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WelcomeRoute,
+} as any)
 const UserIndexRoute = UserIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -62,10 +79,35 @@ const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProjectsRoute,
 } as any)
+const WelcomeSignInRoute = WelcomeSignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => WelcomeRoute,
+} as any)
+const WelcomeCreateAccountRoute = WelcomeCreateAccountRouteImport.update({
+  id: '/create-account',
+  path: '/create-account',
+  getParentRoute: () => WelcomeRoute,
+} as any)
 const UserProfileRoute = UserProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => UserRoute,
+} as any)
+const ProjectsSignInAgainRoute = ProjectsSignInAgainRouteImport.update({
+  id: '/sign-in-again',
+  path: '/sign-in-again',
+  getParentRoute: () => ProjectsRoute,
+} as any)
+const ProjectsSignInRoute = ProjectsSignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => ProjectsRoute,
+} as any)
+const ProjectsCreateAccountRoute = ProjectsCreateAccountRouteImport.update({
+  id: '/create-account',
+  path: '/create-account',
+  getParentRoute: () => ProjectsRoute,
 } as any)
 const ProjectsCreateRoute = ProjectsCreateRouteImport.update({
   id: '/create',
@@ -195,11 +237,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/user': typeof UserRouteWithChildren
+  '/welcome': typeof WelcomeRouteWithChildren
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/create': typeof ProjectsCreateRoute
+  '/projects/create-account': typeof ProjectsCreateAccountRoute
+  '/projects/sign-in': typeof ProjectsSignInRoute
+  '/projects/sign-in-again': typeof ProjectsSignInAgainRoute
   '/user/profile': typeof UserProfileRoute
+  '/welcome/create-account': typeof WelcomeCreateAccountRoute
+  '/welcome/sign-in': typeof WelcomeSignInRoute
   '/projects/': typeof ProjectsIndexRoute
   '/user/': typeof UserIndexRoute
+  '/welcome/': typeof WelcomeIndexRoute
   '/projects/$projectId/collections': typeof ProjectsProjectIdCollectionsRouteWithChildren
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
   '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
@@ -223,9 +272,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/projects/create': typeof ProjectsCreateRoute
+  '/projects/create-account': typeof ProjectsCreateAccountRoute
+  '/projects/sign-in': typeof ProjectsSignInRoute
+  '/projects/sign-in-again': typeof ProjectsSignInAgainRoute
   '/user/profile': typeof UserProfileRoute
+  '/welcome/create-account': typeof WelcomeCreateAccountRoute
+  '/welcome/sign-in': typeof WelcomeSignInRoute
   '/projects': typeof ProjectsIndexRoute
   '/user': typeof UserIndexRoute
+  '/welcome': typeof WelcomeIndexRoute
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
   '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
@@ -247,11 +302,18 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/user': typeof UserRouteWithChildren
+  '/welcome': typeof WelcomeRouteWithChildren
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/create': typeof ProjectsCreateRoute
+  '/projects/create-account': typeof ProjectsCreateAccountRoute
+  '/projects/sign-in': typeof ProjectsSignInRoute
+  '/projects/sign-in-again': typeof ProjectsSignInAgainRoute
   '/user/profile': typeof UserProfileRoute
+  '/welcome/create-account': typeof WelcomeCreateAccountRoute
+  '/welcome/sign-in': typeof WelcomeSignInRoute
   '/projects/': typeof ProjectsIndexRoute
   '/user/': typeof UserIndexRoute
+  '/welcome/': typeof WelcomeIndexRoute
   '/projects/$projectId/collections': typeof ProjectsProjectIdCollectionsRouteWithChildren
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
   '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
@@ -278,11 +340,18 @@ export interface FileRouteTypes {
     | '/'
     | '/projects'
     | '/user'
+    | '/welcome'
     | '/projects/$projectId'
     | '/projects/create'
+    | '/projects/create-account'
+    | '/projects/sign-in'
+    | '/projects/sign-in-again'
     | '/user/profile'
+    | '/welcome/create-account'
+    | '/welcome/sign-in'
     | '/projects/'
     | '/user/'
+    | '/welcome/'
     | '/projects/$projectId/collections'
     | '/projects/$projectId/dashboard'
     | '/projects/$projectId/history'
@@ -306,9 +375,15 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/projects/create'
+    | '/projects/create-account'
+    | '/projects/sign-in'
+    | '/projects/sign-in-again'
     | '/user/profile'
+    | '/welcome/create-account'
+    | '/welcome/sign-in'
     | '/projects'
     | '/user'
+    | '/welcome'
     | '/projects/$projectId/dashboard'
     | '/projects/$projectId/history'
     | '/projects/$projectId'
@@ -329,11 +404,18 @@ export interface FileRouteTypes {
     | '/'
     | '/projects'
     | '/user'
+    | '/welcome'
     | '/projects/$projectId'
     | '/projects/create'
+    | '/projects/create-account'
+    | '/projects/sign-in'
+    | '/projects/sign-in-again'
     | '/user/profile'
+    | '/welcome/create-account'
+    | '/welcome/sign-in'
     | '/projects/'
     | '/user/'
+    | '/welcome/'
     | '/projects/$projectId/collections'
     | '/projects/$projectId/dashboard'
     | '/projects/$projectId/history'
@@ -359,10 +441,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   UserRoute: typeof UserRouteWithChildren
+  WelcomeRoute: typeof WelcomeRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/user': {
       id: '/user'
       path: '/user'
@@ -384,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/welcome/': {
+      id: '/welcome/'
+      path: '/'
+      fullPath: '/welcome/'
+      preLoaderRoute: typeof WelcomeIndexRouteImport
+      parentRoute: typeof WelcomeRoute
+    }
     '/user/': {
       id: '/user/'
       path: '/'
@@ -398,12 +495,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIndexRouteImport
       parentRoute: typeof ProjectsRoute
     }
+    '/welcome/sign-in': {
+      id: '/welcome/sign-in'
+      path: '/sign-in'
+      fullPath: '/welcome/sign-in'
+      preLoaderRoute: typeof WelcomeSignInRouteImport
+      parentRoute: typeof WelcomeRoute
+    }
+    '/welcome/create-account': {
+      id: '/welcome/create-account'
+      path: '/create-account'
+      fullPath: '/welcome/create-account'
+      preLoaderRoute: typeof WelcomeCreateAccountRouteImport
+      parentRoute: typeof WelcomeRoute
+    }
     '/user/profile': {
       id: '/user/profile'
       path: '/profile'
       fullPath: '/user/profile'
       preLoaderRoute: typeof UserProfileRouteImport
       parentRoute: typeof UserRoute
+    }
+    '/projects/sign-in-again': {
+      id: '/projects/sign-in-again'
+      path: '/sign-in-again'
+      fullPath: '/projects/sign-in-again'
+      preLoaderRoute: typeof ProjectsSignInAgainRouteImport
+      parentRoute: typeof ProjectsRoute
+    }
+    '/projects/sign-in': {
+      id: '/projects/sign-in'
+      path: '/sign-in'
+      fullPath: '/projects/sign-in'
+      preLoaderRoute: typeof ProjectsSignInRouteImport
+      parentRoute: typeof ProjectsRoute
+    }
+    '/projects/create-account': {
+      id: '/projects/create-account'
+      path: '/create-account'
+      fullPath: '/projects/create-account'
+      preLoaderRoute: typeof ProjectsCreateAccountRouteImport
+      parentRoute: typeof ProjectsRoute
     }
     '/projects/create': {
       id: '/projects/create'
@@ -678,12 +810,18 @@ const ProjectsProjectIdRouteWithChildren =
 interface ProjectsRouteChildren {
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRouteWithChildren
   ProjectsCreateRoute: typeof ProjectsCreateRoute
+  ProjectsCreateAccountRoute: typeof ProjectsCreateAccountRoute
+  ProjectsSignInRoute: typeof ProjectsSignInRoute
+  ProjectsSignInAgainRoute: typeof ProjectsSignInAgainRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
 }
 
 const ProjectsRouteChildren: ProjectsRouteChildren = {
   ProjectsProjectIdRoute: ProjectsProjectIdRouteWithChildren,
   ProjectsCreateRoute: ProjectsCreateRoute,
+  ProjectsCreateAccountRoute: ProjectsCreateAccountRoute,
+  ProjectsSignInRoute: ProjectsSignInRoute,
+  ProjectsSignInAgainRoute: ProjectsSignInAgainRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
 }
 
@@ -703,10 +841,26 @@ const UserRouteChildren: UserRouteChildren = {
 
 const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)
 
+interface WelcomeRouteChildren {
+  WelcomeCreateAccountRoute: typeof WelcomeCreateAccountRoute
+  WelcomeSignInRoute: typeof WelcomeSignInRoute
+  WelcomeIndexRoute: typeof WelcomeIndexRoute
+}
+
+const WelcomeRouteChildren: WelcomeRouteChildren = {
+  WelcomeCreateAccountRoute: WelcomeCreateAccountRoute,
+  WelcomeSignInRoute: WelcomeSignInRoute,
+  WelcomeIndexRoute: WelcomeIndexRoute,
+}
+
+const WelcomeRouteWithChildren =
+  WelcomeRoute._addFileChildren(WelcomeRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   UserRoute: UserRouteWithChildren,
+  WelcomeRoute: WelcomeRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

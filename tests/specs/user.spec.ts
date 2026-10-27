@@ -1,44 +1,35 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
+import { verifyCurrentRouteHash } from '../helpers/navigation.js';
 import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
 
 test.describe('User profile', () => {
-  test('first-run onboarding sets and persists the local User', async ({
+  test('the first start sets and persists the local User', async ({
     mainWindow,
   }) => {
-    // Fresh app, no User yet.
-    await navigateToUserProfile(mainWindow);
-
-    // The first-run greeting shows while no User exists, and Save is gated until
-    // the form is dirtied. Asserting the greeting first also proves the User
-    // query resolved (to null), so the fieldset is no longer loading-disabled.
+    // A fresh app has no User, so it opens on the First start
+    await verifyCurrentRouteHash(mainWindow, '#/welcome');
     await expect(
       mainWindow.getByRole('heading', { name: 'Welcome to elek.io Desktop' })
     ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('button', { name: 'Save local User' })
-    ).toBeDisabled();
 
-    // Fill the identity. Port stays 31310 and the local-API Switch stays OFF, so
-    // the API never starts (that side effect is P2-11's scope).
+    // Continue validates on click: an empty form says what is missing
+    await mainWindow.getByRole('button', { name: 'Continue' }).click();
+    await expect(mainWindow.getByText('Enter your name.')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Enter your email address.')
+    ).toBeVisible();
+
     const name = 'Ada Lovelace';
-    await mainWindow.getByLabel('Full name').fill(name);
-    await mainWindow.getByLabel('Email', { exact: true }).fill('ada@elek.io');
-
-    // The "Example change" preview authors its commit from the name field, so the
-    // typed name renders live in the preview (the input value itself is not text).
-    await expect(mainWindow.getByText(name)).toBeVisible();
-
-    // The form is dirty now, so Save enables. Saving navigates to the Projects list.
-    await expect(
-      mainWindow.getByRole('button', { name: 'Save local User' })
-    ).toBeEnabled();
-    await mainWindow.getByRole('button', { name: 'Save local User' }).click();
+    await mainWindow.getByLabel('Name', { exact: true }).fill(name);
+    await mainWindow
+      .getByLabel('Email address', { exact: true })
+      .fill('ada@elek.io');
+    await mainWindow.getByRole('button', { name: 'Continue' }).click();
     await expect(mainWindow).toHaveURL(/#\/projects$/);
 
-    // Persistence: reopening the profile reads the saved User (so no more Welcome
-    // title), and the form reset shows the entered name.
+    // Persistence: the profile reads the saved User back
     await navigateToUserProfile(mainWindow);
     await expect(
       mainWindow.getByRole('heading', { name: 'User profile' })

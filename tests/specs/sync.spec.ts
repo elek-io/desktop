@@ -22,8 +22,9 @@ import {
 import {
   commitFileOnRemote,
   deleteEntryOnRemote,
-  localWorkSha,
-  remoteWorkSha,
+  localDraftSha,
+  remoteBranches,
+  remoteDraftSha,
   setupRemote,
 } from '../helpers/remote.js';
 import { setUserViaIpc } from '../helpers/user.js';
@@ -35,7 +36,7 @@ test.describe('Synchronize', () => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
-    // Mirror the Project's current work branch into a bare origin, so it starts
+    // Mirror the Project's draft branch into a bare origin, so it starts
     // level with the remote. clone --bare copies the refs without a working tree
     // or an LFS push, which a plain bare remote cannot serve.
     const projectPath = join(
@@ -49,7 +50,7 @@ test.describe('Synchronize', () => {
       url: remote.url,
     });
 
-    // One real local write moves work ahead of the remote by one commit, so
+    // One real local write moves draft ahead of the remote by one commit, so
     // there is something to push.
     await createCollectionViaIpc(mainWindow, { projectId: project.id });
 
@@ -60,16 +61,16 @@ test.describe('Synchronize', () => {
     await expect(synchronize).toBeEnabled();
 
     // The commit the push should land on the remote. A pull that rebases onto an
-    // ancestor is a no-op, so the local work SHA does not move during the sync.
-    const expectedSha = localWorkSha(projectPath);
+    // ancestor is a no-op, so the local draft SHA does not move during the sync.
+    const expectedSha = localDraftSha(projectPath);
 
     await synchronize.click();
 
-    // Corroborate the round-trip on the runner: the remote's work ref reaches the
+    // Corroborate the round-trip on the runner: the remote's draft ref reaches the
     // local commit, proving the push landed, without inspecting file contents.
     // Poll until it arrives, since the sync (fetch, rebase, push) is in flight.
     await expect
-      .poll(() => remoteWorkSha(remote.path), { timeout: 30000 })
+      .poll(() => remoteDraftSha(remote.path), { timeout: 30000 })
       .toBe(expectedSha);
 
     // Sync resolved, so ahead/behind are back to zero and the button returns to
@@ -80,6 +81,43 @@ test.describe('Synchronize', () => {
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/${project.id}/dashboard`)
     );
+  });
+
+  test('makes the first push to an empty remote with main and draft', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // An empty bare repository, as a Git host creates one without a README.
+    // Since Core 0.25 synchronize() makes the first push there itself.
+    const remote = setupRemote(testInfo);
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: remote.url,
+    });
+
+    // Before the first push every local commit counts as ahead, so the
+    // control is enabled without a further write
+    await navigateToProjectDashboard(mainWindow, project.id);
+    const synchronize = mainWindow.getByRole('button', { name: 'Synchronize' });
+    await expect(synchronize).toBeEnabled();
+
+    await synchronize.click();
+
+    // The remote now holds both branches, draft at the local commit. Which
+    // refs land is Core's, so only the branch names and the draft ref are
+    // observed, not their contents.
+    await expect
+      .poll(() => remoteBranches(remote.path), { timeout: 30000 })
+      .toEqual(['draft', 'main']);
+    const projectPath = join(
+      testDataDirs(testInfo).dataDir,
+      'projects',
+      project.id
+    );
+    expect(remoteDraftSha(remote.path)).toBe(localDraftSha(projectPath));
+    await expect(synchronize).toBeDisabled();
   });
 
   test('stops a sync that would orphan a reference and pushes nothing', async ({
@@ -115,7 +153,7 @@ test.describe('Synchronize', () => {
       },
     });
 
-    // Mirror the current work (with both Entries and the reference) into a bare
+    // Mirror the current draft (with both Entries and the reference) into a bare
     // origin, then point the Project at it.
     const projectPath = join(
       testDataDirs(testInfo).dataDir,
@@ -129,7 +167,7 @@ test.describe('Synchronize', () => {
     });
 
     // Delete the reference target on the remote, out of band. This bypasses
-    // Core's delete gate, so the remote's work tree now holds a dangling
+    // Core's delete gate, so the remote's draft tree now holds a dangling
     // reference (the Source Entry still points at the deleted Target).
     deleteEntryOnRemote(
       testInfo,
@@ -148,7 +186,7 @@ test.describe('Synchronize', () => {
       },
     });
 
-    const beforeSha = remoteWorkSha(remote.path);
+    const beforeSha = remoteDraftSha(remote.path);
 
     await navigateToProjectDashboard(mainWindow, project.id);
     const synchronize = mainWindow.getByRole('button', { name: 'Synchronize' });
@@ -173,9 +211,9 @@ test.describe('Synchronize', () => {
       )
     ).toBeVisible();
 
-    // Nothing was pushed: the remote's work ref is exactly where it was, so the
+    // Nothing was pushed: the remote's draft ref is exactly where it was, so the
     // local-only Entry never reached the shared remote.
-    expect(remoteWorkSha(remote.path)).toBe(beforeSha);
+    expect(remoteDraftSha(remote.path)).toBe(beforeSha);
 
     // Dismissing the modal leaves the app usable (not crashed or mid-rebase): the
     // dashboard and its sidebar still render.
@@ -192,7 +230,7 @@ test.describe('Synchronize', () => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
-    // Mirror the Project's current work into a bare origin (starts level), point
+    // Mirror the Project's draft into a bare origin (starts level), point
     // the Project at it, then advance the remote by one commit out of band. Now
     // local is behind the remote by that commit with nothing ahead.
     const projectPath = join(
@@ -216,11 +254,11 @@ test.describe('Synchronize', () => {
       { method: 'update', reference: { objectType: 'project', id: project.id } }
     );
 
-    // Local is behind: its work ref differs from the (now advanced) remote's.
+    // Local is behind: its draft ref differs from the (now advanced) remote's.
     // This runner-side ref check corroborates the arrangement without inspecting
     // file contents, the mirror image of the ahead-path round-trip above.
-    const remoteSha = remoteWorkSha(remote.path);
-    expect(localWorkSha(projectPath)).not.toBe(remoteSha);
+    const remoteSha = remoteDraftSha(remote.path);
+    expect(localDraftSha(projectPath)).not.toBe(remoteSha);
 
     // The sidebar detected the behind change (ahead is 0 here, so an enabled
     // Synchronize can only mean behind > 0). Exact counts are Core's, so the
@@ -231,11 +269,11 @@ test.describe('Synchronize', () => {
 
     await synchronize.click();
 
-    // The pull brings the remote commit into local work: the local work ref
+    // The pull brings the remote commit into the local draft: the local draft ref
     // reaches the remote's (a pure fast-forward, so the remote does not move).
     // Poll while the sync (fetch, rebase, push) is in flight.
     await expect
-      .poll(() => localWorkSha(projectPath), { timeout: 30000 })
+      .poll(() => localDraftSha(projectPath), { timeout: 30000 })
       .toBe(remoteSha);
 
     // Sync resolved, so ahead/behind are back to zero and the button returns to

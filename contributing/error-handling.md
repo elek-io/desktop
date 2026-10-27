@@ -84,7 +84,11 @@ All the sites below build their mutation with `useAppMutation`, so the "predicat
 
 ### Example: sync conflict
 
-[`components/project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`, most notably Core's sync time integrity gate rejecting a rebase that would push a dangling reference. The Synchronize mutation `handles` `Conflict` and `PreconditionFailed` in place, so `useAppMutation`'s predicate returns false only for those two. The `onClick` catches the rejection and calls `handleError(error)`, which for those two reasons stores it with `setSyncError(error)` and opens the "Could not synchronize this Project" dialog; any other failure propagates to the boundary. The dialog description calls `describeCoreError` with a small overrides map (`Conflict` explains the remote conflict, `PreconditionFailed` explains the remote could not be reached) and the previous generic sentence as the fallback. The title stays generic, so it still covers the handled reasons, while the description is now reason specific.
+[`components/project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`, most notably Core's sync time integrity gate rejecting a rebase that would push a dangling reference. The Synchronize mutation `handles` `Conflict` and `PreconditionFailed` in place, so `useAppMutation`'s predicate returns false only for those two. The `onClick` catches the rejection and calls `handleError(error)`, which for those two reasons stores it with `setSyncError(error)` and opens the "Could not synchronize this Project" dialog; any other failure propagates to the boundary. The dialog description calls `describeCoreError` with a small overrides map (`Conflict` explains the remote conflict, `PreconditionFailed` says the remote could not be reached or holds something besides this Project, such as a README a Git host created, which Core refuses since 0.25) and the previous generic sentence as the fallback. The title stays generic, so it still covers the handled reasons, while the description is now reason specific.
+
+### Example: a clone Core refuses
+
+The Clone dialog in [`routes/projects/index.tsx`](/src/renderer/routes/projects/index.tsx) `handles` only `PreconditionFailed`, which Core raises for a repository without a `draft` branch (see Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#cloning-an-existing-project)). Such a repository holds no Project, or one made before Core 0.25 renamed the branches, so the dialog stays open with the address and one line above its button: "This repository holds no Project, or one made before Desktop 0.4. Ask whoever set it up." Any other failure, a `Conflict` for a Project already on this computer included, still reaches the boundary.
 
 ### Example: force delete a Project
 
@@ -98,6 +102,12 @@ All the sites below build their mutation with `useAppMutation`, so the "predicat
 
 The Entry create and update forms ([`collections/$collectionId/create.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx) and [`$entryId/update.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx)) are the two form-submit sites that handle in place, not deletes or syncs. Core rejects an Entry whose value collides with another Entry on a unique field with a `Conflict` (see Core's [fields doc](../node_modules/@elek-io/core/docs/fields.md#uniqueness)). Each form's create/update mutation `handles` only `Conflict`; the submit handler awaits `mutateAsync` inside try/catch and calls `handleError`, which opens a controlled "Could not save this Entry" dialog whose description uses `describeCoreError` with a `Conflict` override explaining the collision. The submit does not navigate, so the form stays on the create/update route with its values intact to edit and retry. Any other failure propagates to the boundary, which the "routes an unexpected create failure to the root error boundary" spec guards against a regression to a blanket opt-out.
 
+### Example: signing in to elek.io Cloud
+
+The account forms in [`cloud-account-forms.tsx`](/src/renderer/components/cloud-account-forms.tsx) handle the most types of any site, because each one is something the person acts on in the form. All three share `sharedFailureHandlers()`: `PreconditionFailed` (Cloud can't be reached) and `BadRequest` (input refused) set one line above the button, and `RateLimited` makes the button count down "Try again in 10 seconds". On top, Sign in marks Password for `Unauthorized` and puts a line above the button for `Conflict`, an address not confirmed yet. Create account marks Email address for `Conflict`, an address an account holds, with a link to Sign in. `Internal` is handled by none of them, so an answer Core cannot read still reaches the boundary, which a spec drives with a stubbed 500. The copy for each type is in [Signing in to elek.io Cloud](./cloud-account.md#errors-by-type).
+
+Core writes its own record of a refused sign in, at error level, whether or not Desktop handles it in place. That is Core's log of the request, not a failure Desktop missed.
+
 ### Example: local API port in use
 
 Core's `api.start()` rejects with a `Conflict` when something else holds the port (see Core's [local-api doc](../node_modules/@elek-io/core/docs/local-api.md)). Both places that start the API `handle` only `Conflict`. The profile form ([`routes/user/profile.tsx`](/src/renderer/routes/user/profile.tsx)) starts the API before it saves the User, and its handler marks the Port field with `setError`. So a busy port saves nothing and the form stays dirty to pick another port and save again. The Local API switch in the user menu ([`components/user-dropdown.tsx`](/src/renderer/components/user-dropdown.tsx)) has no field to mark, so its handler shows a toast that points to the profile. A toast action would not help here, because the open menu blocks pointer events outside itself, while its Profile item sits right above the switch. At launch the main process does the same in its own way: it logs the failure and opens the app with the API off (see [overview.md](./overview.md#application-lifecycle)).
@@ -106,22 +116,27 @@ Core's `api.start()` rejects with a `Conflict` when something else holds the por
 
 There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC channels to Core's own logger, which writes to the console and to Core's log files. It is local diagnostics, always on, including under test, and nothing it writes leaves the machine.
 
-| When                                     | Where                                                                                | What                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."              |
-| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ...ed ..." plus a success toast     |
-| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to ..." plus an error toast              |
-| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"        |
-| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                           |
-| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"               |
-| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                   |
-| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."               |
-| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                            |
-| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record          |
-| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                   |
-| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request   |
-| The local API fails to start at launch   | `onAppReady` in [`src/main/index.ts`](/src/main/index.ts)                            | error: "Could not start the local API ..."              |
-| The app fails to start                   | `onAppReadyFailed` in [`src/main/index.ts`](/src/main/index.ts)                      | error: "Failed to initialize the app", when Core exists |
+| When                                     | Where                                                                                | What                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."               |
+| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ...ed ..." plus a success toast      |
+| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to ..." plus an error toast               |
+| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"         |
+| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                            |
+| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"                |
+| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                    |
+| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."                |
+| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                             |
+| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record           |
+| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                    |
+| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request    |
+| The local API fails to start at launch   | `onAppReady` in [`src/main/index.ts`](/src/main/index.ts)                            | error: "Could not start the local API ..."               |
+| The app fails to start                   | `onAppReadyFailed` in [`src/main/index.ts`](/src/main/index.ts)                      | error: "Failed to initialize the app", when Core exists  |
+| The window closes before it loaded       | `loadWindow` in [`src/main/index.ts`](/src/main/index.ts)                            | info: "The window closed before it finished loading"     |
+| A stored Cloud session cannot be used    | `keepCloudSession` in [`src/main/index.ts`](/src/main/index.ts)                      | warn: "Could not use the stored elek.io Cloud session"   |
+| No keyring to encrypt the session        | `keepCloudSession`                                                                   | warn: "Keeping the elek.io Cloud session in memory only" |
+| Storing the session fails                | `keepCloudSession`                                                                   | error: "Could not store the elek.io Cloud session"       |
+| Checking a stored session fails at start | `checkStoredSession` in [`src/main/index.ts`](/src/main/index.ts)                    | warn: "Could not check the stored elek.io Cloud session" |
 
 ### What an error record carries
 

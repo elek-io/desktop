@@ -2,6 +2,8 @@ import { parseIpcError } from '@root/src/shared/ipcError';
 import { errorLogAttributes } from '@root/src/shared/logError';
 import { createHashHistory, createRouter } from '@tanstack/react-router';
 
+import { queryClient } from '@renderer/queries/client';
+import { refreshCloudAccount } from '@renderer/queries/options/cloudOptions';
 import { routeTree } from '@renderer/routeTree.gen';
 
 /**
@@ -41,6 +43,15 @@ window.addEventListener('unhandledrejection', (event) => {
 
 window.addEventListener('error', (event) => {
   reportToCore('Uncaught error', event.error ?? event.message);
+});
+
+// The main process announces every change to the elek.io Cloud session it
+// sees on its own: a token Core kept or dropped, such as after a 401, and the
+// check of a stored session at start, which may also update the User. Read
+// both again, so the header follows. Subscribed before the app mounts, so a
+// change during the first load is not missed.
+window.events.onCloudAccountChanged(() => {
+  void refreshCloudAccount(queryClient);
 });
 
 // Create a new router instance

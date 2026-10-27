@@ -16,7 +16,7 @@ The base configuration for all queries and mutations is in [`client.ts`](../../s
 
 ### Query and Mutation Options
 
-All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `collectionOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `apiOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
+All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `collectionOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `apiOptions.ts`, `cloudOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
 
 - Typed wrappers around IPC calls
 - Query keys for cache management
@@ -451,7 +451,9 @@ onSuccess: async (_data, variables, _result, context) => {
 
 **Cons:** Triggers refetches (slower), may refetch unnecessary data
 
-**Use for:** synchronize (git pull), setRemoteOriginUrl
+**Use for:** synchronize (git pull), setRemoteOriginUrl, and signing in, up or out of elek.io Cloud
+
+Signing in or out sets the User in Core, so the account mutations invalidate both `['user']` and `['cloud', 'account']` (whether Core holds a session token) with `refreshCloudAccount()` in [`cloudOptions.ts`](../../src/renderer/queries/options/cloudOptions.ts). The same function runs whenever the main process announces a change it saw on its own, such as a session that ended, see [Signing in to elek.io Cloud](../cloud-account.md#what-the-renderer-sees).
 
 ### Anti-Patterns to Avoid
 

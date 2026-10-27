@@ -29,7 +29,9 @@ test.describe('Not found', () => {
   }) => {
     // An unmatched hash is a normal router state (no thrown error), so this
     // stays console-clean and must NOT opt into the console allow-list, which
-    // would mask a real regression.
+    // would mask a real regression. A User exists, since without one every
+    // route leads to the First start.
+    await setUserViaIpc(mainWindow);
     const unknownHash = '#/definitely-not-a-route';
     await navigate(mainWindow, unknownHash);
 

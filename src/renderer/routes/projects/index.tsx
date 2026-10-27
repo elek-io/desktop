@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { DownloadCloud, Plus } from 'lucide-react';
 import { type ReactElement, useId, useState } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
@@ -27,6 +26,7 @@ import {
 } from '@renderer/components/ui/dialog';
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -41,6 +41,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@renderer/components/ui/form';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
+import { useCloudAccount } from '@renderer/hooks/useCloudAccount';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import queryOptions from '@renderer/queries/options';
 
@@ -52,6 +54,7 @@ export const Route = createFileRoute('/projects/')({
 
 function ListProjectsPage(): ReactElement {
   const router = useRouter();
+  const account = useCloudAccount();
   const { data: projects, isPending: isListingProjects } = useQueryNoError(
     queryOptions.projects.list({
       limit: 0,
@@ -63,15 +66,27 @@ function ListProjectsPage(): ReactElement {
       url: '',
     },
   });
-  const { mutateAsync: cloneProject } = useMutation(
-    queryOptions.projects.clone
-  );
+  // Core refuses a repository without a draft branch, which holds no Project
+  // or one made before the branches were renamed. Said in the dialog, so the
+  // address can be corrected. See contributing/error-handling.md.
+  const [isCloneRefused, setIsCloneRefused] = useState(false);
+  const { mutateAsync: cloneProject, handleError: handleCloneError } =
+    useAppMutation(queryOptions.projects.clone, {
+      handled: {
+        PreconditionFailed: () => setIsCloneRefused(true),
+      },
+    });
   const [isCloningDialogOpen, setIsCloningDialogOpen] = useState(false);
   const cloneFormId = useId();
 
   const onCloneProject: SubmitHandler<CloneProjectProps> = async (props) => {
-    await cloneProject(props);
-    setIsCloningDialogOpen(false);
+    setIsCloneRefused(false);
+    try {
+      await cloneProject(props);
+      setIsCloningDialogOpen(false);
+    } catch (error) {
+      handleCloneError(error);
+    }
   };
 
   function Description(): ReactElement {
@@ -130,6 +145,20 @@ function ListProjectsPage(): ReactElement {
                 creating a new or cloning an existing Project.
               </EmptyDescription>
             </EmptyHeader>
+            {/* Signed out, the Welcome points to the Projects on elek.io Cloud */}
+            {account === 'local' ? (
+              <EmptyContent>
+                <p className="text-sm text-muted-foreground">
+                  <Link
+                    to="/projects/sign-in"
+                    className="text-foreground underline underline-offset-4 hover:text-primary"
+                  >
+                    Sign in
+                  </Link>{' '}
+                  to open your Projects on elek.io Cloud.
+                </p>
+              </EmptyContent>
+            ) : null}
           </Empty>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -140,7 +169,13 @@ function ListProjectsPage(): ReactElement {
         )}
       </Page>
 
-      <Dialog open={isCloningDialogOpen} onOpenChange={setIsCloningDialogOpen}>
+      <Dialog
+        open={isCloningDialogOpen}
+        onOpenChange={(isOpen) => {
+          setIsCloningDialogOpen(isOpen);
+          setIsCloneRefused(false);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Clone a Project by URL</DialogTitle>
@@ -170,6 +205,12 @@ function ListProjectsPage(): ReactElement {
                   </FormItem>
                 )}
               />
+              {isCloneRefused ? (
+                <p role="alert" className="mt-4 text-sm text-destructive">
+                  This repository holds no Project, or one made before Desktop
+                  0.4. Ask whoever set it up.
+                </p>
+              ) : null}
             </AppForm>
           </DialogBody>
 

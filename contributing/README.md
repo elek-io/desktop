@@ -20,6 +20,7 @@ Then proceed to the specific topics based on your interests or contribution goal
 
 - **[Routing](./renderer/routing.md)** - File-based routing, layout routes, hash history, and why data is fetched in components rather than route guards
 - **[Loading and Updating Data](./renderer/loading-and-updating-data.md)** - TanStack Query patterns for data fetching and mutations
+- **[Signing in to elek.io Cloud](./cloud-account.md)** - where the session's token lives and why the renderer never sees it, the First start, the account pages and the three states in the header, errors by type, and the decisions behind them
 - **[Error Handling](./error-handling.md)** - how a `CoreError` keeps its `type` across IPC, how errors surface in the UI, the guide to handling expected errors in place, where things are logged and what an error record carries, and how a user reports a bug or sends feedback
 - **[Forms](./renderer/forms.md)** - The shared form layer every form uses: the `AppForm` and `SubmitButton` primitives, detached submit buttons, handling submit errors by type, form typing, the typed field wrappers, and the enforced invariants
 - **[Dynamic Form Field Generation](./renderer/dynamic-form-field-generation.md)** - How user-defined forms work with field definitions

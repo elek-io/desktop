@@ -42,10 +42,12 @@ jobs:
         run: pnpm run check
       # electron-builder's pacman target builds through fpm, which shells out to
       # bsdtar to write the package .MTREE. The Ubuntu runner does not ship it,
-      # so install it here. bsdtar comes from libarchive-tools.
-      - name: Install Linux packaging tools
+      # so install it here. bsdtar comes from libarchive-tools. gnome-keyring is
+      # for the E2E tests: Desktop encrypts the elek.io Cloud session with
+      # safeStorage, which on Linux needs a Secret Service.
+      - name: Install Linux packaging and test tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools gnome-keyring
       # Full package build (not build:unpack), so PR CI also verifies that
       # electron-builder can still produce the installers. The E2E tests
       # only use the unpacked directory this step produces alongside them
@@ -53,9 +55,17 @@ jobs:
         run: pnpm run build
       # Invoke the runner directly, since "pnpm run test" would rebuild
       # the app that the build step above already built
+      # A private D-Bus session with an unlocked keyring, so the specs that keep
+      # a session across a restart find a Secret Service. See
+      # contributing/testing.md.
       - name: Run E2E tests (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm exec playwright test
+        run: |
+          dbus-run-session -- bash -c '
+            printf "ci\n" | gnome-keyring-daemon --unlock --components=secrets > /dev/null
+            gnome-keyring-daemon --start --components=secrets > /dev/null
+            xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm exec playwright test
+          '
       - name: Run E2E tests (macOS/Windows)
         if: runner.os != 'Linux'
         run: pnpm exec playwright test
