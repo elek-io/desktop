@@ -1533,16 +1533,27 @@ test.describe('Components', () => {
 
   // An empty ofComponents allows every Component of the Project, so switching
   // one on would narrow the Field to that one, which Core refuses as a loss and
-  // no screen can answer yet. Such a Field therefore offers nothing to add.
+  // no screen can answer yet. Such a Field therefore offers nothing to add, and
+  // neither does one that names every Component there is.
   test('offers nothing to add on a Field that allows every Component', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    await createComponentViaIpc(mainWindow, { projectId: project.id });
+    const teaser = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
-      fieldDefinitions: [textFieldDefinition(), dynamicFieldDefinition()],
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition(),
+        dynamicFieldDefinition({
+          slug: 'blocks',
+          label: { en: 'Blocks' },
+          ofComponents: [teaser.id],
+        }),
+      ],
     });
 
     await navigateToCollectionSettings(mainWindow, {
@@ -1553,24 +1564,50 @@ test.describe('Components', () => {
       mainWindow.getByLabel('Collection name (Plural)', { exact: true })
     ).toHaveValue('Articles');
 
+    // The Field that names no Component allows every one of them, the ones
+    // added later included, so it offers nothing and nothing to press.
     await mainWindow
       .getByRole('button', {
         name: 'Allow more Components on the Sections field',
       })
       .click();
-    const sheet = mainWindow.getByRole('dialog', {
+    const sections = mainWindow.getByRole('dialog', {
       name: 'Allow more Components on Sections',
     });
     await expect(
-      sheet.getByText(
+      sections.getByText(
         'This Field allows every Component of this Project, the ones added later included, so there is nothing to add.'
       )
     ).toBeVisible();
     await expect(
-      sheet.getByRole('switch', { name: 'Teaser', exact: true })
+      sections.getByRole('switch', { name: 'Teaser', exact: true })
     ).toHaveCount(0);
     await expect(
       mainWindow.getByRole('button', { name: 'Allow these Components' })
     ).toHaveCount(0);
+    await sections.getByRole('button', { name: 'Close' }).click();
+    await expect(sections).toBeHidden();
+
+    // The Field that names the only Component there is says so, and there is
+    // nothing to allow until another Component exists.
+    await mainWindow
+      .getByRole('button', {
+        name: 'Allow more Components on the Blocks field',
+      })
+      .click();
+    const blocks = mainWindow.getByRole('dialog', {
+      name: 'Allow more Components on Blocks',
+    });
+    await expect(
+      blocks.getByRole('listitem').filter({ hasText: 'Teaser' })
+    ).toBeVisible();
+    await expect(
+      blocks.getByText(
+        'Every Component of this Project is allowed already, so there is nothing to add.'
+      )
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Allow these Components' })
+    ).toBeDisabled();
   });
 });
