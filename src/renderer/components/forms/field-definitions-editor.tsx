@@ -152,10 +152,10 @@ export function FieldDefinitionsEditor<
     <PageSection
       title={
         owner === 'collection'
-          ? "Define this Collection's fields"
-          : "Define this Component's fields"
+          ? "Define this Collection's Fields"
+          : "Define this Component's Fields"
       }
-      description={`Add fields to say what ${subject} holds. Changing a field after it was added is not possible yet, so check its Label and Slug first.`}
+      description={`Add Fields to say what ${subject} holds. Changing a Field after it was added is not possible yet, so check its Label and Slug first.`}
       actions={
         isViewOnly ? (
           <></>

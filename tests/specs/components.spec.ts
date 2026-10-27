@@ -81,7 +81,7 @@ test.describe('Components', () => {
     // trying. See contributing/not-yet-implemented.md.
     await expect(
       mainWindow.getByText(
-        'Changing a field after it was added is not possible yet, so check its Label and Slug first.'
+        'Changing a Field after it was added is not possible yet, so check its Label and Slug first.'
       )
     ).toBeVisible();
 
