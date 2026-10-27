@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type ReactElement } from 'react';
-import { useWatch } from 'react-hook-form';
+import { useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 import {
@@ -28,6 +28,7 @@ import { queryOptions } from '@renderer/queries';
 import {
   dynamicFieldDefinitionSchema,
   uuid,
+  type Component,
   type DynamicFieldDefinition,
 } from '@elek-io/core';
 
@@ -37,11 +38,32 @@ import {
 //
 // The ofComponents picker is backed by a Components list query, modelled on the
 // entry field's ofCollections picker. That query and its projectId hook stay
-// inside the Extras component, so the shared engine never learns about queries.
+// inside the picker, so the shared engine never learns about queries.
 
-function DynamicExtras({
+export interface OfComponentsPickerProps {
+  form: UseFormReturn<DynamicFieldDefinition>;
+  /**
+   * The Components the Field allows already. Each is named as allowed instead
+   * of being offered again, because taking one away deletes the sections built
+   * from it, which no screen can answer yet (see
+   * contributing/not-yet-implemented.md). Empty while a Field is being added,
+   * where every Component is offered.
+   */
+  lockedComponentIds?: readonly string[];
+}
+
+/**
+ * The `ofComponents` picker: one switch per Component the Field can still be
+ * given, and the ones it allows already named in words above them.
+ *
+ * It is the one picker both paths use, the Add Field sheet and the sheet that
+ * grows an existing Field, so what either offers is decided here rather than
+ * twice.
+ */
+export function OfComponentsPicker({
   form,
-}: DefinitionExtrasProps<DynamicFieldDefinition>): ReactElement {
+  lockedComponentIds = [],
+}: OfComponentsPickerProps): ReactElement {
   const { projectId, translateContent } = useProject();
   const { data: componentList, isPending: isReadingComponents } =
     useQueryNoError(queryOptions.components.list({ projectId, limit: 0 }));
@@ -56,67 +78,102 @@ function DynamicExtras({
       'ofComponents',
       selectedComponentIds.includes(componentId)
         ? selectedComponentIds.filter((id) => id !== componentId)
-        : [...selectedComponentIds, componentId]
+        : [...selectedComponentIds, componentId],
+      // Without this the switch would leave the form pristine, and a submit
+      // gated on the form being dirty would stay disabled.
+      { shouldDirty: true }
     );
   }
 
+  function componentName(component: Component): string {
+    return translateContent({
+      key: 'component.name',
+      record: component.name,
+    });
+  }
+
+  const components = isReadingComponents ? [] : componentList.list;
+  const allowedAlready = components.filter((component) =>
+    lockedComponentIds.includes(component.id)
+  );
+  const offered = components.filter(
+    (component) => lockedComponentIds.includes(component.id) === false
+  );
+
+  return (
+    <FormField
+      control={form.control}
+      name="ofComponents"
+      render={() => (
+        <FormItem>
+          <FieldSet className="gap-2">
+            <FieldLegend variant="label" className="mb-0">
+              Allowed Components
+            </FieldLegend>
+            <FormDescription>
+              {lockedComponentIds.length === 0
+                ? 'Only the selected Components can be added as a section. If none are selected, every Component of this Project can be.'
+                : 'Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet.'}
+            </FormDescription>
+            {allowedAlready.length > 0 ? (
+              <>
+                <p className="text-sm">Allowed already:</p>
+                <ul className="list-inside list-disc text-sm text-muted-foreground">
+                  {allowedAlready.map((component) => (
+                    <li key={component.id}>{componentName(component)}</li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            <div className="space-y-2">
+              {isReadingComponents === true ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => {
+                    const key = `skeleton-${String(i)}`;
+                    return <Skeleton key={key} className="h-10 rounded-md" />;
+                  })}
+                </div>
+              ) : offered.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {lockedComponentIds.length === 0
+                    ? 'This Project has no Components yet. Create one first, then come back to choose it here.'
+                    : 'Every Component of this Project is allowed already, so there is nothing to add.'}
+                </p>
+              ) : (
+                offered.map((component) => {
+                  const name = componentName(component);
+                  return (
+                    <div
+                      key={component.id}
+                      className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+                    >
+                      <div className="mr-4">
+                        <span className="text-sm font-medium">{name}</span>
+                      </div>
+                      <Switch
+                        aria-label={name}
+                        checked={selectedComponentIds.includes(component.id)}
+                        onCheckedChange={() => toggleComponent(component.id)}
+                      />
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <FormMessage />
+          </FieldSet>
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function DynamicExtras({
+  form,
+}: DefinitionExtrasProps<DynamicFieldDefinition>): ReactElement {
   return (
     <>
-      <FormField
-        control={form.control}
-        name="ofComponents"
-        render={() => (
-          <FormItem>
-            <FieldSet className="gap-2">
-              <FieldLegend variant="label" className="mb-0">
-                Allowed Components
-              </FieldLegend>
-              <FormDescription>
-                Only the selected Components can be added as a section. If none
-                are selected, every Component of this Project can be.
-              </FormDescription>
-              <div className="space-y-2">
-                {isReadingComponents === true ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 3 }).map((_, i) => {
-                      const key = `skeleton-${String(i)}`;
-                      return <Skeleton key={key} className="h-10 rounded-md" />;
-                    })}
-                  </div>
-                ) : componentList.list.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    This Project has no Components yet. Create one first, then
-                    come back to choose it here.
-                  </p>
-                ) : (
-                  componentList.list.map((component) => {
-                    const name = translateContent({
-                      key: 'component.name',
-                      record: component.name,
-                    });
-                    return (
-                      <div
-                        key={component.id}
-                        className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
-                      >
-                        <div className="mr-4">
-                          <span className="text-sm font-medium">{name}</span>
-                        </div>
-                        <Switch
-                          aria-label={name}
-                          checked={selectedComponentIds.includes(component.id)}
-                          onCheckedChange={() => toggleComponent(component.id)}
-                        />
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              <FormMessage />
-            </FieldSet>
-          </FormItem>
-        )}
-      />
+      <OfComponentsPicker form={form} />
 
       <div className="flex flex-row items-center justify-between space-x-2">
         <FormField
