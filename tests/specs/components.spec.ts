@@ -151,11 +151,27 @@ test.describe('Components', () => {
         dynamicFieldDefinition({ ofComponents: [component.id] }),
       ],
     });
+    // One Entry holds a section built from the Component and one holds none,
+    // so the count below says what the save rewrites rather than how many
+    // Entries the Collection has.
     await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
       values: {
         title: stringValue({ en: 'Launch day' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: { title: stringValue({ en: 'A section' }) },
+          },
+        ]),
+      },
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'No sections here' }),
         sections: componentValue([]),
       },
     });
@@ -169,7 +185,8 @@ test.describe('Components', () => {
     ).toHaveValue('Teaser');
 
     // Which Collections and how many Entries the save reaches is said before it
-    // is pressed, because Core rewrites them in the same commit.
+    // is pressed, because Core rewrites them in the same commit. Of the two
+    // Entries only one holds a section, and that is the number shown.
     await expect(
       mainWindow.getByText('Saving reaches 1 Collection and 1 Entry.')
     ).toBeVisible();

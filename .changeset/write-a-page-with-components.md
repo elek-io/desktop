@@ -12,7 +12,7 @@ In an Entry, such a field is the list of that page's sections. Add section offer
 
 Opening an Entry of a Collection that already held such a field used to fail with an error screen, however the field got there. It opens now.
 
-What a Component change reaches is said before you save it: which Collections use it and how many Entries they hold. elek.io Core carries the change into every Entry that holds the Component and saves the lot as one change, so nothing is left half done.
+What a Component change reaches is said before you save it: which Collections use it and how many of their Entries hold a section built from it. elek.io Core carries the change into every Entry that holds the Component and saves the lot as one change, so nothing is left half done.
 
 When a change cannot be carried out, nothing is saved and the Component is exactly as it was:
 
