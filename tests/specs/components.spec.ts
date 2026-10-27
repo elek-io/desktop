@@ -28,6 +28,7 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { stubCoreRejectWithType } from '../helpers/ipc.js';
+import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -644,6 +645,66 @@ test.describe('Components', () => {
     await expect(
       mainWindow.getByLabel('Component name', { exact: true })
     ).toHaveValue('Pull quote');
+  });
+
+  // ci fixes Desktop's smallest window at 1168 by 560 px at 100% zoom, the size
+  // at which no screen may collide or clip. Desktop offers no zoom control, so
+  // that one size is the whole range to check. A document wider than the window
+  // is what a collision looks like from here, and the vertical scroll below the
+  // title is what ci expects at that height.
+  test('holds the Component screens at the smallest window', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1168, 560);
+    });
+
+    const screens = [
+      `#/projects/${project.id}/components`,
+      `#/projects/${project.id}/components/create`,
+      `#/projects/${project.id}/components/${component.id}`,
+      `#/projects/${project.id}/collections/${collection.id}/create`,
+    ];
+
+    for (const screen of screens) {
+      await navigate(mainWindow, screen);
+      const size = await mainWindow.evaluate(() => ({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        overflow: document.body.scrollWidth - window.innerWidth,
+      }));
+      // Asserted, so a resize that did not take cannot make the check vacuous
+      expect(size.width).toBe(1168);
+      expect(size.height).toBe(560);
+      expect(
+        size.overflow,
+        `${screen} overflows its window`
+      ).toBeLessThanOrEqual(0);
+    }
+
+    // The sections editor is only on the screen once a section is there, so the
+    // last screen is measured again with one.
+    await mainWindow.getByRole('button', { name: 'Add section' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
+    await expect(mainWindow.getByText('Section 1 of 1')).toBeVisible();
+    const withSection = await mainWindow.evaluate(
+      () => document.body.scrollWidth - window.innerWidth
+    );
+    expect(withSection).toBeLessThanOrEqual(0);
   });
 
   // The save-blocked dialog handles Conflict and BadRequest in place, so every
