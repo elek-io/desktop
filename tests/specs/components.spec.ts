@@ -967,18 +967,21 @@ test.describe('Components', () => {
   });
 
   // ci fixes Desktop's smallest window at 1168 by 560 px at 100% zoom, the size
-  // at which no screen may collide or clip, and fixes it in CSS pixels: the
-  // window Electron's own View menu asks for grows with the zoom factor, in
-  // steps of half a zoom level (109.5%, 120%, 131.4% and on), so a screen is
-  // laid out at the minimum at every step it offers. Each step is therefore
-  // measured as the same CSS size in a window scaled by its factor. A document
-  // wider than the window is what a collision looks like from here, and the
-  // vertical scroll below the title is what ci expects at that height.
+  // at which no screen may collide or clip, and fixes it in CSS pixels. A zoom
+  // step scales device pixels, so a screen is laid out at that minimum at a
+  // step only in a window grown by the step's factor, and Electron's View menu
+  // zooms in steps of half a level: 109.5%, 120%, 131.4% and on. Each step is
+  // therefore measured as the same CSS size in a window scaled by its factor. A
+  // document wider than the window is what a collision looks like from here,
+  // and the vertical scroll below the title is what ci expects at that height.
   //
-  // Only the steps this display has room for are measured, which is the same
-  // rule ci gives Desktop for offering a step at all. Clipped labels are not
-  // covered here: ci measures those against the redesign's mockup, and these
-  // screens are not designed yet.
+  // Only the steps this display has room for are measured, which is the rule ci
+  // gives Desktop for offering a step at all. Two things are left out on
+  // purpose. Desktop sets no minimum window size, so nothing stops a window
+  // from dropping below the minimum in CSS pixels, at a zoom step or by
+  // dragging, and closing that gap belongs with the design these screens do not
+  // have yet. And a clipped label is measured against that design rather than
+  // here, for the same reason.
   test('holds the Component screens at the smallest window and its zoom steps', async ({
     mainWindow,
     electronApp,
