@@ -87,7 +87,7 @@ Authoring and rendering are two independent sides; a type can gain one before th
 1. **Authoring**: add a `DefinitionSpec` for the type. A trivial scalar is pure data (resolver + `makeDefaults` + optional `Extras`) added in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx); a complex type gets its own `<type>-field-definition.tsx`. Register it in `FIELD_DEFINITION_REGISTRY` (an exhaustive `Record<FieldType, ...>`, so it will not compile until you do) and remove it from `unauthorableFieldTypes` so the picker enables it.
 2. **Rendering**: add a `RenderSpec` entry (a `renderInput` leaf plus `translatable`) to `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx). The exhaustive `Record<FieldType, RenderSpec>` will not compile until you do.
 3. Confirm Core's `fieldTypeSchema` includes it.
-4. Add a default Value for its `valueType` in `defaultEntryValue` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)), which the entry create and update forms seed from. Its switch is exhaustive over Core's value types, so a new one fails to compile there, and its `default` branch still throws for a value type a newer Core wrote into a Project.
+4. If the type brings a `valueType` Core did not have before, add a default Value for it in `defaultEntryValue` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)), which the entry create and update forms seed from. Nothing fails to compile for a missing one, unlike the two registries above: the function's `default` branch throws instead, and that throw reaches the root error boundary when the form initializes. Most field types bring no new `valueType`, so this step is usually nothing.
 
 ## Field definition editing
 

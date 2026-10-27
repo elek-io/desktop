@@ -73,9 +73,10 @@ export function defaultEntryValue(
       };
     default: {
       // Exhaustive over Core's value types today, so TypeScript narrows the
-      // definition to `never` here. The throw stays as a runtime guard, because
-      // a Project written by a newer Core can hold a value type these types do
-      // not know about, and building a default for it would be a guess.
+      // definition to `never` here. The throw stays as the guard for a value
+      // type a later Core adds: nothing makes a missing default a compile
+      // error, and building one by guessing would write content nobody chose.
+      // See contributing/not-yet-implemented.md.
       const unsupported: { valueType: string } = definition;
       throw new Error(
         `Unsupported valueType "${unsupported.valueType}" while building default Entry Values`

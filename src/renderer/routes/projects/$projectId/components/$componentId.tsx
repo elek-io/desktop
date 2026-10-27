@@ -71,7 +71,7 @@ const deleteErrorFallback =
 // here is a Conflict with neither, and the circular reference BadRequest.
 const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   Conflict:
-    'Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one has to be answered before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.',
+    'Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.',
   BadRequest:
     'A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.',
 };
