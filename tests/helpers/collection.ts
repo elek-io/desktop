@@ -416,6 +416,14 @@ export async function deleteCollectionViaIpc(
   );
 }
 
+/** Read a Collection directly over IPC, to assert what was written. */
+export async function readCollectionViaIpc(
+  page: Page,
+  props: { projectId: string; id: string }
+): Promise<Collection> {
+  return page.evaluate(async (p) => window.ipc.core.collections.read(p), props);
+}
+
 /** Route to a Collection's Entry list and confirm the app rendered there. */
 export async function navigateToCollection(
   page: Page,

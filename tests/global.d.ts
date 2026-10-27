@@ -7,6 +7,7 @@
 declare const window: Window & {
   innerWidth: number;
   innerHeight: number;
+  requestAnimationFrame: (callback: () => void) => number;
 };
 
 declare const document: {

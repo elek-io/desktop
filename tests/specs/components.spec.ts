@@ -7,7 +7,9 @@ import {
   addFieldDefinition,
   createCollectionViaIpc,
   dynamicFieldDefinition,
+  navigateToCollectionSettings,
   openAddFieldSheet,
+  readCollectionViaIpc,
   textFieldDefinition,
 } from '../helpers/collection.js';
 import {
@@ -387,6 +389,306 @@ test.describe('Components', () => {
     await expect(headlines.nth(1)).toHaveValue('First');
   });
 
+  test('moves a section twice from the keyboard without re-finding its button', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await mainWindow.getByLabel('Title', { exact: true }).fill('Home');
+
+    const addSection = mainWindow.getByRole('button', { name: 'Add section' });
+    for (const headline of ['First', 'Second', 'Third']) {
+      await addSection.click();
+      await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
+      await mainWindow
+        .getByLabel('Headline', { exact: true })
+        .last()
+        .fill(headline);
+    }
+    await expect(mainWindow.getByText('Section 3 of 3')).toBeVisible();
+
+    // The button is focused once and then pressed twice with the keyboard
+    // alone, so nothing re-finds it in between. A section has to travel with
+    // its own chrome for that to work: if the button stayed with the position
+    // instead, the second press would belong to the section that was swapped
+    // in and would undo the first move.
+    await mainWindow
+      .getByRole('button', { name: 'Move the Teaser section down' })
+      .first()
+      .focus();
+    await mainWindow.keyboard.press('Enter');
+    await expect(
+      mainWindow.getByLabel('Headline', { exact: true }).first()
+    ).toHaveValue('Second');
+    await mainWindow.keyboard.press('Enter');
+
+    const headlines = mainWindow.getByLabel('Headline', { exact: true });
+    await expect(headlines.nth(0)).toHaveValue('Second');
+    await expect(headlines.nth(1)).toHaveValue('Third');
+    await expect(headlines.nth(2)).toHaveValue('First');
+
+    // And the order the two presses produced is what Core stores.
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const entries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const created = entries[0];
+    if (created === undefined) {
+      throw new Error('Expected the created Entry to be listed');
+    }
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: created.id,
+    });
+    const stored = mainWindow.getByLabel('Headline', { exact: true });
+    await expect(stored).toHaveCount(3);
+    await expect(stored.nth(0)).toHaveValue('Second');
+    await expect(stored.nth(2)).toHaveValue('First');
+  });
+
+  test('says why an Entry whose last section was removed could not be saved', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({
+          ofComponents: [component.id],
+          isRequired: true,
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: { headline: stringValue({ en: 'Only one' }) },
+          },
+        ]),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Teaser section' })
+      .click();
+    await expect(
+      mainWindow.getByText('No sections yet. Add one to start building')
+    ).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+
+    // The field is required, so an empty list cannot be saved. The message
+    // lands on the field and marks its control, rather than the press doing
+    // nothing at all. It is zod's own text, as every other field's is.
+    const addSection = mainWindow.getByRole('button', { name: 'Add section' });
+    await expect(addSection).toHaveAttribute('aria-invalid', 'true');
+    await expect(mainWindow.getByText(/too small/i)).toBeVisible();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/[^/]+/${entry.id}/update$`)
+    );
+
+    // Nothing was written, so the Entry still holds the section it had.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(
+      mainWindow.getByLabel('Headline', { exact: true })
+    ).toHaveValue('Only one');
+
+    // The same on create, where a section has been added and removed again.
+    // Nothing is mounted inside the field on arrival there, which is what hid
+    // the message on the update route alone.
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await mainWindow.getByLabel('Title', { exact: true }).fill('Another');
+    await addSection.click();
+    await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
+    await expect(mainWindow.getByText('Section 1 of 1')).toBeVisible();
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Teaser section' })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(addSection).toHaveAttribute('aria-invalid', 'true');
+    await expect(mainWindow.getByText(/too small/i)).toBeVisible();
+  });
+
+  test('authors a dynamic Field on a Collection through the Add Field sheet', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+
+    // The dynamic type is offered on a Collection, and its allowed Components
+    // picker names each Component rather than showing an id.
+    const sheet = await openAddFieldSheet(mainWindow, 'dynamic');
+    await sheet.getByLabel('Label', { exact: true }).fill('Sections');
+    const allowed = sheet.getByRole('switch', { name: 'Teaser', exact: true });
+    await allowed.click();
+    await expect(allowed).toBeChecked();
+    await sheet.getByLabel('Maximum').fill('2');
+    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
+    await expect(sheet).toBeHidden();
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+
+    // What the picker and the count rows stored is read back off Core, so a
+    // broken definition cannot pass as a working one.
+    const stored = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const dynamicDefinition = stored.fieldDefinitions.find(
+      (definition) =>
+        'fieldType' in definition && definition.fieldType === 'dynamic'
+    );
+    expect(dynamicDefinition).toMatchObject({
+      slug: 'sections',
+      ofComponents: [component.id],
+      max: 2,
+    });
+
+    // And the Maximum it stored is what the Entry form holds an editor to.
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await mainWindow.getByLabel('Title', { exact: true }).fill('Bounded');
+    const addSection = mainWindow.getByRole('button', { name: 'Add section' });
+    for (const count of ['Section 1 of 1', 'Section 2 of 2']) {
+      await addSection.click();
+      await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
+      await expect(mainWindow.getByText(count)).toBeVisible();
+    }
+    await expect(addSection).toBeDisabled();
+    await expect(
+      mainWindow.getByText(
+        'This field holds at most 2 sections. Remove one to add another.'
+      )
+    ).toBeVisible();
+  });
+
+  test('reorders a Component Field from the keyboard and stores the new order', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'alpha', label: { en: 'Alpha' } }),
+        textFieldDefinition({ slug: 'beta', label: { en: 'Beta' } }),
+      ],
+    });
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+
+    // Move down on the first Field, from the keyboard, as WCAG 2.1.1 asks of a
+    // reorder that is also possible by dragging.
+    const down = mainWindow.getByRole('button', {
+      name: 'Move the Alpha field down',
+    });
+    await expect(down).toBeEnabled();
+    await down.focus();
+    await mainWindow.keyboard.press('Enter');
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
+    expect(
+      (
+        await readComponentViaIpc(mainWindow, {
+          projectId: project.id,
+          id: component.id,
+        })
+      ).fieldDefinitions.map((definition) => definition.slug)
+    ).toEqual(['beta', 'alpha']);
+
+    // Move up takes it back, so both buttons are driven and neither is a
+    // one-way street.
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const up = mainWindow.getByRole('button', {
+      name: 'Move the Alpha field up',
+    });
+    await expect(up).toBeEnabled();
+    await up.focus();
+    await mainWindow.keyboard.press('Enter');
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
+    expect(
+      (
+        await readComponentViaIpc(mainWindow, {
+          projectId: project.id,
+          id: component.id,
+        })
+      ).fieldDefinitions.map((definition) => definition.slug)
+    ).toEqual(['alpha', 'beta']);
+  });
+
   test('opens an Entry whose Collection holds a dynamic field, and shows its sections', async ({
     mainWindow,
   }) => {
@@ -648,11 +950,19 @@ test.describe('Components', () => {
   });
 
   // ci fixes Desktop's smallest window at 1168 by 560 px at 100% zoom, the size
-  // at which no screen may collide or clip. Desktop offers no zoom control, so
-  // that one size is the whole range to check. A document wider than the window
-  // is what a collision looks like from here, and the vertical scroll below the
-  // title is what ci expects at that height.
-  test('holds the Component screens at the smallest window', async ({
+  // at which no screen may collide or clip, and fixes it in CSS pixels: the
+  // window Electron's own View menu asks for grows with the zoom factor, in
+  // steps of half a zoom level (109.5%, 120%, 131.4% and on), so a screen is
+  // laid out at the minimum at every step it offers. Each step is therefore
+  // measured as the same CSS size in a window scaled by its factor. A document
+  // wider than the window is what a collision looks like from here, and the
+  // vertical scroll below the title is what ci expects at that height.
+  //
+  // Only the steps this display has room for are measured, which is the same
+  // rule ci gives Desktop for offering a step at all. Clipped labels are not
+  // covered here: ci measures those against the redesign's mockup, and these
+  // screens are not designed yet.
+  test('holds the Component screens at the smallest window and its zoom steps', async ({
     mainWindow,
     electronApp,
   }) => {
@@ -669,9 +979,52 @@ test.describe('Components', () => {
       ],
     });
 
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0]?.setContentSize(1168, 560);
-    });
+    // 100% zoom and the first two steps the View menu offers.
+    const zoomLevels = [0, 0.5, 1];
+    const measuredLevels = new Set<number>();
+
+    /**
+     * Zoom to `level` and size the window so the layout still gets the minimum
+     * in CSS pixels. Set after each navigation, because the reload a
+     * navigation does resets the zoom.
+     */
+    const zoomToMinimum = async (level: number): Promise<void> => {
+      await electronApp.evaluate(
+        ({ BrowserWindow }, target) => {
+          const window = BrowserWindow.getAllWindows()[0];
+          window?.webContents.setZoomLevel(target.level);
+          window?.setContentSize(
+            Math.ceil(1168 * Math.pow(1.2, target.level)),
+            Math.ceil(560 * Math.pow(1.2, target.level))
+          );
+        },
+        { level }
+      );
+    };
+
+    /** The viewport in CSS pixels, once the renderer has laid out at it. */
+    const measure = async (): Promise<{
+      width: number;
+      height: number;
+      overflow: number;
+    }> =>
+      mainWindow.evaluate(async () => {
+        // Two frames, so the resize and the zoom the main process applied have
+        // been laid out before anything is read off the document.
+        const frame = async (): Promise<void> =>
+          new Promise((resolve) => {
+            window.requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        await frame();
+        await frame();
+        return {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          overflow: document.body.scrollWidth - window.innerWidth,
+        };
+      });
 
     const screens = [
       `#/projects/${project.id}/components`,
@@ -682,29 +1035,54 @@ test.describe('Components', () => {
 
     for (const screen of screens) {
       await navigate(mainWindow, screen);
-      const size = await mainWindow.evaluate(() => ({
-        width: window.innerWidth,
-        height: window.innerHeight,
-        overflow: document.body.scrollWidth - window.innerWidth,
-      }));
-      // Asserted, so a resize that did not take cannot make the check vacuous
-      expect(size.width).toBe(1168);
-      expect(size.height).toBe(560);
-      expect(
-        size.overflow,
-        `${screen} overflows its window`
-      ).toBeLessThanOrEqual(0);
+
+      for (const level of zoomLevels) {
+        await zoomToMinimum(level);
+        const size = await measure();
+        const at = `${screen} at zoom level ${String(level)}`;
+
+        // A display with no room for the window this step asks for is one
+        // Desktop does not offer the step on, which is ci's own rule, so the
+        // step is left out rather than failed. 100% asks for the minimum
+        // itself, and the assertion below is what fails if even that has no
+        // room.
+        if (level > 0 && (size.width < 1168 || size.height < 560)) {
+          continue;
+        }
+        measuredLevels.add(level);
+
+        // Bounded on both sides, so neither a resize nor a zoom that did not
+        // take can make the overflow check vacuous. Rounding a device pixel
+        // back into a CSS pixel can leave one over, so the upper bound is the
+        // minimum plus one.
+        expect(size.width, at).toBeGreaterThanOrEqual(1168);
+        expect(size.width, at).toBeLessThanOrEqual(1169);
+        expect(size.height, at).toBeGreaterThanOrEqual(560);
+        expect(size.height, at).toBeLessThanOrEqual(561);
+        expect(size.overflow, `${at} overflows its window`).toBeLessThanOrEqual(
+          0
+        );
+      }
     }
 
-    // The sections editor is only on the screen once a section is there, so the
-    // last screen is measured again with one.
+    // The sections editor is only on the screen once a section is there, and
+    // the loop above left the window on the Entry create route, so it is
+    // measured again with one.
+    await zoomToMinimum(0);
     await mainWindow.getByRole('button', { name: 'Add section' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
     await expect(mainWindow.getByText('Section 1 of 1')).toBeVisible();
-    const withSection = await mainWindow.evaluate(
-      () => document.body.scrollWidth - window.innerWidth
-    );
-    expect(withSection).toBeLessThanOrEqual(0);
+    for (const level of measuredLevels) {
+      await zoomToMinimum(level);
+      const size = await measure();
+      expect(
+        size.overflow,
+        `the sections editor overflows at zoom level ${String(level)}`
+      ).toBeLessThanOrEqual(0);
+    }
+
+    expect(measuredLevels.has(0)).toBe(true);
+    await zoomToMinimum(0);
   });
 
   // The save-blocked dialog handles Conflict and BadRequest in place, so every

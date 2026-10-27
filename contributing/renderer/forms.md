@@ -202,7 +202,18 @@ renders every message at or below that path and claims the subtree:
 ```
 
 A plain `FormMessage` cannot serve there, because it only shows the message
-sitting at its own exact path, and a nested refinement never leaves one there.
+sitting at its own path, and a nested refinement never leaves one there.
+
+One case looks nested and is not. `@hookform/resolvers` moves an error reported
+on an array itself under `root` as soon as any path inside that array is a
+registered field name, which a dynamic field's sections are the moment one has
+been mounted. So a required dynamic field whose last section was just removed
+reported `values.sections.content.root`, which the field's own `FormMessage` did
+not show and `AppForm`'s backstop counted as covered, and the submit said
+nothing at all. `useFormField` reads that `root` error as the field's own, so
+the message lands on the field it belongs to. A nested error object without a
+`root` is left alone, so a field holding only errors below it still renders no
+message of its own.
 
 The UX follows the rest of the app: nothing is disabled to express "invalid",
 validation runs on the submit click, and the error appears then.

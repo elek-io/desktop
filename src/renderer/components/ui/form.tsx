@@ -1639,15 +1639,21 @@ interface FormDynamicFieldProps<
  * nest inside itself, and a move that works without dragging is what WCAG
  * 2.1.1 asks for either way.
  *
- * The control-association props land on the Add section trigger, this field's
- * focusable control, as the reference fields put theirs on their dialog
- * trigger.
+ * This field is a list rather than one input, so its control-association props
+ * are split. The list is a `group` carrying the `id` the field's label points
+ * at, named by the same label and described by the same description. The Add
+ * section trigger carries the invalid state, because that is the control an
+ * editor presses to answer it. The `id` deliberately stays off that trigger: a
+ * button is labelable, so a label pointing at it would rename it from "Add
+ * section" to the field's label.
  */
 function FormDynamicField<TFieldValues extends FieldValues>({
   field,
   fieldDefinition,
   disabled,
-  ...controlProps
+  id,
+  'aria-describedby': describedBy,
+  'aria-invalid': invalid,
 }: FormDynamicFieldProps<TFieldValues>): React.ReactElement {
   const {
     projectId,
@@ -1657,9 +1663,6 @@ function FormDynamicField<TFieldValues extends FieldValues>({
   // The surrounding AppForm is the provider, so the inner fields reach the same
   // form without this leaf having to be handed it through the registry.
   const form = useFormContext<TFieldValues>();
-  // Bumped on every structural change, so the keyed fields container below
-  // remounts and each section's Controller re-reads its Value at its new index.
-  const [revision, setRevision] = React.useState(0);
   const { data: componentList, isPending: isReadingComponents } =
     useQueryNoError(queryOptions.components.list({ projectId, limit: 0 }));
 
@@ -1700,6 +1703,10 @@ function FormDynamicField<TFieldValues extends FieldValues>({
 
   const maxReached =
     fieldDefinition.max !== null && items.length >= fieldDefinition.max;
+  const label = translateContent({
+    key: 'fieldDefinition.label',
+    record: fieldDefinition.label,
+  });
 
   function componentName(componentId: string): string {
     const component = componentsById.get(componentId);
@@ -1725,16 +1732,13 @@ function FormDynamicField<TFieldValues extends FieldValues>({
   }
 
   /**
-   * Writes the new list and remounts the fields of every section.
-   *
-   * Adding, removing or moving a section rebinds each one's fields at another
-   * index, and a mounted Controller does not re-read on a change above its own
-   * name, so without the remount the inputs would keep showing the old order's
-   * Values while the form held the new one.
+   * Writes the new list. Each section is keyed by its own id below, so a
+   * structural change moves a section's fields to another index, which changes
+   * the `name` each of them is bound to and makes its Controller re-read on its
+   * own.
    */
   function setSections(next: ComponentItemDraft[]): void {
     field.onChange(next);
-    setRevision((previous) => previous + 1);
   }
 
   function addSection(component: Component): void {
@@ -1765,7 +1769,15 @@ function FormDynamicField<TFieldValues extends FieldValues>({
   }
 
   return (
-    <div className="grid gap-4">
+    <div
+      className="grid gap-4"
+      role="group"
+      aria-label={label}
+      {...(id === undefined ? {} : { id })}
+      {...(describedBy === undefined
+        ? {}
+        : { 'aria-describedby': describedBy })}
+    >
       {items.length === 0 ? (
         <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
           No sections yet. Add one to start building this page.
@@ -1776,12 +1788,11 @@ function FormDynamicField<TFieldValues extends FieldValues>({
           const name = componentName(item.componentId);
 
           return (
-            // Keyed by position, not by the item's id, because the form binds
-            // every field inside a section at its index too. The chrome below
-            // therefore keeps its identity across a move, so focus stays on the
-            // button that was pressed.
-            // eslint-disable-next-line react/no-array-index-key -- the index is the identity the form binding uses
-            <div key={index} className="rounded-lg border p-4">
+            // Keyed by the item's own id, not by its position, so a move takes
+            // the whole section with it: the button that was pressed keeps both
+            // its focus and the section it belongs to, and pressing it again
+            // moves the same section on rather than undoing the move.
+            <div key={item.id} className="rounded-lg border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
                   <span>{name}</span>
@@ -1823,10 +1834,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
               </div>
 
               {component === undefined ? null : (
-                <div
-                  key={revision}
-                  className="mt-4 grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6"
-                >
+                <div className="mt-4 grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6">
                   {component.fieldDefinitions.map((definition) => (
                     <FormFieldFromDefinition
                       key={definition.id}
@@ -1867,7 +1875,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
               Icon={ListPlusIcon}
               variant="secondary"
               disabled={disabled || maxReached}
-              {...controlProps}
+              {...(invalid === undefined ? {} : { 'aria-invalid': invalid })}
             >
               Add section
             </Button>
@@ -2333,10 +2341,19 @@ function FormFieldFromDefinition<
           ) : (
             // A non-translatable type (only `dynamic` today) renders straight
             // through the registry, bound to `content` itself, with no language
-            // dialog.
-            <FormComponentFromFieldDefinition
+            // dialog. ControlledLeaf is what hands it the control-association
+            // props the translatable branch gets through TranslatableField, so
+            // the label names a control that exists and an error on the array
+            // reaches it.
+            <ControlledLeaf
               field={field}
-              fieldDefinition={fieldDefinition}
+              renderLeaf={(leafField, controlProps) => (
+                <FormComponentFromFieldDefinition
+                  field={leafField}
+                  fieldDefinition={fieldDefinition}
+                  {...controlProps}
+                />
+              )}
             />
           )}
           {fieldDefinition.description !== null ? (
