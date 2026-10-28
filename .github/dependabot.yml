@@ -4,6 +4,12 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+    # pnpm refuses a version younger than minimumReleaseAge, so a pull request
+    # proposing one fails at `pnpm install --frozen-lockfile` on every platform
+    # before the suite runs. Waiting longer than that setting is what keeps a
+    # proposal installable. Same two days as Core.
+    cooldown:
+      default-days: 2
     # Land related bumps in one pull request, so they trigger one CI matrix run
     # instead of one run per dependency.
     groups:
@@ -12,11 +18,17 @@ updates:
           - 'minor'
           - 'patch'
     ignore:
+      # A Core release brings screens and specs with it, so it moves with the
+      # feature that needs it rather than on its own. See contributing/releasing.md
+      - dependency-name: '@elek-io/core'
       # Keep @types/node's major aligned with the Node runtime in .node-version
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
-  # Keep the workflow action versions current too, since they are pinned by tag
+  # The actions both workflows use are pinned to a commit, so nothing updates
+  # them unless Dependabot proposes it
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
+    cooldown:
+      default-days: 2
