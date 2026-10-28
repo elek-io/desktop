@@ -16,7 +16,7 @@ The base configuration for all queries and mutations is in [`client.ts`](../../s
 
 ### Query and Mutation Options
 
-All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `collectionOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `apiOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
+All `queryOptions` and `mutationOptions` are centrally defined in the [`options/`](../../src/renderer/queries/options/) directory with separate files for each domain (`projectOptions.ts`, `releaseOptions.ts`, `collectionOptions.ts`, `componentOptions.ts`, `entryOptions.ts`, `assetOptions.ts`, `userOptions.ts`, `cloudOptions.ts`, `apiOptions.ts`) and re-exported through [`queries/index.ts`](../../src/renderer/queries/index.ts). These files contain:
 
 - Typed wrappers around IPC calls
 - Query keys for cache management
@@ -40,6 +40,14 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
 
 // commit history of a project
 ['projects', projectId, 'history'];
+
+// the Releases of a project, and what a Release would publish right now
+['projects', projectId, 'current', 'releases', 'list'];
+['projects', projectId, 'current', 'releases', 'pending'];
+
+// components in a project, and one Component at HEAD
+['projects', projectId, 'current', 'components', 'list'];
+['projects', projectId, 'current', 'components', componentId, 'current'];
 
 // collections in a project
 ['projects', projectId, 'current', 'collections', 'list'];
@@ -322,11 +330,27 @@ customMutationOptions({
 
 This metadata is used by the query client to automatically display success/error toasts and log all mutations for debugging.
 
+The wrapper awaits the `onSuccess` it is given, so a mutation resolves only once its own cache updates are done. A caller that awaits `mutateAsync` and then closes a dialog or navigates can rely on what it reads next, and a rejection inside `onSuccess` reaches the mutation rather than becoming an unhandled rejection.
+
+Pass `toasts` as well when `{method} {objectType}` is not something to show a
+user. It replaces the text of both notifications and nothing else, so a mutation
+without it reads exactly as before. `releases.create` is the one that uses it,
+since "Release 0.1.0 created" is the outcome an editor should read:
+
+```typescript
+toasts: {
+  success: (result) => `Release ${result.version} created`,
+  error: 'Could not create a Release',
+},
+```
+
 ## Cache Management
 
 ### Automatic Cache Updates
 
 All mutations in the [`options/`](../../src/renderer/queries/options/) directory include `onSuccess` handlers that automatically update the cache. This ensures the UI reflects changes immediately without requiring refetches.
+
+A query that fetches something another query owns writes its answer there too. `releases.prepare` has to fetch `origin` before it diffs, which `prepare()` itself never does, so it calls `fetchProjectChanges` from [`projectOptions.ts`](../../src/renderer/queries/options/projectOptions.ts) and puts the result into the `['projects', projectId, 'current', 'changes']` cache from its `queryFn`'s `client`. That is the count behind the sidebar's Synchronize, which otherwise refreshes only every three minutes and would stay disabled right after the dialog told the editor to synchronize. It is written only when the call succeeded, and the fetch itself stays outside the shared query. A failure belongs to the dialog, which answers it in place, while running the fetch as the shared query retries it three times first and leaves the dialog on its skeleton for the whole schedule.
 
 ### The `mergeListWithObject` Helper
 
@@ -434,6 +458,8 @@ onSuccess: (updatedItem, variables, _result, context) => {
 
 **Use for:** create, update, delete, user settings, API start/stop
 
+A Component update is the one mutation that also invalidates. Core cascades a field definition change into every Entry holding the Component, in the same commit, and which Entries those are is Core's to know rather than ours, so `componentOptions.update` drops the whole `['projects', projectId, 'current', 'collections']` subtree and lets it be read again. An Entry's query key sits under its Collection's, which is why it invalidates from `collections` down.
+
 #### 2. Query Invalidation (For Unknown Scope)
 
 Use `invalidateQueries` for operations that may affect multiple caches:
@@ -476,5 +502,6 @@ Data loading and mutations lean on the app's error handling defaults:
 - `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
 - All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. That is the only sink, and nothing it writes leaves the machine.
 - An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete and sync-conflict modals do this today.
+- One query does the same in its own layer. `releases.prepare` catches the `CoreError` types the Release dialog can explain inside its `queryFn` and returns them as a `refused` outcome, re-throwing everything else so its `throwOnError: true` still reaches the boundary. The caught set is the same map the dialog's copy comes from, so the two cannot drift apart.
 
 The full picture, including how `CoreError.type` survives IPC, the step-by-step guide to handling an expected error in place with those worked examples, and exactly where and when things are logged, lives in the dedicated [Error Handling](../error-handling.md) doc.

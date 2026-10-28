@@ -47,23 +47,38 @@ Two things about the endpoint, since they are decisions rather than details:
 Caps are 5000 characters of message and 2 MB of total body, both of which Core
 enforces before sending.
 
+## Preview Releases
+
+A full Release works end to end. The Releases page, the Release dialog, the IPC
+channels `core:releases:list`, `core:releases:prepare` and
+`core:releases:create` and
+[`tests/specs/releases.spec.ts`](../tests/specs/releases.spec.ts) cut one
+through the UI against a local bare remote. A preview Release does not.
+
+- **Core support**: `core.releases.createPreview()`. It tags a pre-release
+  snapshot such as `1.1.0-preview.3` on `draft` and pushes `draft` and the tag,
+  without promoting anything into `main`. See
+  [`releases.md`](../node_modules/@elek-io/core/docs/releases.md) in the Core
+  package.
+- **Client today**: no UI and no `core:releases:createPreview` channel. A
+  preview made elsewhere does show in the Releases list, marked Preview, so it
+  is never read as the version a site builds from.
+- **Where to start**: a second outcome in the Release dialog or a control of its
+  own, plus the channel in [`index.d.ts`](../src/index.d.ts), the preload bridge
+  and the main process channel map. What a preview is for in elek.io Desktop is
+  undecided, so the product question comes before the code.
+
 ## Field types
 
-Core's `fieldTypeSchema` defines 18 field types. The client implements a subset.
-
-- **Working end to end** (17): `text`, `textarea`, `number`, `range`, `toggle`, `asset`, `entry`, `date`, `datetime`, `time`, `email`, `url`, `telephone`, `ipv4`, `select`, `slug`, `markdown`.
-- **Not yet implemented** (1): `dynamic`. It is shown **disabled** in the "Add Field" picker so it cannot be authored, and any that still reaches the client (through Core, the API, or a migration) renders as a muted placeholder instead of crashing (see [Rendering unsupported field types](#rendering-unsupported-field-types)).
+Core's `fieldTypeSchema` defines 18 field types, and all 18 work end to end:
+`text`, `textarea`, `number`, `range`, `toggle`, `asset`, `entry`, `date`,
+`datetime`, `time`, `email`, `url`, `telephone`, `ipv4`, `select`, `slug`,
+`markdown` and `dynamic`.
 
 Two things are the source of truth for "what is implemented", one per side (authoring and rendering). Keep them current when adding a type:
 
-- `FIELD_DEFINITION_REGISTRY` in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx) - the exhaustive `Record<FieldType, ...>` of authoring forms. A type that cannot be authored yet still needs an entry (a short note) plus a listing in `unauthorableFieldTypes` beside it, which is what disables it in the "Add Field" picker.
-- `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) - the exhaustive `Record<FieldType, RenderSpec>` of leaf inputs `FormComponentFromFieldDefinition` can draw. A type that cannot be rendered yet still needs an entry (`dynamic` draws the muted placeholder and is marked `translatable: false`).
-
-### What the missing type needs
-
-- **Core support**: `dynamicFieldDefinitionSchema` (`valueType: 'component'`, `ofComponents` referencing Component ids, min/max item counts) and the Component object type (`componentFileSchema`, `makeComponentsContext`, `resolveOfComponents`). A dynamic Value's content is a flat array of `ComponentItem`s, not a per-language record.
-- **Client today**: the client has no Components support at all - no queries, no IPC surface, no routes, no CRUD UI. A dynamic field is disabled in the picker and renders the muted placeholder. `defaultEntryValue()` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)) still throws for `valueType: 'component'`, so an entry form for a Collection that already contains a dynamic field (via Core or the API) crashes.
-- **Where to start**: Components come first - list/read queries plus routes and CRUD UI, mirroring how Collections are wired. Then the dynamic definition form (an `ofComponents` picker) and a polymorphic block editor in the entry form. Note the `TranslatableField` wrapper in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) assumes per-language content and does not fit dynamic Values, which is why the `dynamic` `RenderSpec` is `translatable: false`.
+- `FIELD_DEFINITION_REGISTRY` in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx) - the exhaustive `Record<FieldType, ...>` of authoring forms. A type that cannot be authored yet still needs an entry (a short note) plus a listing in `unauthorableFieldTypes` beside it, which is what disables it in the "Add Field" picker. That set is empty today.
+- `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) - the exhaustive `Record<FieldType, RenderSpec>` of leaf inputs `FormComponentFromFieldDefinition` can draw. A type that cannot be rendered yet still needs an entry.
 
 ### To implement a type
 
@@ -72,21 +87,20 @@ Authoring and rendering are two independent sides; a type can gain one before th
 1. **Authoring**: add a `DefinitionSpec` for the type. A trivial scalar is pure data (resolver + `makeDefaults` + optional `Extras`) added in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx); a complex type gets its own `<type>-field-definition.tsx`. Register it in `FIELD_DEFINITION_REGISTRY` (an exhaustive `Record<FieldType, ...>`, so it will not compile until you do) and remove it from `unauthorableFieldTypes` so the picker enables it.
 2. **Rendering**: add a `RenderSpec` entry (a `renderInput` leaf plus `translatable`) to `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx). The exhaustive `Record<FieldType, RenderSpec>` will not compile until you do.
 3. Confirm Core's `fieldTypeSchema` includes it.
-
-### Rendering unsupported field types
-
-`RENDER_REGISTRY` ([`ui/form.tsx`](../src/renderer/components/ui/form.tsx)) is exhaustive over `FieldType`, and the `dynamic` entry draws a muted "can't be displayed yet" placeholder. So rendering a not-yet-renderable field (from Core, the API, or a migration) in the collection editor or a diff does not crash. The entry create and update forms are the exception: they seed defaults through `defaultEntryValue` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)), which throws for a value type it does not build, so a Collection carrying an unsupported field still fails to initialize its entry form. That failure reaches the error boundary rather than degrading in place. The actual renderer components are still missing (see above).
+4. If the type brings a `valueType` Core did not have before, add a default Value for it in `defaultEntryValue` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)), which the entry create and update forms seed from. Nothing fails to compile for a missing one, unlike the two registries above: the function's `default` branch throws instead, and that throw reaches the root error boundary when the form initializes. Most field types bring no new `valueType`, so this step is usually nothing.
 
 ## Field definition editing
 
-- **Core support**: `CollectionService.update` accepts any valid `fieldDefinitions` array, so definitions can be changed after creation at the data level.
-- **Client today**: definitions are add-only. The Edit pencil button `FormFieldFromDefinition` renders in the collection editor has no `onClick` ([`ui/form.tsx`](../src/renderer/components/ui/form.tsx)), and the per-type definition forms have no update mode. Only adding, reordering (drag) and deleting work.
-- **Where to start**: wire the Edit button to open the sheet with the matching per-type form hydrated from the existing definition, and replace via the field array on submit.
+- **Core support**: `CollectionService.update` accepts any valid `fieldDefinitions` array, except a change that deletes stored content. Removing a field definition Entries hold Values for, and narrowing a `dynamic` field's `ofComponents` or an `entry` field's `ofCollections`, are refused with a `Conflict` until the same update is sent again carrying `acceptedContentLoss` (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). Everything else can be changed after creation at the data level.
+- **Client today**: one part of one definition can be edited, and the rest is add-only, for a Collection and for a Component alike.
+  - **Editable**: which Components a `dynamic` field allows, and only by allowing more. The Edit button on such a field opens [`allow-components-sheet.tsx`](../src/renderer/components/forms/allow-components-sheet.tsx), which offers the Components the field does not allow yet, lists the ones it does, and hands the definition back with its id and everything else untouched. A field whose `ofComponents` is empty already allows every Component of the Project, so it offers nothing to add: switching one on would narrow the field to that one, which is a content loss. Growing is the one change that costs nothing, since Core strips no Component item.
+  - **Add-only**: everything else. No other field type carries an Edit button at all, and the per-type definition forms have no update mode, so a label, a slug, a type, a bound or an option list is fixed once the field is added. Only adding, reordering (by dragging or with the Move up / Move down buttons) and deleting work, and a delete only while it drops no stored Value. The editor's section description says all of this on the screen, so an editor learns it before building a field with a typo in it. The client sends no `acceptedContentLoss`, so Core's refusal surfaces through the save-blocked dialog (see [`error-handling.md`](./error-handling.md)) and nothing is written. Accepting a loss needs a dialog that first shows what would go, which is not built yet.
+- **Where to start**: give the per-type definition forms an update mode, hydrated from the existing definition, and replace through the editor's `replaceDefinition` helper on submit, which the grow sheet already uses. Taking an allowed Component away waits for the dialog that shows what would go first.
 - **Notes**: `select` (options lists) and `markdown` (feature toggles) raise the priority - those are the definitions users will want to revise. Editing also raises data questions Core should answer first, like what happens to stored Values referencing a removed select option.
 
 ## Markdown: v1 simplifications
 
-- **Definition `defaultValue` stays null**: Core allows a default mdast tree applied to every language of a new Entry, but the definition form does not offer an editor for it. Authoring one would couple a mounted editor to the feature toggles being edited in the same form, and definitions cannot be edited afterwards anyway (see [Field definition editing](#field-definition-editing)).
+- **Definition `defaultValue` stays null**: Core allows a default mdast tree applied to every language of a new Entry, but the definition form does not offer an editor for it. Authoring one would couple a mounted editor to the feature toggles being edited in the same form, and a markdown definition cannot be edited afterwards anyway (see [Field definition editing](#field-definition-editing)).
 - **Entry reference labels flatten to plain text**: Core's `entryReference` node carries phrasing children, the editor stores them as a single text child. Rich formatting inside a reference label (authored via the API) is flattened to plain text when such content is edited.
 - **Deep validation errors show without detail**: min/max block counts and feature violations surface as a message under the field, but zod issues addressed at nested tree paths may only mark the field invalid without a per-node explanation.
 
@@ -96,7 +110,7 @@ See [`renderer/markdown-editor.md`](./renderer/markdown-editor.md) for the edito
 
 - **Core support**: `fieldDefinitionGroupSchema` and `FieldDefinitionOrGroup`. Groups can be created, nested members added, and reordered at the data level.
 - **Client today**: groups are display only. The entry form and collection editor render existing groups as a `FieldSet`, but there is no UI to create a group, move fields into or out of one, or reorder groups.
-- **Where to start**: the state layer is already in place. `collection-form.tsx` binds `fieldDefinitions` as a single `Controller`-bound `FieldDefinitionOrGroup[]` value, edited through typed `appendDefinition` / `removeDefinition` / `moveDefinition` helpers, which replaced the opaque `{ id }` rows that did not scale to authoring. Group authoring means adding helpers alongside those (create a group, move a definition into or out of one) and the UI to drive them. Do not move the array out to a `useReducer` outside react-hook-form: it would sit outside the resolver, so the Collection schema's refinements would not run and `formState.isDirty` would not flip. See [`forms.md`](./renderer/forms.md#why-it-is-built-this-way) and [`dynamic-form-field-generation.md`](./renderer/dynamic-form-field-generation.md).
+- **Where to start**: the state layer is already in place. `field-definitions-editor.tsx` binds `fieldDefinitions` as a single `Controller`-bound `FieldDefinitionOrGroup[]` value, edited through typed `appendDefinition` / `removeDefinition` / `moveDefinition` helpers, which replaced the opaque `{ id }` rows that did not scale to authoring. Group authoring means adding helpers alongside those (create a group, move a definition into or out of one) and the UI to drive them. Only a Collection takes a group at all, since Core's `componentFileSchema` holds a flat `FieldDefinition[]`. Do not move the array out to a `useReducer` outside react-hook-form: it would sit outside the resolver, so the Collection schema's refinements would not run and `formState.isDirty` would not flip. See [`forms.md`](./renderer/forms.md#why-it-is-built-this-way) and [`dynamic-form-field-generation.md`](./renderer/dynamic-form-field-generation.md).
 
 ## Entry table: value columns render empty
 

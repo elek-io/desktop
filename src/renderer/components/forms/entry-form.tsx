@@ -58,9 +58,11 @@ export function EntryForm<
   const defaultLanguage = project.settings.language.default;
 
   // The path is provably a key of `values` (a Record), but react-hook-form's
-  // FieldPath cannot reduce that for an unresolved generic, so assert it once here.
+  // FieldPath cannot reduce that for an unresolved generic, so assert it once
+  // here. It stops at `content`: whether the Value is per-language is the render
+  // registry's to know, so FormFieldFromDefinition appends the language itself.
   const valuePath = (slug: string): FieldPath<TFieldValues> =>
-    `values.${slug}.content.${defaultLanguage}` as FieldPath<TFieldValues>;
+    `values.${slug}.content` as FieldPath<TFieldValues>;
 
   return (
     <FieldDefinitionsProvider fieldDefinitions={fieldDefinitions}>
@@ -90,6 +92,7 @@ export function EntryForm<
                         fieldDefinition={member}
                         form={entryForm}
                         name={valuePath(member.slug)}
+                        language={defaultLanguage}
                         supportedLanguages={project.settings.language.supported}
                       />
                     ))}
@@ -104,6 +107,7 @@ export function EntryForm<
                 fieldDefinition={fieldDefinition}
                 form={entryForm}
                 name={valuePath(fieldDefinition.slug)}
+                language={defaultLanguage}
                 supportedLanguages={project.settings.language.supported}
               />
             );

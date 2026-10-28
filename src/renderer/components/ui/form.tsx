@@ -1,10 +1,13 @@
 'use client';
 
+import { arrayMove } from '@dnd-kit/sortable';
 import type * as SliderPrimitive from '@radix-ui/react-slider';
 import { Slot } from '@radix-ui/react-slot';
 import type * as SwitchPrimitive from '@radix-ui/react-switch';
 import {
   CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   EditIcon,
   ImagePlusIcon,
   LanguagesIcon,
@@ -33,6 +36,7 @@ import { AssetDisplay } from '@renderer/components/asset-display';
 import { DragHandle } from '@renderer/components/drag-and-drop';
 import { MarkdownEditor } from '@renderer/components/markdown/markdown-editor';
 import { Button } from '@renderer/components/ui/button';
+import { ButtonGroup } from '@renderer/components/ui/button-group';
 import {
   Dialog,
   DialogBody,
@@ -44,8 +48,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@renderer/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu';
 import { Input } from '@renderer/components/ui/input';
 import { Label } from '@renderer/components/ui/label';
+import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Slider } from '@renderer/components/ui/slider';
 import { Switch } from '@renderer/components/ui/switch';
 import { Textarea } from '@renderer/components/ui/textarea';
@@ -62,6 +73,7 @@ import {
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { defaultEntryValues } from '@renderer/lib/entry';
 import {
   collectFieldErrorMessages,
   isAtOrBelow,
@@ -70,10 +82,14 @@ import { cn, fieldWidth } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
+  resolveOfComponents,
   slug,
+  uuid,
   type Asset,
   type AssetFieldDefinition,
   type Collection,
+  type Component,
+  type DynamicFieldDefinition,
   type Entry,
   type EntryFieldDefinition,
   type FieldDefinition,
@@ -219,8 +235,15 @@ function FormMessage({
   );
 }
 
-export interface FormSubtreeMessageProps<TFieldValues extends FieldValues> {
-  form: UseFormReturn<TFieldValues>;
+// TTransformedValues is defaulted and never read: only `form.control` is used
+// here, which is typed by TFieldValues alone. Carrying the generic lets a caller
+// pass its form as it is, instead of erasing the third generic through a cast.
+// See contributing/renderer/forms.md#form-typing.
+export interface FormSubtreeMessageProps<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+> {
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   name: FieldPath<TFieldValues>;
   className?: string;
 }
@@ -236,11 +259,17 @@ export interface FormSubtreeMessageProps<TFieldValues extends FieldValues> {
  * AppForm from reporting the same errors a second time.
  * See contributing/renderer/forms.md.
  */
-function FormSubtreeMessage<TFieldValues extends FieldValues>({
+function FormSubtreeMessage<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
   form,
   name,
   className,
-}: FormSubtreeMessageProps<TFieldValues>): React.ReactElement | null {
+}: FormSubtreeMessageProps<
+  TFieldValues,
+  TTransformedValues
+>): React.ReactElement | null {
   useErrorTarget(name);
   const { errors } = useFormState({ control: form.control, name });
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -1574,6 +1603,308 @@ function FormEntryField<TFieldValues extends FieldValues>({
   );
 }
 
+/**
+ * One section of a page as the form holds it: a Component item whose inner
+ * Values are still the schema input rather than Core's strict `Value`, because
+ * they are being written. Nothing here reads one, each is reached by its own
+ * form path, so `unknown` is enough and Core stays the only validator.
+ */
+interface ComponentItemDraft {
+  id: string;
+  componentId: string;
+  values: Record<string, unknown>;
+}
+
+interface FormDynamicFieldProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+> extends FieldControlProps {
+  field: ControllerRenderProps<TFieldValues, TName>;
+  fieldDefinition: DynamicFieldDefinition;
+  disabled: boolean;
+}
+
+/**
+ * The editor for a dynamic field: the ordered sections of a page, each built
+ * from one of the Components the field allows and holding that Component's own
+ * fields.
+ *
+ * Unlike every other field its Value is one flat array rather than content per
+ * language, so it is the one `RenderSpec` marked `translatable: false`, and the
+ * path it is bound to ends at `content` instead of at a language. See
+ * contributing/renderer/dynamic-form-field-generation.md.
+ *
+ * Sections are reordered with Move up and Move down rather than by dragging. A
+ * section can hold a dynamic field of its own, so a drag context here would
+ * nest inside itself, and a move that works without dragging is what WCAG
+ * 2.1.1 asks for either way.
+ *
+ * This field is a list rather than one input, so its control-association props
+ * are split. The list is a `group` carrying the `id` the field's label points
+ * at, named by the same label and described by the same description. The Add
+ * section trigger carries the invalid state, because that is the control an
+ * editor presses to answer it. The `id` deliberately stays off that trigger: a
+ * button is labelable, so a label pointing at it would rename it from "Add
+ * section" to the field's label.
+ */
+function FormDynamicField<TFieldValues extends FieldValues>({
+  field,
+  fieldDefinition,
+  disabled,
+  id,
+  'aria-describedby': describedBy,
+  'aria-invalid': invalid,
+}: FormDynamicFieldProps<TFieldValues>): React.ReactElement {
+  const {
+    projectId,
+    translateContent,
+    projectQuery: { data: project, isPending: isReadingProject },
+  } = useProject();
+  // The surrounding AppForm is the provider, so the inner fields reach the same
+  // form without this leaf having to be handed it through the registry.
+  const form = useFormContext<TFieldValues>();
+  const { data: componentList, isPending: isReadingComponents } =
+    useQueryNoError(queryOptions.components.list({ projectId, limit: 0 }));
+
+  if (isReadingProject || isReadingComponents) {
+    return (
+      <div className="grid gap-2">
+        <Skeleton className="h-9 w-40 rounded-md" />
+        <span className="text-sm text-muted-foreground">
+          Loading this Project&apos;s Components
+        </span>
+      </div>
+    );
+  }
+
+  // Only the shape of the list is read from here: how many sections there are
+  // and which Component each is built from. The Values inside are stale as soon
+  // as somebody types into one, because react-hook-form only re-renders a
+  // Controller for a change at its own exact name, not for one below it. They
+  // are read from the form itself in `sections()` instead.
+  const items: ComponentItemDraft[] = Array.isArray(field.value)
+    ? field.value
+    : [];
+  const supportedLanguages = project.settings.language.supported;
+  const defaultLanguage = project.settings.language.default;
+
+  const components = componentList.list;
+  const componentsById = new Map(
+    components.map((component) => [component.id, component])
+  );
+  // An empty `ofComponents` allows every Component of the Project, which is
+  // Core's own rule rather than ours, so it is read off Core.
+  const allowedComponents = resolveOfComponents(
+    fieldDefinition,
+    components.map((component) => component.id)
+  )
+    .map((id) => componentsById.get(id))
+    .filter((component): component is Component => component !== undefined);
+
+  const maxReached =
+    fieldDefinition.max !== null && items.length >= fieldDefinition.max;
+  const label = translateContent({
+    key: 'fieldDefinition.label',
+    record: fieldDefinition.label,
+  });
+
+  function componentName(componentId: string): string {
+    const component = componentsById.get(componentId);
+    // Only reachable while the Components are still loading, since Core refuses
+    // to delete a Component something still holds
+    if (component === undefined) {
+      return 'Section';
+    }
+    return translateContent({
+      key: 'component.name',
+      record: component.name,
+    });
+  }
+
+  /**
+   * The sections as the form holds them right now, Values included. Read from
+   * the form rather than from `field.value`, which does not see what somebody
+   * typed into a section since this field last changed.
+   */
+  function sections(): ComponentItemDraft[] {
+    const value: unknown = form.getValues(field.name);
+    return Array.isArray(value) ? value : [];
+  }
+
+  /**
+   * Writes the new list. Each section is keyed by its own id below, so a
+   * structural change moves a section's fields to another index, which changes
+   * the `name` each of them is bound to and makes its Controller re-read on its
+   * own.
+   */
+  function setSections(next: ComponentItemDraft[]): void {
+    field.onChange(next);
+  }
+
+  function addSection(component: Component): void {
+    setSections([
+      ...sections(),
+      {
+        id: uuid(),
+        componentId: component.id,
+        values: defaultEntryValues(
+          component.fieldDefinitions,
+          supportedLanguages
+        ),
+      },
+    ]);
+  }
+
+  function removeSection(index: number): void {
+    setSections(sections().filter((_item, itemIndex) => itemIndex !== index));
+  }
+
+  function moveSection(index: number, offset: number): void {
+    const current = sections();
+    const target = index + offset;
+    if (target < 0 || target >= current.length) {
+      return;
+    }
+    setSections(arrayMove(current, index, target));
+  }
+
+  return (
+    <div
+      className="grid gap-4"
+      role="group"
+      aria-label={label}
+      {...(id === undefined ? {} : { id })}
+      {...(describedBy === undefined
+        ? {}
+        : { 'aria-describedby': describedBy })}
+    >
+      {items.length === 0 ? (
+        <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+          No sections yet. Add one to start building this page.
+        </p>
+      ) : (
+        items.map((item, index) => {
+          const component = componentsById.get(item.componentId);
+          const name = componentName(item.componentId);
+
+          return (
+            // Keyed by the item's own id, not by its position, so a move takes
+            // the whole section with it: the button that was pressed keeps both
+            // its focus and the section it belongs to, and pressing it again
+            // moves the same section on rather than undoing the move.
+            <div key={item.id} className="rounded-lg border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  <span>{name}</span>
+                  <span className="ml-2 font-normal text-muted-foreground">
+                    Section {index + 1} of {items.length}
+                  </span>
+                </p>
+                <ButtonGroup>
+                  <Button
+                    Icon={ChevronUpIcon}
+                    variant="secondary"
+                    size="icon"
+                    disabled={disabled || index === 0}
+                    onClick={() => moveSection(index, -1)}
+                  >
+                    <span className="sr-only">Move the {name} section up</span>
+                  </Button>
+                  <Button
+                    Icon={ChevronDownIcon}
+                    variant="secondary"
+                    size="icon"
+                    disabled={disabled || index === items.length - 1}
+                    onClick={() => moveSection(index, 1)}
+                  >
+                    <span className="sr-only">
+                      Move the {name} section down
+                    </span>
+                  </Button>
+                  <Button
+                    Icon={TrashIcon}
+                    variant="destructive"
+                    size="icon"
+                    disabled={disabled}
+                    onClick={() => removeSection(index)}
+                  >
+                    <span className="sr-only">Remove the {name} section</span>
+                  </Button>
+                </ButtonGroup>
+              </div>
+
+              {component === undefined ? null : (
+                <div className="mt-4 grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6">
+                  {component.fieldDefinitions.map((definition) => (
+                    <FormFieldFromDefinition
+                      key={definition.id}
+                      fieldDefinition={definition}
+                      form={form}
+                      name={sectionValuePath<TFieldValues>(
+                        field.name,
+                        index,
+                        definition
+                      )}
+                      language={defaultLanguage}
+                      supportedLanguages={supportedLanguages}
+                    />
+                  ))}
+                </div>
+              )}
+              {component !== undefined &&
+              component.fieldDefinitions.length === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  This Component has no fields yet, so this section holds
+                  nothing. Add fields to it to fill this section in.
+                </p>
+              ) : null}
+            </div>
+          );
+        })
+      )}
+
+      {allowedComponents.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          This Project has no Component this field allows, so no section can be
+          added. Create one, or allow another one on this field.
+        </p>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              Icon={ListPlusIcon}
+              variant="secondary"
+              disabled={disabled || maxReached}
+              {...(invalid === undefined ? {} : { 'aria-invalid': invalid })}
+            >
+              Add section
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {allowedComponents.map((component) => (
+              <DropdownMenuItem
+                key={component.id}
+                onSelect={() => addSection(component)}
+              >
+                {translateContent({
+                  key: 'component.name',
+                  record: component.name,
+                })}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      {maxReached ? (
+        <p className="text-sm text-muted-foreground">
+          This field holds at most {fieldDefinition.max} sections. Remove one to
+          add another.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export interface FormComponentFromFieldDefinitionProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
@@ -1827,19 +2158,41 @@ const RENDER_REGISTRY: Record<FieldType, RenderSpec> = {
       );
     },
   },
-  // `dynamic` cannot be rendered yet, since its content is a flat Component array
-  // rather than a per-language record. The placeholder keeps a Collection carrying
-  // one from crashing. See contributing/not-yet-implemented.md.
+  // The one type whose content is a flat array of Component items rather than a
+  // record per language, which is why it alone is not translatable.
   dynamic: {
     translatable: false,
-    renderInput: ({ fieldDefinition }) => (
-      <div className="rounded-md border border-dashed border-zinc-300 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-        The &quot;{fieldDefinition.fieldType}&quot; field type can&apos;t be
-        displayed yet.
-      </div>
-    ),
+    renderInput: ({ field, fieldDefinition, disabled, controlProps }) => {
+      if (fieldDefinition.fieldType !== 'dynamic') {
+        return null;
+      }
+      return (
+        <FormDynamicField
+          field={field}
+          fieldDefinition={fieldDefinition}
+          disabled={disabled}
+          {...controlProps}
+        />
+      );
+    },
   },
 };
+
+/**
+ * The path one field definition's Value sits at inside one section of a dynamic
+ * field, whose own bound path is `baseName`. `FormFieldFromDefinition` appends
+ * the language itself where the Value is per-language, so this stops at
+ * `content`.
+ */
+function sectionValuePath<TFieldValues extends FieldValues>(
+  baseName: string,
+  index: number,
+  fieldDefinition: FieldDefinition
+): FieldPath<TFieldValues> {
+  // Provably a key of the item's `values` record, but FieldPath cannot reduce
+  // that for an unresolved generic, so it is asserted once here
+  return `${baseName}.${String(index)}.values.${fieldDefinition.slug}.content` as FieldPath<TFieldValues>;
+}
 
 /**
  * Whether a field's required state should be exposed as `aria-required`, which
@@ -1896,7 +2249,14 @@ interface FormFieldFromDefinitionProps<
 > {
   fieldDefinition: FieldDefinition;
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  /**
+   * The path to the field's `content`, without a language. Which type's Value
+   * is per-language is the render registry's to know, so the language below is
+   * appended here rather than at every call site.
+   */
   name: FieldPath<TFieldValues>;
+  /** The language being edited, appended to `name` for a per-language Value. */
+  language: SupportedLanguage;
   supportedLanguages: SupportedLanguage[];
   className?: string;
 }
@@ -1913,6 +2273,7 @@ function FormFieldFromDefinition<
 >({
   form,
   name,
+  language,
   fieldDefinition,
   supportedLanguages,
   className,
@@ -1921,11 +2282,21 @@ function FormFieldFromDefinition<
   TTransformedValues
 >): React.ReactElement {
   const { translateContent } = useProject();
+  const isTranslatable =
+    RENDER_REGISTRY[fieldDefinition.fieldType].translatable;
+  // A per-language Value is bound one level deeper, at the language being
+  // edited, because TranslatableField derives the sibling languages from that
+  // last segment. A dynamic field's Value is one flat array, so it binds to
+  // `content` itself. FieldPath cannot reduce the appended path for an
+  // unresolved generic, so it is asserted here.
+  const leafName = isTranslatable
+    ? (`${name}.${language}` as FieldPath<TFieldValues>)
+    : name;
 
   return (
     <FormField
       control={form.control}
-      name={name}
+      name={leafName}
       render={({ field }) => (
         <FormItem
           className={cn(
@@ -1939,7 +2310,7 @@ function FormFieldFromDefinition<
               record: fieldDefinition.label,
             })}
           </FormLabel>
-          {RENDER_REGISTRY[fieldDefinition.fieldType].translatable ? (
+          {isTranslatable ? (
             <TranslatableField
               field={field}
               title={translateContent({
@@ -1968,12 +2339,21 @@ function FormFieldFromDefinition<
               )}
             />
           ) : (
-            // Non-translatable types (only `dynamic` today) render straight
-            // through the registry, which draws the muted placeholder, with no
-            // language dialog.
-            <FormComponentFromFieldDefinition
+            // A non-translatable type (only `dynamic` today) renders straight
+            // through the registry, bound to `content` itself, with no language
+            // dialog. ControlledLeaf is what hands it the control-association
+            // props the translatable branch gets through TranslatableField, so
+            // the label names a control that exists and an error on the array
+            // reaches it.
+            <ControlledLeaf
               field={field}
-              fieldDefinition={fieldDefinition}
+              renderLeaf={(leafField, controlProps) => (
+                <FormComponentFromFieldDefinition
+                  field={leafField}
+                  fieldDefinition={fieldDefinition}
+                  {...controlProps}
+                />
+              )}
             />
           )}
           {fieldDefinition.description !== null ? (
@@ -1994,7 +2374,20 @@ function FormFieldFromDefinition<
 interface FormFieldDefinitionPreviewProps {
   fieldDefinition: FieldDefinition;
   isDraggable?: boolean;
-  isEditable?: boolean;
+  /**
+   * Opens the editor for this definition. Undefined where nothing about it can
+   * be changed, so no edit control is rendered at all rather than a disabled
+   * one that says nothing and no keyboard reaches.
+   */
+  onEdit?: (() => void) | undefined;
+  /**
+   * Moves this definition one place up or down. Undefined where that move does
+   * not exist, so the button renders disabled rather than vanishing and
+   * shifting the rest of the chrome. Reordering by dragging alone would fail
+   * WCAG 2.1.1 and 2.5.7, so both exist wherever one does.
+   */
+  onMoveUp?: (() => void) | undefined;
+  onMoveDown?: (() => void) | undefined;
   onDelete?: ((fieldDefinition: FieldDefinition) => void) | undefined;
   className?: string;
 }
@@ -2026,7 +2419,9 @@ function previewFieldValue(fieldDefinition: FieldDefinition): unknown {
 function FormFieldDefinitionPreview({
   fieldDefinition,
   isDraggable = false,
-  isEditable = false,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
   onDelete,
   className,
 }: FormFieldDefinitionPreviewProps): React.ReactElement {
@@ -2060,31 +2455,44 @@ function FormFieldDefinitionPreview({
         className
       )}
     >
-      <div className="flex flex-col">
+      {/* A vertical ButtonGroup, so the stack's rounding and borders follow
+      the buttons that are actually there rather than a condition per button. */}
+      <ButtonGroup orientation="vertical">
         {isDraggable === true ? (
-          <DragHandle
-            id={fieldDefinition.id}
-            className={cn({
-              'rounded-b-none': isEditable === true || onDelete !== undefined,
-            })}
-          />
+          <>
+            <DragHandle id={fieldDefinition.id} />
+            <Button
+              Icon={ChevronUpIcon}
+              variant="secondary"
+              size="icon"
+              disabled={onMoveUp === undefined}
+              onClick={onMoveUp}
+            >
+              <span className="sr-only">Move the {label} field up</span>
+            </Button>
+            <Button
+              Icon={ChevronDownIcon}
+              variant="secondary"
+              size="icon"
+              disabled={onMoveDown === undefined}
+              onClick={onMoveDown}
+            >
+              <span className="sr-only">Move the {label} field down</span>
+            </Button>
+          </>
         ) : null}
-        {isEditable === true ? (
-          // Editing a field definition is not implemented yet (deliberate TODO),
-          // so this stays disabled and named rather than silently doing nothing.
+        {onEdit !== undefined ? (
+          // A dynamic field is the only one with something to edit: the
+          // Components it allows. The name says that rather than "Edit", so
+          // pressing it holds no surprise.
           <Button
             Icon={EditIcon}
             variant="secondary"
             size="icon"
-            disabled
-            className={cn({
-              'rounded-none': isDraggable === true && onDelete !== undefined,
-              'rounded-t-none': isDraggable === true,
-              'rounded-b-none': onDelete !== undefined,
-            })}
+            onClick={onEdit}
           >
             <span className="sr-only">
-              Edit the {label} field (not available yet)
+              Allow more Components on the {label} field
             </span>
           </Button>
         ) : null}
@@ -2094,14 +2502,11 @@ function FormFieldDefinitionPreview({
             variant="destructive"
             size="icon"
             onClick={() => onDelete(fieldDefinition)}
-            className={cn({
-              'rounded-t-none': isDraggable === true || isEditable === true,
-            })}
           >
             <span className="sr-only">Remove the {label} field</span>
           </Button>
         ) : null}
-      </div>
+      </ButtonGroup>
       <div className="flex w-full flex-col gap-2">
         <Label htmlFor={inputId} isRequired={fieldDefinition.isRequired}>
           {label}

@@ -8,8 +8,14 @@ import type {
 
 /**
  * Builds the default form Value for a single field definition, in the shape the
- * generated Entry schema expects (a per-language `content` record under a slug).
- * Shared by the create and update Entry routes so both hydrate Values the same way.
+ * generated Entry schema expects. For every value type but `component` that is
+ * a per-language `content` record under a slug. A `component` Value's content
+ * is one flat array of Component items instead, which is why the content type
+ * here is the union of the two.
+ *
+ * Shared by the create and update Entry routes so both hydrate Values the same
+ * way, and by the dynamic field's editor, which seeds a new section's Values
+ * from its Component's own field definitions.
  */
 export function defaultEntryValue(
   definition: FieldDefinition,
@@ -17,7 +23,7 @@ export function defaultEntryValue(
 ): {
   objectType: 'value';
   valueType: FieldDefinition['valueType'];
-  content: Record<SupportedLanguage, unknown>;
+  content: Record<SupportedLanguage, unknown> | unknown[];
 } {
   switch (definition.valueType) {
     case 'boolean':
@@ -57,10 +63,25 @@ export function defaultEntryValue(
         ),
       };
     case 'component':
-    default:
+      // A page starts with no sections. Core's schema still demands at least
+      // one for a required dynamic field, so an empty array surfaces on the
+      // field rather than being pre-filled with a section nobody asked for.
+      return {
+        objectType: 'value',
+        valueType: definition.valueType,
+        content: [],
+      };
+    default: {
+      // Exhaustive over Core's value types today, so TypeScript narrows the
+      // definition to `never` here. The throw stays as the guard for a value
+      // type a later Core adds: nothing makes a missing default a compile
+      // error, and building one by guessing would write content nobody chose.
+      // See contributing/not-yet-implemented.md.
+      const unsupported: { valueType: string } = definition;
       throw new Error(
-        `Unsupported valueType "${definition.valueType}" while building default Entry Values`
+        `Unsupported valueType "${unsupported.valueType}" while building default Entry Values`
       );
+    }
   }
 }
 

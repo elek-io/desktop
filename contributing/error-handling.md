@@ -16,14 +16,29 @@ Two kinds of error reach the renderer, and the difference drives everything belo
 
 The main and renderer processes are separate, so an error thrown by a handler does not travel to the renderer as itself. Electron reconstructs it on the renderer side, and that reconstruction **drops the `CoreError` subclass along with its `type` and `statusCode`, and carries no stack frames** (verified: the renderer-side rejection is a plain `Error` whose `message` is `Error invoking remote method '<channel>': <original message>` and whose `stack` has zero `at ...` frames). Without help the renderer sees only a message string, cannot tell a `Conflict` from a `PreconditionFailed`, and has no origin stack.
 
-To keep all three, the main and renderer sides cooperate through one small cross process module, [`src/shared/ipcError.ts`](/src/shared/ipcError.ts). It imports `CoreErrorType` type only, so it carries no runtime dependency on Core and bundles into both processes.
+To keep all three, plus the structured `cause` Core attaches to some of them, the main and renderer sides cooperate through one small cross process module, [`src/shared/ipcError.ts`](/src/shared/ipcError.ts). It imports `CoreErrorType` type only, so it carries no runtime dependency on Core and bundles into both processes.
 
-1. **Encode in main.** The single `ipcMain.handle` wrapper in [`src/main/index.ts`](/src/main/index.ts) (the one loop that registers every channel) try/catches the handler call. A thrown `CoreError` is re-thrown as `new Error(serializeCoreError(error.type, error.message, error.stack))`, which packs the `type`, message and Core's own origin `stack` into the message behind a sentinel string. Anything that is not a `CoreError` propagates unchanged.
-2. **Decode in the renderer.** `parseIpcError(error)` returns `{ type?, message, stack? }`. It finds the sentinel by substring, so it is robust to Electron prefixing the message, validates the decoded `type` against the known `CoreErrorType` values, and returns the clean message plus Core's stack. A non `CoreError` has no `type`, and keeps its own `stack`, which is the only one it has. A malformed payload degrades to the raw message with neither, because `error.stack` still holds the encoded form there and returning it would leak the sentinel.
+1. **Encode in main.** The single `ipcMain.handle` wrapper in [`src/main/index.ts`](/src/main/index.ts) (the one loop that registers every channel) try/catches the handler call. A thrown `CoreError` is re-thrown as `new Error(serializeCoreError(error.type, error.message, error.stack, error.cause))`, which packs the `type`, the message, Core's own origin `stack` and the forwardable part of the `cause` into the message behind a sentinel string. Anything that is not a `CoreError` propagates unchanged.
+2. **Decode in the renderer.** `parseIpcError(error)` returns `{ type?, message, stack?, cause? }`. It finds the sentinel by substring, so it is robust to Electron prefixing the message, validates the decoded `type` against the known `CoreErrorType` values, and returns the clean message plus Core's stack and cause. A non `CoreError` has no `type`, and keeps its own `stack`, which is the only one it has. A malformed payload degrades to the raw message with neither, because `error.stack` still holds the encoded form there and returning it would leak the sentinel.
 
 Because the sentinel is located by substring and the type is validated, decoding never throws and always degrades to the raw message. This is why the renderer can safely call `parseIpcError` on any caught value, `CoreError` or not.
 
 The `stack` is what fills the technical detail block on the error screen and the `meta` of the log written beside it. It matters because the reconstructed renderer error is frameless, so without forwarding, a `CoreError` that reaches the boundary would show and log no stack at all.
+
+### What the `cause` carries, and what it does not
+
+`serializeCoreError` forwards a `cause` only when it is an array or a plain object, meaning one whose prototype is `Object.prototype`. The cause exists for a screen to branch on, not to show, so everything else is dropped, and two shapes are worth naming:
+
+- **An `Error`**, a `ZodError` included. JSON keeps none of an Error's own fields, so what would arrive is an empty object, and its message is already the `CoreError`'s message.
+- **A primitive.** Core passes git's raw stderr and stdout as the cause of a push it refuses, and a remote URL there can carry a credential, so no primitive cause crosses.
+
+Anything with a prototype of its own goes the same way, because it does not survive JSON as structured data either: a `Date` would arrive as a string, a `Map` or a `Set` as `{}`.
+
+What is left is the issue list Core attaches to a `Conflict` it raises for a field definition change it cannot carry out alone (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). Each element of an array cause that carries Core's `issue` key crosses as the four fields a screen needs and nothing else, `forwardedIssueKeys` in `ipcError.ts`. `transformedValues` and `currentValue` stay in the main process, because those are the content somebody wrote: `transformedValues` holds every Value of the Entry, so a refused change in a large Collection would otherwise pack the content of each affected Entry into one message. One typed reader reads what arrives, `entryIssuesOf` in [`lib/schemaChange.ts`](/src/renderer/lib/schemaChange.ts), which validates it rather than trusting the payload.
+
+**No cause reaches a log record.** `errorLogAttributes` ([`shared/logError.ts`](/src/shared/logError.ts)) reads the decoded `type`, `message` and `stack` and nothing else, which is what keeps an Entry's content and a git remote's URL out of a log file. Nothing renders a cause raw either.
+
+An error Core raised without a cause encodes and decodes exactly as it did before the cause was carried: `JSON.stringify` omits the key, so the decoded result has no `cause` and the message is unchanged.
 
 ## How errors surface in the UI
 
@@ -80,11 +95,23 @@ Keep dialog titles and button labels stable, since the E2E specs assert them. On
 
 A `type` handled this way is intentionally invisible to the standard logging (see [Logging](#logging-where-what-and-when)): only the in place UI reacts. The `type`s you did not handle are unaffected, they still propagate to the boundary and are logged and toasted as usual, because the suppression is keyed on the same `handled` map. If you also want a handled `type` recorded, log it explicitly in the `catch`.
 
-All the sites below build their mutation with `useAppMutation`, so the "predicate returns false only for X" behavior described in each is what the helper derives from that site's `handled` map.
+Every mutation below is built with `useAppMutation`, so the "predicate returns false only for X" behavior described in each is what the helper derives from that site's `handled` map. One read does the same thing in the query layer, where there is no mutation to hold the map, see the Release example.
 
 ### Example: sync conflict
 
-[`components/project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`, most notably Core's sync time integrity gate rejecting a rebase that would push a dangling reference. The Synchronize mutation `handles` `Conflict` and `PreconditionFailed` in place, so `useAppMutation`'s predicate returns false only for those two. The `onClick` catches the rejection and calls `handleError(error)`, which for those two reasons stores it with `setSyncError(error)` and opens the "Could not synchronize this Project" dialog; any other failure propagates to the boundary. The dialog description calls `describeCoreError` with a small overrides map (`Conflict` explains the remote conflict, `PreconditionFailed` explains the remote could not be reached) and the previous generic sentence as the fallback. The title stays generic, so it still covers the handled reasons, while the description is now reason specific.
+[`components/project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`, most notably Core's sync time integrity gate rejecting a rebase that would push a dangling reference. The Synchronize mutation `handles` `Conflict` and `PreconditionFailed` in place, so `useAppMutation`'s predicate returns false only for those two. The `onClick` catches the rejection and calls `handleError(error)`, which for those two reasons stores it with `setSyncError(error)` and opens the "Could not synchronize this Project" dialog; any other failure propagates to the boundary. The dialog description calls `describeCoreError` with a small overrides map and a generic sentence as the fallback. The title stays generic, so it still covers the handled reasons, while the description is reason specific.
+
+Each override names only what Core raises that type for while synchronizing, read off Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#synchronizing):
+
+- `Conflict` is the integrity gate alone, so the text names a reference whose target is gone from the integrated tree and what to do about it.
+- `PreconditionFailed` has several causes, and the text names the three an editor meets: a repository holding something besides the Project, a repository whose Git LFS endpoint will not take the Assets, and a textual rebase conflict.
+- An unreachable repository is neither of the two types. The git command exits non-zero and Core raises `Internal`, or `Unauthorized` when the remote refused the credentials, so no override covers it and it reaches the root error boundary.
+
+### Example: a clone Core refuses
+
+The Clone dialog in [`routes/projects/index.tsx`](/src/renderer/routes/projects/index.tsx) `handles` only `PreconditionFailed`, which Core raises for a repository without a `draft` branch (see Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#cloning-an-existing-project)). Such a repository holds no Project, or one made before Core 0.25 renamed the branches, so the dialog stays open with the address and one line above its button: "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up." It names no version, because the version an editor would have to compare it against is the one that wrote the repository, which Desktop cannot read without cloning it. Any other failure, a `Conflict` for a Project already on this computer included, still reaches the boundary.
+
+A missing `draft` branch is not the only cause of the type. Core classifies a git command whose dynamic loader failed as `PreconditionFailed` as well, centrally for every command it runs, so a clone of a perfectly good repository shows that same line on a machine whose git cannot load a shared library it needs. Core's [table of git errors](../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations) lists both causes under the type. There the line is wrong about the repository, and the dialog still cannot tell the two apart. A `CoreError`'s cause now crosses the boundary, but what Core attaches to a refused git command is the command's own output, which the encoding drops rather than carry a credential into the renderer (see [What the `cause` carries](#what-the-cause-carries-and-what-it-does-not)). So `handled` discriminates on `type` alone here, and splitting the line waits on Core raising something structured for it.
 
 ### Example: force delete a Project
 
@@ -98,30 +125,61 @@ All the sites below build their mutation with `useAppMutation`, so the "predicat
 
 The Entry create and update forms ([`collections/$collectionId/create.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx) and [`$entryId/update.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx)) are the two form-submit sites that handle in place, not deletes or syncs. Core rejects an Entry whose value collides with another Entry on a unique field with a `Conflict` (see Core's [fields doc](../node_modules/@elek-io/core/docs/fields.md#uniqueness)). Each form's create/update mutation `handles` only `Conflict`; the submit handler awaits `mutateAsync` inside try/catch and calls `handleError`, which opens a controlled "Could not save this Entry" dialog whose description uses `describeCoreError` with a `Conflict` override explaining the collision. The submit does not navigate, so the form stays on the create/update route with its values intact to edit and retry. Any other failure propagates to the boundary, which the "routes an unexpected create failure to the root error boundary" spec guards against a regression to a blanket opt-out.
 
+### Example: a Component change Core cannot carry out
+
+The Component configure route ([`components/$componentId.tsx`](/src/renderer/routes/projects/$projectId/components/$componentId.tsx)) is where `type` alone is not enough. Core raises `Conflict` there for two unrelated reasons: a slug another Component already uses, and a field definition change it cannot carry into the Entries that already hold the Component. The cause tells them apart, and nothing else does.
+
+- With no issues in the cause the slug is taken, so the message lands on the Slug field with `setError`, which is where ci's Desktop rules put a field that is wrong.
+- With issues the save-blocked dialog opens and lists them, one line per Entry: the Collection by its name, the Entry by its id, the field by its slug, and what has to happen to it, from `describeEntryIssue`. So an editor is told which Entry to open rather than only that something conflicts.
+
+`BadRequest` is handled in place too, for the one reason an editor meets here: a Component whose dynamic field reaches back into itself, directly or through another Component, which Core refuses. Every other reason a `BadRequest` could carry on this call is already checked by the same schema the form resolves against, so naming the circular reference is naming what the person met, as ci's rule asks. Every other type reaches the boundary, which the "routes an unexpected Component save failure to the root error boundary with its message" spec guards.
+
+The delete handles `Conflict` alone, for a Component a Collection or another Component still references.
+
 ### Example: local API port in use
 
 Core's `api.start()` rejects with a `Conflict` when something else holds the port (see Core's [local-api doc](../node_modules/@elek-io/core/docs/local-api.md)). Both places that start the API `handle` only `Conflict`. The profile form ([`routes/user/profile.tsx`](/src/renderer/routes/user/profile.tsx)) starts the API before it saves the User, and its handler marks the Port field with `setError`. So a busy port saves nothing and the form stays dirty to pick another port and save again. The Local API switch in the user menu ([`components/user-dropdown.tsx`](/src/renderer/components/user-dropdown.tsx)) has no field to mark, so its handler shows a toast that points to the profile. A toast action would not help here, because the open menu blocks pointer events outside itself, while its Profile item sits right above the switch. At launch the main process does the same in its own way: it logs the failure and opens the app with the API off (see [overview.md](./overview.md#application-lifecycle)).
+
+### Example: a Release Core refuses, and one it cannot even read
+
+The Release dialog ([`components/release-dialog.tsx`](/src/renderer/components/release-dialog.tsx)) answers in place on both of its halves, and it is the one site where a read does so too.
+
+**Making the Release.** Its `create` mutation `handles` `PreconditionFailed`, `Unauthorized` and `Internal`, each storing the error so one line above Create Release describes it through `describeCoreError` with `RELEASE_CREATE_REFUSALS` ([`lib/release.ts`](/src/renderer/lib/release.ts)). Three types rather than one, because `create()` commits, fetches and pushes, and Core's [table of git errors](../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations) puts a remote that moved on or cannot take a Release under `PreconditionFailed`, refused credentials under `Unauthorized`, and a git command that failed at all, most often an unreachable repository, under `Internal`. All three are recoverable in the same way: Core unwinds every step of a failed Release before the error arrives (see its [releases doc](../node_modules/@elek-io/core/docs/releases.md)), so nothing was released, the dialog says so, and pressing the same button again retries. `Conflict`, `NotFound`, `BadRequest`, `VersionSkew` and `UpgradeFailed` are not handled and reach the boundary. Two specs guard the two legs of the predicate: "routes an unexpected Release failure to the root error boundary" drives a failure carrying no `CoreError` type at all, and "routes a Release failure of an unhandled type to the root error boundary" drives a `Conflict`, which does carry one.
+
+Handling `Internal` in place is the exception to make on purpose, not a habit. It is right here because every failure of this one call has the same, true, actionable answer, and because it is what keeps Core's raw message off the screen: a git failure's message belongs to git, and a Release talks to a remote whose URL may carry a credential.
+
+**Reading what a Release would publish.** `releases.prepare` ([`releaseOptions.ts`](/src/renderer/queries/options/releaseOptions.ts)) is a query, so it has no `handled` map. Its `queryFn` catches the same shape of refusal itself and answers `{ status: 'refused', errorType }` instead, re-throwing every other failure so `throwOnError: true` still routes it to the boundary. The set of caught types is the keys of `RELEASE_READ_REFUSALS`, the map the dialog's copy comes from, so the two cannot drift apart, exactly as `handled` cannot drift from the `throwOnError` predicate.
+
+A refusal is modeled as an outcome of the read rather than a failure of it because it reads like one: Core already answers "nothing to release" with a null bump rather than an error, and "synchronize this Project first" is the same kind of answer. Both leave the dialog open with something the editor can act on.
+
+`PreconditionFailed` covers more causes than either line names, and naming one is on purpose: a refusal says what the person in front of it met and what to do next, in one sentence, not every cause the type could stand for. The read's line is written for a `draft` behind the remote's and the create's for a remote that moved on between the read and the push, which are the two an editor meets. Core's [table of git errors](../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations) puts three more under the type on these two calls, and the line is wrong about each:
+
+- A Project not checked out on `draft`, which `prepare()` requires. A Project last written before Core renamed the branches is on `work`, and Core refuses the read with "Not on draft branch". Synchronizing is not the way out either, since Synchronize is disabled for such a Project. Its branches are renamed by hand.
+- A remote that does not support the atomic push a Release needs. Core never falls back to separate pushes, because a push that lands `main` without `draft` breaks the rule a Release keeps.
+- A git that cannot load a shared library it needs, which is the cause the Clone dialog carries as well.
+
+These three are separated by git's own output, which the encoding does not forward, so splitting the lines waits on the same change as the Clone dialog's.
 
 ## Logging: where, what, and when
 
 There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC channels to Core's own logger, which writes to the console and to Core's log files. It is local diagnostics, always on, including under test, and nothing it writes leaves the machine.
 
-| When                                     | Where                                                                                | What                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."              |
-| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ...ed ..." plus a success toast     |
-| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to ..." plus an error toast              |
-| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"        |
-| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                           |
-| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"               |
-| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                   |
-| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."               |
-| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                            |
-| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record          |
-| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                   |
-| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request   |
-| The local API fails to start at launch   | `onAppReady` in [`src/main/index.ts`](/src/main/index.ts)                            | error: "Could not start the local API ..."              |
-| The app fails to start                   | `onAppReadyFailed` in [`src/main/index.ts`](/src/main/index.ts)                      | error: "Failed to initialize the app", when Core exists |
+| When                                     | Where                                                                                | What                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."               |
+| A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ran ... on ..." plus a success toast |
+| A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to run ... on ..." plus an error toast    |
+| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"         |
+| A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                            |
+| A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"                |
+| React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                    |
+| A rejected floated promise (renderer)    | `unhandledrejection` listener in [`renderer/index.ts`](/src/renderer/index.ts)       | error: "Unhandled promise rejection: ..."                |
+| An uncaught renderer error outside React | `error` listener in [`renderer/index.ts`](/src/renderer/index.ts)                    | error: "Uncaught error: ..."                             |
+| An uncaught throw in the main process    | winston, through Core's logger                                                       | error: winston's own uncaught exception record           |
+| A failed report send                     | `useSendReport` in [`report-dialog.tsx`](/src/renderer/components/report-dialog.tsx) | error: "Failed to send a report: ..."                    |
+| Main process security events             | main handlers in [`src/main/index.ts`](/src/main/index.ts)                           | error: blocked navigation, or a rejected file request    |
+| The local API fails to start at launch   | `onAppReady` in [`src/main/index.ts`](/src/main/index.ts)                            | error: "Could not start the local API ..."               |
+| The app fails to start                   | `onAppReadyFailed` in [`src/main/index.ts`](/src/main/index.ts)                      | error: "Failed to initialize the app", when Core exists  |
 
 ### What an error record carries
 
@@ -140,7 +198,7 @@ Attributes are flat dotted keys, the same convention Core follows for its own re
 
 **A stack is always present.** It used to be absent for anything that was not a `CoreError`, because `parseIpcError` returned the decoded stack or nothing, and only the root boundary fell back to `error.stack`. So an ordinary renderer bug, the one class you cannot reproduce from a description, reached the log with no frames at all. `parseIpcError` now falls back to the error's own stack in its no-sentinel branch. The fallback is deliberately not in the malformed-payload branch, where `error.stack` still holds the encoded form and returning it would leak the sentinel onto the error screen.
 
-**What is deliberately not logged.** The mutation wrapper logs neither `variables` nor `context`. `context` holds the QueryClient, whose functions and circular references would fail the structured clone and lose the log silently. `variables` is the mutation payload, which for an Entry is the content the user wrote, and Core never writes that to a log file.
+**What is deliberately not logged.** The mutation wrapper logs neither `variables` nor `context`. `context` holds the QueryClient, whose functions and circular references would fail the structured clone and lose the log silently. `variables` is the mutation payload, which for an Entry is the content the user wrote, and Core never writes that to a log file. A `CoreError`'s `cause` is left out for the same reason, see [What the `cause` carries](#what-the-cause-carries-and-what-it-does-not).
 
 ### Which build wrote a log file
 
@@ -173,7 +231,7 @@ The initialization failure handler, `onAppReadyFailed`, does more than that, bec
 A single failed mutation that is not handled in place fans out on purpose:
 
 1. A `toast.error` from the wrapper's `onError`.
-2. A local Core logger error "Failed to ..." from the same `onError`, carrying which mutation failed and the error itself.
+2. A local Core logger error "Failed to run ... on ..." from the same `onError`, carrying which mutation failed and the error itself.
 3. `throwOnError` re-throws into the root boundary, so `ErrorComponent` writes a second local Core logger error "Uncaught route error: ..." with the decoded message and stack.
 4. React's `onCaughtError` writes a third, carrying the component stack.
 

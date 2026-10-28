@@ -11,6 +11,7 @@ import {
 import {
   DefaultFieldDefinitionForm,
   type AuthorableFieldType,
+  type FieldDefinitionsOwner,
 } from '@renderer/components/forms/default-field-definition-form';
 import { AppForm } from '@renderer/components/ui/app-form';
 import {
@@ -22,6 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@renderer/components/ui/form';
+import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
 
 import {
   type FieldDefinition,
@@ -159,41 +161,15 @@ export interface DefinitionSpec<Def extends FieldDefinitionBase> {
 export interface DefinitionDraftProps {
   id: string;
   existingSlugs: string[];
-  // The Collection's current definitions, threaded to the spec's Extras.
+  // The Collection's or Component's current definitions, threaded to the spec's
+  // Extras.
   fieldDefinitions: FieldDefinitionOrGroup[];
   supportedLanguages: SupportedLanguage[];
   defaultLanguage: SupportedLanguage;
+  // Which object the definition is being added to. The shared base form reads
+  // it for the restrictions Core puts on a Component's fields.
+  owner: FieldDefinitionsOwner;
   onAdd: (definition: FieldDefinition) => void;
-}
-
-/**
- * Wraps a field-definition resolver so an all-blank `description` reaches Core
- * as `null`, its canonical "no description" value.
- *
- * Core makes `description` optional (nullable) but rejects a present-but-empty
- * language, so an empty UI state must be coerced to `null` rather than kept as
- * `{ en: '' }`. The base form seeds every language, which makes Core's member
- * schema force each to be filled once any is (matching Core's all-or-nothing
- * rule), while a wholly blank description means the user wants none. This only
- * normalizes input to Core's own canonical value, it adds no rule of its own,
- * so validation stays entirely Core's.
- */
-function withEmptyDescriptionAsNull<Def extends FieldDefinitionBase>(
-  resolver: Resolver<Def>
-): Resolver<Def> {
-  return (values, context, options): ReturnType<Resolver<Def>> => {
-    const description = values.description;
-    const hasText =
-      description !== null &&
-      Object.values(description).some(
-        (value) => typeof value === 'string' && value.trim() !== ''
-      );
-    return resolver(
-      { ...values, description: hasText ? description : null },
-      context,
-      options
-    );
-  };
 }
 
 /**
@@ -208,6 +184,7 @@ export function DefinitionDraft<
   existingSlugs,
   supportedLanguages,
   defaultLanguage,
+  owner,
   onAdd,
   fieldDefinitions,
 }: DefinitionDraftProps & { spec: DefinitionSpec<Def> }): ReactElement {
@@ -240,6 +217,7 @@ export function DefinitionDraft<
         fieldType={spec.authorableFieldType}
         currentLanguage={defaultLanguage}
         supportedLanguages={supportedLanguages}
+        owner={owner}
       >
         {Extras ? (
           <Extras

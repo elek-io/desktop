@@ -1,6 +1,7 @@
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Link, type ToPathOption } from '@tanstack/react-router';
 import {
+  Blocks,
   Layers,
   LayoutDashboard,
   Settings,
@@ -11,6 +12,7 @@ import {
   RefreshCw,
   DownloadCloud,
   UploadCloud,
+  Rocket,
 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -73,9 +75,19 @@ const projectNavigation: {
     icon: Layers,
   },
   {
+    name: 'Components',
+    to: '/projects/$projectId/components',
+    icon: Blocks,
+  },
+  {
     name: 'History',
     to: '/projects/$projectId/history',
     icon: History,
+  },
+  {
+    name: 'Releases',
+    to: '/projects/$projectId/releases',
+    icon: Rocket,
   },
   {
     name: 'Settings',
@@ -106,16 +118,22 @@ function ProjectNavigation(): React.JSX.Element {
   );
 }
 
-// Copy for a failed sync, keyed by CoreError type.
+// Copy for a failed sync, keyed by CoreError type. Each text names only what
+// Core raises that type for while synchronizing: a Conflict for a reference
+// whose target is gone from the integrated tree, and for PreconditionFailed
+// the three causes an editor meets, a repository holding something else, a
+// Git LFS endpoint that will not take the Assets and a textual rebase
+// conflict. An unreachable repository is neither type and reaches the root
+// error boundary. See contributing/error-handling.md.
 const syncErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   Conflict:
-    'A change on the remote conflicts with your local work, so nothing was pushed. Resolve it and try again.',
+    'An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again.',
   PreconditionFailed:
-    'Could not reach the remote or it does not support the required features.',
+    'No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project.',
 };
 
 const syncErrorFallback =
-  'A conflict stopped the synchronization before anything was pushed, so nothing reached the remote and your local changes are safe. Resolve the conflict and try again.';
+  'The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again.';
 
 export function ProjectSidebar(): React.JSX.Element {
   const {

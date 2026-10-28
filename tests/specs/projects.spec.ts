@@ -18,7 +18,7 @@ import {
   navigateToVersionControl,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
-import { setupRemote } from '../helpers/remote.js';
+import { renameBranchesOnRemote, setupRemote } from '../helpers/remote.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
 test.describe('Projects', () => {
@@ -192,7 +192,7 @@ test.describe('Projects', () => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
-    // Mirror the Project's current work branch into a bare origin, so the
+    // Mirror the Project's draft branch into a bare origin, so the
     // Project starts out level with its remote (ahead 0). clone --bare copies
     // the refs without a working tree, sidestepping Core's LFS push path.
     const projectPath = join(
@@ -304,7 +304,7 @@ test.describe('Projects', () => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
-    // A bare mirror of the Project's current work is a reachable origin, so the
+    // A bare mirror of the Project's draft is a reachable origin, so the
     // sidebar's getChanges succeeds once the origin is set and the console stays
     // clean (clone --bare copies the refs without an LFS push path).
     const projectPath = join(
@@ -405,12 +405,82 @@ test.describe('Projects', () => {
     // reappears on the list by its name (the empty state is gone), its card
     // rendered rather than crashing to the error boundary. Core's on-disk clone
     // (files, LFS materialization) is Core's own test, not asserted here. Cloning
-    // the same id twice would hit the root error boundary (the clone mutation
-    // keeps the global throwOnError), so that duplicate-id Conflict is a deferred
-    // UI-negative and is not exercised here.
+    // the same id twice hits the root error boundary, which the spec below
+    // drives.
     await expect(dialog).toBeHidden();
     await expect(mainWindow.getByText('Cloned Project')).toBeVisible();
     await expect(mainWindow.getByText('No Projects yet')).toBeHidden();
+  });
+
+  test('refuses a clone of a remote without draft in the dialog', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Old Project',
+    });
+
+    // A Project made before Core 0.25 has the branches work and production.
+    // Renaming a mirror's branches back gives such a remote, and removing the
+    // local copy leaves nothing for a Conflict to trip over.
+    const projectPath = join(
+      testDataDirs(testInfo).dataDir,
+      'projects',
+      project.id
+    );
+    const remote = setupRemote(testInfo, { mirror: projectPath });
+    renameBranchesOnRemote(remote.path, {
+      draft: 'work',
+      main: 'production',
+    });
+    await deleteProjectViaIpc(mainWindow, { id: project.id, force: true });
+
+    await navigate(mainWindow, '#/projects');
+    await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await dialog.getByLabel('URL', { exact: true }).fill(remote.url);
+    await dialog.getByRole('button', { name: 'Clone' }).click();
+
+    // Core refuses it with PreconditionFailed, which the dialog explains in
+    // place, keeping the address to correct
+    await expect(
+      dialog.getByText(
+        'This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up.'
+      )
+    ).toBeVisible();
+    await expect(dialog.getByLabel('URL', { exact: true })).toHaveValue(
+      remote.url
+    );
+    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+  });
+
+  test('routes a clone of a Project already here to the root error boundary', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // The mirror holds the same Project id the data directory already has, so
+    // Core answers Conflict, which the Clone dialog does not handle in place
+    const projectPath = join(
+      testDataDirs(testInfo).dataDir,
+      'projects',
+      project.id
+    );
+    const remote = setupRemote(testInfo, { mirror: projectPath });
+
+    await navigate(mainWindow, '#/projects');
+    await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await dialog.getByLabel('URL', { exact: true }).fill(remote.url);
+    await dialog.getByRole('button', { name: 'Clone' }).click();
+
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText('This repository holds no Project')
+    ).toBeHidden();
   });
 
   test('rejects a clone with an empty URL client-side', async ({
