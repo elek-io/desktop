@@ -568,7 +568,10 @@ class Main {
           // Everything else propagates unchanged.
           if (error instanceof CoreError) {
             throw new Error(
-              serializeCoreError(error.type, error.message, error.stack)
+              serializeCoreError(error.type, error.message, error.stack),
+              // The encoded message is what the renderer reads. The cause is
+              // attached so the original stays reachable in this process.
+              { cause: error }
             );
           }
           throw error;

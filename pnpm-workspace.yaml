@@ -8,8 +8,9 @@ allowBuilds:
   # dugite is Core's git engine. Its postinstall downloads the embedded git
   # executable, so the build must run or every git operation at runtime fails.
   dugite: true
-  # Since Electron 42 the binary also downloads on first run, but the package
-  # still ships an install script that pnpm requires approval for.
+  # electron publishes no install script of its own, and has not since the
+  # binary moved to a first-run download in Electron 42. The entry stays so a
+  # release that brings one back does not stop an install in CI.
   electron: true
   # Downloads the Squirrel.Windows binaries used when packaging for Windows.
   electron-winstaller: true
@@ -17,8 +18,18 @@ allowBuilds:
   # ships prebuilt in @esbuild/<platform>, which the JS API resolves directly,
   # so its postinstall build is redundant. Same reasoning as in Core.
   esbuild: false
-minimumReleaseAgeExclude:
-  - '@elek-io/core@0.24.0'
+# Agent skill approval, which pnpm 12 added alongside build script approval.
+# A dependency may ship skills that an agent in this repository would load.
+# Nothing here reads them, and an undecided package makes every install print
+# "awaiting approval", so each one that asks is denied explicitly.
+# See https://pnpm.io/settings#permissions
+permissions:
+  '@tanstack/react-router':
+    skills: false
+  '@tanstack/react-table':
+    skills: false
+  '@tanstack/router-plugin':
+    skills: false
 # Do not reuse pnpm's cache of postinstall (side effect) output. Since pnpm 8.7
 # the content addressable store keeps such files as plain copies, not symlinks.
 # dugite's postinstall lays down git, whose git-core is ~145 symlinks to one
