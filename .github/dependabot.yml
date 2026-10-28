@@ -20,6 +20,10 @@ updates:
     ignore:
       # A Core release brings screens and specs with it, so it moves with the
       # feature that needs it rather than on its own. See contributing/releasing.md
+      # The rule carries no update-types on purpose, so a security update does
+      # not propose a Core bump either. Core is published from this
+      # organization, so an advisory in it is known here before a pull request
+      # could propose one, and an alert on it still shows up
       - dependency-name: '@elek-io/core'
       # Keep @types/node's major aligned with the Node runtime in .node-version
       - dependency-name: '@types/node'

@@ -46,9 +46,10 @@ peerDependencyRules:
     'eslint-plugin-react>eslint': '10'
 # Do not reuse pnpm's cache of postinstall (side effect) output. Since pnpm 8.7
 # the content addressable store keeps such files as plain copies, not symlinks.
-# dugite's postinstall lays down git, whose git-core is ~145 symlinks to one
-# binary. Restoring that from a warm store (the CI pnpm cache) flattens them
-# into 145 full copies, which doubled the packaged macOS app. With this off
+# dugite's postinstall lays down git, whose git-core is well over a hundred
+# symlinks to one binary, and the count grows with each git it embeds.
+# Restoring that from a warm store (the CI pnpm cache) flattens every one of
+# them into a full copy, which doubled the packaged macOS app. With this off
 # dugite re-extracts git each install, so the symlinks survive.
 # Reported as pnpm/pnpm#12859 (see also #7691). Remove once that is fixed.
 sideEffectsCache: false

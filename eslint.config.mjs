@@ -158,7 +158,7 @@ export default [
         // Not 'detect': eslint-plugin-react's version detection calls an API
         // removed in eslint 10 and crashes. Pin until the fix from
         // https://github.com/jsx-eslint/eslint-plugin-react/pull/3979 ships.
-        version: '19.2',
+        version: '19.3',
       },
     },
     rules: {
