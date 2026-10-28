@@ -31,6 +31,19 @@ permissions:
     skills: false
   '@tanstack/router-plugin':
     skills: false
+# eslint 10 is past the peer range of these two plugins. Both cap it at 9 and
+# neither has a release that names 10, so the mismatch is declared rather than
+# worked around. eslint-plugin-react works under eslint 10: every rule
+# eslint.config.mjs enables from it reports, and its version detection, the one
+# break, is pinned around there. eslint-plugin-jsx-a11y contributes no rule the
+# config enables today, so eslint 10 changes nothing about it. Declaring both
+# keeps `pnpm peers check` clean, so an eslint mismatch anywhere else still
+# shows up. Drop each entry once that plugin names eslint 10.
+# See https://pnpm.io/settings#peerdependencyrules
+peerDependencyRules:
+  allowedVersions:
+    'eslint-plugin-jsx-a11y>eslint': '10'
+    'eslint-plugin-react>eslint': '10'
 # Do not reuse pnpm's cache of postinstall (side effect) output. Since pnpm 8.7
 # the content addressable store keeps such files as plain copies, not symlinks.
 # dugite's postinstall lays down git, whose git-core is ~145 symlinks to one
