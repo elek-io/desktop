@@ -24,14 +24,30 @@ Unlike Core, which publishes its library to npm from a single runner, the client
 
 CI and CD read the Node.js version from [.node-version](../.node-version) and the pnpm version from the `packageManager` field in [package.json](../package.json). Both are kept in sync with Core. Update those two files to change the toolchain, not the workflows.
 
+`@types/node` follows that Node version rather than its own newest major, so it stays on the major `.node-version` names. Dependabot is told to leave its major alone for the same reason.
+
+## Dependencies that stay behind their newest release
+
+A dependency round takes every package to its newest release that has cleared the release-age cutoff above. These do not come along, and each will when its reason goes away:
+
+- `typescript` stays on 6, because typescript-eslint declares `typescript >=4.8.4 <6.1.0` and refuses to load against 7 with `typescript-eslint does not support TS 7.0`. With it refused, `pnpm lint` cannot run at all, so none of the form guardrails are enforced. Tracked upstream as [typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940).
+- `@tanstack/react-table` stays on 8. Version 9 renames the hook and drops the type exports the Entry table is written against, so taking it is a rewrite of that screen rather than a version change.
+- `@playwright/test` stays on 1.63, see [Why Playwright is held at 1.63](./testing.md#why-playwright-is-held-at-163).
+
 ## Supply-chain policies
 
-pnpm 11 ships two protections that are kept at their defaults, matching Core:
+pnpm 12 ships two protections that are kept at their defaults, matching Core:
 
 - `minimumReleaseAge` refuses packages published less than a day ago, and every install verifies the whole lockfile against it. If CI fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`, the lockfile references releases that are too fresh, usually because it was resolved right after an upstream release. Either wait until the entries are a day old and rerun CI, or delete `pnpm-lock.yaml` and run `pnpm install` so resolution picks the newest allowed versions. When a single dependency is trusted and has to land before it ages out, a scoped `minimumReleaseAgeExclude` entry in [pnpm-workspace.yaml](../pnpm-workspace.yaml) exempts just that version. Keep it temporary and remove it once the version clears the cutoff, so the policy applies to it again.
 - `blockExoticSubdeps` refuses transitive dependencies that resolve to git repositories or tarball URLs instead of the registry. If a dependency pulls one in, prefer updating it to a version that resolves from the registry over disabling the policy.
 
 Dependency build script approval lives in [pnpm-workspace.yaml](../pnpm-workspace.yaml) as an `allowBuilds` map, with a comment per entry explaining why it is allowed or denied.
+
+pnpm 12 added a second approval of the same kind for agent skills a dependency ships, which lives in the `permissions` map of the same file. An undecided package makes every install print `awaiting approval`, so each one that asks is answered there. Nothing in this repository reads a dependency's skills, so every answer is `skills: false`. `pnpm permissions list` prints both maps and what still awaits an answer.
+
+## Why Core is not bumped on its own
+
+Dependabot is told to propose no `@elek-io/core` update in [dependabot.yml](../.github/dependabot.yml), and a dependency round leaves Core on the version `main` installs. A Core release brings new screens and new specs with it, so it moves with the feature that needs it rather than on its own. `zod` and `dugite` still move inside the peer ranges the installed Core declares, because the packaged app loads them from `node_modules` on Core's behalf (see [build-and-packaging.md](./build-and-packaging.md#the-rule-for-dependencies-vs-devdependencies)).
 
 ## macOS update metadata
 

@@ -14,9 +14,10 @@ allowBuilds:
   electron: true
   # Downloads the Squirrel.Windows binaries used when packaging for Windows.
   electron-winstaller: true
-  # esbuild arrives via electron-vite and vite. Its platform binary already
-  # ships prebuilt in @esbuild/<platform>, which the JS API resolves directly,
-  # so its postinstall build is redundant. Same reasoning as in Core.
+  # esbuild is no longer in the tree, since vite 8 bundles with rolldown. The
+  # entry stays for the day it arrives again: its platform binary ships prebuilt
+  # in @esbuild/<platform>, which the JS API resolves directly, so its
+  # postinstall build is redundant. Same reasoning as in Core, which still has it.
   esbuild: false
 # Agent skill approval, which pnpm 12 added alongside build script approval.
 # A dependency may ship skills that an agent in this repository would load.
