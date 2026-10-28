@@ -41,7 +41,7 @@ jobs:
         run: pnpm run check
       - name: Create or update pull request
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           title: 'WIP: Release x.x.x'
           commit: Release new version
