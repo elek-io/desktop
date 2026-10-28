@@ -61,16 +61,18 @@ const deleteErrorFallback =
 
 // Copy for a blocked save, keyed by CoreError type.
 //
-// Core throws Conflict from two unrelated places on this path: a slug already
-// taken by another Collection (CollectionService.assertCollectionSlugIsAvailable)
-// and Field changes that need per-Entry resolutions before they can be applied.
-// The structured `cause` that tells them apart is dropped at the IPC boundary
-// (see shared/ipcError.ts), so this copy has to cover both rather than assert
-// the wrong one. Narrow it once `cause` is forwarded and `handled` can
-// discriminate below `type`.
+// Core throws Conflict from unrelated places on this path: a slug already
+// taken by another Collection (CollectionService.assertCollectionSlugIsAvailable),
+// Field changes that need per-Entry resolutions before they can be applied, and
+// a Field change that would delete stored Values, which Core refuses until the
+// update accepts the loss (see contributing/not-yet-implemented.md). The
+// structured `cause` that tells them apart is dropped at the IPC boundary (see
+// shared/ipcError.ts), so this copy has to cover them all rather than assert the
+// wrong one. Narrow it once `cause` is forwarded and `handled` can discriminate
+// below `type`.
 const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
   Conflict:
-    'Saving was blocked, for one of two reasons. Either another Collection in this Project already uses one of these slugs, or your Field changes affect Entries that already exist and have to be resolved first. Resolving Entries is not supported in the app yet, so if the slugs are free, revert the Field changes for now.',
+    'Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now.',
 };
 
 const saveErrorFallback =
@@ -178,11 +180,7 @@ function ProjectCollectionUpdate(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
-        A Collection holds information about how your content is structured.
-        <br />
-        Read more about <a href="#">Collections in the documentation</a>.
-      </>
+      <>A Collection holds information about how your content is structured.</>
     );
   }
 

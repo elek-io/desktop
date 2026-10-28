@@ -524,6 +524,9 @@ class Main {
         core.projects
       ),
       'core:projects:delete': core.projects.delete.bind(core.projects),
+      'core:releases:list': core.releases.list.bind(core.releases),
+      'core:releases:prepare': core.releases.prepare.bind(core.releases),
+      'core:releases:create': core.releases.create.bind(core.releases),
       'core:assets:list': core.assets.list.bind(core.assets),
       'core:assets:create': core.assets.create.bind(core.assets),
       'core:assets:read': core.assets.read.bind(core.assets),
@@ -535,6 +538,18 @@ class Main {
       'core:collections:read': core.collections.read.bind(core.collections),
       'core:collections:update': core.collections.update.bind(core.collections),
       'core:collections:delete': core.collections.delete.bind(core.collections),
+      'core:components:list': core.components.list.bind(core.components),
+      'core:components:count': core.components.count.bind(core.components),
+      'core:components:create': core.components.create.bind(core.components),
+      'core:components:read': core.components.read.bind(core.components),
+      'core:components:readBySlug': core.components.readBySlug.bind(
+        core.components
+      ),
+      'core:components:history': core.components.history.bind(core.components),
+      'core:components:resolveComponentId':
+        core.components.resolveComponentId.bind(core.components),
+      'core:components:update': core.components.update.bind(core.components),
+      'core:components:delete': core.components.delete.bind(core.components),
       'core:entries:list': core.entries.list.bind(core.entries),
       'core:entries:create': core.entries.create.bind(core.entries),
       'core:entries:read': core.entries.read.bind(core.entries),
@@ -562,13 +577,19 @@ class Main {
           return await handler(...args);
         } catch (error) {
           // Electron serializes a thrown error to the plain Error shape, which
-          // drops the CoreError subclass, its `type` and its stack (the
-          // renderer receives a frameless error). Encode all three into the
+          // drops the CoreError subclass, its `type`, its stack and its cause
+          // (the renderer receives a frameless error). Encode all four into the
           // message so the renderer can recover them with parseIpcError.
+          // `serializeCoreError` decides which causes may cross.
           // Everything else propagates unchanged.
           if (error instanceof CoreError) {
             throw new Error(
-              serializeCoreError(error.type, error.message, error.stack),
+              serializeCoreError(
+                error.type,
+                error.message,
+                error.stack,
+                error.cause
+              ),
               // The encoded message is what the renderer reads. The cause is
               // attached so the original stays reachable in this process.
               { cause: error }

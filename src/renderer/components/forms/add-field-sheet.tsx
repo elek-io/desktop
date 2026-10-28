@@ -1,9 +1,11 @@
 import { Plus } from 'lucide-react';
 import { useId, useState, type ReactElement } from 'react';
 
+import { type FieldDefinitionsOwner } from '@renderer/components/forms/default-field-definition-form';
 import { type DefinitionDraftProps } from '@renderer/components/forms/field-definition-draft';
 import {
   FIELD_DEFINITION_REGISTRY,
+  fieldTypesForbiddenInComponents,
   unauthorableFieldTypes,
 } from '@renderer/components/forms/field-definition-registry';
 import { SubmitButton } from '@renderer/components/ui/app-form';
@@ -42,6 +44,9 @@ import {
 
 interface AddFieldSheetProps {
   project: Project;
+  // Which object the field is added to. It names the sheet and decides which
+  // field types the picker offers.
+  owner: FieldDefinitionsOwner;
   // Read only, for the duplicate-slug guard and the slug source list. Edits go
   // through onAppend.
   fieldDefinitions: FieldDefinitionOrGroup[];
@@ -50,6 +55,7 @@ interface AddFieldSheetProps {
 
 export function AddFieldSheet({
   project,
+  owner,
   fieldDefinitions,
   onAppend,
 }: AddFieldSheetProps): ReactElement {
@@ -81,8 +87,15 @@ export function AddFieldSheet({
     fieldDefinitions,
     supportedLanguages,
     defaultLanguage,
+    owner,
     onAdd,
   };
+
+  // A type is offered unless the client cannot author it at all, or the object
+  // it would be added to cannot hold it.
+  const isUnavailable = (fieldType: FieldType): boolean =>
+    unauthorableFieldTypes.has(fieldType) ||
+    (owner === 'component' && fieldTypesForbiddenInComponents.has(fieldType));
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -99,10 +112,15 @@ export function AddFieldSheet({
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Add a Field to this Collection</SheetTitle>
+          <SheetTitle>
+            {owner === 'collection'
+              ? 'Add a Field to this Collection'
+              : 'Add a Field to this Component'}
+          </SheetTitle>
           <SheetDescription>
-            Adding Fields to your Collection will enable users to enter data
-            that follows the boundaries you&apos;ve set.
+            {owner === 'collection'
+              ? 'A Field says what every Entry of this Collection holds, and how somebody fills it in.'
+              : 'A Field says what every section built from this Component holds, and how somebody fills it in. A Component cannot hold a slug Field and none of its Fields can be unique.'}
           </SheetDescription>
           <div className="grid gap-2">
             <Label htmlFor={inputTypeId} isRequired>
@@ -123,7 +141,7 @@ export function AddFieldSheet({
                   <SelectItem
                     key={option}
                     value={option}
-                    disabled={unauthorableFieldTypes.has(option)}
+                    disabled={isUnavailable(option)}
                   >
                     {option}
                   </SelectItem>

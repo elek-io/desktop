@@ -167,8 +167,8 @@ importers:
   .:
     dependencies:
       '@elek-io/core':
-        specifier: 0.24.0
-        version: 0.24.0(dugite@3.3.2)(typescript@6.0.3)(zod@4.6.7)
+        specifier: 0.26.0
+        version: 0.26.0(dugite@3.3.2)(typescript@6.0.3)(zod@4.6.7)
       dugite:
         specifier: 3.3.2
         version: 3.3.2
@@ -410,8 +410,8 @@ importers:
 
 packages:
 
-  '@asteasolutions/zod-to-openapi@8.5.0':
-    resolution: {integrity: sha512-SABbKiObg5dLRiTFnqiW1WWwGcg1BJfmHtT2asIBnBHg6Smy/Ms2KHc650+JI4Hw7lSkdiNebEGXpwoxfben8Q==}
+  '@asteasolutions/zod-to-openapi@9.1.0':
+    resolution: {integrity: sha512-pLMeRgRYS7/vZIgAAkOe2P6+XGTifR1MT9pqDoxZ11EmcJJ+DPmdPqLN8ZZF4U8R9KHCCQCS9c2wtuE8wSrfkw==}
     peerDependencies:
       zod: ^4.0.0
 
@@ -792,15 +792,15 @@ packages:
     engines: {node: '>=14.14'}
     hasBin: true
 
-  '@elek-io/core@0.24.0':
-    resolution: {integrity: sha512-gOIEM6rFUB/2lgwEv3q8GT0Oops8eCQjQKqw3xuXgrCQWYOqpT9pAA8gu8fsYMZKnFLZO5VUg3FhV81DtTyFlQ==}
+  '@elek-io/core@0.26.0':
+    resolution: {integrity: sha512-d7xKsuTLSMmcAYaiD7Xls7MWM6m7aghDwLVlp6OQdF+Wz4euVlYiF2saa0ZdxqfH4JfRxScXzLpBVduQ8SiCGA==}
     hasBin: true
     peerDependencies:
       astro: ^6.1.3 || ^7.0.0
-      dugite: ^3.0.0
-      tsdown: ^0.22.3
+      dugite: ^3.2.3
+      tsdown: ^0.23.0
       typescript: ^5.0.0 || ^6.0.0 || ^7.0.0
-      zod: ^4.3.6
+      zod: ^4.6.6
     peerDependenciesMeta:
       astro:
         optional: true
@@ -923,14 +923,14 @@ packages:
   '@fontsource/roboto@5.3.0':
     resolution: {integrity: sha512-BapRJOWYP+LZ21zp+wBQjfpPYKRoxc4LspJ/RLuI+HSMBD5u/X4O+ESDrSvEqDSy0rAl7GwBJ+09mdc16cVQ1Q==}
 
-  '@hono/node-server@2.0.12':
-    resolution: {integrity: sha512-eWpQYr67tqJLeaSUl0Q+TquuYfUdTibpOJlUMV2FfUP7+KqCC5TufnwnlXL6mobZBJbGAYRd7ZvEBDCbLInjhg==}
+  '@hono/node-server@2.1.5':
+    resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: ^4
+      hono: ^4 || ^5.0.0-0
 
-  '@hono/zod-openapi@1.5.1':
-    resolution: {integrity: sha512-ZaDdEIkn6PEGjIYHXJeyByg6yhvLzI+UXn968pWtahpwcQ6HMjQYXI3zNffTl0Wl9QZ79nUnGqiN1erEIu23fA==}
+  '@hono/zod-openapi@1.6.3':
+    resolution: {integrity: sha512-VYR82Y60plu8g3pN60OUXMVKpmxh3R04Qs++3DY9vtwZ9/sA/BRY0PcRIR+Z37/3itWtM7pYwT9bKiH9JhqV6Q==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       hono: '>=4.10.0'
@@ -1808,38 +1808,38 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@scalar/client-side-rendering@0.3.4':
-    resolution: {integrity: sha512-kb3B+FGjvAUr2DU0fe9dVKBLwot1TjOO+iHCTmY8r8FUJySmYKGQYCicRzzilOyTjvKspiZBCEr03PWaWW+1gw==}
+  '@scalar/client-side-rendering@0.4.12':
+    resolution: {integrity: sha512-FjzUNhDgMlrIqANp3Lj/2XuRoSL8glyueE6Qc62Y1HzNQEEmk2pmdCTAfrN7bU9L49X5qtNAn3KZdL8ng1taBw==}
     engines: {node: '>=22'}
 
-  '@scalar/helpers@0.9.2':
-    resolution: {integrity: sha512-hjyMpMZjTBZQhyByZmz5oUgRKUQJO5V5AOiJxsVEGbUmgA7sJRQeTrXLB+BEwzaKS5nm2opJeNyMBYLFNK4hiQ==}
+  '@scalar/helpers@0.16.4':
+    resolution: {integrity: sha512-9eILWzUcAkHEuYMMvijpSIy69t+Vkq+NudLB/7lgARFTWqXfQpIxW1L3VH7ogKyRie5+E4CNZ3PSvlw6IIfLGw==}
     engines: {node: '>=22'}
 
-  '@scalar/hono-api-reference@0.11.11':
-    resolution: {integrity: sha512-yvJ2oqyG9MC4C55/Xvi/Jny5qBYDxDvoVleABhgNG24A93u9ar17qsdSppli94sQOUdX31Qw/yCTm89LHbBRiQ==}
+  '@scalar/hono-api-reference@0.12.13':
+    resolution: {integrity: sha512-jpjZWKckchyj1EPghvEgoKvP795q8er8WTU8seckmVSdVNS7CliAYqT29P4TBy4NKHih4O3/M69bxLU3jdgMbQ==}
     engines: {node: '>=22'}
     peerDependencies:
       hono: ^4.12.5
 
-  '@scalar/schemas@0.7.4':
-    resolution: {integrity: sha512-Or31zxR+ceGGhkVU5XBO2Zv7oyGDtjsJOjM2Rr0WRZ1/tRsQc2/FsVv+9kPmCA7sqFL8BKWlNfTXcPITI7WRHw==}
+  '@scalar/schemas@0.14.0':
+    resolution: {integrity: sha512-tYNfeIOk/G5o/DiW2Yc2tFlNvE42Ls1aHUOQSSeFugjBgv53p3u3tlu7gA5N4uMaS8mQCumURusc/cb4RmiX2g==}
     engines: {node: '>=22'}
 
-  '@scalar/types@0.16.4':
-    resolution: {integrity: sha512-fLf0ANAC3iQq0sIVdmH6aGM+pFSLyD8GfGBxSWcLpI0jE0iFAzX2A3p0qVZm7vqBT4TQnn0fSwg5U+h+FZ52BA==}
+  '@scalar/types@0.24.0':
+    resolution: {integrity: sha512-x4O8ddCvh+59zwh9Xc+bG2QACxYARcPDfJBYiUzD/hzSxb6vpcms+WKgMksBfYWCZneO6e5Kt6hZFBoE9D9YCg==}
     engines: {node: '>=22'}
 
-  '@scalar/validation@0.6.2':
-    resolution: {integrity: sha512-Sc1TkcwGV6aVCO51AyKeaGiP8gpwAHxEtO5d3tZzPV+KsnlC/YokQxFxwBrbIXw73k9hmcExnJyGu3k5i6n6VA==}
+  '@scalar/validation@0.6.7':
+    resolution: {integrity: sha512-xvmeYb0LOg9B598oVA/1fs9MvnMdtWjQYG3v2Wgftewizr7tQjsdDYT1TQahlDzqRG+r+ml6zlSkPrFiCE5jHQ==}
     engines: {node: '>=20'}
 
   '@sindresorhus/is@4.6.0':
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
 
-  '@sindresorhus/slugify@3.0.0':
-    resolution: {integrity: sha512-SCrKh1zS96q+CuH5GumHcyQEVPsM4Ve8oE0E6tw7AAhGq50K8ojbTUOQnX/j9Mhcv/AXiIsbCfquovyGOo5fGw==}
+  '@sindresorhus/slugify@3.0.1':
+    resolution: {integrity: sha512-N1oPvN6sytRKZCskv0L+vSyvnUYi9JplPXZ90lT6EBsijjHrUdoXttb0Lna6pw1TWMe8vlajQnLDtU9KYHqtDg==}
     engines: {node: '>=20'}
 
   '@sindresorhus/transliterate@2.3.1':
@@ -3069,9 +3069,6 @@ packages:
     resolution: {integrity: sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==}
     engines: {node: '>=0.10.0'}
 
-  eventemitter3@5.0.4:
-    resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
-
   events-universal@1.0.1:
     resolution: {integrity: sha512-LUd5euvbMLpwOF8m6ivPCbhQeSiYVNb8Vs0fQ8QjXo0JTkEHpz8pxdQf0gStltaPpw0Cca8b39KxvK9cfKRiAw==}
 
@@ -3162,10 +3159,6 @@ packages:
 
   fs-extra@11.3.1:
     resolution: {integrity: sha512-eXvGGwZ5CL17ZSwHWd3bbgk7UUpF6IFHtP57NYYakPvHOs8GDgDe5KJI36jIJzDkJ6eJjuzRA8eBQb6SkKue0g==}
-    engines: {node: '>=14.14'}
-
-  fs-extra@11.4.0:
-    resolution: {integrity: sha512-EQsFzMUJkCKGr1ePqlYADkIUmHW1s3ZXr5Yqy6wbGrfUCphpl2maM/kyOIRA2HpP3AaFQTZXD4ldjek+nccddA==}
     engines: {node: '>=14.14'}
 
   fs-extra@11.4.1:
@@ -3314,8 +3307,8 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
-  hono@4.12.32:
-    resolution: {integrity: sha512-XcuyW9qE2kJn07PkecMOBd5Vq/hMy7mmGw+idz1yblbg9N17ijJODrvPkn7/dwL3Kulj8LcRJ69DLOWf91dRUg==}
+  hono@4.13.13:
+    resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
     engines: {node: '>=16.9.0'}
 
   hookified@1.15.1:
@@ -3989,8 +3982,8 @@ packages:
     engines: {node: '>=4.0.0'}
     hasBin: true
 
-  mime@4.1.0:
-    resolution: {integrity: sha512-X5ju04+cAzsojXKes0B/S4tcYtFAJ6tTMuSPBEn9CPGlrWr8Fiw7qYeLT0XyH80HSoAoqWCaz+MWKh22P7G1cw==}
+  mime@4.1.1:
+    resolution: {integrity: sha512-YAApRsTpM2+gnUFHhRNGfkX8NK0V5xj1nyQLufGlwEI+eX4xRsTcel2IXDuMEGSGjBvzykNW4VuoEACgwYe7BQ==}
     engines: {node: '>=16'}
     hasBin: true
 
@@ -4158,13 +4151,9 @@ packages:
     resolution: {integrity: sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw==}
     engines: {node: '>=10'}
 
-  p-queue@9.3.3:
-    resolution: {integrity: sha512-NXAOdnEe5FsZJfT4oK84lE1Y5cFFdWlRuOo5tww8DyNMxyRXwn39fIkUtNLKppcPC+UYU/bXujNCUGDv01y7CA==}
-    engines: {node: '>=20'}
-
-  p-timeout@7.0.2:
-    resolution: {integrity: sha512-prbX4Z3YszrFNgH+MW5Zoeq3baXrMtP/MQnFeET90UB/GtGcGDQ5Usg9OCy6ETjTTntOw1SL2z9fMPUppN3Guw==}
-    engines: {node: '>=20'}
+  p-queue@10.0.0:
+    resolution: {integrity: sha512-P2wrCri3bhGLPo3kX7qYVXbo/5GvaVATU0DpO24CbeT53Y4z35t8JUWku04ERpXHUYB5rPMi3TkWE3fmJgx5rA==}
+    engines: {node: '>=22'}
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
@@ -5093,8 +5082,8 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  uuid@14.0.1:
-    resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
+  uuid@14.0.3:
+    resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
     hasBin: true
 
   uuid@8.3.2:
@@ -5277,7 +5266,7 @@ packages:
 
 snapshots:
 
-  '@asteasolutions/zod-to-openapi@8.5.0(zod@4.6.7)':
+  '@asteasolutions/zod-to-openapi@9.1.0(zod@4.6.7)':
     dependencies:
       openapi3-ts: 4.6.2
       zod: 4.6.7
@@ -5959,19 +5948,19 @@ snapshots:
       - supports-color
     optional: true
 
-  '@elek-io/core@0.24.0(dugite@3.3.2)(typescript@6.0.3)(zod@4.6.7)':
+  '@elek-io/core@0.26.0(dugite@3.3.2)(typescript@6.0.3)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.0.12(hono@4.12.32)
-      '@hono/zod-openapi': 1.5.1(hono@4.12.32)(zod@4.6.7)
-      '@scalar/hono-api-reference': 0.11.11(hono@4.12.32)
-      '@sindresorhus/slugify': 3.0.0
+      '@hono/node-server': 2.1.5(hono@4.13.13)
+      '@hono/zod-openapi': 1.6.3(hono@4.13.13)(zod@4.6.7)
+      '@scalar/hono-api-reference': 0.12.13(hono@4.13.13)
+      '@sindresorhus/slugify': 3.0.1
       dugite: 3.3.2
-      fs-extra: 11.4.0
-      hono: 4.12.32
-      mime: 4.1.0
-      p-queue: 9.3.3
+      fs-extra: 11.4.1
+      hono: 4.13.13
+      mime: 4.1.1
+      p-queue: 10.0.0
       semver: 7.8.5
-      uuid: 14.0.1
+      uuid: 14.0.3
       winston: 3.19.0
       winston-daily-rotate-file: 5.0.0(winston@3.19.0)
       zod: 4.6.7
@@ -6116,21 +6105,21 @@ snapshots:
 
   '@fontsource/roboto@5.3.0': {}
 
-  '@hono/node-server@2.0.12(hono@4.12.32)':
+  '@hono/node-server@2.1.5(hono@4.13.13)':
     dependencies:
-      hono: 4.12.32
+      hono: 4.13.13
 
-  '@hono/zod-openapi@1.5.1(hono@4.12.32)(zod@4.6.7)':
+  '@hono/zod-openapi@1.6.3(hono@4.13.13)(zod@4.6.7)':
     dependencies:
-      '@asteasolutions/zod-to-openapi': 8.5.0(zod@4.6.7)
-      '@hono/zod-validator': 0.9.1(hono@4.12.32)(zod@4.6.7)
-      hono: 4.12.32
+      '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.7)
+      '@hono/zod-validator': 0.9.1(hono@4.13.13)(zod@4.6.7)
+      hono: 4.13.13
       openapi3-ts: 4.6.2
       zod: 4.6.7
 
-  '@hono/zod-validator@0.9.1(hono@4.12.32)(zod@4.6.7)':
+  '@hono/zod-validator@0.9.1(hono@4.13.13)(zod@4.6.7)':
     dependencies:
-      hono: 4.12.32
+      hono: 4.13.13
       zod: 4.6.7
 
   '@hookform/devtools@4.4.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)':
@@ -7186,36 +7175,37 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@scalar/client-side-rendering@0.3.4':
+  '@scalar/client-side-rendering@0.4.12':
     dependencies:
-      '@scalar/schemas': 0.7.4
-      '@scalar/types': 0.16.4
-      '@scalar/validation': 0.6.2
+      '@scalar/helpers': 0.16.4
+      '@scalar/schemas': 0.14.0
+      '@scalar/types': 0.24.0
+      '@scalar/validation': 0.6.7
 
-  '@scalar/helpers@0.9.2': {}
+  '@scalar/helpers@0.16.4': {}
 
-  '@scalar/hono-api-reference@0.11.11(hono@4.12.32)':
+  '@scalar/hono-api-reference@0.12.13(hono@4.13.13)':
     dependencies:
-      '@scalar/client-side-rendering': 0.3.4
-      hono: 4.12.32
+      '@scalar/client-side-rendering': 0.4.12
+      hono: 4.13.13
 
-  '@scalar/schemas@0.7.4':
+  '@scalar/schemas@0.14.0':
     dependencies:
-      '@scalar/helpers': 0.9.2
-      '@scalar/validation': 0.6.2
+      '@scalar/helpers': 0.16.4
+      '@scalar/validation': 0.6.7
 
-  '@scalar/types@0.16.4':
+  '@scalar/types@0.24.0':
     dependencies:
-      '@scalar/helpers': 0.9.2
+      '@scalar/helpers': 0.16.4
       nanoid: 5.1.16
       type-fest: 5.10.0
       zod: 4.6.7
 
-  '@scalar/validation@0.6.2': {}
+  '@scalar/validation@0.6.7': {}
 
   '@sindresorhus/is@4.6.0': {}
 
-  '@sindresorhus/slugify@3.0.0':
+  '@sindresorhus/slugify@3.0.1':
     dependencies:
       '@sindresorhus/transliterate': 2.3.1
       escape-string-regexp: 5.0.0
@@ -8722,8 +8712,6 @@ snapshots:
 
   esutils@2.0.3: {}
 
-  eventemitter3@5.0.4: {}
-
   events-universal@1.0.1:
     dependencies:
       bare-events: 2.9.2
@@ -8812,12 +8800,6 @@ snapshots:
       universalify: 2.0.1
 
   fs-extra@11.3.1:
-    dependencies:
-      graceful-fs: 4.2.11
-      jsonfile: 6.2.1
-      universalify: 2.0.1
-
-  fs-extra@11.4.0:
     dependencies:
       graceful-fs: 4.2.11
       jsonfile: 6.2.1
@@ -8999,7 +8981,7 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
-  hono@4.12.32: {}
+  hono@4.13.13: {}
 
   hookified@1.15.1: {}
 
@@ -9794,7 +9776,7 @@ snapshots:
 
   mime@2.6.0: {}
 
-  mime@4.1.0: {}
+  mime@4.1.1: {}
 
   mimic-response@1.0.1: {}
 
@@ -9961,12 +9943,7 @@ snapshots:
     dependencies:
       p-limit: 3.1.0
 
-  p-queue@9.3.3:
-    dependencies:
-      eventemitter3: 5.0.4
-      p-timeout: 7.0.2
-
-  p-timeout@7.0.2: {}
+  p-queue@10.0.0: {}
 
   package-json-from-dist@1.0.1: {}
 
@@ -10955,7 +10932,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  uuid@14.0.1: {}
+  uuid@14.0.3: {}
 
   uuid@8.3.2: {}
 

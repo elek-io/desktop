@@ -9,9 +9,10 @@ This document covers that shared layer, which every form uses. Forms whose field
 are generated at runtime from a Collection's field definitions have a second layer
 on top, documented in [dynamic-form-field-generation.md](./dynamic-form-field-generation.md).
 
-The four shared form components live in [`components/forms/`](../../src/renderer/components/forms/)
-(project, collection, entry and asset), and the field-definition authoring engine
-adds a fifth in the same folder. The remaining forms are written inline in their
+The shared form components live in [`components/forms/`](../../src/renderer/components/forms/)
+(project, collection, component, entry and asset), and the field-definition
+authoring engine plus the one field definitions editor both Collection and
+Component forms render sit in the same folder. The remaining forms are written inline in their
 route, except the two in
 [`report-dialog.tsx`](../../src/renderer/components/report-dialog.tsx), which are
 reached from the header and from the root error boundary rather than from a route.
@@ -168,6 +169,8 @@ a new field type inherits it. That context is a separate module because
 does this: one view-mode form for a create or a delete, and a before/after pair
 for an update. Because it is the same component the editor uses, a field added to
 the editor shows up in the diff with no extra work.
+[`components/component-diff.tsx`](../../src/renderer/components/component-diff.tsx)
+is the same shape for a Component.
 
 ## When an error has no field to land on
 
@@ -175,8 +178,8 @@ A form is only honest if pressing Save either saves or says why not. Two paths
 used to end nowhere, and `AppForm` closes both.
 
 **A validation error with no mounted message.** zod validates the whole form
-value, so an error can land on a path that no field renders. The Collection
-editor is the standing case: its `fieldDefinitions` array is one
+value, so an error can land on a path that no field renders. The field
+definitions editor is the standing case: its `fieldDefinitions` array is one
 `Controller`-bound value drawn as previews, so a Core refinement reporting
 `fieldDefinitions.0.label.de` had no `FormMessage` to appear in and no input to
 focus. Save simply did nothing.
@@ -195,11 +198,22 @@ that is bound as a single `Controller` but rendered as something else, and it
 renders every message at or below that path and claims the subtree:
 
 ```tsx
-<FormSubtreeMessage form={collectionForm} name="fieldDefinitions" />
+<FormSubtreeMessage form={form} name="fieldDefinitions" />
 ```
 
 A plain `FormMessage` cannot serve there, because it only shows the message
-sitting at its own exact path, and a nested refinement never leaves one there.
+sitting at its own path, and a nested refinement never leaves one there.
+
+One case looks nested and is not. `@hookform/resolvers` moves an error reported
+on an array itself under `root` as soon as any path inside that array is a
+registered field name, which a dynamic field's sections are the moment one has
+been mounted. So a required dynamic field whose last section was just removed
+reported `values.sections.content.root`, which the field's own `FormMessage` did
+not show and `AppForm`'s backstop counted as covered, and the submit said
+nothing at all. `useFormField` reads that `root` error as the field's own, so
+the message lands on the field it belongs to. A nested error object without a
+`root` is left alone, so a field holding only errors below it still renders no
+message of its own.
 
 The UX follows the rest of the app: nothing is disabled to express "invalid",
 validation runs on the submit click, and the error appears then.
@@ -312,11 +326,16 @@ pre-seed and no refinement of its own.
 `Update*Props` internally, because react-hook-form's `FieldPath` cannot resolve a
 literal path for an unresolved generic. Those two
 `as unknown as UseFormReturn<...>` casts are the one documented exception to the
-cast guardrail below, each carrying an inline comment and a `@todo`. `AssetForm`
-avoids even that by staying generic and casting only field names
-(`as FieldPath<T>`). The report dialog's `ContactFields` needs no cast at all:
-its callers pass the field paths in, where the form type is concrete, so a wrong
-path is a compile error at the call site.
+cast guardrail below, each carrying an inline comment and a `@todo`. `AssetForm`,
+`ComponentForm` and `FieldDefinitionsEditor` avoid even that by staying generic
+and casting only field names (`as FieldPath<T>`). The report dialog's
+`ContactFields` needs no cast at all: its callers pass the field paths in, where
+the form type is concrete, so a wrong path is a compile error at the call site.
+
+`FieldDefinitionsEditor` does not constrain its `TFieldValues` to a shape holding
+`fieldDefinitions` either, although it reads exactly that key. A generated Core
+schema's **input** type for the array is not `FieldDefinitionOrGroup[]` itself, so
+such a constraint rejects every real caller.
 
 `EntryForm` used to be a third. Its cast changed no field values at all: it only
 erased the third generic, because `FormFieldFromDefinition` declared its `form`

@@ -26,6 +26,25 @@ export const FormItemContext = React.createContext<FormItemContextValue>(
   {} as FormItemContextValue
 );
 
+/**
+ * The error a field's message should render: the one at its own path, or the one
+ * react-hook-form nested under `root`.
+ *
+ * `@hookform/resolvers` nests an error reported on an array itself under `root`
+ * as soon as any path inside that array is a registered field name, which a
+ * dynamic field's sections are the moment one has been mounted. Without this
+ * the message on the array (a required field whose last section was just
+ * removed, say) would sit at a path nothing reads, so the submit would say
+ * nothing at all. A nested error object without a `root` is returned unchanged,
+ * so a field holding only errors below it still renders no message of its own.
+ */
+function messageError(error: FieldError | undefined): FieldError | undefined {
+  if (error === undefined || typeof error.message === 'string') {
+    return error;
+  }
+  return error.root ?? error;
+}
+
 export const useFormField = (): {
   invalid: boolean;
   isDirty: boolean;
@@ -50,6 +69,7 @@ export const useFormField = (): {
   }
 
   const { id } = itemContext;
+  const error = messageError(fieldState.error);
 
   return {
     id,
@@ -58,5 +78,8 @@ export const useFormField = (): {
     formDescriptionId: `${id}-form-item-description`,
     formMessageId: `${id}-form-item-message`,
     ...fieldState,
+    // Conditional, so an absent error leaves the key off entirely rather than
+    // present and undefined, which the declared optional property forbids.
+    ...(error === undefined ? {} : { error }),
   };
 };

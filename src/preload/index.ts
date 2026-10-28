@@ -82,6 +82,14 @@ const ipc: ContextBridgeApi = {
       delete: async (...args) =>
         ipcRenderer.invoke('core:projects:delete', ...args),
     },
+    releases: {
+      list: async (...args) =>
+        ipcRenderer.invoke('core:releases:list', ...args),
+      prepare: async (...args) =>
+        ipcRenderer.invoke('core:releases:prepare', ...args),
+      create: async (...args) =>
+        ipcRenderer.invoke('core:releases:create', ...args),
+    },
     assets: {
       list: async (...args) => ipcRenderer.invoke('core:assets:list', ...args),
       create: async (...args) =>
@@ -104,6 +112,26 @@ const ipc: ContextBridgeApi = {
         ipcRenderer.invoke('core:collections:update', ...args),
       delete: async (...args) =>
         ipcRenderer.invoke('core:collections:delete', ...args),
+    },
+    components: {
+      list: async (...args) =>
+        ipcRenderer.invoke('core:components:list', ...args),
+      count: async (...args) =>
+        ipcRenderer.invoke('core:components:count', ...args),
+      create: async (...args) =>
+        ipcRenderer.invoke('core:components:create', ...args),
+      read: async (...args) =>
+        ipcRenderer.invoke('core:components:read', ...args),
+      readBySlug: async (...args) =>
+        ipcRenderer.invoke('core:components:readBySlug', ...args),
+      history: async (...args) =>
+        ipcRenderer.invoke('core:components:history', ...args),
+      resolveComponentId: async (...args) =>
+        ipcRenderer.invoke('core:components:resolveComponentId', ...args),
+      update: async (...args) =>
+        ipcRenderer.invoke('core:components:update', ...args),
+      delete: async (...args) =>
+        ipcRenderer.invoke('core:components:delete', ...args),
     },
     entries: {
       list: async (...args) => ipcRenderer.invoke('core:entries:list', ...args),

@@ -1,5 +1,9 @@
 import { expect, type ElectronApplication } from '@playwright/test';
 
+import { type CoreErrorType } from '@elek-io/core';
+
+import { serializeCoreError } from '../../src/shared/ipcError.js';
+
 /**
  * Assert that an IPC call rejects.
  *
@@ -49,4 +53,90 @@ export async function stubCoreReject(
       throw new Error('E2E injected failure');
     });
   }, channel);
+}
+
+/**
+ * Replace a Core IPC handler so its next call rejects with a `CoreError` of
+ * `type`, to drive a failure the app routes by type without arranging the
+ * conditions Core raises it for. Used for a type no local git repository can
+ * produce, such as a remote that refuses the credentials (`Unauthorized`), and
+ * for a type the app deliberately does not handle, which has to reach the root
+ * error boundary even though it carries a type.
+ *
+ * Mirrors `stubCoreReject`, including why it has to run in the main process.
+ * The one difference is the message: the main process encodes a `CoreError`'s
+ * type into the message with a sentinel, which the renderer decodes back out
+ * (see `shared/ipcError.ts`), so the replacement throws the same encoded shape
+ * the real handler would. The message is written here rather than in the main
+ * process, because `electronApp.evaluate` can only take plain data.
+ */
+export async function stubCoreRejectWithType(
+  electronApp: ElectronApplication,
+  channel: string,
+  type: CoreErrorType
+): Promise<void> {
+  await electronApp.evaluate(
+    ({ ipcMain }, stub) => {
+      ipcMain.removeHandler(stub.channel);
+      ipcMain.handle(stub.channel, () => {
+        throw new Error(stub.message);
+      });
+    },
+    {
+      channel,
+      message: serializeCoreError(type, `E2E injected ${type} failure`),
+    }
+  );
+}
+
+/**
+ * Replace a Core IPC handler so its next call never settles, to make the
+ * in-flight window of a mutation stable to assert instead of racing a fast
+ * resolve. A control that waits while its call is in flight is observed this
+ * way: the button's waiting state cannot be caught otherwise.
+ *
+ * Mirrors `stubCoreReject`, including why it has to run in the main process.
+ * The call never settles, so the test ends with it pending, which is fine since
+ * the app is closed in teardown.
+ */
+export async function stubCoreHang(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    ipcMain.removeHandler(ch);
+    ipcMain.handle(ch, async () => {
+      await new Promise(() => {});
+    });
+  }, channel);
+}
+
+/**
+ * Replace a Core IPC handler so its next call answers with a canned value, to
+ * drive a shape of Core's answer the UI has to render without arranging what
+ * Core computes it from.
+ *
+ * The one use today is a Release diff carrying a Component change. A Release
+ * renders every change Core reports, and what Core reports for one is Core's to
+ * compute and test, so the answer is stubbed rather than arranged. Rendering it
+ * is the desktop app's own responsibility, which is what this asserts.
+ *
+ * Mirrors `stubCoreReject`: the app captures each handler by reference at
+ * registration, so this removes the real one and registers a replacement in the
+ * main process. Scoped to the current test's app instance, so it does not leak.
+ * The value crosses the process boundary through Electron's structured clone,
+ * so it has to be plain data.
+ */
+export async function stubCoreResolve(
+  electronApp: ElectronApplication,
+  channel: string,
+  value: unknown
+): Promise<void> {
+  await electronApp.evaluate(
+    ({ ipcMain }, canned) => {
+      ipcMain.removeHandler(canned.channel);
+      ipcMain.handle(canned.channel, () => canned.value);
+    },
+    { channel, value }
+  );
 }

@@ -11,6 +11,24 @@ import type {
 import { queryClient } from '../client';
 import { customMutationOptions, mergeListWithObject } from '../util';
 
+/** The commits a Project's branch is ahead of and behind its remote. Core declares no name for it. */
+export type ProjectChanges = Awaited<
+  ReturnType<ContextBridgeApi['core']['projects']['getChanges']>
+>;
+
+/**
+ * How far a Project's branch is ahead of and behind its remote, fetched from the
+ * remote first.
+ *
+ * The one place the call is made, so every caller moves `origin` the same way
+ * and the answer can be published to the `getChanges` query below. Anything that
+ * needs it outside that query reads it through here and writes what it got into
+ * the query's cache, rather than opening a second query over the same call.
+ */
+export async function fetchProjectChanges(id: string): Promise<ProjectChanges> {
+  return await window.ipc.core.projects.getChanges({ id });
+}
+
 export const projectOptions = {
   create: customMutationOptions({
     mutationFn: window.ipc.core.projects.create,
@@ -142,9 +160,7 @@ export const projectOptions = {
       enabled: project !== undefined && project.remoteOriginUrl !== null,
       queryKey: ['projects', project?.id, 'current', 'changes'],
       queryFn: async () => {
-        return await window.ipc.core.projects.getChanges({
-          id: project!.id,
-        });
+        return await fetchProjectChanges(project!.id);
       },
       throwOnError: true,
       refetchInterval: 180000, // Refetch changes every 3 minutes

@@ -17,7 +17,13 @@ permissions:
 jobs:
   test:
     name: Testing on ${{ matrix.platform }}
-    timeout-minutes: 20
+    # The cap is here to end a hung job, not to bound the suite. One job installs,
+    # type-checks, lints, packages the app and then runs every E2E test against
+    # it, which takes between 10 and 17 minutes depending on the runner, and the
+    # suite keeps growing. So the cap sits well above the slowest run rather than
+    # just above it, where a slow runner or a few more tests would cancel a job
+    # that had nothing wrong with it.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:

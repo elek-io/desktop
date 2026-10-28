@@ -2,8 +2,10 @@ import { apiOptions } from './apiOptions';
 import { assetOptions } from './assetOptions';
 import { cloudOptions } from './cloudOptions';
 import { collectionOptions } from './collectionOptions';
+import { componentOptions } from './componentOptions';
 import { entryOptions } from './entryOptions';
 import { projectOptions } from './projectOptions';
+import { releaseOptions } from './releaseOptions';
 import { userOptions } from './userOptions';
 
 /**
@@ -11,7 +13,9 @@ import { userOptions } from './userOptions';
  */
 export default {
   projects: projectOptions,
+  releases: releaseOptions,
   collections: collectionOptions,
+  components: componentOptions,
   assets: assetOptions,
   entries: entryOptions,
   user: userOptions,

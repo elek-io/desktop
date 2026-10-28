@@ -1,11 +1,15 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-import type {
-  CreateEntryProps,
-  Entry,
-  MdAstRoot,
-  ReferencedValue,
-  SupportedLanguage,
+import {
+  uuid,
+  type ComponentItem,
+  type ComponentValue,
+  type CreateEntryProps,
+  type Entry,
+  type MdAstRoot,
+  type ReferencedValue,
+  type SupportedLanguage,
+  type UpdateEntryProps,
 } from '@elek-io/core';
 
 import { navigate } from './navigation.js';
@@ -112,6 +116,31 @@ export function assetReferenceValue(assetId: string): ReferencedValue {
 }
 
 /**
+ * Build a dynamic field's Value: the ordered sections of a page. Unlike every
+ * other Value its content is one flat array rather than a record per language,
+ * and each item names the Component it is built from plus that Component's own
+ * Values, keyed by field slug. An item id is generated unless one is passed, so
+ * a test that asserts on a specific section can name it.
+ */
+export function componentValue(
+  items: Array<{
+    id?: string;
+    componentId: string;
+    values: ComponentItem['values'];
+  }>
+): ComponentValue {
+  return {
+    objectType: 'value',
+    valueType: 'component',
+    content: items.map((item) => ({
+      id: item.id ?? uuid(),
+      componentId: item.componentId,
+      values: item.values,
+    })),
+  };
+}
+
+/**
  * Create an Entry directly over IPC, bypassing the UI.
  *
  * Use this to arrange a precondition a test depends on but does not itself
@@ -130,6 +159,25 @@ export async function createEntryViaIpc(
 }
 
 /**
+ * Update an Entry directly over IPC, bypassing the UI.
+ *
+ * Use this to arrange a precondition a test depends on but does not itself
+ * verify, such as a Project holding a changed Entry for a Release's diff. To
+ * exercise the update flow through the form, use the Entry update route.
+ */
+export async function updateEntryViaIpc(
+  page: Page,
+  props: {
+    projectId: string;
+    collectionId: string;
+    id: string;
+    values: UpdateEntryProps['values'];
+  }
+): Promise<Entry> {
+  return page.evaluate(async (p) => window.ipc.core.entries.update(p), props);
+}
+
+/**
  * Delete an Entry directly over IPC, bypassing the UI.
  *
  * There is no UI control to delete an Entry (the `EntryTable` actions column is
@@ -142,6 +190,24 @@ export async function deleteEntryViaIpc(
   props: { projectId: string; collectionId: string; id: string }
 ): Promise<void> {
   await page.evaluate(async (p) => window.ipc.core.entries.delete(p), props);
+}
+
+/**
+ * List a Collection's Entries directly over IPC, bypassing the UI.
+ *
+ * Used to find an Entry a test created through the form, since the Entry table's
+ * value columns render nothing yet (see not-yet-implemented.md) and the create
+ * route redirects to the Collection rather than to the new Entry.
+ */
+export async function listEntriesViaIpc(
+  page: Page,
+  props: { projectId: string; collectionId: string }
+): Promise<Entry[]> {
+  const list = await page.evaluate(
+    async (p) => window.ipc.core.entries.list({ ...p, limit: 0 }),
+    props
+  );
+  return list.list;
 }
 
 /** Route to a Collection's Entry create form and confirm the app rendered. */

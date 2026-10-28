@@ -23,7 +23,7 @@ import {
   createEntryViaIpc,
   stringValue,
 } from '../helpers/entry.js';
-import { stubCoreReject } from '../helpers/ipc.js';
+import { stubCoreHang, stubCoreReject } from '../helpers/ipc.js';
 import { createProjectViaIpc, navigateToAssets } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -255,12 +255,7 @@ test.describe('Assets', () => {
 
     // Make the update never resolve, so the form stays submitting after the click
     // and the in-flight disabled state is stable to assert.
-    await electronApp.evaluate(({ ipcMain }) => {
-      ipcMain.removeHandler('core:assets:update');
-      ipcMain.handle('core:assets:update', async () => {
-        await new Promise(() => {});
-      });
-    });
+    await stubCoreHang(electronApp, 'core:assets:update');
 
     // Submitting keeps the form in flight, so the button disables and does not
     // re-enable while the mutation is pending.

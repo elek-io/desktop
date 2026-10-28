@@ -20,6 +20,7 @@ import {
 } from '@renderer/components/ui/dialog';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
+import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
@@ -85,11 +86,16 @@ function UpdateEntryPage(): ReactElement {
       },
     },
   });
+  // A dynamic field's Values are checked against the field definitions of the
+  // Components it embeds, so the schema needs Core's resolver for them.
+  const { componentResolver, isReadingComponents } =
+    useComponentResolver(projectId);
   const generatedUpdateEntrySchema =
-    collection && project
+    collection && project && isReadingComponents === false
       ? getUpdateEntrySchemaFromFieldDefinitions(
           flattenFieldDefinitions(collection.fieldDefinitions),
-          project.settings.language.supported
+          project.settings.language.supported,
+          componentResolver
         )
       : getUpdateEntrySchemaFromFieldDefinitions([], []);
 
@@ -186,7 +192,7 @@ function UpdateEntryPage(): ReactElement {
     );
   }
 
-  if (isReadingProject || isReadingCollection) {
+  if (isReadingProject || isReadingCollection || isReadingComponents) {
     return <></>;
   }
 
