@@ -1,5 +1,113 @@
 # @elek-io/desktop
 
+## 0.5.0
+
+### Minor Changes
+
+- 8538ad7: Allow another Component on a field that already holds sections.
+  
+  A page can gain a new kind of section without losing the sections it has. Open a Collection's or a Component's settings and press Edit on a dynamic field, and the Components it does not allow yet are offered one by one. The ones it allows already are named as allowed rather than offered again: taking one away would delete every section built from it, which elek.io Desktop cannot ask you about yet. A field where you chose no Component allows every Component of the Project, the ones added later included, so it says there is nothing to add. A field where you chose every Component the Project has says the same, and a Component you add later has to be allowed on it before an Entry can build a section from it.
+  
+  Nothing about the field itself changes, so every Entry keeps the sections it holds, with their content in every language, and the save lands in the Project's History as one change. Afterwards an Entry offers the Component that was just allowed when you add a section.
+  
+  On a Component, what the save reaches is said before you press it, as it is for every other change to a Component: which Collections use it, and how many of their Entries hold a section built from it.
+  
+  Nothing else about a field can be changed after it was added, and both screens say so where you add one.
+- 416f4e0: Move to Electron 45, which needs macOS 13 (Ventura) or newer.
+  
+  Nearly every library the app ships and builds with moves to its newest release. The few that do not are each waiting on a fix upstream, on a screen that has to be rewritten first, or on the Node version the app runs on. Electron goes from 43 to 45, so the Chromium the interface is drawn with goes from 150 to 156 and brings its security fixes with it.
+  
+  On macOS this release needs macOS 13 (Ventura) or newer. Electron 44 raised that floor, and this release crosses it, so the app no longer starts on macOS 12 (Monterey). Stay on 0.4.0 there. The 32 bit Windows and ARMv7 Linux builds Electron also stopped publishing were never part of elek.io Desktop, so no Windows or Linux machine that ran 0.4.0 loses the app.
+  
+  The Git that versions your Projects moves from 2.53.0 to 2.56.0.
+  
+  Three icons are drawn a little differently, because the icon set redrew them. Each is still the same symbol in the same place: the delete icon now has two lines inside the bin, the check mark in a success message is redrawn, and so is the calendar on a date field's button. Every window, dialog, form and list is drawn by the same components as before, and every one of them behaves the same way.
+- 2209b76: Move to elek.io Core 0.26.0, which refuses a change that would delete content and renames a Project's branches.
+  
+  A change in a Collection's settings that would delete Values is refused, and nothing is saved. Taking a Field out of a Collection deletes what every Entry holds in it, so that save is now blocked, the dialog says so, and the Project is left exactly as it was. Desktop can't accept such a loss yet, so until it can, a Field that holds something in any Entry stays. A Field no Entry has written in, and a Field of a Collection without Entries, still come out as before.
+  
+  Editing now happens on a branch named `draft`, and a Release promotes it to `main`. The branches `work` and `production` are gone, and nothing renames them for you. A Project made with an earlier version of elek.io Desktop still opens and still saves what you write, but it can't synchronize, and a copy of it can't be cloned, until its branches are renamed.
+  
+  That rename is the one step run by hand, and whoever set up the Project runs it. In every copy of such a Project, open a terminal in its folder, `elek.io/projects/<Project id>` in your home folder, and run:
+  
+  ```sh
+  git branch -m work draft
+  git branch -m production main
+  ```
+  
+  If the Project synchronizes with a Git repository, rename the branches there too, from one copy only. Send the two new names first:
+  
+  ```sh
+  git push --no-verify origin draft main
+  ```
+  
+  The repository now has a `main`. Make it the default branch at your Git host, since most hosts refuse to delete the default branch. Then drop the old names and follow the new ones:
+  
+  ```sh
+  git push --no-verify origin --delete work production
+  git branch -u origin/draft draft
+  git branch -u origin/main main
+  ```
+  
+  Both pushes pass `--no-verify`, which turns off every check Git runs before a push, not one in particular. In a Project elek.io Desktop set up, that is the check looking for Git LFS on your computer, and elek.io Desktop carries its own copy rather than installing one. If you added checks of your own to that repository, those are skipped too. Then synchronize the Project in elek.io Desktop, which uploads anything the pushes left behind.
+  
+  Every other copy then runs `git fetch --prune` and the two `git branch -u` lines.
+  
+  What else changes when you synchronize:
+  
+  - The first synchronization with an empty Git repository uploads the Project with every Release made so far. A repository that holds anything else, such as a README your Git host created, is refused, so create it empty.
+  - Cloning checks out `draft`. A repository without it holds no Project, or one made with an older version of elek.io Desktop, and the Clone dialog says so and keeps the address you typed.
+  - When a synchronization stops, the dialog names only what can have stopped it: an Entry pointing at something that no longer exists, a repository holding something besides this Project, a repository that can't store Assets, or the same text changed in two places. A repository that can't be reached is reported on the error screen instead.
+  - Your name and email still sign every change, and they are no longer written into each Project's Git repository, so a change you make after editing your profile is signed with the new name right away.
+  - A Git repository that asks for a password stops the synchronization with an error instead of opening a password prompt. Use an SSH key or a credential helper set up on this computer.
+  - The Git that ships with elek.io Desktop asks for the TLS library Fedora, RHEL, openSUSE and NixOS carry, so synchronizing over HTTPS no longer fails on those systems for a `libcurl-gnutls.so.4` none of them ships.
+  
+  Two more changes reach you from this Core. A slug derived from a label no longer breaks at an apostrophe before punctuation, so "Ada's, blog" gives `adas-blog` where it gave `ada-s-blog`, and a slug already stored keeps its value. And a Field's character limits count in Unicode code points: a smiling face counts as one where it counted as two, and a flag counts as two where it counted as four. A limit of 2 therefore takes two smiling faces, or one flag.
+- 10237e9: Cut a Release of a Project, so a website can build from what you published.
+  
+  Every Project now has a Releases page, reached from its sidebar. It lists what was published and when, and a Project with nothing published yet says so. Release opens a dialog that shows what a Release would publish before you confirm it: the version it moves up from, the version it moves to, whether that is a major, a minor or a patch Release, why in one sentence, and each change in words. elek.io sets the version from what changed, so there is nothing to choose. A Release cannot be undone, and the dialog says so before you press Create Release. Afterwards the Project carries its new version and its History shows the Release.
+  
+  If the Project synchronizes with a Git repository, the Release is published there too: the dialog reads the repository before it shows you anything, so the version and the changes are the ones that will go out, and Create Release sends everything in one go.
+  
+  When a Release cannot be made, nothing is released and the Project is left exactly as it was:
+  
+  - Changes were saved or a Release was made on another computer, so you synchronize first and release again. The dialog reads the Git repository as it opens, so Synchronize is ready the moment the dialog asks you to use it.
+  - The Git repository refused access or could not be reached, so you check your connection or ask whoever set up the Project, and press Create Release again.
+  - Nothing has changed since the last Release, so the dialog says that and offers nothing to press.
+  
+  Preview Releases are not in elek.io Desktop yet. One made elsewhere shows in the list, marked Preview, so it is never read as the version a website builds from.
+- 2b4c380: Write a page's sections with Components, and open an Entry that holds them.
+  
+  A Project now has Components, reached from its sidebar. A Component is a group of fields an Entry can hold more than once, in any order, which is what the sections of a page are. You create one, give it a name and a slug, add its fields, and change or delete it later. A Project with none says so and offers to create the first.
+  
+  A Collection's field can then allow Components. The Add Field picker offers the dynamic type, where you choose which Components may be added as a section and how few or how many sections an Entry has to hold. Choosing none allows every Component of the Project.
+  
+  In an Entry, such a field is the list of that page's sections. Add section offers each Component the field allows, by name. A section holds that Component's own fields, and it can be moved up, moved down or removed. An Entry with no section yet says so.
+  
+  Opening an Entry of a Collection that already held such a field used to fail with an error screen, however the field got there. It opens now.
+  
+  What a Component change reaches is said before you save it: which Collections use it and how many of their Entries hold a section built from it. elek.io Core carries the change into every Entry that holds the Component and saves the lot as one change, so nothing is left half done.
+  
+  When a change cannot be carried out, nothing is saved and the Component is exactly as it was:
+  
+  - Taking out a field that Entries have written in would delete what they hold, so the save is refused and each Entry that would lose something is named. Accepting such a loss is not possible in elek.io Desktop yet, so put the field back for now.
+  - Adding a required field with no default value needs an answer for every Entry that already exists, which is not possible yet either. Give the field a default value, or leave it optional.
+  - A slug another Component already uses is said below the Slug field.
+  - A Component cannot use itself, directly or through another Component, and the screen says so rather than failing.
+  - A Component a Collection or another Component still uses cannot be deleted. Take it out of the fields that allow it first.
+  
+  Both screens now say, where you add a field, what can be changed about it afterwards and what cannot, so you can check its label and slug first. A Component holds no slug field, and none of its fields can be unique, so neither is offered. Fields are reordered by dragging or with the Move up and Move down buttons, so a reorder no longer needs a mouse.
+  
+  Every change to a Component shows in the Project's History, laid out like its own screen, read-only.
+
+### Patch Changes
+
+- 608621f: Electron is on 45.1.0, so the Chromium that draws every screen is 156.0.8078.49 and the Node that runs the app's file and Git work is 24.22.1. Electron fixes a crash on Linux and how the app reads its own archive on every platform.
+  
+  The macOS 13 (Ventura) floor this release carries comes from the move to Electron 45, and 45.1.0 raises no floor of its own.
+  
+  Nothing else changes on screen. Every window, dialog, form and list is drawn by the same components and behaves as it did before.
+
 ## 0.4.0
 
 ### Minor Changes
