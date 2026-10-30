@@ -3,7 +3,7 @@
   "productName": "elek.io Desktop",
   "desktopName": "io.elek.desktop.desktop",
   "description": "The elek.io Desktop is a desktop application for Windows, macOS and Linux that allows you to manage content.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "main": "./out/main/index.js",
   "homepage": "https://elek.io",
