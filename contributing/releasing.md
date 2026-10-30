@@ -28,11 +28,10 @@ CI and CD read the Node.js version from [.node-version](../.node-version) and th
 
 ## Dependencies that stay behind their newest release
 
-A dependency round takes every package to its newest release that has cleared the release-age cutoff above. These do not come along, and each will when its reason goes away:
+A dependency round takes every package to its newest release that has cleared the release-age cutoff described under [Supply-chain policies](#supply-chain-policies). These do not come along, and each will when its reason goes away:
 
 - `typescript` stays on 6, because typescript-eslint declares `typescript >=4.8.4 <6.1.0` and refuses to load against 7 with `typescript-eslint does not support TS 7.0`. With it refused, `pnpm lint` cannot run at all, so none of the form guardrails are enforced. Tracked upstream as [typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940).
 - `@tanstack/react-table` stays on 8. Version 9 renames the hook and drops the type exports the Entry table is written against, so taking it is a rewrite of that screen rather than a version change.
-- `@playwright/test` stays on 1.63, see [Why Playwright is held at 1.63](./testing.md#why-playwright-is-held-at-163).
 
 ## Supply-chain policies
 
