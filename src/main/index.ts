@@ -589,7 +589,10 @@ class Main {
                 error.message,
                 error.stack,
                 error.cause
-              )
+              ),
+              // The encoded message is what the renderer reads. The cause is
+              // attached so the original stays reachable in this process.
+              { cause: error }
             );
           }
           throw error;

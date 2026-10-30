@@ -8,20 +8,48 @@ allowBuilds:
   # dugite is Core's git engine. Its postinstall downloads the embedded git
   # executable, so the build must run or every git operation at runtime fails.
   dugite: true
-  # Since Electron 42 the binary also downloads on first run, but the package
-  # still ships an install script that pnpm requires approval for.
+  # electron publishes no install script of its own, and has not since the
+  # binary moved to a first-run download in Electron 42. The entry stays so a
+  # release that brings one back does not stop an install in CI.
   electron: true
   # Downloads the Squirrel.Windows binaries used when packaging for Windows.
   electron-winstaller: true
-  # esbuild arrives via electron-vite and vite. Its platform binary already
-  # ships prebuilt in @esbuild/<platform>, which the JS API resolves directly,
-  # so its postinstall build is redundant. Same reasoning as in Core.
+  # esbuild is no longer in the tree, since vite 8 bundles with rolldown. The
+  # entry stays for the day it arrives again: its platform binary ships prebuilt
+  # in @esbuild/<platform>, which the JS API resolves directly, so its
+  # postinstall build is redundant. Same reasoning as in Core, which still has it.
   esbuild: false
+# Agent skill approval, which pnpm 12 added alongside build script approval.
+# A dependency may ship skills that an agent in this repository would load.
+# Nothing here reads them, and an undecided package makes every install print
+# "awaiting approval", so each one that asks is denied explicitly.
+# See https://pnpm.io/settings#permissions
+permissions:
+  '@tanstack/react-router':
+    skills: false
+  '@tanstack/react-table':
+    skills: false
+  '@tanstack/router-plugin':
+    skills: false
+# eslint 10 is past the peer range of these two plugins. Both cap it at 9 and
+# neither has a release that names 10, so the mismatch is declared rather than
+# worked around. eslint-plugin-react works under eslint 10: every rule
+# eslint.config.mjs enables from it reports, and its version detection, the one
+# break, is pinned around there. eslint-plugin-jsx-a11y contributes no rule the
+# config enables today, so eslint 10 changes nothing about it. Declaring both
+# keeps `pnpm peers check` clean, so an eslint mismatch anywhere else still
+# shows up. Drop each entry once that plugin names eslint 10.
+# See https://pnpm.io/settings#peerdependencyrules
+peerDependencyRules:
+  allowedVersions:
+    'eslint-plugin-jsx-a11y>eslint': '10'
+    'eslint-plugin-react>eslint': '10'
 # Do not reuse pnpm's cache of postinstall (side effect) output. Since pnpm 8.7
 # the content addressable store keeps such files as plain copies, not symlinks.
-# dugite's postinstall lays down git, whose git-core is ~145 symlinks to one
-# binary. Restoring that from a warm store (the CI pnpm cache) flattens them
-# into 145 full copies, which doubled the packaged macOS app. With this off
+# dugite's postinstall lays down git, whose git-core is well over a hundred
+# symlinks to one binary, and the count grows with each git it embeds.
+# Restoring that from a warm store (the CI pnpm cache) flattens every one of
+# them into a full copy, which doubled the packaged macOS app. With this off
 # dugite re-extracts git each install, so the symlinks survive.
 # Reported as pnpm/pnpm#12859 (see also #7691). Remove once that is fixed.
 sideEffectsCache: false

@@ -9,42 +9,42 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UserRouteImport } from './routes/user'
-import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as UserIndexRouteImport } from './routes/user/index'
+import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as UserRouteImport } from './routes/user'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
-import { Route as UserProfileRouteImport } from './routes/user/profile'
-import { Route as ProjectsCreateRouteImport } from './routes/projects/create'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects/$projectId'
+import { Route as ProjectsCreateRouteImport } from './routes/projects/create'
+import { Route as UserIndexRouteImport } from './routes/user/index'
+import { Route as UserProfileRouteImport } from './routes/user/profile'
 import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects/$projectId/index'
-import { Route as ProjectsProjectIdSettingsRouteImport } from './routes/projects/$projectId/settings'
-import { Route as ProjectsProjectIdReleasesRouteImport } from './routes/projects/$projectId/releases'
-import { Route as ProjectsProjectIdHistoryRouteImport } from './routes/projects/$projectId/history'
-import { Route as ProjectsProjectIdDashboardRouteImport } from './routes/projects/$projectId/dashboard'
-import { Route as ProjectsProjectIdComponentsRouteImport } from './routes/projects/$projectId/components'
 import { Route as ProjectsProjectIdCollectionsRouteImport } from './routes/projects/$projectId/collections'
-import { Route as ProjectsProjectIdSettingsIndexRouteImport } from './routes/projects/$projectId/settings/index'
-import { Route as ProjectsProjectIdComponentsIndexRouteImport } from './routes/projects/$projectId/components/index'
-import { Route as ProjectsProjectIdCollectionsIndexRouteImport } from './routes/projects/$projectId/collections/index'
+import { Route as ProjectsProjectIdComponentsRouteImport } from './routes/projects/$projectId/components'
+import { Route as ProjectsProjectIdDashboardRouteImport } from './routes/projects/$projectId/dashboard'
+import { Route as ProjectsProjectIdHistoryRouteImport } from './routes/projects/$projectId/history'
+import { Route as ProjectsProjectIdReleasesRouteImport } from './routes/projects/$projectId/releases'
+import { Route as ProjectsProjectIdSettingsRouteImport } from './routes/projects/$projectId/settings'
 import { Route as ProjectsProjectIdAssetsIndexRouteImport } from './routes/projects/$projectId/assets/index'
-import { Route as ProjectsProjectIdSettingsVersionControlRouteImport } from './routes/projects/$projectId/settings/version-control'
-import { Route as ProjectsProjectIdSettingsGeneralRouteImport } from './routes/projects/$projectId/settings/general'
-import { Route as ProjectsProjectIdHistoryCommitHashRouteImport } from './routes/projects/$projectId/history/$commitHash'
-import { Route as ProjectsProjectIdComponentsCreateRouteImport } from './routes/projects/$projectId/components/create'
-import { Route as ProjectsProjectIdComponentsComponentIdRouteImport } from './routes/projects/$projectId/components/$componentId'
-import { Route as ProjectsProjectIdCollectionsCreateRouteImport } from './routes/projects/$projectId/collections/create'
+import { Route as ProjectsProjectIdCollectionsIndexRouteImport } from './routes/projects/$projectId/collections/index'
 import { Route as ProjectsProjectIdCollectionsCollectionIdRouteImport } from './routes/projects/$projectId/collections/$collectionId'
+import { Route as ProjectsProjectIdCollectionsCreateRouteImport } from './routes/projects/$projectId/collections/create'
+import { Route as ProjectsProjectIdComponentsIndexRouteImport } from './routes/projects/$projectId/components/index'
+import { Route as ProjectsProjectIdComponentsComponentIdRouteImport } from './routes/projects/$projectId/components/$componentId'
+import { Route as ProjectsProjectIdComponentsCreateRouteImport } from './routes/projects/$projectId/components/create'
+import { Route as ProjectsProjectIdHistoryCommitHashRouteImport } from './routes/projects/$projectId/history/$commitHash'
+import { Route as ProjectsProjectIdSettingsIndexRouteImport } from './routes/projects/$projectId/settings/index'
+import { Route as ProjectsProjectIdSettingsGeneralRouteImport } from './routes/projects/$projectId/settings/general'
+import { Route as ProjectsProjectIdSettingsVersionControlRouteImport } from './routes/projects/$projectId/settings/version-control'
 import { Route as ProjectsProjectIdCollectionsCollectionIdIndexRouteImport } from './routes/projects/$projectId/collections/$collectionId/index'
-import { Route as ProjectsProjectIdCollectionsCollectionIdUpdateRouteImport } from './routes/projects/$projectId/collections/$collectionId/update'
-import { Route as ProjectsProjectIdCollectionsCollectionIdCreateRouteImport } from './routes/projects/$projectId/collections/$collectionId/create'
 import { Route as ProjectsProjectIdCollectionsCollectionIdEntryIdRouteImport } from './routes/projects/$projectId/collections/$collectionId/$entryId'
+import { Route as ProjectsProjectIdCollectionsCollectionIdCreateRouteImport } from './routes/projects/$projectId/collections/$collectionId/create'
+import { Route as ProjectsProjectIdCollectionsCollectionIdUpdateRouteImport } from './routes/projects/$projectId/collections/$collectionId/update'
 import { Route as ProjectsProjectIdCollectionsCollectionIdEntryIdIndexRouteImport } from './routes/projects/$projectId/collections/$collectionId/$entryId/index'
 import { Route as ProjectsProjectIdCollectionsCollectionIdEntryIdUpdateRouteImport } from './routes/projects/$projectId/collections/$collectionId/$entryId/update'
 
-const UserRoute = UserRouteImport.update({
-  id: '/user',
-  path: '/user',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsRoute = ProjectsRouteImport.update({
@@ -52,29 +52,14 @@ const ProjectsRoute = ProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const UserRoute = UserRouteImport.update({
+  id: '/user',
+  path: '/user',
   getParentRoute: () => rootRouteImport,
-} as any)
-const UserIndexRoute = UserIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => UserRoute,
 } as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => ProjectsRoute,
-} as any)
-const UserProfileRoute = UserProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => UserRoute,
-} as any)
-const ProjectsCreateRoute = ProjectsCreateRouteImport.update({
-  id: '/create',
-  path: '/create',
   getParentRoute: () => ProjectsRoute,
 } as any)
 const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
@@ -82,33 +67,30 @@ const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   path: '/$projectId',
   getParentRoute: () => ProjectsRoute,
 } as any)
+const ProjectsCreateRoute = ProjectsCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => ProjectsRoute,
+} as any)
+const UserIndexRoute = UserIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => UserRoute,
+} as any)
+const UserProfileRoute = UserProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => UserRoute,
+} as any)
 const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ProjectsProjectIdRoute,
 } as any)
-const ProjectsProjectIdSettingsRoute =
-  ProjectsProjectIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => ProjectsProjectIdRoute,
-  } as any)
-const ProjectsProjectIdReleasesRoute =
-  ProjectsProjectIdReleasesRouteImport.update({
-    id: '/releases',
-    path: '/releases',
-    getParentRoute: () => ProjectsProjectIdRoute,
-  } as any)
-const ProjectsProjectIdHistoryRoute =
-  ProjectsProjectIdHistoryRouteImport.update({
-    id: '/history',
-    path: '/history',
-    getParentRoute: () => ProjectsProjectIdRoute,
-  } as any)
-const ProjectsProjectIdDashboardRoute =
-  ProjectsProjectIdDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
+const ProjectsProjectIdCollectionsRoute =
+  ProjectsProjectIdCollectionsRouteImport.update({
+    id: '/collections',
+    path: '/collections',
     getParentRoute: () => ProjectsProjectIdRoute,
   } as any)
 const ProjectsProjectIdComponentsRoute =
@@ -117,29 +99,29 @@ const ProjectsProjectIdComponentsRoute =
     path: '/components',
     getParentRoute: () => ProjectsProjectIdRoute,
   } as any)
-const ProjectsProjectIdCollectionsRoute =
-  ProjectsProjectIdCollectionsRouteImport.update({
-    id: '/collections',
-    path: '/collections',
+const ProjectsProjectIdDashboardRoute =
+  ProjectsProjectIdDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
     getParentRoute: () => ProjectsProjectIdRoute,
   } as any)
-const ProjectsProjectIdSettingsIndexRoute =
-  ProjectsProjectIdSettingsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => ProjectsProjectIdSettingsRoute,
+const ProjectsProjectIdHistoryRoute =
+  ProjectsProjectIdHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => ProjectsProjectIdRoute,
   } as any)
-const ProjectsProjectIdComponentsIndexRoute =
-  ProjectsProjectIdComponentsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => ProjectsProjectIdComponentsRoute,
+const ProjectsProjectIdReleasesRoute =
+  ProjectsProjectIdReleasesRouteImport.update({
+    id: '/releases',
+    path: '/releases',
+    getParentRoute: () => ProjectsProjectIdRoute,
   } as any)
-const ProjectsProjectIdCollectionsIndexRoute =
-  ProjectsProjectIdCollectionsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => ProjectsProjectIdCollectionsRoute,
+const ProjectsProjectIdSettingsRoute =
+  ProjectsProjectIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => ProjectsProjectIdRoute,
   } as any)
 const ProjectsProjectIdAssetsIndexRoute =
   ProjectsProjectIdAssetsIndexRouteImport.update({
@@ -147,40 +129,10 @@ const ProjectsProjectIdAssetsIndexRoute =
     path: '/assets/',
     getParentRoute: () => ProjectsProjectIdRoute,
   } as any)
-const ProjectsProjectIdSettingsVersionControlRoute =
-  ProjectsProjectIdSettingsVersionControlRouteImport.update({
-    id: '/version-control',
-    path: '/version-control',
-    getParentRoute: () => ProjectsProjectIdSettingsRoute,
-  } as any)
-const ProjectsProjectIdSettingsGeneralRoute =
-  ProjectsProjectIdSettingsGeneralRouteImport.update({
-    id: '/general',
-    path: '/general',
-    getParentRoute: () => ProjectsProjectIdSettingsRoute,
-  } as any)
-const ProjectsProjectIdHistoryCommitHashRoute =
-  ProjectsProjectIdHistoryCommitHashRouteImport.update({
-    id: '/$commitHash',
-    path: '/$commitHash',
-    getParentRoute: () => ProjectsProjectIdHistoryRoute,
-  } as any)
-const ProjectsProjectIdComponentsCreateRoute =
-  ProjectsProjectIdComponentsCreateRouteImport.update({
-    id: '/create',
-    path: '/create',
-    getParentRoute: () => ProjectsProjectIdComponentsRoute,
-  } as any)
-const ProjectsProjectIdComponentsComponentIdRoute =
-  ProjectsProjectIdComponentsComponentIdRouteImport.update({
-    id: '/$componentId',
-    path: '/$componentId',
-    getParentRoute: () => ProjectsProjectIdComponentsRoute,
-  } as any)
-const ProjectsProjectIdCollectionsCreateRoute =
-  ProjectsProjectIdCollectionsCreateRouteImport.update({
-    id: '/create',
-    path: '/create',
+const ProjectsProjectIdCollectionsIndexRoute =
+  ProjectsProjectIdCollectionsIndexRouteImport.update({
+    id: '/',
+    path: '/',
     getParentRoute: () => ProjectsProjectIdCollectionsRoute,
   } as any)
 const ProjectsProjectIdCollectionsCollectionIdRoute =
@@ -189,16 +141,64 @@ const ProjectsProjectIdCollectionsCollectionIdRoute =
     path: '/$collectionId',
     getParentRoute: () => ProjectsProjectIdCollectionsRoute,
   } as any)
+const ProjectsProjectIdCollectionsCreateRoute =
+  ProjectsProjectIdCollectionsCreateRouteImport.update({
+    id: '/create',
+    path: '/create',
+    getParentRoute: () => ProjectsProjectIdCollectionsRoute,
+  } as any)
+const ProjectsProjectIdComponentsIndexRoute =
+  ProjectsProjectIdComponentsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectIdComponentsRoute,
+  } as any)
+const ProjectsProjectIdComponentsComponentIdRoute =
+  ProjectsProjectIdComponentsComponentIdRouteImport.update({
+    id: '/$componentId',
+    path: '/$componentId',
+    getParentRoute: () => ProjectsProjectIdComponentsRoute,
+  } as any)
+const ProjectsProjectIdComponentsCreateRoute =
+  ProjectsProjectIdComponentsCreateRouteImport.update({
+    id: '/create',
+    path: '/create',
+    getParentRoute: () => ProjectsProjectIdComponentsRoute,
+  } as any)
+const ProjectsProjectIdHistoryCommitHashRoute =
+  ProjectsProjectIdHistoryCommitHashRouteImport.update({
+    id: '/$commitHash',
+    path: '/$commitHash',
+    getParentRoute: () => ProjectsProjectIdHistoryRoute,
+  } as any)
+const ProjectsProjectIdSettingsIndexRoute =
+  ProjectsProjectIdSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectIdSettingsRoute,
+  } as any)
+const ProjectsProjectIdSettingsGeneralRoute =
+  ProjectsProjectIdSettingsGeneralRouteImport.update({
+    id: '/general',
+    path: '/general',
+    getParentRoute: () => ProjectsProjectIdSettingsRoute,
+  } as any)
+const ProjectsProjectIdSettingsVersionControlRoute =
+  ProjectsProjectIdSettingsVersionControlRouteImport.update({
+    id: '/version-control',
+    path: '/version-control',
+    getParentRoute: () => ProjectsProjectIdSettingsRoute,
+  } as any)
 const ProjectsProjectIdCollectionsCollectionIdIndexRoute =
   ProjectsProjectIdCollectionsCollectionIdIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => ProjectsProjectIdCollectionsCollectionIdRoute,
   } as any)
-const ProjectsProjectIdCollectionsCollectionIdUpdateRoute =
-  ProjectsProjectIdCollectionsCollectionIdUpdateRouteImport.update({
-    id: '/update',
-    path: '/update',
+const ProjectsProjectIdCollectionsCollectionIdEntryIdRoute =
+  ProjectsProjectIdCollectionsCollectionIdEntryIdRouteImport.update({
+    id: '/$entryId',
+    path: '/$entryId',
     getParentRoute: () => ProjectsProjectIdCollectionsCollectionIdRoute,
   } as any)
 const ProjectsProjectIdCollectionsCollectionIdCreateRoute =
@@ -207,10 +207,10 @@ const ProjectsProjectIdCollectionsCollectionIdCreateRoute =
     path: '/create',
     getParentRoute: () => ProjectsProjectIdCollectionsCollectionIdRoute,
   } as any)
-const ProjectsProjectIdCollectionsCollectionIdEntryIdRoute =
-  ProjectsProjectIdCollectionsCollectionIdEntryIdRouteImport.update({
-    id: '/$entryId',
-    path: '/$entryId',
+const ProjectsProjectIdCollectionsCollectionIdUpdateRoute =
+  ProjectsProjectIdCollectionsCollectionIdUpdateRouteImport.update({
+    id: '/update',
+    path: '/update',
     getParentRoute: () => ProjectsProjectIdCollectionsCollectionIdRoute,
   } as any)
 const ProjectsProjectIdCollectionsCollectionIdEntryIdIndexRoute =
@@ -426,11 +426,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/user': {
-      id: '/user'
-      path: '/user'
-      fullPath: '/user'
-      preLoaderRoute: typeof UserRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -440,39 +440,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/user': {
+      id: '/user'
+      path: '/user'
+      fullPath: '/user'
+      preLoaderRoute: typeof UserRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/user/': {
-      id: '/user/'
-      path: '/'
-      fullPath: '/user/'
-      preLoaderRoute: typeof UserIndexRouteImport
-      parentRoute: typeof UserRoute
     }
     '/projects/': {
       id: '/projects/'
       path: '/'
       fullPath: '/projects/'
       preLoaderRoute: typeof ProjectsIndexRouteImport
-      parentRoute: typeof ProjectsRoute
-    }
-    '/user/profile': {
-      id: '/user/profile'
-      path: '/profile'
-      fullPath: '/user/profile'
-      preLoaderRoute: typeof UserProfileRouteImport
-      parentRoute: typeof UserRoute
-    }
-    '/projects/create': {
-      id: '/projects/create'
-      path: '/create'
-      fullPath: '/projects/create'
-      preLoaderRoute: typeof ProjectsCreateRouteImport
       parentRoute: typeof ProjectsRoute
     }
     '/projects/$projectId': {
@@ -482,46 +461,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdRouteImport
       parentRoute: typeof ProjectsRoute
     }
+    '/projects/create': {
+      id: '/projects/create'
+      path: '/create'
+      fullPath: '/projects/create'
+      preLoaderRoute: typeof ProjectsCreateRouteImport
+      parentRoute: typeof ProjectsRoute
+    }
+    '/user/': {
+      id: '/user/'
+      path: '/'
+      fullPath: '/user/'
+      preLoaderRoute: typeof UserIndexRouteImport
+      parentRoute: typeof UserRoute
+    }
+    '/user/profile': {
+      id: '/user/profile'
+      path: '/profile'
+      fullPath: '/user/profile'
+      preLoaderRoute: typeof UserProfileRouteImport
+      parentRoute: typeof UserRoute
+    }
     '/projects/$projectId/': {
       id: '/projects/$projectId/'
       path: '/'
       fullPath: '/projects/$projectId/'
       preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
-    }
-    '/projects/$projectId/settings': {
-      id: '/projects/$projectId/settings'
-      path: '/settings'
-      fullPath: '/projects/$projectId/settings'
-      preLoaderRoute: typeof ProjectsProjectIdSettingsRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
-    }
-    '/projects/$projectId/releases': {
-      id: '/projects/$projectId/releases'
-      path: '/releases'
-      fullPath: '/projects/$projectId/releases'
-      preLoaderRoute: typeof ProjectsProjectIdReleasesRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
-    }
-    '/projects/$projectId/history': {
-      id: '/projects/$projectId/history'
-      path: '/history'
-      fullPath: '/projects/$projectId/history'
-      preLoaderRoute: typeof ProjectsProjectIdHistoryRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
-    }
-    '/projects/$projectId/dashboard': {
-      id: '/projects/$projectId/dashboard'
-      path: '/dashboard'
-      fullPath: '/projects/$projectId/dashboard'
-      preLoaderRoute: typeof ProjectsProjectIdDashboardRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
-    }
-    '/projects/$projectId/components': {
-      id: '/projects/$projectId/components'
-      path: '/components'
-      fullPath: '/projects/$projectId/components'
-      preLoaderRoute: typeof ProjectsProjectIdComponentsRouteImport
       parentRoute: typeof ProjectsProjectIdRoute
     }
     '/projects/$projectId/collections': {
@@ -531,26 +496,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdCollectionsRouteImport
       parentRoute: typeof ProjectsProjectIdRoute
     }
-    '/projects/$projectId/settings/': {
-      id: '/projects/$projectId/settings/'
-      path: '/'
-      fullPath: '/projects/$projectId/settings/'
-      preLoaderRoute: typeof ProjectsProjectIdSettingsIndexRouteImport
-      parentRoute: typeof ProjectsProjectIdSettingsRoute
+    '/projects/$projectId/components': {
+      id: '/projects/$projectId/components'
+      path: '/components'
+      fullPath: '/projects/$projectId/components'
+      preLoaderRoute: typeof ProjectsProjectIdComponentsRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
     }
-    '/projects/$projectId/components/': {
-      id: '/projects/$projectId/components/'
-      path: '/'
-      fullPath: '/projects/$projectId/components/'
-      preLoaderRoute: typeof ProjectsProjectIdComponentsIndexRouteImport
-      parentRoute: typeof ProjectsProjectIdComponentsRoute
+    '/projects/$projectId/dashboard': {
+      id: '/projects/$projectId/dashboard'
+      path: '/dashboard'
+      fullPath: '/projects/$projectId/dashboard'
+      preLoaderRoute: typeof ProjectsProjectIdDashboardRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
     }
-    '/projects/$projectId/collections/': {
-      id: '/projects/$projectId/collections/'
-      path: '/'
-      fullPath: '/projects/$projectId/collections/'
-      preLoaderRoute: typeof ProjectsProjectIdCollectionsIndexRouteImport
-      parentRoute: typeof ProjectsProjectIdCollectionsRoute
+    '/projects/$projectId/history': {
+      id: '/projects/$projectId/history'
+      path: '/history'
+      fullPath: '/projects/$projectId/history'
+      preLoaderRoute: typeof ProjectsProjectIdHistoryRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
+    '/projects/$projectId/releases': {
+      id: '/projects/$projectId/releases'
+      path: '/releases'
+      fullPath: '/projects/$projectId/releases'
+      preLoaderRoute: typeof ProjectsProjectIdReleasesRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
+    '/projects/$projectId/settings': {
+      id: '/projects/$projectId/settings'
+      path: '/settings'
+      fullPath: '/projects/$projectId/settings'
+      preLoaderRoute: typeof ProjectsProjectIdSettingsRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
     }
     '/projects/$projectId/assets/': {
       id: '/projects/$projectId/assets/'
@@ -559,46 +538,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdAssetsIndexRouteImport
       parentRoute: typeof ProjectsProjectIdRoute
     }
-    '/projects/$projectId/settings/version-control': {
-      id: '/projects/$projectId/settings/version-control'
-      path: '/version-control'
-      fullPath: '/projects/$projectId/settings/version-control'
-      preLoaderRoute: typeof ProjectsProjectIdSettingsVersionControlRouteImport
-      parentRoute: typeof ProjectsProjectIdSettingsRoute
-    }
-    '/projects/$projectId/settings/general': {
-      id: '/projects/$projectId/settings/general'
-      path: '/general'
-      fullPath: '/projects/$projectId/settings/general'
-      preLoaderRoute: typeof ProjectsProjectIdSettingsGeneralRouteImport
-      parentRoute: typeof ProjectsProjectIdSettingsRoute
-    }
-    '/projects/$projectId/history/$commitHash': {
-      id: '/projects/$projectId/history/$commitHash'
-      path: '/$commitHash'
-      fullPath: '/projects/$projectId/history/$commitHash'
-      preLoaderRoute: typeof ProjectsProjectIdHistoryCommitHashRouteImport
-      parentRoute: typeof ProjectsProjectIdHistoryRoute
-    }
-    '/projects/$projectId/components/create': {
-      id: '/projects/$projectId/components/create'
-      path: '/create'
-      fullPath: '/projects/$projectId/components/create'
-      preLoaderRoute: typeof ProjectsProjectIdComponentsCreateRouteImport
-      parentRoute: typeof ProjectsProjectIdComponentsRoute
-    }
-    '/projects/$projectId/components/$componentId': {
-      id: '/projects/$projectId/components/$componentId'
-      path: '/$componentId'
-      fullPath: '/projects/$projectId/components/$componentId'
-      preLoaderRoute: typeof ProjectsProjectIdComponentsComponentIdRouteImport
-      parentRoute: typeof ProjectsProjectIdComponentsRoute
-    }
-    '/projects/$projectId/collections/create': {
-      id: '/projects/$projectId/collections/create'
-      path: '/create'
-      fullPath: '/projects/$projectId/collections/create'
-      preLoaderRoute: typeof ProjectsProjectIdCollectionsCreateRouteImport
+    '/projects/$projectId/collections/': {
+      id: '/projects/$projectId/collections/'
+      path: '/'
+      fullPath: '/projects/$projectId/collections/'
+      preLoaderRoute: typeof ProjectsProjectIdCollectionsIndexRouteImport
       parentRoute: typeof ProjectsProjectIdCollectionsRoute
     }
     '/projects/$projectId/collections/$collectionId': {
@@ -608,6 +552,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdCollectionsCollectionIdRouteImport
       parentRoute: typeof ProjectsProjectIdCollectionsRoute
     }
+    '/projects/$projectId/collections/create': {
+      id: '/projects/$projectId/collections/create'
+      path: '/create'
+      fullPath: '/projects/$projectId/collections/create'
+      preLoaderRoute: typeof ProjectsProjectIdCollectionsCreateRouteImport
+      parentRoute: typeof ProjectsProjectIdCollectionsRoute
+    }
+    '/projects/$projectId/components/': {
+      id: '/projects/$projectId/components/'
+      path: '/'
+      fullPath: '/projects/$projectId/components/'
+      preLoaderRoute: typeof ProjectsProjectIdComponentsIndexRouteImport
+      parentRoute: typeof ProjectsProjectIdComponentsRoute
+    }
+    '/projects/$projectId/components/$componentId': {
+      id: '/projects/$projectId/components/$componentId'
+      path: '/$componentId'
+      fullPath: '/projects/$projectId/components/$componentId'
+      preLoaderRoute: typeof ProjectsProjectIdComponentsComponentIdRouteImport
+      parentRoute: typeof ProjectsProjectIdComponentsRoute
+    }
+    '/projects/$projectId/components/create': {
+      id: '/projects/$projectId/components/create'
+      path: '/create'
+      fullPath: '/projects/$projectId/components/create'
+      preLoaderRoute: typeof ProjectsProjectIdComponentsCreateRouteImport
+      parentRoute: typeof ProjectsProjectIdComponentsRoute
+    }
+    '/projects/$projectId/history/$commitHash': {
+      id: '/projects/$projectId/history/$commitHash'
+      path: '/$commitHash'
+      fullPath: '/projects/$projectId/history/$commitHash'
+      preLoaderRoute: typeof ProjectsProjectIdHistoryCommitHashRouteImport
+      parentRoute: typeof ProjectsProjectIdHistoryRoute
+    }
+    '/projects/$projectId/settings/': {
+      id: '/projects/$projectId/settings/'
+      path: '/'
+      fullPath: '/projects/$projectId/settings/'
+      preLoaderRoute: typeof ProjectsProjectIdSettingsIndexRouteImport
+      parentRoute: typeof ProjectsProjectIdSettingsRoute
+    }
+    '/projects/$projectId/settings/general': {
+      id: '/projects/$projectId/settings/general'
+      path: '/general'
+      fullPath: '/projects/$projectId/settings/general'
+      preLoaderRoute: typeof ProjectsProjectIdSettingsGeneralRouteImport
+      parentRoute: typeof ProjectsProjectIdSettingsRoute
+    }
+    '/projects/$projectId/settings/version-control': {
+      id: '/projects/$projectId/settings/version-control'
+      path: '/version-control'
+      fullPath: '/projects/$projectId/settings/version-control'
+      preLoaderRoute: typeof ProjectsProjectIdSettingsVersionControlRouteImport
+      parentRoute: typeof ProjectsProjectIdSettingsRoute
+    }
     '/projects/$projectId/collections/$collectionId/': {
       id: '/projects/$projectId/collections/$collectionId/'
       path: '/'
@@ -615,11 +615,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdCollectionsCollectionIdIndexRouteImport
       parentRoute: typeof ProjectsProjectIdCollectionsCollectionIdRoute
     }
-    '/projects/$projectId/collections/$collectionId/update': {
-      id: '/projects/$projectId/collections/$collectionId/update'
-      path: '/update'
-      fullPath: '/projects/$projectId/collections/$collectionId/update'
-      preLoaderRoute: typeof ProjectsProjectIdCollectionsCollectionIdUpdateRouteImport
+    '/projects/$projectId/collections/$collectionId/$entryId': {
+      id: '/projects/$projectId/collections/$collectionId/$entryId'
+      path: '/$entryId'
+      fullPath: '/projects/$projectId/collections/$collectionId/$entryId'
+      preLoaderRoute: typeof ProjectsProjectIdCollectionsCollectionIdEntryIdRouteImport
       parentRoute: typeof ProjectsProjectIdCollectionsCollectionIdRoute
     }
     '/projects/$projectId/collections/$collectionId/create': {
@@ -629,11 +629,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdCollectionsCollectionIdCreateRouteImport
       parentRoute: typeof ProjectsProjectIdCollectionsCollectionIdRoute
     }
-    '/projects/$projectId/collections/$collectionId/$entryId': {
-      id: '/projects/$projectId/collections/$collectionId/$entryId'
-      path: '/$entryId'
-      fullPath: '/projects/$projectId/collections/$collectionId/$entryId'
-      preLoaderRoute: typeof ProjectsProjectIdCollectionsCollectionIdEntryIdRouteImport
+    '/projects/$projectId/collections/$collectionId/update': {
+      id: '/projects/$projectId/collections/$collectionId/update'
+      path: '/update'
+      fullPath: '/projects/$projectId/collections/$collectionId/update'
+      preLoaderRoute: typeof ProjectsProjectIdCollectionsCollectionIdUpdateRouteImport
       parentRoute: typeof ProjectsProjectIdCollectionsCollectionIdRoute
     }
     '/projects/$projectId/collections/$collectionId/$entryId/': {

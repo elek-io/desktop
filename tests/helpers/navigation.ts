@@ -26,18 +26,41 @@ export async function reloadWindow(page: Page): Promise<void> {
 }
 
 /**
- * Navigate to a route by its hash and wait for the app to render there.
+ * Boot the app fresh on a hash and wait for the route it settles on.
  *
- * The renderer uses hash based routing, so pointing the URL at the target hash
- * and reloading boots the app fresh on that route. Booting fresh matters for
+ * The renderer uses hash based routing, so pointing the URL at the hash and
+ * reloading boots the app fresh on that route. Booting fresh matters for
  * arranged state, since an IPC seed does not touch the renderer's query cache,
  * so the route refetches from Core on this load. `goto` only sets the fragment
  * (a same-document navigation), the following `reload` is what boots fresh.
+ *
+ * A reload issued that soon after a fragment only navigation can commit the
+ * document without the fragment. The app then boots on `/`, whose redirect
+ * leaves it on `/projects`, and the route under test never mounts. Each
+ * attempt below is a whole fresh boot, so the pair is retried until the router
+ * has settled, rather than waited on with one URL assertion that can only time
+ * out. `settledHash` differs from `hash` only where the route redirects.
+ */
+export async function bootOnHash(
+  page: Page,
+  hash: string,
+  settledHash: string = hash
+): Promise<void> {
+  const base = page.url().split('#')[0];
+  await expect(async () => {
+    await page.goto(`${base}${hash}`);
+    await page.reload();
+    await expect(page.locator('#app')).toBeVisible();
+    expect(new URL(page.url()).hash).toBe(settledHash);
+  }).toPass({ timeout: 8000, intervals: [250, 1000, 2000] });
+}
+
+/**
+ * Navigate to a route by its hash and wait for the app to render there.
+ *
+ * For a route that redirects elsewhere, call `bootOnHash` with the hash the
+ * router settles on.
  */
 export async function navigate(page: Page, hash: string): Promise<void> {
-  const base = page.url().split('#')[0];
-  await page.goto(`${base}${hash}`);
-  await page.reload();
-  await expect(page.locator('#app')).toBeVisible();
-  await verifyCurrentRouteHash(page, hash);
+  await bootOnHash(page, hash);
 }

@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test';
 import { test } from '../fixtures/electronApp.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
 import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
-import { verifyCurrentRouteHash } from '../helpers/navigation.js';
+import { bootOnHash, verifyCurrentRouteHash } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToProjectDashboard,
@@ -13,20 +13,16 @@ import { setUserViaIpc } from '../helpers/user.js';
 /**
  * Boot the app fresh at `fromHash` and assert it redirects to `toHash`.
  *
- * The `navigate` helper asserts the requested hash equals the final hash, which
- * a redirect breaks by definition, so this drives the boot (goto + reload, like
- * `navigate`) and then verifies the redirected destination instead.
+ * `navigate` waits for the hash it was given, which a redirect breaks by
+ * definition, so this passes the redirected destination as the hash to settle
+ * on and shares the same boot.
  */
 async function expectRedirect(
   page: Page,
   fromHash: string,
   toHash: string
 ): Promise<void> {
-  const base = page.url().split('#')[0];
-  await page.goto(`${base}${fromHash}`);
-  await page.reload();
-  await expect(page.locator('#app')).toBeVisible();
-  await verifyCurrentRouteHash(page, toHash);
+  await bootOnHash(page, fromHash, toHash);
 }
 
 test.describe('Navigation', () => {
