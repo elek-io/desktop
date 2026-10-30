@@ -29,6 +29,7 @@ import {
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
 import {
+  expectReleaseCreated,
   listReleasesViaIpc,
   navigateToReleases,
   openReleaseDialog,
@@ -127,7 +128,7 @@ test.describe('Releases', () => {
     await dialog.getByRole('button', { name: 'Create Release' }).click();
 
     // The outcome is a toast with nothing to answer, and the dialog closes.
-    await expect(mainWindow.getByText('Release 0.1.0 created')).toBeVisible();
+    await expectReleaseCreated(mainWindow, '0.1.0');
     await expect(dialog).toBeHidden();
 
     // What was published and when, without a reload: the Releases list shows
@@ -182,7 +183,7 @@ test.describe('Releases', () => {
       .getByRole('dialog')
       .getByRole('button', { name: 'Create Release' })
       .click();
-    await expect(mainWindow.getByText('Release 0.1.0 created')).toBeVisible();
+    await expectReleaseCreated(mainWindow, '0.1.0');
 
     // One of each kind since that Release. A Collection's slugs are unique in
     // its Project, so the second one brings its own.
@@ -369,7 +370,7 @@ test.describe('Releases', () => {
       .getByRole('dialog')
       .getByRole('button', { name: 'Create Release' })
       .click();
-    await expect(mainWindow.getByText('Release 0.1.0 created')).toBeVisible();
+    await expectReleaseCreated(mainWindow, '0.1.0');
 
     // One atomic push carried all three refs. Which refs land is Core's, so only
     // their presence and position are observed, not their contents.

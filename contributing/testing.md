@@ -38,12 +38,6 @@ Launching a packaged build shapes the fixture in two ways that differ from the P
 - It finds the built executable with `parseElectronApp` from `electron-playwright-helpers` and passes it as `executablePath`, instead of relying on the dev binary in `node_modules`. This is the only reason that dependency is here.
 - It passes no main script argument. A packaged build bundles and loads its own entry, so the argument is unnecessary. It was also a suspect in a Windows launch hang, so it is left off on purpose.
 
-## Why Playwright is held at 1.63
-
-Playwright 1.64.0 and 1.64.1 intermittently lose a packaged app's first window: `electronApp.windows()` stays empty and `firstWindow()` times out while the app runs normally. A window that exists but has not navigated yet is treated as crashed and dropped while the browser connection is still being made, and because a packaged app gets no injected loader, `ready` is not deferred until that connection is done. The fixture takes exactly that path: the main process creates the window, registers the IPC handlers, and only then loads the renderer (see [overview.md](./overview.md)). The same gap is what makes that ordering worth having, so there is nothing to change on this side.
-
-So [package.json](../package.json) pins `@playwright/test` to the last release before the regression. A `firstWindow` timeout on a green suite is the symptom to look for if that pin is ever lifted early. Upstream is [microsoft/playwright#43247](https://github.com/microsoft/playwright/issues/43247), milestoned for 1.65 with a Chromium fix linked.
-
 ## How the fixtures work
 
 Specs live in `tests/specs` and import `test` from [`tests/fixtures/electronApp.ts`](../tests/fixtures/electronApp.ts) instead of `@playwright/test`. The fixtures provide:

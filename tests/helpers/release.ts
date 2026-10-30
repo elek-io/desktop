@@ -38,6 +38,25 @@ export async function openReleaseDialog(page: Page): Promise<void> {
 }
 
 /**
+ * Wait for the toast that says a Release of `version` was created.
+ *
+ * Creating a Release commits and tags the Project's git repository, so the
+ * toast only appears once that work is done. That is under a second locally,
+ * but the slowest runner has taken longer than the default 5s assertion
+ * timeout for it, so this waits on a budget of its own. The budget stays far
+ * enough below the 30s test timeout that a toast which never arrives reports
+ * as this assertion rather than as a less specific test timeout.
+ */
+export async function expectReleaseCreated(
+  page: Page,
+  version: string
+): Promise<void> {
+  await expect(page.getByText(`Release ${version} created`)).toBeVisible({
+    timeout: 15000,
+  });
+}
+
+/**
  * List a Project's Releases directly over IPC, bypassing the UI.
  *
  * Used to arrange or corroborate a precondition, such as a Project that holds
