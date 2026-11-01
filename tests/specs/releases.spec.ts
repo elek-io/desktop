@@ -116,9 +116,7 @@ test.describe('Releases', () => {
 
     // Every control in the dialog has an accessible name, which is also what
     // lets the locators here find them.
-    await expectNoAxeViolations(mainWindow, {
-      disableRules: ['color-contrast'],
-    });
+    await expectNoAxeViolations(mainWindow);
 
     // Escape closes it from the keyboard and hands focus back to what opened it.
     await dismissDialog(mainWindow);

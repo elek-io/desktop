@@ -9,29 +9,23 @@ import { setUserViaIpc } from '../helpers/user.js';
 
 // Per-route accessibility assertions, opt-in ahead of the fixture-wide axe
 // assertion the @todo still defers (see testing.md). Each route enforces every
-// axe rule except the ones in `disableRules`, which scope out issues the route
-// does not pass yet (an app-wide color-contrast issue). Add a route here once it
-// is clean enough to enforce.
+// axe rule, color-contrast included. Add a route here once it is clean enough
+// to enforce.
 //
 // `arrange` seeds whatever the route needs and returns the hash to scan, so a
 // route inside a Project can be enforced too.
 const enforcedRoutes: {
   name: string;
-  disableRules: string[];
   arrange: (page: Page) => Promise<string> | string;
 }[] = [
-  // The Projects list (empty) passes every rule except the app-wide
-  // color-contrast issue, so it is the first enforced route.
   {
     name: '#/projects',
-    disableRules: ['color-contrast'],
     arrange: () => '#/projects',
   },
   // A Project's Releases, empty, which also puts the Project sidebar and a
   // Project's breadcrumb under the scan.
   {
     name: '#/projects/:projectId/releases',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       return `#/projects/${project.id}/releases`;
@@ -40,7 +34,6 @@ const enforcedRoutes: {
   // A Project's Components, empty.
   {
     name: '#/projects/:projectId/components',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       return `#/projects/${project.id}/components`;
@@ -50,7 +43,6 @@ const enforcedRoutes: {
   // Add Field button under the scan.
   {
     name: '#/projects/:projectId/components/create',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       return `#/projects/${project.id}/components/create`;
@@ -60,7 +52,6 @@ const enforcedRoutes: {
   // reorder, edit and remove chrome.
   {
     name: '#/projects/:projectId/components/:componentId',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       const component = await createComponentViaIpc(page, {
@@ -78,9 +69,7 @@ test.describe('Accessibility', () => {
       // was validated against, and every seed below needs one.
       await setUserViaIpc(mainWindow);
       await navigate(mainWindow, await route.arrange(mainWindow));
-      await expectNoAxeViolations(mainWindow, {
-        disableRules: route.disableRules,
-      });
+      await expectNoAxeViolations(mainWindow);
     });
   }
 });

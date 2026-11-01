@@ -10,6 +10,39 @@ declare const window: Window & {
   requestAnimationFrame: (callback: () => void) => number;
 };
 
+/** The one element shape the specs read, with the attributes they ask for. */
+interface ProbedElement {
+  readonly tagName: string;
+  getAttribute(name: string): string | null;
+  matches(selectors: string): boolean;
+}
+
+/** The computed properties the branding spec measures. */
+interface ProbedStyle {
+  readonly backgroundColor: string;
+  readonly borderTopColor: string;
+  readonly boxShadow: string;
+  readonly color: string;
+  readonly fontFamily: string;
+  readonly outlineColor: string;
+  readonly outlineOffset: string;
+  readonly outlineStyle: string;
+  readonly outlineWidth: string;
+  getPropertyValue(property: string): string;
+}
+
+declare const getComputedStyle: (element: ProbedElement) => ProbedStyle;
+
 declare const document: {
   body: { scrollWidth: number };
+  readonly activeElement: ProbedElement | null;
+  readonly documentElement: ProbedElement;
+  readonly fonts: { ready: Promise<unknown>; check(font: string): boolean };
+  querySelector(selectors: string): ProbedElement | null;
+  querySelectorAll(selectors: string): ArrayLike<ProbedElement>;
+};
+
+declare const localStorage: {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
 };
