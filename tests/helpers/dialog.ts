@@ -20,10 +20,18 @@ export async function confirmDialog(
   await dialog.getByRole('button', { name: confirmName }).click();
 }
 
-/** Dismiss an open dialog with the Escape key. */
+/**
+ * Dismiss an open dialog with the Escape key.
+ *
+ * A dialog is visible before it has finished opening, and an Escape that
+ * arrives during the entry transition is swallowed, which made this flaky. The
+ * dialog carries `data-starting-style` while it enters, so the key is pressed
+ * once that is gone.
+ */
 export async function dismissDialog(page: Page): Promise<void> {
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
+  await expect(dialog).not.toHaveAttribute('data-starting-style');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 }

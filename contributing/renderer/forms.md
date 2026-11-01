@@ -31,7 +31,7 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   else.
 - **Every submit control is a `SubmitButton`.** It sets `type="submit"` and the
   form association structurally, so a submit button can never silently do nothing.
-  `SubmitButtonProps` omits `type` and `asChild`, so neither can be passed, and
+  `SubmitButtonProps` omits `type` and `render`, so neither can be passed, and
   the caller's props are spread before the structural ones rather than after. A
   lint rule bans a literal `type="submit"` outside `app-form.tsx`.
 - **A failed submit is never silent.** `AppForm` passes `handleSubmit` an
@@ -431,7 +431,7 @@ fire on an intentional violation.
   field type fails to compile until both have an entry.
 - **`SubmitButton` sets `type="submit"` structurally** and `AppForm` owns
   `noValidate`, the `id` and `stopPropagation`. None of these are props a caller
-  can get wrong: `SubmitButtonProps` omits `type` and `asChild` outright, so
+  can get wrong: `SubmitButtonProps` omits `type` and `render` outright, so
   passing either is a compile error rather than a button that renders as a submit
   control and does not submit.
 - **A test asserts no native constraint attributes.** An E2E spec in
