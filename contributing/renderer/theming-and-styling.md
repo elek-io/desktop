@@ -27,7 +27,7 @@ The renderer is styled with [Tailwind CSS v4](https://tailwindcss.com/) and uses
 
 So `bg-primary`, `text-muted-foreground`, `border-input`, `rounded-md`, `shadow-window`, `text-ui` and the rest resolve to the package's values and switch with the theme. The package also ships the app icons in `build/`, see [build-and-packaging.md](../build-and-packaging.md).
 
-**Do not add a color, a corner or a shadow to `index.css`.** A value the app needs and the package does not carry is a change to the brand package, not a local override. A hardcoded palette step such as `border-zinc-200` is the same mistake in a class name. `tests/specs/branding.spec.ts` reads every token out of the running app and compares it with the package, in both themes, so a local override shows up as a failing test.
+**Do not add a color, a corner or a shadow to `index.css`.** A value the app needs and the package does not carry is a change to the brand package, not a local override. A hardcoded palette step such as `border-zinc-200` is the same mistake in a class name. `tests/specs/branding.spec.ts` reads every color token out of the running app and compares it with the package, in both themes, so a local override of one shows up as a failing test.
 
 What `index.css` still owns is the handful of rules that are about this app rather than about the brand: the base layer below, the draggable window region, and hiding the native date picker button.
 
