@@ -362,11 +362,12 @@ primitives every form composes:
 - **`FormSubtreeMessage`** renders every message at or below one path, for a value
   bound as a single `Controller` but drawn as something other than a field. See
   [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
-- **`FormControl`** is a Radix `Slot` that lands `id` and the `aria-*` attributes
-  on its single child. Use it in hand-written forms whose leaf is a plain DOM
-  input. The dynamic field path does not use it, because a `Slot` can only reach
-  the leaf's outermost element, which is a wrapper `div` or a non-DOM Radix root
-  for several field types. That path uses `ControlledLeaf` instead, described in
+- **`FormControl`** lands `id` and the `aria-*` attributes on its single child
+  through Base UI's `useRender`, so it adds no element of its own. Use it in
+  hand-written forms whose leaf is a plain DOM input. The dynamic field path does
+  not use it, because it can only reach the leaf's outermost element, which is a
+  wrapper `div` or a non-DOM root for several field types. That path uses
+  `ControlledLeaf` instead, described in
   [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-render-registry).
 
 ### Typed field wrappers and their value contracts
@@ -384,12 +385,14 @@ these contracts are easy to get subtly wrong and Core validates tightly:
 - `FormDateField` stores a `YYYY-MM-DD` string, not a `Date`.
 - `FormDatetimeField` converts between the ISO UTC datetime Core stores and the
   local time a `datetime-local` input speaks.
-- `FormSelectField` keys its options by index, because Radix forbids an empty item
-  value and an option's value may be an empty string. It maps back on change, so
-  the stored value keeps its string or number type.
-- `FormRangeField` bridges the Radix `Slider`'s `number[]` and the single number
-  the Value holds.
-- `FormToggleField` binds a Radix `Switch` to a boolean. It is exported for
+- `FormSelectField` keys its options by index, because a select item cannot hold
+  an empty value and an option's value may be an empty string. It maps back on
+  change, so the stored value keeps its string or number type. It also passes
+  `items` to the select, which is where the select reads the label of the chosen
+  value from.
+- `FormRangeField` bridges the `Slider`'s `number[]` and the single number the
+  Value holds.
+- `FormToggleField` binds a `Switch` to a boolean. It is exported for
   hand-written forms too (the report dialog's "Also send my logs"), not only
   reached through the render registry.
 - `FormAssetField` and `FormEntryField` hold an array of `{ id, objectType }`
