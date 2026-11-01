@@ -70,8 +70,8 @@ export const LinkDialog = ({
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary">Cancel</Button>
+          <DialogClose render={<Button variant="secondary" />}>
+            Cancel
           </DialogClose>
           <Button type="button" onClick={confirm} disabled={href.trim() === ''}>
             Apply link

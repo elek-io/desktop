@@ -37,6 +37,11 @@ import {
   type Project,
 } from '@elek-io/core';
 
+// The select reads the label of the chosen field type from here.
+const fieldTypeItems: Record<string, string> = Object.fromEntries(
+  fieldTypeSchema.options.map((option) => [option, option])
+);
+
 // The Add Field sheet: a field-type picker, the matching registry entry rendered
 // in the body, and one detached SubmitButton in the footer.
 //
@@ -99,16 +104,18 @@ export function AddFieldSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button
-          Icon={Plus}
-          onClick={(event) => {
-            event.preventDefault();
-            setIsOpen(true);
-          }}
-        >
-          Add Field
-        </Button>
+      <SheetTrigger
+        render={
+          <Button
+            Icon={Plus}
+            onClick={(event) => {
+              event.preventDefault();
+              setIsOpen(true);
+            }}
+          />
+        }
+      >
+        Add Field
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
@@ -127,8 +134,13 @@ export function AddFieldSheet({
               Input type
             </Label>
             <Select
+              items={fieldTypeItems}
               value={selectedFieldType}
-              onValueChange={(value: FieldType) => setSelectedFieldType(value)}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  setSelectedFieldType(value);
+                }
+              }}
             >
               <SelectTrigger
                 id={inputTypeId}

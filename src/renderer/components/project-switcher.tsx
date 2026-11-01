@@ -36,23 +36,25 @@ export function ProjectSwitcher({
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                {/* <project.logo className="size-4" /> */}
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{project.name}</span>
-                <span className="truncate text-xs">{project.version}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto" />
-            </SidebarMenuButton>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              />
+            }
+          >
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              {/* <project.logo className="size-4" /> */}
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">{project.name}</span>
+              <span className="truncate text-xs">{project.version}</span>
+            </div>
+            <ChevronsUpDown className="ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="min-w-56 rounded-lg"
             align="start"
             side="right"
             sideOffset={4}
@@ -71,29 +73,30 @@ export function ProjectSwitcher({
                   <DropdownMenuItem
                     key={project.id}
                     className="gap-2 p-2"
-                    asChild
+                    render={
+                      <Link
+                        to="/projects/$projectId"
+                        params={{ projectId: project.id }}
+                      />
+                    }
                   >
-                    <Link
-                      to="/projects/$projectId"
-                      params={{ projectId: project.id }}
-                    >
-                      <div className="flex size-6 items-center justify-center rounded-md border">
-                        {/* <project.logo className="size-3.5 shrink-0" /> */}
-                      </div>
-                      {project.name}
-                    </Link>
+                    <div className="flex size-6 items-center justify-center rounded-md border">
+                      {/* <project.logo className="size-3.5 shrink-0" /> */}
+                    </div>
+                    {project.name}
                   </DropdownMenuItem>
                 ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2" asChild>
-              <Link to="/projects">
-                <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                  <ArrowLeftIcon className="size-4" />
-                </div>
-                <div className="font-medium text-muted-foreground">
-                  View all Projects
-                </div>
-              </Link>
+            <DropdownMenuItem
+              className="gap-2 p-2"
+              render={<Link to="/projects" />}
+            >
+              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+                <ArrowLeftIcon className="size-4" />
+              </div>
+              <div className="font-medium text-muted-foreground">
+                View all Projects
+              </div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

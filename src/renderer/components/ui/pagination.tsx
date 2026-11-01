@@ -5,9 +5,8 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
-import { type Button } from '@renderer/components/ui/button';
+import { Button } from '@renderer/components/ui/button';
 import { cn } from '@renderer/lib/utils';
-import { buttonVariants } from '@renderer/lib/variants';
 
 function Pagination({
   className,
@@ -31,7 +30,7 @@ function PaginationContent({
   return (
     <ul
       data-slot="pagination-content"
-      className={cn('flex flex-row items-center gap-1', className)}
+      className={cn('flex items-center gap-1', className)}
       {...props}
     />
   );
@@ -55,27 +54,30 @@ function PaginationLink({
   ...props
 }: PaginationLinkProps): React.JSX.Element {
   return (
-    <a
-      aria-current={isActive === true ? 'page' : undefined}
-      data-slot="pagination-link"
-      data-active={isActive}
-      className={cn(
-        buttonVariants({
-          variant: isActive === true ? 'outline' : 'ghost',
-          size,
-        }),
-        className
-      )}
-      {...props}
+    <Button
+      variant={isActive === true ? 'outline' : 'ghost'}
+      size={size}
+      className={cn(className)}
+      nativeButton={false}
+      render={
+        <a
+          aria-current={isActive === true ? 'page' : undefined}
+          data-slot="pagination-link"
+          data-active={isActive}
+          {...props}
+        />
+      }
     />
   );
 }
 
 function PaginationPrevious({
   className,
+  text = 'Previous',
   disabled,
   ...props
 }: React.ComponentProps<typeof PaginationLink> & {
+  text?: string;
   disabled?: boolean;
 }): React.JSX.Element {
   return (
@@ -84,23 +86,25 @@ function PaginationPrevious({
       aria-disabled={disabled}
       size="default"
       className={cn(
-        'gap-1 px-2.5 sm:pl-2.5',
+        'pl-2!',
         disabled === true && 'pointer-events-none opacity-50',
         className
       )}
       {...props}
     >
-      <ChevronLeftIcon />
-      <span className="hidden sm:block">Previous</span>
+      <ChevronLeftIcon data-icon="inline-start" />
+      <span className="hidden sm:block">{text}</span>
     </PaginationLink>
   );
 }
 
 function PaginationNext({
   className,
+  text = 'Next',
   disabled,
   ...props
 }: React.ComponentProps<typeof PaginationLink> & {
+  text?: string;
   disabled?: boolean;
 }): React.JSX.Element {
   return (
@@ -109,14 +113,14 @@ function PaginationNext({
       aria-disabled={disabled}
       size="default"
       className={cn(
-        'gap-1 px-2.5 sm:pr-2.5',
+        'pr-2!',
         disabled === true && 'pointer-events-none opacity-50',
         className
       )}
       {...props}
     >
-      <span className="hidden sm:block">Next</span>
-      <ChevronRightIcon />
+      <span className="hidden sm:block">{text}</span>
+      <ChevronRightIcon data-icon="inline-end" />
     </PaginationLink>
   );
 }
@@ -129,10 +133,13 @@ function PaginationEllipsis({
     <span
       aria-hidden
       data-slot="pagination-ellipsis"
-      className={cn('flex size-9 items-center justify-center', className)}
+      className={cn(
+        "flex size-9 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
       {...props}
     >
-      <MoreHorizontalIcon className="size-4" />
+      <MoreHorizontalIcon />
       <span className="sr-only">More pages</span>
     </span>
   );
@@ -141,9 +148,9 @@ function PaginationEllipsis({
 export {
   Pagination,
   PaginationContent,
-  PaginationLink,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
   PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 };

@@ -20,19 +20,19 @@ export function AppHeader(): React.JSX.Element {
   return (
     <header className="window-draggable-area w-full border-b bg-sidebar p-1 text-center text-sm">
       <DropdownMenu open={isElekInfoOpen} onOpenChange={setIsElekInfoOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-0">
-            <h1>
-              elek.<span className="text-primary">io</span>
-              <strong className="ml-2 text-xs">Desktop</strong>
-            </h1>
-            <ChevronDown
-              className={cn(
-                'ml-2 h-4 w-4 transition',
-                isElekInfoOpen && 'rotate-180'
-              )}
-            />
-          </Button>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="sm" className="gap-0" />}
+        >
+          <h1>
+            elek.<span className="text-primary">io</span>
+            <strong className="ml-2 text-xs">Desktop</strong>
+          </h1>
+          <ChevronDown
+            className={cn(
+              'ml-2 h-4 w-4 transition',
+              isElekInfoOpen && 'rotate-180'
+            )}
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="window-not-draggable-area mt-4 mr-2 w-56">
           <DropdownMenuGroup>

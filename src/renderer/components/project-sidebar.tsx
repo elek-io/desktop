@@ -104,11 +104,13 @@ function ProjectNavigation(): React.JSX.Element {
         <SidebarMenu>
           {projectNavigation.map((item) => (
             <SidebarMenuItem key={item.name}>
-              <SidebarMenuButton asChild>
-                <Link to={item.to} activeProps={{ 'data-active': true }}>
-                  <item.icon />
-                  <span>{item.name}</span>
-                </Link>
+              <SidebarMenuButton
+                render={
+                  <Link to={item.to} activeProps={{ 'data-active': true }} />
+                }
+              >
+                <item.icon />
+                <span>{item.name}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
@@ -210,7 +212,7 @@ export function ProjectSidebar(): React.JSX.Element {
                 <span className="sr-only">Refresh changes</span>
               </Button>
             </ButtonGroup>
-            <p className="mt-2 text-center text-xs font-medium text-zinc-400">
+            <p className="mt-2 text-center text-xs font-medium text-muted-foreground">
               {isFetchingProjectChanges ? (
                 'Loading'
               ) : (
@@ -239,10 +241,10 @@ export function ProjectSidebar(): React.JSX.Element {
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                      Close
-                    </Button>
+                  <DialogClose
+                    render={<Button type="button" variant="secondary" />}
+                  >
+                    Close
                   </DialogClose>
                 </DialogFooter>
               </DialogContent>

@@ -81,7 +81,7 @@ function EntryExtras({
                       return (
                         <div
                           key={key}
-                          className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
+                          className="h-10 animate-pulse rounded-md bg-muted"
                         />
                       );
                     })}
@@ -99,7 +99,7 @@ function EntryExtras({
                     return (
                       <div
                         key={collection.id}
-                        className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+                        className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
                       >
                         <div className="mr-4">
                           <span className="text-sm font-medium">{name}</span>

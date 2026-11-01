@@ -310,7 +310,7 @@ function UserProfilePage(): ReactElement {
                   control={setUserForm.control}
                   name="localApi.isEnabled"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-800">
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
                       <div className="mr-4">
                         <FormLabel isRequired>Enabled</FormLabel>
                         <FormDescription>

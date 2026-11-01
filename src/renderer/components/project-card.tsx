@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router';
 import { EllipsisIcon } from 'lucide-react';
 
-import { Badge, RemoteOriginBadge } from '@renderer/components/ui/badge';
+import { RemoteOriginBadge } from '@renderer/components/remote-origin-badge';
+import { Badge } from '@renderer/components/ui/badge';
 import { Button } from '@renderer/components/ui/button';
 import {
   Card,
@@ -37,10 +38,10 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
         </Link>
         <CardAction>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <EllipsisIcon />
-              </Button>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon" />}
+            >
+              <EllipsisIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuLabel>My Account</DropdownMenuLabel>

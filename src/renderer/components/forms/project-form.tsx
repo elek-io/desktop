@@ -1,5 +1,4 @@
-import { Cross2Icon } from '@radix-ui/react-icons';
-import { Plus } from 'lucide-react';
+import { Plus, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
   type FieldValues,
@@ -209,7 +208,7 @@ export function ProjectForm<
                                       }
                                     }}
                                   >
-                                    <Cross2Icon className="h-4 w-4" />
+                                    <XIcon className="size-4" />
                                     <span className="sr-only">
                                       Remove {language}
                                     </span>
@@ -221,11 +220,9 @@ export function ProjectForm<
                         </ul>
                         {isViewOnly ? null : (
                           <Popover>
-                            <PopoverTrigger asChild>
-                              <Button role="combobox">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add language
-                              </Button>
+                            <PopoverTrigger render={<Button role="combobox" />}>
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add language
                             </PopoverTrigger>
                             <PopoverContent className="w-[200px] p-0">
                               <Command>
@@ -288,7 +285,7 @@ export function ProjectForm<
 
             <FormField
               // Setting the key to force React to completely unmount and remount the entire field whenever the supported languages array changes
-              // Radix UI Select seems to clear its internal state when its options change
+              // The select seems to clear its internal state when its options change
               key={projectForm.watch('settings.language.supported').join(',')}
               control={projectForm.control}
               name="settings.language.default"
@@ -304,6 +301,12 @@ export function ProjectForm<
                   <FormItem className="col-span-6">
                     <FormLabel isRequired>Default</FormLabel>
                     <Select
+                      items={Object.fromEntries(
+                        availableOptions.map((option) => [
+                          option.value,
+                          option.label,
+                        ])
+                      )}
                       value={field.value}
                       onValueChange={(value) => field.onChange(value)}
                     >
@@ -383,10 +386,10 @@ export function ProjectForm<
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">
-                    Ok
-                  </Button>
+                <DialogClose
+                  render={<Button type="button" variant="secondary" />}
+                >
+                  Ok
                 </DialogClose>
               </DialogFooter>
             </DialogContent>

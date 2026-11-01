@@ -3,7 +3,6 @@ import { useRouter } from '@tanstack/react-router';
 import { Moon, Sun, ChevronDown, ExternalLinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Avatar, AvatarSkeleton } from '@renderer/components/ui/avatar';
 import { Button } from '@renderer/components/ui/button';
 import {
   DropdownMenu,
@@ -23,6 +22,10 @@ import {
 } from '@renderer/components/ui/dropdown-menu';
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
+import {
+  UserAvatar,
+  UserAvatarSkeleton,
+} from '@renderer/components/user-avatar';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { useTheme, type Theme } from '@renderer/hooks/useTheme';
@@ -58,28 +61,30 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="lg"
-          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-        >
-          <Avatar className="h-8 w-8 rounded-lg" name={user.name} />
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{user.name}</span>
-            <span className="truncate text-xs">{user.email}</span>
-          </div>
-          <ChevronDown className="ml-auto size-4" />
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="lg"
+            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+          />
+        }
+      >
+        <UserAvatar className="rounded-lg" name={user.name} />
+        <div className="grid flex-1 text-left text-sm leading-tight">
+          <span className="truncate font-medium">{user.name}</span>
+          <span className="truncate text-xs">{user.email}</span>
+        </div>
+        <ChevronDown className="ml-auto size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+        className="min-w-56 rounded-lg"
         align="end"
         sideOffset={4}
       >
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-            <Avatar className="h-8 w-8 rounded-lg" name={user.name} />
+            <UserAvatar className="rounded-lg" name={user.name} />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate text-xs">{user.email}</span>
@@ -165,7 +170,7 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
 export function UserDropdownSkeleton(): React.JSX.Element {
   return (
     <div className="flex items-center gap-2 px-4 py-1 text-left text-sm">
-      <AvatarSkeleton className="h-8 w-8 rounded-lg" />
+      <UserAvatarSkeleton className="rounded-lg" />
       <div className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-medium">
           <Skeleton className="h-4 w-12 rounded" />

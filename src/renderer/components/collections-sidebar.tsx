@@ -34,15 +34,17 @@ export function CollectionsSidebar({
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link
-                  to="/projects/$projectId/collections/create"
-                  params={{ projectId }}
-                  activeProps={{ 'data-active': true }}
-                >
-                  <PlusIcon />
-                  <span>Create Collection</span>
-                </Link>
+              <SidebarMenuButton
+                render={
+                  <Link
+                    to="/projects/$projectId/collections/create"
+                    params={{ projectId }}
+                    activeProps={{ 'data-active': true }}
+                  />
+                }
+              >
+                <PlusIcon />
+                <span>Create Collection</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -55,20 +57,22 @@ export function CollectionsSidebar({
             <SidebarMenu>
               {collections.list.map((collection) => (
                 <SidebarMenuItem key={collection.id}>
-                  <SidebarMenuButton asChild>
-                    <Link
-                      to="/projects/$projectId/collections/$collectionId"
-                      params={{ projectId, collectionId: collection.id }}
-                      activeProps={{ 'data-active': true }}
-                    >
-                      <LayersIcon />
-                      <span>
-                        {translateContent({
-                          key: 'collection.name.plural',
-                          record: collection.name.plural,
-                        })}
-                      </span>
-                    </Link>
+                  <SidebarMenuButton
+                    render={
+                      <Link
+                        to="/projects/$projectId/collections/$collectionId"
+                        params={{ projectId, collectionId: collection.id }}
+                        activeProps={{ 'data-active': true }}
+                      />
+                    }
+                  >
+                    <LayersIcon />
+                    <span>
+                      {translateContent({
+                        key: 'collection.name.plural',
+                        record: collection.name.plural,
+                      })}
+                    </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -95,15 +99,17 @@ export function CollectionsSidebarSkeleton({
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link
-                  to="/projects/$projectId/collections/create"
-                  params={{ projectId }}
-                  activeProps={{ 'data-active': true }}
-                >
-                  <PlusIcon />
-                  <span>Create Collection</span>
-                </Link>
+              <SidebarMenuButton
+                render={
+                  <Link
+                    to="/projects/$projectId/collections/create"
+                    params={{ projectId }}
+                    activeProps={{ 'data-active': true }}
+                  />
+                }
+              >
+                <PlusIcon />
+                <span>Create Collection</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -116,11 +122,9 @@ export function CollectionsSidebarSkeleton({
             <SidebarMenu>
               {[1, 2, 3, 4, 5].map((index) => (
                 <SidebarMenuItem key={index}>
-                  <SidebarMenuButton asChild>
-                    <span>
-                      <LayersIcon />
-                      <Skeleton className="h-4 w-2/3" />
-                    </span>
+                  <SidebarMenuButton render={<span />}>
+                    <LayersIcon />
+                    <Skeleton className="h-4 w-2/3" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

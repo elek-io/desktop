@@ -227,11 +227,11 @@ export function EntryTable({
           className="max-w-sm"
         />
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Visible Values
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
+          <DropdownMenuTrigger
+            render={<Button variant="outline" className="ml-auto" />}
+          >
+            Visible Values
+            <ChevronDown className="ml-2 h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {table
@@ -305,7 +305,7 @@ export function EntryTable({
       </Table>
 
       <div className="flex items-center justify-end p-6">
-        <div className="flex-1 text-sm text-zinc-400">
+        <div className="flex-1 text-sm text-muted-foreground">
           Showing {table.getFilteredRowModel().rows.length} of {entries.total}{' '}
           total{' '}
           {translateContent({
@@ -356,13 +356,10 @@ export function EntryTable({
 export function EntryTableSkeleton(): React.JSX.Element {
   return (
     <div className="animate-pulse">
-      <div className="h-8 w-1/4 rounded bg-zinc-200 dark:bg-zinc-700" />
+      <div className="h-8 w-1/4 rounded bg-muted" />
       <div className="mt-4 space-y-2">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="h-10 w-full rounded bg-zinc-200 dark:bg-zinc-700"
-          />
+          <div key={i} className="h-10 w-full rounded bg-muted" />
         ))}
       </div>
     </div>

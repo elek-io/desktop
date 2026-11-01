@@ -127,23 +127,25 @@ export const MarkdownToolbar = ({
   }
 
   return (
-    <div className="flex flex-row flex-wrap items-center gap-1 border-b border-zinc-200 p-1 dark:border-zinc-700">
+    <div className="flex flex-row flex-wrap items-center gap-1 border-b border-border p-1">
       {features.headings.length > 0 ? (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={disabled}
-            >
-              <HeadingIcon />
-              <span className="sr-only">Heading</span>
-            </Button>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={disabled}
+              />
+            }
+          >
+            <HeadingIcon />
+            <span className="sr-only">Heading</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem
-              onSelect={() => {
+              onClick={() => {
                 run(turnIntoTextCommand.key);
               }}
             >
@@ -152,7 +154,7 @@ export const MarkdownToolbar = ({
             {features.headings.map((depth) => (
               <DropdownMenuItem
                 key={depth}
-                onSelect={() => {
+                onClick={() => {
                   run(wrapInHeadingCommand.key, depth);
                 }}
               >

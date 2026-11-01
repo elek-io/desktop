@@ -1,3 +1,4 @@
+import { useRender } from '@base-ui/react/use-render';
 import {
   closestCenter,
   DndContext,
@@ -17,7 +18,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Slot } from '@radix-ui/react-slot';
 import { GripVerticalIcon } from 'lucide-react';
 import * as React from 'react';
 
@@ -54,29 +54,29 @@ function DraggableComponent({
   className,
 }: {
   id: string;
-  children: React.ReactNode;
+  // The row to drag. It takes the drag props, so it has to be one element.
+  children: React.ReactElement;
   className?: string;
 }): React.ReactElement {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
     id,
   });
 
-  return (
-    <Slot
-      data-dragging={isDragging}
-      ref={setNodeRef}
-      className={cn(
+  return useRender({
+    render: children,
+    ref: setNodeRef,
+    props: {
+      'data-dragging': isDragging,
+      className: cn(
         'relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80',
         className
-      )}
-      style={{
+      ),
+      style: {
         transform: CSS.Transform.toString(transform),
         transition: transition,
-      }}
-    >
-      {children}
-    </Slot>
-  );
+      },
+    },
+  });
 }
 
 function SortableFieldArray({

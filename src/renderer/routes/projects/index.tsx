@@ -191,7 +191,7 @@ function ListProjectsPage(): ReactElement {
                 )}
               />
               {isCloneRefused ? (
-                <p role="alert" className="mt-4 text-sm text-destructive">
+                <p role="alert" className="mt-4 text-sm text-error">
                   This repository holds no Project, or one made with an older
                   version of elek.io Desktop. Ask whoever set it up.
                 </p>

@@ -145,7 +145,7 @@ export function OfComponentsPicker({
                   return (
                     <div
                       key={component.id}
-                      className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+                      className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
                     >
                       <div className="mr-4">
                         <span className="text-sm font-medium">{name}</span>

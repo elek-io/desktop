@@ -68,7 +68,7 @@ export const AssetReferencePicker = ({
                 return (
                   <div
                     key={key}
-                    className="aspect-4/3 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
+                    className="aspect-4/3 animate-pulse rounded-md bg-muted"
                   />
                 );
               })}
@@ -86,7 +86,7 @@ export const AssetReferencePicker = ({
                   onClick={() => {
                     onPick(asset);
                   }}
-                  className="relative cursor-pointer overflow-hidden rounded-md border-2 border-zinc-200 transition-all hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
+                  className="relative cursor-pointer overflow-hidden rounded-md border-2 border-border transition-all hover:border-input"
                 >
                   <AssetDisplay {...asset} static />
                   <div className="truncate px-2 py-1 text-xs text-muted-foreground">
@@ -102,8 +102,8 @@ export const AssetReferencePicker = ({
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary">Cancel</Button>
+          <DialogClose render={<Button variant="secondary" />}>
+            Cancel
           </DialogClose>
         </DialogFooter>
       </DialogContent>

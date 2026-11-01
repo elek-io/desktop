@@ -190,7 +190,7 @@ export function AppForm<
                 ref={unsurfacedRef}
                 tabIndex={-1}
                 role="alert"
-                className="m-6 rounded-md border border-destructive p-4 text-sm text-destructive"
+                className="m-6 rounded-md border border-destructive p-4 text-sm text-error"
               >
                 <p className="font-medium">
                   This form could not be saved, because of a problem that is not
@@ -253,13 +253,13 @@ export function FormActions<
 }
 
 /**
- * `type` and `asChild` are omitted, not just defaulted: a SubmitButton that can
+ * `type` and `render` are omitted, not just defaulted: a SubmitButton that can
  * be talked out of submitting is the bug this component exists to prevent. See
  * contributing/renderer/forms.md.
  */
 export interface SubmitButtonProps extends Omit<
   React.ComponentProps<typeof Button>,
-  'type' | 'asChild'
+  'type' | 'render'
 > {
   /**
    * The id of the form to submit. Needed when the button is rendered outside the

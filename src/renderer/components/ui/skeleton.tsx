@@ -1,15 +1,13 @@
-import React from 'react';
-
 import { cn } from '@renderer/lib/utils';
 
 function Skeleton({
   className,
   ...props
-}: React.ComponentProps<'span'>): React.JSX.Element {
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
-    <span
+    <div
       data-slot="skeleton"
-      className={cn('block animate-pulse rounded-md bg-accent', className)}
+      className={cn('animate-pulse rounded-md bg-muted', className)}
       {...props}
     />
   );

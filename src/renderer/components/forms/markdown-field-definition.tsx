@@ -161,7 +161,7 @@ function MarkdownExtras({
       control={form.control}
       name={`features.${feature.key}`}
       render={({ field }) => (
-        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700">
+        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
           <div className="mr-4">
             <FormLabel isRequired>{feature.label}</FormLabel>
             <FormDescription>{feature.hint}</FormDescription>
@@ -238,7 +238,7 @@ function MarkdownExtras({
             control={form.control}
             name="features.headings"
             render={() => (
-              <FormItem className="rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700">
+              <FormItem className="rounded-lg border border-border p-3 shadow-xs">
                 <FormLabel isRequired>Headings</FormLabel>
                 <FormDescription>
                   Which heading levels can be used. None disables headings.
@@ -293,7 +293,7 @@ function MarkdownExtras({
                 </FormDescription>
                 <div className="space-y-2">
                   {isReadingCollections === true ? (
-                    <div className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800" />
+                    <div className="h-10 animate-pulse rounded-md bg-muted" />
                   ) : collectionList.list.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       No Collections available in this project.
@@ -307,7 +307,7 @@ function MarkdownExtras({
                       return (
                         <div
                           key={collection.id}
-                          className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+                          className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
                         >
                           <div className="mr-4">
                             <span className="text-sm font-medium">{name}</span>

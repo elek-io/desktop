@@ -388,8 +388,8 @@ function ReportFooter<
   return (
     <FormActions form={form} id={formId}>
       <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="secondary">Cancel</Button>
+        <DialogClose render={<Button variant="secondary" />}>
+          Cancel
         </DialogClose>
         <SubmitButton Icon={Send}>{label}</SubmitButton>
       </DialogFooter>
@@ -603,10 +603,10 @@ export function ReportDialog({
 }: ReportDialogProps): ReactElement {
   const [mode, setMode] = useState<ReportMode>(defaultMode);
 
-  // Reset on open, in an effect rather than from onOpenChange. Radix calls
-  // onOpenChange only from its own internal setter (a trigger, the close button,
-  // Escape, an overlay click), and both entry points open this dialog by
-  // flipping the `open` prop instead, so an onOpenChange(true) never arrives.
+  // Reset on open, in an effect rather than from onOpenChange. The dialog calls
+  // onOpenChange only from its own parts (a trigger, the close button, Escape,
+  // an overlay click), and both entry points open this dialog by flipping the
+  // `open` prop instead, so an onOpenChange(true) never arrives.
   // Without this, switching to feedback and reopening would still show feedback.
   useEffect(() => {
     if (open) {
@@ -615,18 +615,23 @@ export function ReportDialog({
   }, [open, defaultMode]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {/*
-        Only the X and Cancel close it. A stray Escape or a click beside the
-        dialog would otherwise throw away what the user wrote, which is the one
-        thing this dialog exists to keep. Radix's AlertDialog blocks outside
-        clicks the same way, but it still closes on Escape and has no X.
-      */}
-      <DialogContent
-        className="sm:max-w-xl"
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
-      >
+    // Only the X and Cancel close it. A stray Escape or a click beside the
+    // dialog would otherwise throw away what the user wrote, which is the one
+    // thing this dialog exists to keep. `disablePointerDismissal` turns away a
+    // press outside and a focus that leaves, and the Escape key is canceled by
+    // its reason.
+    <Dialog
+      open={open}
+      disablePointerDismissal
+      onOpenChange={(nextOpen, eventDetails) => {
+        if (eventDetails.reason === 'escape-key') {
+          eventDetails.cancel();
+          return;
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
             {mode === 'bug' ? 'Report a bug' : 'Share feedback'}
@@ -638,14 +643,14 @@ export function ReportDialog({
           </DialogDescription>
           <ButtonGroup className="mt-2">
             <Button
-              variant={mode === 'bug' ? 'default' : 'outline'}
+              variant="outline"
               aria-pressed={mode === 'bug'}
               onClick={() => setMode('bug')}
             >
               Report a bug
             </Button>
             <Button
-              variant={mode === 'feedback' ? 'default' : 'outline'}
+              variant="outline"
               aria-pressed={mode === 'feedback'}
               onClick={() => setMode('feedback')}
             >

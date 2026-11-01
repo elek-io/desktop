@@ -227,10 +227,8 @@ function UpdateEntryPage(): ReactElement {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
-              </Button>
+            <DialogClose render={<Button type="button" variant="secondary" />}>
+              Close
             </DialogClose>
           </DialogFooter>
         </DialogContent>

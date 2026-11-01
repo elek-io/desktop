@@ -33,10 +33,8 @@ export function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button Icon={CalendarIcon} {...props}>
-          <span className="sr-only">Select date</span>
-        </Button>
+      <PopoverTrigger render={<Button Icon={CalendarIcon} {...props} />}>
+        <span className="sr-only">Select date</span>
       </PopoverTrigger>
       <PopoverContent
         className="w-auto overflow-hidden p-0"

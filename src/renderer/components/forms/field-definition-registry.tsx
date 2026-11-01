@@ -183,7 +183,7 @@ const toggleSpec: DefinitionSpec<ToggleFieldDefinition> = {
       control={form.control}
       name="defaultValue"
       render={({ field }) => (
-        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-800">
+        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
           <div>
             <FormLabel isRequired>Default value</FormLabel>
             <FormDescription>The initial value for the field.</FormDescription>

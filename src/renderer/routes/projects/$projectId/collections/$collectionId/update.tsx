@@ -254,11 +254,9 @@ function ProjectCollectionUpdate(): ReactElement {
             </div>
             <div>
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash className="mr-2 h-4 w-4" />
-                    Delete Collection
-                  </Button>
+                <AlertDialogTrigger render={<Button variant="destructive" />}>
+                  <Trash className="mr-2 h-4 w-4" />
+                  Delete Collection
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -270,19 +268,21 @@ function ProjectCollectionUpdate(): ReactElement {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                      <Button
-                        variant="destructive"
-                        onClick={() =>
-                          onDelete({
-                            projectId,
-                            id: collectionId,
-                          })
-                        }
-                      >
-                        <Trash className="mr-2 h-4 w-4" />
-                        Yes, delete this Collection
-                      </Button>
+                    <AlertDialogAction
+                      render={
+                        <Button
+                          variant="destructive"
+                          onClick={() =>
+                            onDelete({
+                              projectId,
+                              id: collectionId,
+                            })
+                          }
+                        />
+                      }
+                    >
+                      <Trash className="mr-2 h-4 w-4" />
+                      Yes, delete this Collection
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -304,10 +304,10 @@ function ProjectCollectionUpdate(): ReactElement {
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">
-                        Close
-                      </Button>
+                    <DialogClose
+                      render={<Button type="button" variant="secondary" />}
+                    >
+                      Close
                     </DialogClose>
                   </DialogFooter>
                 </DialogContent>
@@ -333,10 +333,8 @@ function ProjectCollectionUpdate(): ReactElement {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
-              </Button>
+            <DialogClose render={<Button type="button" variant="secondary" />}>
+              Close
             </DialogClose>
           </DialogFooter>
         </DialogContent>

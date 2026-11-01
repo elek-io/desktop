@@ -72,8 +72,13 @@ function ValueTypeSelect({
         Type of options
       </Label>
       <Select
+        items={{ string: 'Text', number: 'Number' }}
         value={valueType}
-        onValueChange={(value: SelectValueType) => onValueTypeChange(value)}
+        onValueChange={(value) => {
+          if (value !== null) {
+            onValueTypeChange(value);
+          }
+        }}
       >
         <SelectTrigger id={selectId} aria-describedby={descriptionId}>
           <SelectValue />
@@ -90,8 +95,8 @@ function ValueTypeSelect({
   );
 }
 
-/** A "Default value" picker keyed by option index. Radix forbids empty item
- * values, so the stored value maps to the option's position. */
+/** A "Default value" picker keyed by option index. A select item cannot hold an
+ * empty value, so the stored value maps to the option's position. */
 function DefaultOptionSelect({
   items,
   selectedIndex,
@@ -106,9 +111,17 @@ function DefaultOptionSelect({
       <FormLabel isRequired={false}>Default value</FormLabel>
       <FormControl>
         <Select
+          items={{
+            none: 'None',
+            ...Object.fromEntries(
+              items.map((item) => [item.itemValue, item.display])
+            ),
+          }}
           value={selectedIndex === -1 ? 'none' : String(selectedIndex)}
           onValueChange={(selected) =>
-            onSelectIndex(selected === 'none' ? null : Number(selected))
+            onSelectIndex(
+              selected === null || selected === 'none' ? null : Number(selected)
+            )
           }
         >
           <SelectTrigger>

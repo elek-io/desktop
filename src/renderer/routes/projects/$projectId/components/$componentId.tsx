@@ -276,10 +276,10 @@ function ProjectComponentUpdate(): ReactElement {
             </div>
             <div>
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" Icon={Trash}>
-                    Delete Component
-                  </Button>
+                <AlertDialogTrigger
+                  render={<Button variant="destructive" Icon={Trash} />}
+                >
+                  Delete Component
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -291,14 +291,16 @@ function ProjectComponentUpdate(): ReactElement {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                      <Button
-                        variant="destructive"
-                        Icon={Trash}
-                        onClick={onDelete}
-                      >
-                        Yes, delete this Component
-                      </Button>
+                    <AlertDialogAction
+                      render={
+                        <Button
+                          variant="destructive"
+                          Icon={Trash}
+                          onClick={onDelete}
+                        />
+                      }
+                    >
+                      Yes, delete this Component
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -320,10 +322,10 @@ function ProjectComponentUpdate(): ReactElement {
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">
-                        Close
-                      </Button>
+                    <DialogClose
+                      render={<Button type="button" variant="secondary" />}
+                    >
+                      Close
                     </DialogClose>
                   </DialogFooter>
                 </DialogContent>
@@ -362,10 +364,8 @@ function ProjectComponentUpdate(): ReactElement {
             </ul>
           ) : null}
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
-              </Button>
+            <DialogClose render={<Button type="button" variant="secondary" />}>
+              Close
             </DialogClose>
           </DialogFooter>
         </DialogContent>

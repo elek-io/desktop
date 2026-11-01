@@ -57,6 +57,11 @@ export type AuthorableFieldType =
  */
 export type FieldDefinitionsOwner = 'collection' | 'component';
 
+/** The label the Width select shows for the chosen number of columns. */
+const fieldWidthItems: Record<string, string> = Object.fromEntries(
+  fieldWidthSchema.options.map((option) => [option, `${option} / 12`])
+);
+
 /**
  * Field types where Core pins `isRequired` to a literal, so the switch shows a
  * fixed fact instead of offering a choice. Both always carry a value.
@@ -251,7 +256,11 @@ function DefaultFieldDefinitionForm<
           <FormItem>
             <FormLabel isRequired>Width</FormLabel>
             <FormControl>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select
+                items={fieldWidthItems}
+                onValueChange={field.onChange}
+                value={field.value}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -280,7 +289,7 @@ function DefaultFieldDefinitionForm<
         control={form.control}
         name={base('isRequired')}
         render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700">
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
               <FormLabel isRequired>Required</FormLabel>
               <FormDescription>
@@ -322,7 +331,7 @@ function DefaultFieldDefinitionForm<
         control={form.control}
         name={base('isUnique')}
         render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700">
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
               <FormLabel isRequired>Unique</FormLabel>
               <FormDescription>
@@ -355,7 +364,7 @@ function DefaultFieldDefinitionForm<
         control={form.control}
         name={base('isDisabled')}
         render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700">
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
               <FormLabel isRequired>Disabled</FormLabel>
               <FormDescription>

@@ -57,8 +57,8 @@ export function UserHeader(): React.JSX.Element {
               {breadcrumbs.map((crumb, index, array) => (
                 <Fragment key={crumb.path}>
                   <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to={crumb.path}>{crumb.label}</Link>
+                    <BreadcrumbLink render={<Link to={crumb.path} />}>
+                      {crumb.label}
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   {array.length !== index + 1 && <BreadcrumbSeparator />}

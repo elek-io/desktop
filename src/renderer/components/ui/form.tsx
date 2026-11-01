@@ -1,9 +1,7 @@
 'use client';
 
+import { useRender } from '@base-ui/react/use-render';
 import { arrayMove } from '@dnd-kit/sortable';
-import type * as SliderPrimitive from '@radix-ui/react-slider';
-import { Slot } from '@radix-ui/react-slot';
-import type * as SwitchPrimitive from '@radix-ui/react-switch';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -165,7 +163,7 @@ function FormLabel({
     <Label
       data-slot="form-label"
       data-error={!!error}
-      className={cn('data-[error=true]:text-destructive', className)}
+      className={cn('data-[error=true]:text-error', className)}
       htmlFor={formItemId}
       {...props}
     />
@@ -173,24 +171,30 @@ function FormLabel({
 }
 
 function FormControl({
+  children,
   ...props
-}: React.ComponentProps<typeof Slot>): React.JSX.Element {
+}: {
+  // The control the id and the aria attributes land on, so it has to be one
+  // element.
+  children: React.ReactElement;
+}): React.JSX.Element {
   const { error, formItemId, formDescriptionId, formMessageId } =
     useFormField();
 
-  return (
-    <Slot
-      data-slot="form-control"
-      id={formItemId}
-      aria-describedby={
+  return useRender({
+    render: children,
+    props: {
+      // No data-slot of its own: the control it renders keeps the one its
+      // component sets, which the styles key off.
+      id: formItemId,
+      'aria-describedby':
         error === undefined
           ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
-      }
-      aria-invalid={error !== undefined}
-      {...props}
-    />
-  );
+          : `${formDescriptionId} ${formMessageId}`,
+      'aria-invalid': error !== undefined,
+      ...props,
+    },
+  });
 }
 
 function FormDescription({
@@ -227,7 +231,7 @@ function FormMessage({
     <p
       data-slot="form-message"
       id={formMessageId}
-      className={cn('text-sm text-destructive', className)}
+      className={cn('text-sm text-error', className)}
       {...props}
     >
       {body}
@@ -296,7 +300,7 @@ function FormSubtreeMessage<
       tabIndex={-1}
       role="alert"
       data-slot="form-message"
-      className={cn('text-sm text-destructive', className)}
+      className={cn('text-sm text-error', className)}
     >
       <ul className="list-inside list-disc">
         {messages.map((error) => (
@@ -489,15 +493,17 @@ function TranslatableField<TFieldValues extends FieldValues>({
         }
       />
       <Dialog>
-        <DialogTrigger asChild>
-          <Button
-            variant="secondary"
-            className="h-full rounded-l-none"
-            aria-invalid={hasErrorsInTranslations()}
-            Icon={LanguagesIcon}
-          >
-            <span className="sr-only">Edit translations for {title}</span>
-          </Button>
+        <DialogTrigger
+          render={
+            <Button
+              variant="secondary"
+              className="h-full rounded-l-none"
+              aria-invalid={hasErrorsInTranslations()}
+              Icon={LanguagesIcon}
+            />
+          }
+        >
+          <span className="sr-only">Edit translations for {title}</span>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -529,8 +535,8 @@ function TranslatableField<TFieldValues extends FieldValues>({
           </DialogBody>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="secondary">Done</Button>
+            <DialogClose render={<Button variant="secondary" />}>
+              Done
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -807,7 +813,7 @@ function FormDatetimeField<TFieldValues extends FieldValues>({
 interface FormRangeFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-> extends React.ComponentProps<typeof SliderPrimitive.Root> {
+> extends React.ComponentProps<typeof Slider> {
   field: ControllerRenderProps<TFieldValues, TName>;
   fieldDefinition: RangeFieldDefinition;
 }
@@ -833,10 +839,12 @@ function FormRangeField<TFieldValues extends FieldValues>({
       name={field.name}
       ref={field.ref}
       onBlur={field.onBlur}
-      // Radix Slider is a range control (value is number[]), but a range Value's
+      // The slider is a range control (value is number[]), but a range Value's
       // content is a single number, so wrap it and tolerate a null/empty content.
       value={typeof field.value === 'number' ? [field.value] : []}
-      onValueChange={(value) => field.onChange(value[0])}
+      onValueChange={(value) =>
+        field.onChange(Array.isArray(value) ? value[0] : value)
+      }
     />
   );
 }
@@ -844,7 +852,7 @@ function FormRangeField<TFieldValues extends FieldValues>({
 interface FormToggleFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-> extends React.ComponentProps<typeof SwitchPrimitive.Root> {
+> extends React.ComponentProps<typeof Switch> {
   field: ControllerRenderProps<TFieldValues, TName>;
 }
 
@@ -873,7 +881,7 @@ interface FormSelectFieldProps<
 
 /**
  * Renders the options of a select field definition. Items are keyed by their
- * index because Radix forbids empty item values, which string options can hold.
+ * index because a select item cannot hold an empty value, which string options can.
  * Selecting an item stores the option's value, so the Value keeps the correct
  * string or number type. A "None" item clears optional fields.
  *
@@ -914,9 +922,19 @@ function FormSelectField<TFieldValues extends FieldValues>({
     <Select
       name={field.name}
       disabled={disabled}
+      items={{
+        none: 'None',
+        ...Object.fromEntries(
+          items.map((item) => [item.itemValue, item.display])
+        ),
+      }}
       value={selectedIndex === -1 ? '' : String(selectedIndex)}
       onValueChange={(selected) =>
-        field.onChange(fieldDefinition.options[Number(selected)]?.value ?? null)
+        field.onChange(
+          selected === null || selected === 'none'
+            ? null
+            : (fieldDefinition.options[Number(selected)]?.value ?? null)
+        )
       }
     >
       <SelectTrigger
@@ -1195,7 +1213,7 @@ function FormAssetField<TFieldValues extends FieldValues>({
           {selectedAssets.map((asset) => (
             <div
               key={asset.id}
-              className="group relative overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
+              className="group relative overflow-hidden rounded-md border border-border"
             >
               <AssetDisplay {...asset} static className="aspect-4/3" />
               <div className="truncate px-2 py-1 text-xs text-muted-foreground">
@@ -1217,27 +1235,26 @@ function FormAssetField<TFieldValues extends FieldValues>({
       )}
 
       <Dialog>
-        <DialogTrigger asChild>
-          <Button
-            {...controlProps}
-            ref={field.ref}
-            onBlur={field.onBlur}
-            variant="secondary"
-            type="button"
-            disabled={disabled === true || maxReached}
-            Icon={ImagePlusIcon}
-          >
-            Select Assets
-            {fieldDefinition.min !== null || fieldDefinition.max !== null ? (
-              <span className="ml-1 text-muted-foreground">
-                ({selectedRefs.length}
-                {fieldDefinition.max !== null
-                  ? ` / ${fieldDefinition.max}`
-                  : ''}
-                )
-              </span>
-            ) : null}
-          </Button>
+        <DialogTrigger
+          render={
+            <Button
+              {...controlProps}
+              ref={field.ref}
+              onBlur={field.onBlur}
+              variant="secondary"
+              type="button"
+              disabled={disabled === true || maxReached}
+              Icon={ImagePlusIcon}
+            />
+          }
+        >
+          Select Assets
+          {fieldDefinition.min !== null || fieldDefinition.max !== null ? (
+            <span className="ml-1 text-muted-foreground">
+              ({selectedRefs.length}
+              {fieldDefinition.max !== null ? ` / ${fieldDefinition.max}` : ''})
+            </span>
+          ) : null}
         </DialogTrigger>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -1260,7 +1277,7 @@ function FormAssetField<TFieldValues extends FieldValues>({
                   return (
                     <div
                       key={key}
-                      className="aspect-4/3 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
+                      className="aspect-4/3 animate-pulse rounded-md bg-muted"
                     />
                   );
                 })}
@@ -1287,7 +1304,7 @@ function FormAssetField<TFieldValues extends FieldValues>({
                         'relative cursor-pointer overflow-hidden rounded-md border-2 transition-all',
                         isSelected
                           ? 'border-primary ring-2 ring-primary/20'
-                          : 'border-zinc-200 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500',
+                          : 'border-border hover:border-input',
                         isDisabledOption && 'cursor-not-allowed opacity-50'
                       )}
                     >
@@ -1308,8 +1325,8 @@ function FormAssetField<TFieldValues extends FieldValues>({
           </DialogBody>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="secondary">Done</Button>
+            <DialogClose render={<Button variant="secondary" />}>
+              Done
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -1456,7 +1473,7 @@ function FormEntryField<TFieldValues extends FieldValues>({
           {selectedEntries.map(({ entry, collection }) => (
             <div
               key={entry.id}
-              className="group flex items-center justify-between rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-700"
+              className="group flex items-center justify-between rounded-md border border-border px-3 py-2"
             >
               <div className="min-w-0 flex-1">
                 <span className="text-sm font-medium">
@@ -1485,27 +1502,26 @@ function FormEntryField<TFieldValues extends FieldValues>({
       )}
 
       <Dialog>
-        <DialogTrigger asChild>
-          <Button
-            {...controlProps}
-            ref={field.ref}
-            onBlur={field.onBlur}
-            variant="secondary"
-            type="button"
-            disabled={disabled === true || maxReached}
-            Icon={ListPlusIcon}
-          >
-            Select Entries
-            {fieldDefinition.min !== null || fieldDefinition.max !== null ? (
-              <span className="ml-1 text-muted-foreground">
-                ({selectedRefs.length}
-                {fieldDefinition.max !== null
-                  ? ` / ${fieldDefinition.max}`
-                  : ''}
-                )
-              </span>
-            ) : null}
-          </Button>
+        <DialogTrigger
+          render={
+            <Button
+              {...controlProps}
+              ref={field.ref}
+              onBlur={field.onBlur}
+              variant="secondary"
+              type="button"
+              disabled={disabled === true || maxReached}
+              Icon={ListPlusIcon}
+            />
+          }
+        >
+          Select Entries
+          {fieldDefinition.min !== null || fieldDefinition.max !== null ? (
+            <span className="ml-1 text-muted-foreground">
+              ({selectedRefs.length}
+              {fieldDefinition.max !== null ? ` / ${fieldDefinition.max}` : ''})
+            </span>
+          ) : null}
         </DialogTrigger>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -1528,7 +1544,7 @@ function FormEntryField<TFieldValues extends FieldValues>({
                   return (
                     <div
                       key={key}
-                      className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
+                      className="h-10 animate-pulse rounded-md bg-muted"
                     />
                   );
                 })}
@@ -1568,7 +1584,7 @@ function FormEntryField<TFieldValues extends FieldValues>({
                                 'flex w-full items-center rounded-md border-2 px-3 py-2 text-left transition-all',
                                 isSelected === true
                                   ? 'border-primary bg-primary/5'
-                                  : 'border-zinc-200 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500',
+                                  : 'border-border hover:border-input',
                                 isDisabledOption === true &&
                                   'cursor-not-allowed opacity-50'
                               )}
@@ -1593,8 +1609,8 @@ function FormEntryField<TFieldValues extends FieldValues>({
           </DialogBody>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="secondary">Done</Button>
+            <DialogClose render={<Button variant="secondary" />}>
+              Done
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -1870,21 +1886,23 @@ function FormDynamicField<TFieldValues extends FieldValues>({
         </p>
       ) : (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              Icon={ListPlusIcon}
-              variant="secondary"
-              disabled={disabled || maxReached}
-              {...(invalid === undefined ? {} : { 'aria-invalid': invalid })}
-            >
-              Add section
-            </Button>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                Icon={ListPlusIcon}
+                variant="secondary"
+                disabled={disabled || maxReached}
+                {...(invalid === undefined ? {} : { 'aria-invalid': invalid })}
+              />
+            }
+          >
+            Add section
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {allowedComponents.map((component) => (
               <DropdownMenuItem
                 key={component.id}
-                onSelect={() => addSection(component)}
+                onClick={() => addSection(component)}
               >
                 {translateContent({
                   key: 'component.name',

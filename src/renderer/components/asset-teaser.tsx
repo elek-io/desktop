@@ -249,15 +249,17 @@ export function AssetTeaser(
       <ItemFooter>
         <ButtonGroup className="w-full">
           <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="flex-1"
-                Icon={ExpandIcon}
-              >
-                <span className="sr-only">View</span>
-              </Button>
+            <DialogTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="flex-1"
+                  Icon={ExpandIcon}
+                />
+              }
+            >
+              <span className="sr-only">View</span>
             </DialogTrigger>
             <DialogContent className="sm:max-w-4xl">
               <DialogHeader>
@@ -275,15 +277,17 @@ export function AssetTeaser(
             open={isUpdateAssetDialogOpen}
             onOpenChange={setIsUpdateAssetDialogOpen}
           >
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="flex-1"
-                Icon={Edit2Icon}
-              >
-                <span className="sr-only">Update</span>
-              </Button>
+            <DialogTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="flex-1"
+                  Icon={Edit2Icon}
+                />
+              }
+            >
+              <span className="sr-only">Update</span>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -358,15 +362,17 @@ export function AssetTeaser(
           </Button>
 
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                className="flex-1"
-                Icon={TrashIcon}
-              >
-                <span className="sr-only">Delete</span>
-              </Button>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  variant="destructive"
+                  size="icon-sm"
+                  className="flex-1"
+                  Icon={TrashIcon}
+                />
+              }
+            >
+              <span className="sr-only">Delete</span>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -383,14 +389,16 @@ export function AssetTeaser(
 
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction asChild>
-                  <Button
-                    variant="destructive"
-                    Icon={TrashIcon}
-                    onClick={() => void onDelete()}
-                  >
-                    Delete
-                  </Button>
+                <AlertDialogAction
+                  render={
+                    <Button
+                      variant="destructive"
+                      Icon={TrashIcon}
+                      onClick={() => void onDelete()}
+                    />
+                  }
+                >
+                  Delete
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -413,10 +421,10 @@ export function AssetTeaser(
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="secondary">
-                  Close
-                </Button>
+              <DialogClose
+                render={<Button type="button" variant="secondary" />}
+              >
+                Close
               </DialogClose>
             </DialogFooter>
           </DialogContent>

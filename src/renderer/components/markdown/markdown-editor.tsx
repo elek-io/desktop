@@ -150,7 +150,7 @@ const MarkdownEditorInner = ({
   return (
     <div
       className={cn(
-        'markdown-editor w-full rounded-md border border-zinc-200 shadow-xs dark:border-zinc-700',
+        'markdown-editor w-full rounded-md border border-border shadow-xs',
         { 'pointer-events-none opacity-50': disabled },
         className
       )}
@@ -161,7 +161,7 @@ const MarkdownEditorInner = ({
       />
       <Milkdown />
       {bridgeError !== null ? (
-        <p className="border-t border-zinc-200 p-2 text-sm text-destructive dark:border-zinc-700">
+        <p className="border-t border-border p-2 text-sm text-error">
           The content could not be read from the editor: {bridgeError}
         </p>
       ) : null}

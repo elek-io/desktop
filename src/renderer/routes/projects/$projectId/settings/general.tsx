@@ -179,10 +179,10 @@ function ProjectSettingsGeneralPage(): ReactElement {
                 open={isDeleteDialogOpen}
                 onOpenChange={setIsDeleteDialogOpen}
               >
-                <DialogTrigger asChild>
-                  <Button Icon={Trash} variant="destructive">
-                    Delete Project
-                  </Button>
+                <DialogTrigger
+                  render={<Button Icon={Trash} variant="destructive" />}
+                >
+                  Delete Project
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -192,10 +192,10 @@ function ProjectSettingsGeneralPage(): ReactElement {
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">
-                        Cancel
-                      </Button>
+                    <DialogClose
+                      render={<Button type="button" variant="secondary" />}
+                    >
+                      Cancel
                     </DialogClose>
                     <Button
                       Icon={Trash}
@@ -225,10 +225,10 @@ function ProjectSettingsGeneralPage(): ReactElement {
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">
-                        Cancel
-                      </Button>
+                    <DialogClose
+                      render={<Button type="button" variant="secondary" />}
+                    >
+                      Cancel
                     </DialogClose>
                     <Button
                       Icon={Trash}

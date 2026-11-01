@@ -41,7 +41,7 @@ import {
 // slugSourceReferencesSuperRefinement then validates. It is the only Extras that
 // reads `fieldDefinitions` from DefinitionExtrasProps.
 
-// Radix Select items cannot hold an empty string, so "no separator" needs a sentinel
+// A select item cannot hold an empty string, so "no separator" needs a sentinel
 const NO_SEPARATOR = 'none';
 const separatorOptions: { value: string; label: string }[] = [
   { value: '-', label: 'Hyphen (-)' },
@@ -50,6 +50,10 @@ const separatorOptions: { value: string; label: string }[] = [
   { value: '~', label: 'Tilde (~)' },
   { value: NO_SEPARATOR, label: 'None' },
 ];
+
+const separatorItems: Record<string, string> = Object.fromEntries(
+  separatorOptions.map((option) => [option.value, option.label])
+);
 
 function SlugExtras({
   form,
@@ -105,7 +109,7 @@ function SlugExtras({
                 eligibleSources.map((definition) => (
                   <div
                     key={definition.id}
-                    className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+                    className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
                   >
                     <div className="mr-4">
                       <span className="text-sm font-medium">
@@ -139,6 +143,7 @@ function SlugExtras({
           <FormItem>
             <FormLabel isRequired>Separator</FormLabel>
             <Select
+              items={separatorItems}
               value={field.value === '' ? NO_SEPARATOR : field.value}
               onValueChange={(selected) =>
                 field.onChange(selected === NO_SEPARATOR ? '' : selected)
@@ -167,7 +172,7 @@ function SlugExtras({
         control={form.control}
         name="lowercase"
         render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700">
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
               <FormLabel isRequired>Lowercase</FormLabel>
               <FormDescription>Convert the slug to lowercase.</FormDescription>
@@ -182,7 +187,7 @@ function SlugExtras({
         control={form.control}
         name="decamelize"
         render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700">
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
               <FormLabel isRequired>Decamelize</FormLabel>
               <FormDescription>

@@ -114,7 +114,7 @@ export const EntryReferencePicker = ({
                 return (
                   <div
                     key={key}
-                    className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
+                    className="h-10 animate-pulse rounded-md bg-muted"
                   />
                 );
               })}
@@ -148,7 +148,7 @@ export const EntryReferencePicker = ({
                             onClick={() => {
                               onPick({ entry, collection, label });
                             }}
-                            className="flex w-full cursor-pointer items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-left transition-colors hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
+                            className="flex w-full cursor-pointer items-center justify-between rounded-md border border-border px-3 py-2 text-left transition-colors hover:border-input"
                           >
                             <span className="text-sm font-medium">{label}</span>
                           </button>
@@ -163,8 +163,8 @@ export const EntryReferencePicker = ({
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary">Cancel</Button>
+          <DialogClose render={<Button variant="secondary" />}>
+            Cancel
           </DialogClose>
         </DialogFooter>
       </DialogContent>

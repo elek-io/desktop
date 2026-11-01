@@ -105,7 +105,7 @@ export function ReleaseDialog({
         setIsOpen(open);
       }}
     >
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger render={children} />
 
       <DialogContent>
         <DialogHeader>
@@ -120,7 +120,7 @@ export function ReleaseDialog({
           {isPreparingRelease || pendingRelease === undefined ? (
             <PendingReleaseSkeleton />
           ) : pendingRelease.status === 'refused' ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-error">
               {describeCoreError(
                 pendingRelease.errorType,
                 RELEASE_READ_REFUSALS,
@@ -132,7 +132,7 @@ export function ReleaseDialog({
           )}
 
           {createError === null ? null : (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-error">
               {describeCoreError(
                 parseIpcError(createError).type,
                 RELEASE_CREATE_REFUSALS,
@@ -143,10 +143,8 @@ export function ReleaseDialog({
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              Close
-            </Button>
+          <DialogClose render={<Button type="button" variant="secondary" />}>
+            Close
           </DialogClose>
           {pendingRelease?.status === 'refused' &&
           RELEASE_READ_RETRYABLE.has(pendingRelease.errorType) ? (

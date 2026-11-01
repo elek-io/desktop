@@ -175,10 +175,8 @@ function ProjectAssetsPage(): React.JSX.Element {
           </DialogBody>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Cancel
-              </Button>
+            <DialogClose render={<Button type="button" variant="secondary" />}>
+              Cancel
             </DialogClose>
             <FormActions form={createAssetForm} id={addAssetFormId}>
               <SubmitButton Icon={Plus}>Add Asset</SubmitButton>

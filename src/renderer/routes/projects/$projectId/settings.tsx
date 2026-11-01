@@ -57,17 +57,19 @@ function ProjectSettingsLayout(): ReactElement {
                 <SidebarMenu>
                   {settingsNavigation.map((item) => (
                     <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton asChild>
-                        <Link
-                          to={item.to}
-                          params={{
-                            projectId,
-                          }}
-                          activeProps={{ 'data-active': true }}
-                        >
-                          <item.icon />
-                          <span>{item.name}</span>
-                        </Link>
+                      <SidebarMenuButton
+                        render={
+                          <Link
+                            to={item.to}
+                            params={{
+                              projectId,
+                            }}
+                            activeProps={{ 'data-active': true }}
+                          />
+                        }
+                      >
+                        <item.icon />
+                        <span>{item.name}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
