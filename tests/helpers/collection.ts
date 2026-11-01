@@ -104,9 +104,9 @@ export function numberFieldDefinition(
 /**
  * Build a range FieldDefinition with a caller-supplied id. A range definition is
  * always required and never unique (Core pins both), carries a numeric
- * `defaultValue`, and its `min` / `max` are the Slider's functional value domain
- * (Radix exposes them as `aria-valuemin` / `aria-valuemax`), not HTML constraint
- * attributes, so a test can assert they survive on the rendered slider.
+ * `defaultValue`, and its `min` / `max` are the Slider's functional value domain,
+ * carried by the range input that owns the slider role, so a test can assert
+ * they survive on the rendered slider.
  */
 export function rangeFieldDefinition(
   overrides: Partial<RangeFieldDefinition> = {}
@@ -538,7 +538,7 @@ export async function openAddFieldSheet(
 
   if (fieldType !== 'text') {
     // The picker is the first combobox in the sheet (its header). Its options
-    // render in a Radix portal, so locate them on the page, not in the dialog.
+    // render in a portal, so locate them on the page, not in the dialog.
     await sheet.getByRole('combobox').first().click();
     await page.getByRole('option', { name: fieldType, exact: true }).click();
   }

@@ -382,7 +382,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'select'. The picker is
-    // the first combobox in the sheet (its header); the options render in a Radix
+    // the first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow
@@ -485,7 +485,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'range'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
+    // first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow
@@ -542,7 +542,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'date'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
+    // first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow.getByRole('option', { name: 'date', exact: true }).click();
@@ -651,7 +651,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'asset'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
+    // first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow

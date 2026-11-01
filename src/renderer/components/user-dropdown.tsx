@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { Moon, Sun, ChevronDown, ExternalLinkIcon } from 'lucide-react';
+import { useId } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@renderer/components/ui/button';
@@ -20,6 +21,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu';
+import { Label } from '@renderer/components/ui/label';
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import {
@@ -57,6 +59,7 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
     queryOptions.api.stop
   );
   const { theme, setTheme } = useTheme();
+  const localApiSwitchId = useId();
   const localApiUrl = `http://localhost:${user.localApi.port}`;
 
   return (
@@ -82,15 +85,17 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
         align="end"
         sideOffset={4}
       >
-        <DropdownMenuLabel className="p-0 font-normal">
-          <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-            <UserAvatar className="rounded-lg" name={user.name} />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs">{user.email}</span>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="p-0 font-normal">
+            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <UserAvatar className="rounded-lg" name={user.name} />
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate text-xs">{user.email}</span>
+              </div>
             </div>
-          </div>
-        </DropdownMenuLabel>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuItem
           onClick={async () => router.navigate({ to: '/user/profile' })}
         >
@@ -101,27 +106,29 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuLabel>
-            <div className="flex place-content-between">
-              <div className="">Local API</div>
-              <div className="">
-                <Switch
-                  checked={isLocalApiRunning ?? false}
-                  onCheckedChange={async (checked) => {
-                    if (checked === false) {
-                      await stopApi();
-                      return;
-                    }
-                    try {
-                      await startApi(user.localApi.port);
-                    } catch (error) {
-                      handleStartApiError(error);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </DropdownMenuLabel>
+          {/* A row of the menu rather than its group label, because a group
+          label is hidden from assistive technology, which would take the
+          switch with it. */}
+          <div className="flex place-content-between px-2 py-1.5">
+            <Label htmlFor={localApiSwitchId} isRequired>
+              Local API
+            </Label>
+            <Switch
+              id={localApiSwitchId}
+              checked={isLocalApiRunning ?? false}
+              onCheckedChange={async (checked) => {
+                if (checked === false) {
+                  await stopApi();
+                  return;
+                }
+                try {
+                  await startApi(user.localApi.port);
+                } catch (error) {
+                  handleStartApiError(error);
+                }
+              }}
+            />
+          </div>
           <DropdownMenuItem
             onClick={() => window.open(localApiUrl, '_blank')}
             disabled={

@@ -10,7 +10,10 @@ function ScrollArea({
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn('relative', className)}
+      // `overflow-hidden` lets the area shrink below its content inside a
+      // column flex box, which is what keeps a dialog's or a sheet's footer in
+      // view while its body scrolls.
+      className={cn('relative overflow-hidden', className)}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport

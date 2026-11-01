@@ -94,7 +94,7 @@ test.describe('Reporting a bug or feedback', () => {
     await switchReportMode(dialog, 'Share feedback');
     await closeReportDialog(mainWindow);
 
-    // Radix never fires onOpenChange for an open driven by the `open` prop, so
+    // The dialog never fires onOpenChange for an open driven by the `open` prop, so
     // the reset runs from an effect instead. Without it this reopens on the
     // feedback form.
     const reopened = await openReportDialogFromHeader(mainWindow);
@@ -116,14 +116,18 @@ test.describe('Reporting a bug or feedback', () => {
     // Each form asks its one question its own way, and the log switch belongs
     // to the bug form alone.
     await expect(dialog.getByLabel('What went wrong?')).toBeVisible();
-    await expect(dialog.getByLabel('Also send my logs')).toBeVisible();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).toBeVisible();
 
     await switchReportMode(dialog, 'Share feedback');
 
     // Feedback never carries logs, in Core as well as here, so there is nothing
     // to consent to.
     await expect(dialog.getByLabel('What went wrong?')).toBeHidden();
-    await expect(dialog.getByLabel('Also send my logs')).toBeHidden();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).toBeHidden();
     await expect(
       dialog.getByLabel('What would you like to tell us?')
     ).toBeVisible();
@@ -142,7 +146,9 @@ test.describe('Reporting a bug or feedback', () => {
     // Nothing the user did not type is attached unless they say so. The error
     // boundary is the one place this defaults the other way, which
     // error-boundary.spec.ts covers.
-    await expect(dialog.getByLabel('Also send my logs')).not.toBeChecked();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).not.toBeChecked();
 
     await closeReportDialog(mainWindow);
   });

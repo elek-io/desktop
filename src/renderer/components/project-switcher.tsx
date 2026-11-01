@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -59,9 +60,11 @@ export function ProjectSwitcher({
             side="right"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Projects
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Projects
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             {isListingProjects
               ? [1, 2, 3].map((key) => (
                   <div className="flex items-center gap-2 p-2" key={key}>

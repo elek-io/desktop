@@ -103,20 +103,37 @@ test.describe('Branding', () => {
 
   test('draws every icon with Lucide', async ({ mainWindow }) => {
     await setUserViaIpc(mainWindow);
-    await createProjectViaIpc(mainWindow);
-    await navigate(mainWindow, '#/projects');
+    const project = await createProjectViaIpc(mainWindow);
 
-    await expect(
-      mainWindow.getByRole('button', { name: 'Create Project' }).first()
-    ).toBeVisible();
+    // Three screens' worth of icons: the Projects page and its cards, a
+    // Project's sidebar and header, and the user menu, which holds the most
+    // icons of any one surface.
+    const screens = [
+      '#/projects',
+      `#/projects/${project.id}/releases`,
+      `#/projects/${project.id}/components`,
+    ];
 
-    const nonLucide = await mainWindow.evaluate(() =>
-      Array.from(document.querySelectorAll('svg'))
-        .map((icon) => icon.getAttribute('class') ?? '')
-        .filter((className) => !className.split(' ').includes('lucide'))
-    );
+    for (const screen of screens) {
+      await navigate(mainWindow, screen);
+      await expect(
+        mainWindow.getByRole('button', { name: 'Feedback' })
+      ).toBeVisible();
+      await mainWindow.getByRole('button', { name: /Test User/ }).click();
+      await expect(mainWindow.getByRole('menu')).toBeVisible();
 
-    expect(nonLucide).toStrictEqual([]);
+      // A Git host's logo is a brand logo, which ci takes from Simple Icons and
+      // the app marks `data-brand-logo`. Every other icon is Lucide, which
+      // marks each of its own with a `lucide` class.
+      const nonLucide = await mainWindow.evaluate(() =>
+        Array.from(document.querySelectorAll('svg:not([data-brand-logo])'))
+          .map((icon) => icon.getAttribute('class') ?? '')
+          .filter((className) => !className.split(' ').includes('lucide'))
+      );
+
+      expect(nonLucide, `on ${screen}`).toStrictEqual([]);
+      await mainWindow.keyboard.press('Escape');
+    }
   });
 
   test('reaches WCAG AA on the primary fill, a destructive fill and an input in both themes', async ({

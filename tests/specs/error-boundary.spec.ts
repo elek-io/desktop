@@ -109,7 +109,9 @@ test.describe('Root error boundary', () => {
 
     // Logs default ON here and only here: they carry the error, and the user is
     // looking at the failure while deciding.
-    await expect(dialog.getByLabel('Also send my logs')).toBeChecked();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).toBeChecked();
 
     // Dismissing the dialog leaves the boundary's own recovery working.
     await closeReportDialog(mainWindow);

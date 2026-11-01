@@ -58,7 +58,7 @@ test.describe('Delivering a report to Cloud', () => {
     await dialog
       .getByLabel('What went wrong?')
       .fill('The sidebar stays collapsed after a restart.');
-    await dialog.getByLabel('Also send my logs').click();
+    await dialog.getByRole('switch', { name: 'Also send my logs' }).click();
     await dialog.getByRole('button', { name: 'Send report' }).click();
     await expect(dialog).toBeHidden();
 

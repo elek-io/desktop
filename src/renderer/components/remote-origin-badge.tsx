@@ -3,12 +3,15 @@ import * as React from 'react';
 
 import { Badge } from '@renderer/components/ui/badge';
 
-// Brand icons were removed from lucide-react in v1,
-// so these ship as inline SVGs (paths from simple-icons)
+// A Git host's logo is a brand logo rather than a UI icon, so it does not come
+// from Lucide. Brand icons were removed from lucide-react in v1, so these ship
+// as inline SVGs with paths from Simple Icons, marked `data-brand-logo` so a
+// test can tell them from the Lucide icons around them.
 function GithubIcon(): React.JSX.Element {
   return (
     <svg
       aria-hidden="true"
+      data-brand-logo
       viewBox="0 0 24 24"
       fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"
@@ -22,6 +25,7 @@ function GitlabIcon(): React.JSX.Element {
   return (
     <svg
       aria-hidden="true"
+      data-brand-logo
       viewBox="0 0 24 24"
       fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"

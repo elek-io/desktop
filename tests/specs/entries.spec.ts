@@ -145,13 +145,14 @@ test.describe('Entries', () => {
     await expect(optional).not.toHaveAttribute('required');
     await expect(optional).not.toHaveAttribute('aria-required');
 
-    // The range field's Slider min/max are its functional value domain, which
-    // Radix exposes as aria-valuemin / aria-valuemax on the role=slider thumb, not
-    // as HTML constraint attributes, so they stay. aria-required is not a valid
-    // attribute on a slider, so the required range field must not carry it.
+    // The range field's Slider min/max are its functional value domain, carried
+    // by the range input that owns the slider role. They clamp the value rather
+    // than block a submit, so they are the one exception to the rule above.
+    // aria-required is not a valid attribute on a slider, so the required range
+    // field must not carry it.
     const slider = mainWindow.getByRole('slider');
-    await expect(slider).toHaveAttribute('aria-valuemin', '0');
-    await expect(slider).toHaveAttribute('aria-valuemax', '10');
+    await expect(slider).toHaveAttribute('min', '0');
+    await expect(slider).toHaveAttribute('max', '10');
     await expect(slider).not.toHaveAttribute('aria-required');
   });
 
