@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { colors } from '@elek-io/branding';
@@ -35,6 +35,57 @@ async function sha256(file: string): Promise<string> {
 }
 
 test.describe('Branding', () => {
+  test('stands on shadcn base-vega with no Radix package left', async () => {
+    const manifest: unknown = JSON.parse(
+      await readFile('components.json', 'utf8')
+    );
+    expect(manifest).toMatchObject({ style: 'base-vega' });
+
+    const packageJson: unknown = JSON.parse(
+      await readFile('package.json', 'utf8')
+    );
+    expect(packageJson).toMatchObject({
+      devDependencies: { '@base-ui/react': expect.any(String) },
+    });
+    const dependencies = Object.keys({
+      ...(packageJson as { dependencies?: Record<string, string> })
+        .dependencies,
+      ...(packageJson as { devDependencies?: Record<string, string> })
+        .devDependencies,
+    });
+    expect(
+      dependencies.filter((name) => name.startsWith('@radix-ui/'))
+    ).toStrictEqual([]);
+
+    // The five controls ci draws that the app did not have before.
+    const components = await readdir('src/renderer/components/ui');
+    for (const added of [
+      'radio-group.tsx',
+      'checkbox.tsx',
+      'toggle-group.tsx',
+      'toggle.tsx',
+      'spinner.tsx',
+    ]) {
+      expect(components).toContain(added);
+    }
+
+    const sources = await readdir('src', {
+      recursive: true,
+      withFileTypes: true,
+    });
+    const importingRadix: string[] = [];
+    for (const entry of sources) {
+      if (entry.isFile() === false || /\.tsx?$/.test(entry.name) === false) {
+        continue;
+      }
+      const file = path.join(entry.parentPath, entry.name);
+      if ((await readFile(file, 'utf8')).includes('@radix-ui/')) {
+        importingRadix.push(file);
+      }
+    }
+    expect(importingRadix).toStrictEqual([]);
+  });
+
   test('ships the brand package icons as the app icons', async () => {
     // electron-builder takes the installer and window icons from
     // directories.buildResources, so these three files are what a person ends
@@ -88,14 +139,18 @@ test.describe('Branding', () => {
         body: getComputedStyle(document.querySelector('body')!).fontFamily,
         sans: style.getPropertyValue('--font-family-sans'),
         mono: style.getPropertyValue('--font-family-mono'),
-        sansLoaded: document.fonts.check('14px "Geist Variable"'),
+        // The faces the app actually ships, not the stack it asks for.
+        faces: Array.from(document.fonts).map((face) => face.family),
       };
     });
 
     expect(type.body).toContain('Geist Variable');
     expect(type.sans).toContain('Geist Variable');
     expect(type.mono).toContain('Geist Mono Variable');
-    expect(type.sansLoaded).toBe(true);
+    expect(type.faces).toContain('Geist Variable');
+    expect(type.faces).toContain('Geist Mono Variable');
+    expect(type.faces).not.toContain('Roboto');
+    expect(type.faces).not.toContain('Montserrat Variable');
     // The two typefaces Geist replaced are gone from the app.
     expect(type.body).not.toContain('Roboto');
     expect(type.body).not.toContain('Montserrat');

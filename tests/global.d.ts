@@ -37,7 +37,9 @@ declare const document: {
   body: { scrollWidth: number };
   readonly activeElement: ProbedElement | null;
   readonly documentElement: ProbedElement;
-  readonly fonts: { ready: Promise<unknown>; check(font: string): boolean };
+  readonly fonts: Iterable<{ family: string }> & {
+    ready: Promise<unknown>;
+  };
   querySelector(selectors: string): ProbedElement | null;
   querySelectorAll(selectors: string): ArrayLike<ProbedElement>;
 };
