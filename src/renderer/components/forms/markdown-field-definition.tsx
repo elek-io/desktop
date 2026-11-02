@@ -1,5 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { i18n, type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { type Resolver } from 'react-hook-form';
 
@@ -55,76 +57,96 @@ type MarkdownFieldDefinitionFormValues = Omit<
 
 type BooleanFeature = Exclude<keyof MarkdownFeatures, 'headings'>;
 
-const blockFeatures: { key: BooleanFeature; label: string; hint: string }[] = [
-  { key: 'blockquotes', label: 'Blockquotes', hint: 'Quoted text blocks.' },
-  { key: 'lists', label: 'Lists', hint: 'Bulleted and numbered lists.' },
+/** One row of the feature list, with its words held as catalog messages. */
+interface MarkdownFeatureRow {
+  key: BooleanFeature;
+  label: MessageDescriptor;
+  hint: MessageDescriptor;
+}
+
+const blockFeatures: MarkdownFeatureRow[] = [
+  {
+    key: 'blockquotes',
+    label: msg`Blockquotes`,
+    hint: msg`Quoted text blocks.`,
+  },
+  { key: 'lists', label: msg`Lists`, hint: msg`Bulleted and numbered lists.` },
   {
     key: 'taskListItems',
-    label: 'Task list items',
-    hint: 'Checkboxes inside lists. Requires lists.',
+    label: msg`Task list items`,
+    hint: msg`Checkboxes inside lists. Requires lists.`,
   },
   {
     key: 'codeBlocks',
-    label: 'Code blocks',
-    hint: 'Multi line code with an optional language.',
+    label: msg`Code blocks`,
+    hint: msg`Multi line code with an optional language.`,
   },
   {
     key: 'thematicBreak',
-    label: 'Thematic breaks',
-    hint: 'Horizontal rules between sections.',
+    label: msg`Thematic breaks`,
+    hint: msg`Horizontal rules between sections.`,
   },
-  { key: 'tables', label: 'Tables', hint: 'Tables with aligned columns.' },
+  {
+    key: 'tables',
+    label: msg`Tables`,
+    hint: msg`Tables with aligned columns.`,
+  },
   {
     key: 'footnotes',
-    label: 'Footnotes',
-    hint: 'Footnote references and definitions.',
+    label: msg`Footnotes`,
+    hint: msg`Footnote references and definitions.`,
   },
   {
     key: 'rawHtml',
-    label: 'Raw HTML',
-    hint: 'Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it.',
+    label: msg`Raw HTML`,
+    hint: msg`Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it.`,
   },
 ];
 
-const inlineFeatures: { key: BooleanFeature; label: string; hint: string }[] = [
-  { key: 'emphasis', label: 'Emphasis', hint: 'Italic text.' },
-  { key: 'strong', label: 'Strong', hint: 'Bold text.' },
-  { key: 'inlineCode', label: 'Inline code', hint: 'Code spans inside text.' },
+const inlineFeatures: MarkdownFeatureRow[] = [
+  { key: 'emphasis', label: msg`Emphasis`, hint: msg`Italic text.` },
+  { key: 'strong', label: msg`Strong`, hint: msg`Bold text.` },
+  {
+    key: 'inlineCode',
+    label: msg`Inline code`,
+    hint: msg`Code spans inside text.`,
+  },
   {
     key: 'strikethrough',
-    label: 'Strikethrough',
-    hint: 'Struck through text.',
+    label: msg`Strikethrough`,
+    hint: msg`Struck through text.`,
   },
   {
     key: 'hardLineBreaks',
-    label: 'Hard line breaks',
-    hint: 'Line breaks inside a paragraph.',
+    label: msg`Hard line breaks`,
+    hint: msg`Line breaks inside a paragraph.`,
   },
   {
     key: 'externalLinks',
-    label: 'External links',
-    hint: 'Links to external URLs.',
+    label: msg`External links`,
+    hint: msg`Links to external URLs.`,
   },
   {
     key: 'externalImages',
-    label: 'External images',
-    hint: 'Images from external URLs.',
+    label: msg`External images`,
+    hint: msg`Images from external URLs.`,
   },
   {
     key: 'entryReferences',
-    label: 'Entry references',
-    hint: 'Links to Entries of this Project.',
+    label: msg`Entry references`,
+    hint: msg`Links to Entries of this Project.`,
   },
   {
     key: 'assetReferences',
-    label: 'Asset references',
-    hint: "Images and files from this Project's Assets.",
+    label: msg`Asset references`,
+    hint: msg`Images and files from this Project's Assets.`,
   },
 ];
 
 function MarkdownExtras({
   form,
 }: DefinitionExtrasProps<MarkdownFieldDefinitionFormValues>): ReactElement {
+  const { t } = useLingui();
   const { projectId, translateContent } = useProject();
   const { data: collectionList, isPending: isReadingCollections } =
     useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
@@ -153,11 +175,7 @@ function MarkdownExtras({
     );
   }
 
-  const featureRow = (feature: {
-    key: BooleanFeature;
-    label: string;
-    hint: string;
-  }): ReactElement => (
+  const featureRow = (feature: MarkdownFeatureRow): ReactElement => (
     <FormField
       key={feature.key}
       control={form.control}
@@ -165,12 +183,12 @@ function MarkdownExtras({
       render={({ field }) => (
         <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
           <div className="mr-4">
-            <FormLabel isRequired>{feature.label}</FormLabel>
-            <FormDescription>{feature.hint}</FormDescription>
+            <FormLabel isRequired>{i18n._(feature.label)}</FormLabel>
+            <FormDescription>{i18n._(feature.hint)}</FormDescription>
             <FormMessage />
           </div>
           <Switch
-            aria-label={feature.label}
+            aria-label={i18n._(feature.label)}
             checked={field.value}
             disabled={feature.key === 'taskListItems' && listsEnabled === false}
             onCheckedChange={(checked) => {
@@ -267,9 +285,9 @@ function MarkdownExtras({
                         key={depth}
                         className="flex flex-col items-center gap-1 text-sm"
                       >
-                        H{depth}
+                        <Trans>H{depth}</Trans>
                         <Switch
-                          aria-label={`Heading level ${String(depth)}`}
+                          aria-label={t`Heading level ${depth}`}
                           checked={enabledHeadings.includes(depth)}
                           onCheckedChange={() => toggleHeadingDepth(depth)}
                         />

@@ -1,4 +1,6 @@
-import { Trans } from '@lingui/react/macro';
+import { i18n, type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import {
   Fragment,
   useCallback,
@@ -100,27 +102,27 @@ const fixedUniquenessFieldTypes: readonly AuthorableFieldType[] = [
 function uniquenessNote(
   fieldType: AuthorableFieldType,
   owner: FieldDefinitionsOwner
-): string | null {
+): MessageDescriptor | null {
   if (owner === 'component') {
-    return 'Fields of a Component cannot be unique, since the same Component is used in more than one place.';
+    return msg`Fields of a Component cannot be unique, since the same Component is used in more than one place.`;
   }
 
   switch (fieldType) {
     case 'slug':
-      return 'Slugs are always unique, so a single Entry can be identified by it.';
+      return msg`Slugs are always unique, so a single Entry can be identified by it.`;
     case 'toggle':
-      return 'Toggles cannot be unique, since they can only be checked or unchecked.';
+      return msg`Toggles cannot be unique, since they can only be checked or unchecked.`;
     case 'number':
     case 'range':
     case 'numberSelect':
-      return 'Number fields cannot be unique.';
+      return msg`Number fields cannot be unique.`;
     case 'asset':
     case 'entry':
-      return 'Reference fields cannot be unique.';
+      return msg`Reference fields cannot be unique.`;
     case 'dynamic':
-      return 'Dynamic fields cannot be unique.';
+      return msg`Dynamic fields cannot be unique.`;
     case 'markdown':
-      return 'Markdown fields cannot be unique.';
+      return msg`Markdown fields cannot be unique.`;
     // String types where uniqueness is a real choice, so there is nothing to
     // explain. Listed rather than defaulted so a new Core field type is a lint
     // error here until it is classified.
@@ -158,6 +160,8 @@ function DefaultFieldDefinitionForm<
   fieldType,
   owner,
 }: DefaultFieldDefinitionFormProps<T>): ReactElement {
+  const { t } = useLingui();
+  const note = uniquenessNote(fieldType, owner);
   // Every FieldDefinition shares the base fields this component edits, but RHF's
   // FieldPath cannot reduce those literal paths for an unresolved generic T, so
   // assert them once through this helper.
@@ -190,11 +194,8 @@ function DefaultFieldDefinitionForm<
               <Trans>Label</Trans>
             </FormLabel>
             <TranslatableFormInputField
-              title="Label"
-              description='The label is displayed above the input Field and should
-                    indicate what the user is supposed to enter. For example
-                    "Title", "Date of birth" or
-                    "Summary".'
+              title={t`Label`}
+              description={t`The label is displayed above the input Field and should indicate what the user is supposed to enter. For example "Title", "Date of birth" or "Summary".`}
               type="text"
               field={field}
               errors={form.formState.errors}
@@ -244,9 +245,8 @@ function DefaultFieldDefinitionForm<
               <Trans>Description</Trans>
             </FormLabel>
             <TranslatableFormTextareaField
-              title="Description"
-              description="Describe what to input into this field. This text will be
-              displayed under the field to guide users."
+              title={t`Description`}
+              description={t`Describe what to input into this field. This text will be displayed under the field to guide users.`}
               field={field}
               errors={form.formState.errors}
               supportedLanguages={supportedLanguages}
@@ -311,8 +311,10 @@ function DefaultFieldDefinitionForm<
                 <Trans>Required</Trans>
               </FormLabel>
               <FormDescription>
-                Required fields need to be filled before an Item of the
-                Collection can be created or updated.{' '}
+                <Trans>
+                  Required fields need to be filled before an Item of the
+                  Collection can be created or updated.
+                </Trans>{' '}
                 {fieldType === 'toggle' && (
                   <>
                     <Separator className="my-2" />
@@ -359,12 +361,14 @@ function DefaultFieldDefinitionForm<
                 <Trans>Unique</Trans>
               </FormLabel>
               <FormDescription>
-                You won&apos;t be able to create an Entry if there is an
-                existing Entry with identical content.
-                {uniquenessNote(fieldType, owner) !== null && (
+                <Trans>
+                  You won&apos;t be able to create an Entry if there is an
+                  existing Entry with identical content.
+                </Trans>
+                {note !== null && (
                   <>
                     <Separator className="my-2" />
-                    <i>{uniquenessNote(fieldType, owner)}</i>
+                    <i>{i18n._(note)}</i>
                   </>
                 )}
               </FormDescription>

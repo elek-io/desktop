@@ -280,7 +280,10 @@ export default [
       'lingui/no-single-variables-to-translate': 'error',
       'lingui/no-trans-inside-trans': 'error',
       'lingui/no-expression-in-message': 'error',
-      'lingui/no-unnamed-tag-placeholders': 'error',
+      // `no-unnamed-tag-placeholders` is left off: it reads shadcn's own
+      // `Select` as Lingui's `Select` macro and reports every control inside
+      // one. `no-expression-in-message` already holds the sentences this
+      // repository writes, which carry a placeholder rather than a tag.
       'lingui/no-unlocalized-strings': [
         'error',
         {
@@ -288,6 +291,8 @@ export default [
           // string literals is not taken for text.
           useTsTypes: true,
           ignore: [
+            // A module directive, which shadcn's components carry.
+            '^use (client|server)$',
             // An address, a protocol or the first half of a mime type.
             '^(https?|elek-io-local-file|mailto|git@)',
             '^(image|video|audio|text|application)/',
@@ -318,6 +323,8 @@ export default [
             'storageKey',
             'displayName',
             { regex: { pattern: '^data-' } },
+            // An element's or a field's own id, which React and ARIA pair up.
+            { regex: { pattern: 'Id$' } },
             // Where something points, which is never translated.
             'href',
             'rel',
@@ -378,6 +385,11 @@ export default [
             '*.clearErrors',
             '*.trigger',
             '*.register',
+            // The definition forms assert a field's path through a local
+            // helper, since react-hook-form's FieldPath cannot reduce it for
+            // an unresolved generic.
+            'base',
+            'path',
             // A route id, which TanStack Router generates.
             'createFileRoute',
             // A browser API that takes a name, a selector or a feature rather

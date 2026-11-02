@@ -2,7 +2,8 @@
 
 import { useRender } from '@base-ui/react/use-render';
 import { arrayMove } from '@dnd-kit/sortable';
-import { Trans } from '@lingui/react/macro';
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -358,7 +359,9 @@ export function FormInputField<TFieldValues extends FieldValues>({
     return value;
   }
 
-  // Some field types have no matching HTML input type of the same name
+  // Some field types have no matching HTML input type of the same name. These
+  // are HTML's own names rather than words anybody reads.
+  /* eslint-disable lingui/no-unlocalized-strings */
   const htmlInputType =
     type === 'telephone'
       ? 'tel'
@@ -367,6 +370,7 @@ export function FormInputField<TFieldValues extends FieldValues>({
         : type === 'datetime'
           ? 'datetime-local'
           : type;
+  /* eslint-enable lingui/no-unlocalized-strings */
 
   return (
     <Input
@@ -504,7 +508,9 @@ function TranslatableField<TFieldValues extends FieldValues>({
             />
           }
         >
-          <span className="sr-only">Edit translations for {title}</span>
+          <span className="sr-only">
+            <Trans>Edit translations for {title}</Trans>
+          </span>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -754,6 +760,8 @@ function FormDatetimeField<TFieldValues extends FieldValues>({
     }
 
     const pad = (value: number): string => String(value).padStart(2, '0');
+    // The value a `datetime-local` input takes, which is a fixed format.
+    // eslint-disable-next-line lingui/no-unlocalized-strings
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
       date.getDate()
     )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -1010,7 +1018,9 @@ function FormSlugField<TFieldValues extends FieldValues>({
             );
             return source === undefined
               ? []
-              : [`values.${source.slug}.content.${language}`];
+              : // A form field's path, which react-hook-form reads.
+                // eslint-disable-next-line lingui/no-unlocalized-strings
+                [`values.${source.slug}.content.${language}`];
           }) as FieldPath<TFieldValues>[]),
     [fieldDefinitions, fieldDefinition.ofFieldDefinitions, language]
   );
@@ -1155,6 +1165,8 @@ function FormAssetField<TFieldValues extends FieldValues>({
   disabled,
   ...controlProps
 }: FormAssetFieldProps<TFieldValues>): React.ReactElement {
+  const { t } = useLingui();
+
   const { projectId } = useProject();
   const { data: assetList, isPending: isReadingAssets } = useQueryNoError(
     queryOptions.assets.list({ projectId, limit: 0 })
@@ -1170,6 +1182,23 @@ function FormAssetField<TFieldValues extends FieldValues>({
 
   const maxReached =
     fieldDefinition.max !== null && selectedRefs.length >= fieldDefinition.max;
+
+  // How many Assets may be picked, as one sentence per shape rather than
+  // fragments joined together, and the allowed types as one placeholder.
+  const assetMaximum = fieldDefinition.max;
+  const assetMinimum = fieldDefinition.min;
+  const assetLimitsSentence = [
+    assetMaximum !== null
+      ? t`Select up to ${plural(assetMaximum, {
+          one: '# asset',
+          other: '# assets',
+        })}.`
+      : t`Select one or more assets.`,
+    assetMinimum !== null ? t`At least ${assetMinimum} required.` : '',
+  ]
+    .filter((part) => part !== '')
+    .join(' ');
+  const allowedMimeTypes = fieldDefinition.ofAssetMimeTypes.join(', ');
 
   function toggleAsset(asset: Asset): void {
     if (selectedIds.has(asset.id)) {
@@ -1253,7 +1282,7 @@ function FormAssetField<TFieldValues extends FieldValues>({
             />
           }
         >
-          Select Assets
+          <Trans>Select Assets</Trans>
           {fieldDefinition.min !== null || fieldDefinition.max !== null ? (
             <span className="ml-1 text-muted-foreground">
               ({selectedRefs.length}
@@ -1266,14 +1295,7 @@ function FormAssetField<TFieldValues extends FieldValues>({
             <DialogTitle>
               <Trans>Select Assets</Trans>
             </DialogTitle>
-            <DialogDescription>
-              {fieldDefinition.max !== null
-                ? `Select up to ${fieldDefinition.max} asset${fieldDefinition.max !== 1 ? 's' : ''}.`
-                : 'Select one or more assets.'}
-              {fieldDefinition.min !== null
-                ? ` At least ${fieldDefinition.min} required.`
-                : ''}
-            </DialogDescription>
+            <DialogDescription>{assetLimitsSentence}</DialogDescription>
           </DialogHeader>
 
           <DialogBody>
@@ -1286,9 +1308,13 @@ function FormAssetField<TFieldValues extends FieldValues>({
               </div>
             ) : selectableAssets.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                {fieldDefinition.ofAssetMimeTypes.length === 0
-                  ? 'No assets available. Add assets to the project first.'
-                  : `No assets of an allowed type available. This Field accepts ${fieldDefinition.ofAssetMimeTypes.join(', ')}.`}
+                {fieldDefinition.ofAssetMimeTypes.length === 0 ? (
+                  <Trans>
+                    No assets available. Add assets to the project first.
+                  </Trans>
+                ) : (
+                  t`No assets of an allowed type available. This Field accepts ${allowedMimeTypes}.`
+                )}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -1358,6 +1384,8 @@ function FormEntryField<TFieldValues extends FieldValues>({
   disabled,
   ...controlProps
 }: FormEntryFieldProps<TFieldValues>): React.ReactElement {
+  const { t } = useLingui();
+
   const { projectId, translateContent } = useProject();
   const { data: collectionList, isPending: isReadingCollections } =
     useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
@@ -1403,6 +1431,22 @@ function FormEntryField<TFieldValues extends FieldValues>({
 
   const maxReached =
     fieldDefinition.max !== null && selectedRefs.length >= fieldDefinition.max;
+
+  // How many Entries may be picked, as one sentence per shape rather than
+  // fragments joined together.
+  const entryMaximum = fieldDefinition.max;
+  const entryMinimum = fieldDefinition.min;
+  const entryLimitsSentence = [
+    entryMaximum !== null
+      ? t`Select up to ${plural(entryMaximum, {
+          one: '# entry',
+          other: '# entries',
+        })}.`
+      : t`Select one or more entries.`,
+    entryMinimum !== null ? t`At least ${entryMinimum} required.` : '',
+  ]
+    .filter((part) => part !== '')
+    .join(' ');
 
   /**
    * Core's `valueContentReferenceToEntrySchema` requires `collectionId`
@@ -1517,7 +1561,7 @@ function FormEntryField<TFieldValues extends FieldValues>({
             />
           }
         >
-          Select Entries
+          <Trans>Select Entries</Trans>
           {fieldDefinition.min !== null || fieldDefinition.max !== null ? (
             <span className="ml-1 text-muted-foreground">
               ({selectedRefs.length}
@@ -1530,14 +1574,7 @@ function FormEntryField<TFieldValues extends FieldValues>({
             <DialogTitle>
               <Trans>Select Entries</Trans>
             </DialogTitle>
-            <DialogDescription>
-              {fieldDefinition.max !== null
-                ? `Select up to ${fieldDefinition.max} ${fieldDefinition.max !== 1 ? 'entries' : 'entry'}.`
-                : 'Select one or more entries.'}
-              {fieldDefinition.min !== null
-                ? ` At least ${fieldDefinition.min} required.`
-                : ''}
-            </DialogDescription>
+            <DialogDescription>{entryLimitsSentence}</DialogDescription>
           </DialogHeader>
 
           <DialogBody>
@@ -1672,6 +1709,8 @@ function FormDynamicField<TFieldValues extends FieldValues>({
   'aria-describedby': describedBy,
   'aria-invalid': invalid,
 }: FormDynamicFieldProps<TFieldValues>): React.ReactElement {
+  const { t } = useLingui();
+
   const {
     projectId,
     translateContent,
@@ -1720,6 +1759,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
 
   const maxReached =
     fieldDefinition.max !== null && items.length >= fieldDefinition.max;
+  const sectionMaximum = fieldDefinition.max;
   const label = translateContent({
     key: 'fieldDefinition.label',
     record: fieldDefinition.label,
@@ -1730,7 +1770,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
     // Only reachable while the Components are still loading, since Core refuses
     // to delete a Component something still holds
     if (component === undefined) {
-      return 'Section';
+      return t`Section`;
     }
     return translateContent({
       key: 'component.name',
@@ -1803,6 +1843,8 @@ function FormDynamicField<TFieldValues extends FieldValues>({
         items.map((item, index) => {
           const component = componentsById.get(item.componentId);
           const name = componentName(item.componentId);
+          const position = index + 1;
+          const total = items.length;
 
           return (
             // Keyed by the item's own id, not by its position, so a move takes
@@ -1814,7 +1856,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
                 <p className="text-sm font-medium">
                   <span>{name}</span>
                   <span className="ml-2 font-normal text-muted-foreground">
-                    Section {index + 1} of {items.length}
+                    {t`Section ${position} of ${total}`}
                   </span>
                 </p>
                 <ButtonGroup>
@@ -1825,7 +1867,9 @@ function FormDynamicField<TFieldValues extends FieldValues>({
                     disabled={disabled || index === 0}
                     onClick={() => moveSection(index, -1)}
                   >
-                    <span className="sr-only">Move the {name} section up</span>
+                    <span className="sr-only">
+                      <Trans>Move the {name} section up</Trans>
+                    </span>
                   </Button>
                   <Button
                     Icon={ChevronDownIcon}
@@ -1835,7 +1879,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
                     onClick={() => moveSection(index, 1)}
                   >
                     <span className="sr-only">
-                      Move the {name} section down
+                      <Trans>Move the {name} section down</Trans>
                     </span>
                   </Button>
                   <Button
@@ -1845,7 +1889,9 @@ function FormDynamicField<TFieldValues extends FieldValues>({
                     disabled={disabled}
                     onClick={() => removeSection(index)}
                   >
-                    <span className="sr-only">Remove the {name} section</span>
+                    <span className="sr-only">
+                      <Trans>Remove the {name} section</Trans>
+                    </span>
                   </Button>
                 </ButtonGroup>
               </div>
@@ -1920,8 +1966,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
       )}
       {maxReached ? (
         <p className="text-sm text-muted-foreground">
-          This field holds at most {fieldDefinition.max} sections. Remove one to
-          add another.
+          {t`This field holds at most ${sectionMaximum} sections. Remove one to add another.`}
         </p>
       ) : null}
     </div>
@@ -2213,7 +2258,9 @@ function sectionValuePath<TFieldValues extends FieldValues>(
   fieldDefinition: FieldDefinition
 ): FieldPath<TFieldValues> {
   // Provably a key of the item's `values` record, but FieldPath cannot reduce
-  // that for an unresolved generic, so it is asserted once here
+  // that for an unresolved generic, so it is asserted once here. A form field's
+  // path, which react-hook-form reads, rather than words.
+  // eslint-disable-next-line lingui/no-unlocalized-strings
   return `${baseName}.${String(index)}.values.${fieldDefinition.slug}.content` as FieldPath<TFieldValues>;
 }
 
@@ -2491,7 +2538,9 @@ function FormFieldDefinitionPreview({
               disabled={onMoveUp === undefined}
               onClick={onMoveUp}
             >
-              <span className="sr-only">Move the {label} field up</span>
+              <span className="sr-only">
+                <Trans>Move the {label} field up</Trans>
+              </span>
             </Button>
             <Button
               Icon={ChevronDownIcon}
@@ -2500,7 +2549,9 @@ function FormFieldDefinitionPreview({
               disabled={onMoveDown === undefined}
               onClick={onMoveDown}
             >
-              <span className="sr-only">Move the {label} field down</span>
+              <span className="sr-only">
+                <Trans>Move the {label} field down</Trans>
+              </span>
             </Button>
           </>
         ) : null}
@@ -2515,7 +2566,7 @@ function FormFieldDefinitionPreview({
             onClick={onEdit}
           >
             <span className="sr-only">
-              Allow more Components on the {label} field
+              <Trans>Allow more Components on the {label} field</Trans>
             </span>
           </Button>
         ) : null}
@@ -2526,7 +2577,9 @@ function FormFieldDefinitionPreview({
             size="icon"
             onClick={() => onDelete(fieldDefinition)}
           >
-            <span className="sr-only">Remove the {label} field</span>
+            <span className="sr-only">
+              <Trans>Remove the {label} field</Trans>
+            </span>
           </Button>
         ) : null}
       </ButtonGroup>
