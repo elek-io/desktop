@@ -31,15 +31,22 @@ export function DateControl<TFieldValues extends FieldValues>({
 }: DateControlProps<TFieldValues>): React.ReactElement {
   const dateFromValue = React.useMemo(() => {
     if (typeof field.value === 'string' && field.value !== '') {
-      const parsedDate = new Date(field.value);
+      // A stored day carries no time and no zone, so it is anchored to local
+      // midnight. `new Date('2026-03-01')` alone is UTC midnight, which the
+      // picker would highlight as the previous day in a negative offset, and
+      // `dateToString` below reads the local day back out. The list of Entries
+      // anchors the same way, see date/index.tsx.
+      const parsedDate = new Date(`${field.value}T00:00:00`);
       return isNaN(parsedDate.getTime()) ? null : parsedDate;
     }
     return null;
   }, [field.value]);
 
-  function dateToString(date: Date | null): string {
+  // The Value is `null` for an empty field, never an empty string, which is the
+  // contract every scalar Value shares and what Core's nullable schemas take.
+  function dateToString(date: Date | null): string | null {
     if (date === null) {
-      return '';
+      return null;
     }
 
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(

@@ -184,40 +184,47 @@ export function EntryControl<TFieldValues extends FieldValues>({
     <div className="space-y-3">
       {selectedEntries.length > 0 && (
         <div className="space-y-1">
-          {selectedEntries.map(({ entry, collection }) => (
-            <div
-              key={entry.id}
-              className="group flex items-center justify-between rounded-md border border-border px-3 py-2"
-            >
-              <div className="min-w-0 flex-1">
-                <span className="text-sm font-medium">
-                  {entryTitle({
-                    entry,
-                    fieldDefinitions: flattenFieldDefinitions(
-                      collection.fieldDefinitions
-                    ),
-                    language: titleLanguage,
-                  })}
-                </span>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  {translateContent({
-                    key: 'collection.name.singular',
-                    record: collection.name.singular,
-                  })}
-                </span>
+          {selectedEntries.map(({ entry, collection }) => {
+            const title = entryTitle({
+              entry,
+              fieldDefinitions: flattenFieldDefinitions(
+                collection.fieldDefinitions
+              ),
+              language: titleLanguage,
+            });
+            return (
+              <div
+                key={entry.id}
+                className="group flex items-center justify-between rounded-md border border-border px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium">{title}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {translateContent({
+                      key: 'collection.name.singular',
+                      record: collection.name.singular,
+                    })}
+                  </span>
+                </div>
+                {disabled !== true && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    // Shown on hover and on keyboard focus, so reaching it with
+                    // Tab does not leave an invisible control focused.
+                    className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    onClick={() => removeEntry(entry.id)}
+                    type="button"
+                    Icon={XIcon}
+                  >
+                    {/* The icon alone names nothing, so the Entry it removes is
+                    said for a screen reader. */}
+                    <span className="sr-only">{t`Remove ${title}`}</span>
+                  </Button>
+                )}
               </div>
-              {disabled !== true && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
-                  onClick={() => removeEntry(entry.id)}
-                  type="button"
-                  Icon={XIcon}
-                />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

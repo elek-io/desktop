@@ -7,7 +7,13 @@ import { parseIpcError } from '@root/src/shared/ipcError';
 import { errorLogAttributes } from '@root/src/shared/logError';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ExternalLink, Send } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
+import {
+  useEffect,
+  useId,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import {
   type FieldPath,
   type FieldValues,
@@ -326,6 +332,10 @@ function ReportError({
  * The contact block, shared by both forms. Generic over the form shape, and the
  * caller passes the two field paths in where its form type is concrete, so they
  * are checked without a cast. See contributing/renderer/forms.md.
+ *
+ * Each caller passes its two descriptions as whole sentences, because the one
+ * word that differs between them (a report, a piece of feedback) cannot be
+ * translated on its own, see contributing/renderer/internationalization.md.
  */
 function ContactFields<
   TFieldValues extends FieldValues,
@@ -334,12 +344,14 @@ function ContactFields<
   form,
   nameField,
   emailField,
-  purpose,
+  nameDescription,
+  emailDescription,
 }: {
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   nameField: NoInfer<FieldPath<TFieldValues>>;
   emailField: NoInfer<FieldPath<TFieldValues>>;
-  purpose: string;
+  nameDescription: ReactNode;
+  emailDescription: ReactNode;
 }): ReactElement {
   return (
     <>
@@ -347,7 +359,7 @@ function ContactFields<
         form={form}
         name={nameField}
         label={<Trans>Name</Trans>}
-        description={<Trans>Who this {purpose} is from.</Trans>}
+        description={nameDescription}
       >
         {({ field, controlProps }) => (
           <TextControl field={field} type="text" {...controlProps} />
@@ -358,12 +370,7 @@ function ContactFields<
         form={form}
         name={emailField}
         label={<Trans>Email</Trans>}
-        description={
-          <Trans>
-            Only so we can come back to you about this {purpose}. Both are yours
-            to change. Leave them empty to send this anonymously.
-          </Trans>
-        }
+        description={emailDescription}
       >
         {({ field, controlProps }) => (
           <TextControl field={field} type="email" {...controlProps} />
@@ -459,7 +466,13 @@ function BugReportForm({
             form={form}
             nameField="user.name"
             emailField="user.email"
-            purpose="report"
+            nameDescription={<Trans>Who this report is from.</Trans>}
+            emailDescription={
+              <Trans>
+                Only so we can come back to you about this report. Both are
+                yours to change. Leave them empty to send this anonymously.
+              </Trans>
+            }
           />
 
           {/*
@@ -562,7 +575,13 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
             form={form}
             nameField="user.name"
             emailField="user.email"
-            purpose="feedback"
+            nameDescription={<Trans>Who this feedback is from.</Trans>}
+            emailDescription={
+              <Trans>
+                Only so we can come back to you about this feedback. Both are
+                yours to change. Leave them empty to send this anonymously.
+              </Trans>
+            }
           />
         </DialogBody>
       </AppForm>

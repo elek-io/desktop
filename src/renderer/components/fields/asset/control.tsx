@@ -134,27 +134,36 @@ export function AssetControl<TFieldValues extends FieldValues>({
     <div className="space-y-3">
       {selectedAssets.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {selectedAssets.map((asset) => (
-            <div
-              key={asset.id}
-              className="group relative overflow-hidden rounded-md border border-border"
-            >
-              <AssetDisplay {...asset} static className="aspect-4/3" />
-              <div className="truncate px-2 py-1 text-xs text-muted-foreground">
-                {asset.name}
+          {selectedAssets.map((asset) => {
+            const name = asset.name;
+            return (
+              <div
+                key={asset.id}
+                className="group relative overflow-hidden rounded-md border border-border"
+              >
+                <AssetDisplay {...asset} static className="aspect-4/3" />
+                <div className="truncate px-2 py-1 text-xs text-muted-foreground">
+                  {name}
+                </div>
+                {disabled !== true && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    // Shown on hover and on keyboard focus, so reaching it with
+                    // Tab does not leave an invisible control focused.
+                    className="absolute top-1 right-1 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    onClick={() => removeAsset(asset.id)}
+                    type="button"
+                    Icon={XIcon}
+                  >
+                    {/* The icon alone names nothing, so the Asset it removes is
+                    said for a screen reader. */}
+                    <span className="sr-only">{t`Remove ${name}`}</span>
+                  </Button>
+                )}
               </div>
-              {disabled !== true && (
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-1 right-1 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
-                  onClick={() => removeAsset(asset.id)}
-                  type="button"
-                  Icon={XIcon}
-                />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
