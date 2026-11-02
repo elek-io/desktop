@@ -175,7 +175,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
       <ProjectForm
         id={formId}
         projectForm={updateProjectForm}
-        isViewOnly={isReadingProject || isUpdatingProject}
+        isViewOnly={isUpdatingProject}
         onFormSubmit={onUpdate}
       >
         <PageSection

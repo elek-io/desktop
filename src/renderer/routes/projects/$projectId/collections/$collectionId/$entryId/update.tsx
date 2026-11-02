@@ -5,10 +5,10 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { useId, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
-import { defaultEntryValue } from '@renderer/components/fields';
+import { defaultEntryValues } from '@renderer/components/fields';
 import { EntryForm } from '@renderer/components/forms/entry-form';
 import { Page } from '@renderer/components/page';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
@@ -104,53 +105,40 @@ function UpdateEntryPage(): ReactElement {
       : getUpdateEntrySchemaFromFieldDefinitions([], []);
 
   const formId = useId();
-  const updateEntryForm = useForm({
+  const isReadingEntryForm =
+    isReadingEntry || isReadingCollection || isReadingProject;
+  // A default Value for any field the Collection has gained since the Entry was
+  // created, so the form always holds a complete Value per current field
+  // definition. The Entry's own Values take precedence.
+  const storedValues = isReadingEntryForm
+    ? {}
+    : {
+        ...defaultEntryValues(
+          flattenFieldDefinitions(collection.fieldDefinitions),
+          project.settings.language.supported
+        ),
+        ...entry.values,
+      };
+  const updateEntryForm = useAppForm({
     resolver: zodResolver(generatedUpdateEntrySchema),
     defaultValues: {
       id: entryId,
       values: {},
     },
+    // Filled from the queries rather than reset in an effect, so a refetch
+    // while somebody is typing keeps what they typed.
+    ...(isReadingEntryForm
+      ? {}
+      : {
+          values: {
+            ...entry,
+            projectId,
+            collectionId,
+            values: storedValues,
+          },
+        }),
+    disabled: isReadingEntry,
   });
-
-  // Reset form with Project and Collection data when it loads
-  useEffect(() => {
-    if (
-      isReadingEntry === false &&
-      isReadingCollection === false &&
-      isReadingProject === false
-    ) {
-      // Hydrate a default Value for any field the Collection has gained since the
-      // Entry was created, so the form always holds a complete Value per current
-      // field definition. The Entry's own Values take precedence.
-      const values: Record<string, unknown> = { ...entry.values };
-      for (const definition of flattenFieldDefinitions(
-        collection.fieldDefinitions
-      )) {
-        if (!(definition.slug in values)) {
-          values[definition.slug] = defaultEntryValue(
-            definition,
-            project.settings.language.supported
-          );
-        }
-      }
-      updateEntryForm.reset({
-        ...entry,
-        projectId,
-        collectionId,
-        values,
-      });
-    }
-  }, [
-    collectionId,
-    projectId,
-    entry,
-    collection,
-    project,
-    isReadingEntry,
-    isReadingCollection,
-    isReadingProject,
-    updateEntryForm,
-  ]);
 
   const onUpdateEntry: SubmitHandler<UpdateEntryProps> = async (entry) => {
     try {
@@ -213,7 +201,7 @@ function UpdateEntryPage(): ReactElement {
           entryForm={updateEntryForm}
           fieldDefinitions={collection.fieldDefinitions}
           project={project}
-          isViewOnly={isReadingEntry || isUpdatingEntry}
+          isViewOnly={isUpdatingEntry}
           onFormSubmit={onUpdateEntry}
         />
       </Page>

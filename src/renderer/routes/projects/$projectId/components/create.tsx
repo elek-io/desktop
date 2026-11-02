@@ -5,8 +5,8 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { useId, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { ComponentForm } from '@renderer/components/forms/component-form';
 import { Page } from '@renderer/components/page';
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
@@ -76,7 +77,7 @@ function ProjectComponentCreate(): ReactElement {
         )
       : getCreateComponentSchemaFromLanguages([]);
 
-  const createComponentForm = useForm({
+  const createComponentForm = useAppForm({
     resolver: withEmptyDescriptionAsNull(
       zodResolver(generatedCreateComponentSchema)
     ),
@@ -87,6 +88,26 @@ function ProjectComponentCreate(): ReactElement {
       description: {},
       fieldDefinitions: [],
     },
+    // A key per Project language, filled from the query rather than reset in an
+    // effect, so what is already typed survives a refetch.
+    ...(isReadingProject
+      ? {}
+      : {
+          values: {
+            projectId,
+            name: translatableDefault({
+              supportedLanguages: project.settings.language.supported,
+              defaultValue: '',
+            }),
+            slug: '',
+            description: translatableDefault({
+              supportedLanguages: project.settings.language.supported,
+              defaultValue: '',
+            }),
+            fieldDefinitions: [],
+          },
+        }),
+    disabled: isReadingProject,
   });
 
   // A slug another Component already uses lands on the Slug field, where it can
@@ -110,25 +131,6 @@ function ProjectComponentCreate(): ReactElement {
       },
     },
   });
-
-  // Reset the form with the Project's languages when it loads
-  useEffect(() => {
-    if (project) {
-      createComponentForm.reset({
-        projectId,
-        name: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-        slug: '',
-        description: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-        fieldDefinitions: [],
-      });
-    }
-  }, [projectId, project, createComponentForm]);
 
   function Description(): ReactElement {
     return (

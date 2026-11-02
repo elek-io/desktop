@@ -3,8 +3,8 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useEffect, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
@@ -15,6 +15,7 @@ import {
   SubmitButton,
 } from '@renderer/components/ui/app-form';
 import { TextControl } from '@renderer/components/ui/field-controls';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { queryOptions } from '@renderer/queries';
@@ -41,22 +42,23 @@ function ProjectSettingsVersionControlPage(): ReactElement {
   const { mutateAsync: setRemoteOriginUrl } = useMutation(
     queryOptions.projects.setRemoteOriginUrl
   );
-  const remoteOriginUrlForm = useForm<SetRemoteOriginUrlProjectProps>({
+  const remoteOriginUrlForm = useAppForm<SetRemoteOriginUrlProjectProps>({
     resolver: zodResolver(setRemoteOriginUrlProjectSchema),
     defaultValues: {
       id: projectId,
       url: '',
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingProject
+      ? {}
+      : {
+          values: {
+            id: project.id,
+            url: project.remoteOriginUrl ?? '',
+          },
+        }),
+    disabled: isReadingProject,
   });
-  // Reset form with Project data when it loads
-  useEffect(() => {
-    if (isReadingProject === false) {
-      remoteOriginUrlForm.reset({
-        id: project.id,
-        url: project.remoteOriginUrl !== null ? project.remoteOriginUrl : '',
-      });
-    }
-  }, [project, isReadingProject, remoteOriginUrlForm]);
 
   function Description(): ReactElement {
     return <></>;

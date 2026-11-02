@@ -5,8 +5,8 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { useId, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { CollectionForm } from '@renderer/components/forms/collection-form';
 import { Page } from '@renderer/components/page';
@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
@@ -138,12 +139,12 @@ function ProjectCollectionUpdate(): ReactElement {
         )
       : getUpdateCollectionSchemaFromLanguages([]);
 
-  const updateCollectionForm = useForm({
+  const updateCollectionForm = useAppForm({
     resolver: zodResolver(generatedUpdateCollectionSchema),
     // Seed every bound value so each control is controlled from the first
-    // render, before the Collection loads and reset() hydrates it. A partial
-    // seed here lets the icon Select mount uncontrolled and flip to controlled
-    // on reset, which React warns about and which dirties the form.
+    // render, before the Collection arrives. A partial seed here lets the icon
+    // Select mount uncontrolled and flip to controlled, which React warns about
+    // and which dirties the form.
     defaultValues: {
       projectId,
       icon: 'home',
@@ -158,20 +159,14 @@ function ProjectCollectionUpdate(): ReactElement {
       },
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect, so a refetch keeps
+    // what is being typed. The stored records go in as they are: Core's
+    // language-aware resolver above is the single validator, so any language a
+    // Collection is missing surfaces on its own field rather than needing a
+    // client-side re-seed.
+    ...(isReadingCollection ? {} : { values: { ...collection, projectId } }),
+    disabled: isReadingCollection,
   });
-
-  // Reset form with Collection data when it loads. The stored records are used
-  // as-is: Core's language-aware resolver above is the single validator, so any
-  // language a Collection is missing surfaces on its own field rather than
-  // needing a client-side re-seed.
-  useEffect(() => {
-    if (isReadingCollection === false) {
-      updateCollectionForm.reset({
-        ...collection,
-        projectId,
-      });
-    }
-  }, [projectId, isReadingCollection, collection, updateCollectionForm]);
 
   // The Collection's name in plural, or the domain term while it is still
   // loading, so the title takes one placeholder rather than being assembled

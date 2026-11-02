@@ -5,8 +5,8 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { useId, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { ComponentImpact } from '@renderer/components/component-impact';
 import { ComponentForm } from '@renderer/components/forms/component-form';
@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
@@ -141,12 +142,12 @@ function ProjectComponentUpdate(): ReactElement {
         )
       : getUpdateComponentSchemaFromLanguages([]);
 
-  const updateComponentForm = useForm({
+  const updateComponentForm = useAppForm({
     resolver: withEmptyDescriptionAsNull(
       zodResolver(generatedUpdateComponentSchema)
     ),
     // Seed every bound value so each control is controlled from the first
-    // render, before the Component loads and reset() hydrates it.
+    // render, before the Component arrives.
     defaultValues: {
       projectId,
       id: componentId,
@@ -155,6 +156,13 @@ function ProjectComponentUpdate(): ReactElement {
       description: {},
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect, so a refetch keeps
+    // what is being typed. The stored field definitions go back as they are,
+    // ids included, which is what keeps the content of every Entry holding this
+    // Component: Core matches field definitions by id, so a new id would read
+    // as a removal plus an addition.
+    ...(isReadingComponent ? {} : { values: { ...component, projectId } }),
+    disabled: isReadingComponent,
   });
 
   // Core raises Conflict on this path for two unrelated reasons, and the cause
@@ -196,16 +204,6 @@ function ProjectComponentUpdate(): ReactElement {
         },
       },
     });
-
-  // Reset the form with the Component when it loads. The stored field
-  // definitions go back as they are, ids included, which is what keeps the
-  // content of every Entry holding this Component: Core matches field
-  // definitions by id, so a new id would read as a removal plus an addition.
-  useEffect(() => {
-    if (isReadingComponent === false) {
-      updateComponentForm.reset({ ...component, projectId });
-    }
-  }, [projectId, isReadingComponent, component, updateComponentForm]);
 
   const name = isReadingComponent
     ? t`Component`

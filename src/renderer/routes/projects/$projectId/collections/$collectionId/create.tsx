@@ -5,8 +5,8 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import React, { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import React, { useId, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { defaultEntryValues } from '@renderer/components/fields';
 import { EntryForm } from '@renderer/components/forms/entry-form';
@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
@@ -98,36 +99,29 @@ function CreateEntryPage(): React.JSX.Element {
         )
       : getCreateEntrySchemaFromFieldDefinitions([], []);
   const formId = useId();
-  const createEntryForm = useForm({
+  const createEntryForm = useAppForm({
     resolver: zodResolver(generatedCreateEntrySchema),
     defaultValues: {
       projectId: projectId,
       collectionId: collectionId,
       values: {},
     },
+    // A default Value per field definition, filled from the queries rather than
+    // reset in an effect, so what is already typed survives a refetch.
+    ...(isReadingProject || isReadingCollection
+      ? {}
+      : {
+          values: {
+            projectId: projectId,
+            collectionId: collectionId,
+            values: defaultEntryValues(
+              flattenFieldDefinitions(collection.fieldDefinitions),
+              project.settings.language.supported
+            ),
+          },
+        }),
+    disabled: isReadingProject || isReadingCollection,
   });
-
-  // Reset form with Project and Collection data when it loads
-  useEffect(() => {
-    if (isReadingProject === false && isReadingCollection === false) {
-      createEntryForm.reset({
-        projectId: projectId,
-        collectionId: collectionId,
-        values: defaultEntryValues(
-          flattenFieldDefinitions(collection.fieldDefinitions),
-          project.settings.language.supported
-        ),
-      });
-    }
-  }, [
-    projectId,
-    collectionId,
-    project,
-    collection,
-    isReadingProject,
-    isReadingCollection,
-    createEntryForm,
-  ]);
 
   const onCreateEntry: SubmitHandler<CreateEntryProps> = async (props) => {
     try {

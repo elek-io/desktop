@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
 
 import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
 import { CollectionForm } from '@renderer/components/forms/collection-form';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { translatableDefault } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
@@ -78,7 +78,7 @@ export function CollectionDiff({
       enabled: commitBefore !== undefined,
     });
 
-  const collectionFormBefore = useForm({
+  const collectionFormBefore = useAppForm({
     resolver: zodResolver(updateCollectionSchema),
     defaultValues: {
       projectId: project.id,
@@ -103,13 +103,22 @@ export function CollectionDiff({
       },
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingCollectionBefore
+      ? {}
+      : {
+          values: {
+            projectId: project.id,
+            id: collectionBefore.id,
+            icon: collectionBefore.icon,
+            name: collectionBefore.name,
+            slug: collectionBefore.slug,
+            description: collectionBefore.description,
+            fieldDefinitions: collectionBefore.fieldDefinitions,
+          },
+        }),
+    disabled: isReadingCollectionBefore,
   });
-
-  useEffect(() => {
-    if (isReadingCollectionBefore === false) {
-      collectionFormBefore.reset(collectionBefore);
-    }
-  }, [isReadingCollectionBefore, collectionFormBefore, collectionBefore]);
 
   const { data: collectionAfter, isPending: isReadingCollectionAfter } =
     useQueryNoError({
@@ -121,7 +130,7 @@ export function CollectionDiff({
       enabled: commitAfter !== undefined,
     });
 
-  const collectionFormAfter = useForm({
+  const collectionFormAfter = useAppForm({
     resolver: zodResolver(updateCollectionSchema),
     defaultValues: {
       projectId: project.id,
@@ -146,13 +155,22 @@ export function CollectionDiff({
       },
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingCollectionAfter
+      ? {}
+      : {
+          values: {
+            projectId: project.id,
+            id: collectionAfter.id,
+            icon: collectionAfter.icon,
+            name: collectionAfter.name,
+            slug: collectionAfter.slug,
+            description: collectionAfter.description,
+            fieldDefinitions: collectionAfter.fieldDefinitions,
+          },
+        }),
+    disabled: isReadingCollectionAfter,
   });
-
-  useEffect(() => {
-    if (isReadingCollectionAfter === false) {
-      collectionFormAfter.reset(collectionAfter);
-    }
-  }, [isReadingCollectionAfter, collectionFormAfter, collectionAfter]);
 
   // Show loading skeleton while queries are pending
   if (

@@ -193,12 +193,7 @@ function UserProfilePage(): ReactElement {
     >
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
         <Card className="py-0 lg:col-span-2">
-          <AppForm
-            form={setUserForm}
-            onSubmit={onSetUser}
-            id={formId}
-            mode={isGettingUser ? 'view' : 'edit'}
-          >
+          <AppForm form={setUserForm} onSubmit={onSetUser} id={formId}>
             <PageSection
               title={t`Local User`}
               description={t`Fill out your information below and watch it influence how your future changes will look like on the right.`}

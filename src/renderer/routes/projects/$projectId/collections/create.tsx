@@ -5,8 +5,8 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { useId, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { CollectionForm } from '@renderer/components/forms/collection-form';
 import { Page } from '@renderer/components/page';
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
@@ -87,7 +88,7 @@ function ProjectCollectionCreate(): ReactElement {
         )
       : getCreateCollectionSchemaFromLanguages([]);
 
-  const createCollectionForm = useForm({
+  const createCollectionForm = useAppForm({
     resolver: zodResolver(generatedCreateCollectionSchema),
     defaultValues: {
       projectId,
@@ -103,36 +104,37 @@ function ProjectCollectionCreate(): ReactElement {
       },
       fieldDefinitions: [],
     },
-  });
-
-  // Reset form with Project data when it loads
-  useEffect(() => {
-    if (project) {
-      createCollectionForm.reset({
-        projectId,
-        icon: 'home',
-        name: {
-          singular: translatableDefault({
-            supportedLanguages: project.settings.language.supported,
-            defaultValue: '',
-          }),
-          plural: translatableDefault({
-            supportedLanguages: project.settings.language.supported,
-            defaultValue: '',
-          }),
-        },
-        description: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
+    // A key per Project language, filled from the query rather than reset in an
+    // effect, so what is already typed survives a refetch.
+    ...(isReadingProject
+      ? {}
+      : {
+          values: {
+            projectId,
+            icon: 'home' as const,
+            name: {
+              singular: translatableDefault({
+                supportedLanguages: project.settings.language.supported,
+                defaultValue: '',
+              }),
+              plural: translatableDefault({
+                supportedLanguages: project.settings.language.supported,
+                defaultValue: '',
+              }),
+            },
+            description: translatableDefault({
+              supportedLanguages: project.settings.language.supported,
+              defaultValue: '',
+            }),
+            slug: {
+              singular: '',
+              plural: '',
+            },
+            fieldDefinitions: [],
+          },
         }),
-        slug: {
-          singular: '',
-          plural: '',
-        },
-        fieldDefinitions: [],
-      });
-    }
-  }, [projectId, project, createCollectionForm]);
+    disabled: isReadingProject,
+  });
 
   function Description(): ReactElement {
     return (
