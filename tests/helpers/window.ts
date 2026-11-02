@@ -112,16 +112,22 @@ export async function windowButtonPosition(
 }
 
 /**
- * Hand the window theme channel a value and say whether it took it.
+ * Hand the window theme channel a value and say what the main process did
+ * with it.
  *
  * `theme` is `unknown`, because what this proves is which values the main
  * process refuses. The bridge's own type allows only the two it takes, so a
  * refused value has to come in untyped.
+ *
+ * The rejection's own message comes back as well, since Electron carries it to
+ * the caller. A spec asserts it rather than only the rejection, because a
+ * channel that stopped parsing would still reject a value it then tripped over
+ * somewhere else.
  */
 export async function setWindowTheme(
   page: Page,
   theme: unknown
-): Promise<'accepted' | 'refused'> {
+): Promise<{ accepted: boolean; message: string }> {
   return page.evaluate(async (value) => {
     try {
       // The one cast in the suite that is the point of the test: the bridge is
@@ -129,9 +135,9 @@ export async function setWindowTheme(
       // type out of the way. What the main process does with it is what this
       // measures.
       await window.ipc.electron.window.setTheme(value as WindowTheme);
-      return 'accepted' as const;
-    } catch {
-      return 'refused' as const;
+      return { accepted: true, message: '' };
+    } catch (error) {
+      return { accepted: false, message: String(error) };
     }
   }, theme);
 }

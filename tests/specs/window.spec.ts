@@ -234,8 +234,8 @@ test.describe('The window', () => {
     mainWindow,
   }) => {
     // The two the channel is for.
-    expect(await setWindowTheme(mainWindow, 'light')).toBe('accepted');
-    expect(await setWindowTheme(mainWindow, 'dark')).toBe('accepted');
+    expect((await setWindowTheme(mainWindow, 'light')).accepted).toBe(true);
+    expect((await setWindowTheme(mainWindow, 'dark')).accepted).toBe(true);
 
     // Everything else is refused in the main process, so neither a color nor a
     // window option can reach Electron through it. The neighbors of the two
@@ -257,10 +257,16 @@ test.describe('The window', () => {
       { color: '#ffffff', symbolColor: '#000000' },
       { width: 1, height: 1 },
     ]) {
-      expect(
-        await setWindowTheme(mainWindow, refused),
-        `${String(JSON.stringify(refused))} must be refused`
-      ).toBe('refused');
+      const answer = await setWindowTheme(mainWindow, refused);
+      const what = `${String(JSON.stringify(refused))} must be refused`;
+
+      expect(answer.accepted, what).toBe(false);
+      // Refused by the parse, which is the only thing between the renderer and
+      // Electron here. A channel that stopped parsing would still reject some
+      // of these, by tripping over them further in.
+      expect(answer.message, what).toContain(
+        'Refused to set a title bar theme'
+      );
     }
   });
 });
