@@ -226,7 +226,7 @@ test.describe('Branding', () => {
     }
   });
 
-  test('reaches WCAG AA on the primary fill, a destructive fill and an input in both themes', async ({
+  test('reaches WCAG AA on the primary fill, a destructive fill, an input and an error in both themes', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -237,6 +237,17 @@ test.describe('Branding', () => {
       await setTheme(mainWindow, theme);
       await expect(
         mainWindow.locator('input[data-slot="input"]').first()
+      ).toBeVisible();
+
+      // Red as text is a token of its own, not the fill of the destructive
+      // button, so one of each has to be on screen. Emptying the required
+      // description and submitting surfaces the message, and it leaves the
+      // input measured below valid. The theme is set first, because setTheme
+      // reloads the renderer and would reset the form.
+      await mainWindow.getByLabel('Project description').fill('');
+      await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+      await expect(
+        mainWindow.locator('p[data-slot="form-message"]').first()
       ).toBeVisible();
 
       const measured = await mainWindow.evaluate(() => {
@@ -257,6 +268,19 @@ test.describe('Branding', () => {
         const surface = getComputedStyle(
           document.querySelector('body')!
         ).backgroundColor;
+        // The nearest ancestor that paints, which is what text is read
+        // against. A message sits on the card, not on the page behind it.
+        const backdrop = (selector: string): string => {
+          let node = document.querySelector(selector);
+          while (node !== null) {
+            const color = getComputedStyle(node).backgroundColor;
+            if (color !== 'rgba(0, 0, 0, 0)' && color !== 'transparent') {
+              return color;
+            }
+            node = node.parentElement;
+          }
+          return surface;
+        };
         return {
           surface,
           // The one primary button of the page, and the destructive one that
@@ -264,6 +288,10 @@ test.describe('Branding', () => {
           primary: read('button.bg-primary'),
           destructive: read('button.bg-destructive'),
           input: read('input[data-slot="input"]'),
+          error: {
+            ...read('p[data-slot="form-message"]'),
+            background: backdrop('p[data-slot="form-message"]'),
+          },
         };
       });
 
@@ -298,6 +326,14 @@ test.describe('Branding', () => {
           over(parseColor(measured.input.background), page)
         )
       ).toBeGreaterThanOrEqual(3);
+
+      // What a field says went wrong, on the surface it sits on: 4.5:1 again.
+      expect(
+        contrastRatio(
+          parseColor(measured.error.color),
+          over(parseColor(measured.error.background), page)
+        )
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 
