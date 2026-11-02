@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import {
   Link,
   Outlet,
@@ -52,7 +53,9 @@ function ProjectSettingsLayout(): ReactElement {
           <SidebarHeader />
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Settings</SidebarGroupLabel>
+              <SidebarGroupLabel>
+                <Trans>Settings</Trans>
+              </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {settingsNavigation.map((item) => (

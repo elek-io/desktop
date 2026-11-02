@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { useWatch } from 'react-hook-form';
 
@@ -68,11 +69,14 @@ function EntryExtras({
           <FormItem>
             <FieldSet className="gap-2">
               <FieldLegend variant="label" className="mb-0">
-                Restrict to Collections
+                <Trans>Restrict to Collections</Trans>
               </FieldLegend>
               <FormDescription>
-                Only Entries from the selected Collections can be referenced. If
-                none are selected, Entries from all Collections are available.
+                <Trans>
+                  Only Entries from the selected Collections can be referenced.
+                  If none are selected, Entries from all Collections are
+                  available.
+                </Trans>
               </FormDescription>
               <div className="space-y-2">
                 {isReadingCollections === true ? (
@@ -84,7 +88,7 @@ function EntryExtras({
                   </div>
                 ) : collectionList.list.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No Collections available in this project.
+                    <Trans>No Collections available in this project.</Trans>
                   </p>
                 ) : (
                   collectionList.list.map((collection) => {
@@ -126,12 +130,16 @@ function EntryExtras({
           name="min"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Minimum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Minimum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The minimum number of Entries the user needs to select.
+                <Trans>
+                  The minimum number of Entries the user needs to select.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -142,12 +150,16 @@ function EntryExtras({
           name="max"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Maximum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Maximum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The maximum number of Entries the user is able to select.
+                <Trans>
+                  The maximum number of Entries the user is able to select.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>

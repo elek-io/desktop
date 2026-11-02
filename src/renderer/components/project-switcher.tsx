@@ -1,5 +1,6 @@
 'use client';
 
+import { Trans } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
 import { ArrowLeftIcon, ChevronsUpDown } from 'lucide-react';
 import * as React from 'react';
@@ -62,7 +63,7 @@ export function ProjectSwitcher({
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Projects
+                <Trans>Projects</Trans>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             {isListingProjects
@@ -98,7 +99,7 @@ export function ProjectSwitcher({
                 <ArrowLeftIcon className="size-4" />
               </div>
               <div className="font-medium text-muted-foreground">
-                View all Projects
+                <Trans>View all Projects</Trans>
               </div>
             </DropdownMenuItem>
           </DropdownMenuContent>

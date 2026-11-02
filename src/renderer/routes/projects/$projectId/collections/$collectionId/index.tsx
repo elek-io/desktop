@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Plus, Settings } from 'lucide-react';
 import { type ReactElement } from 'react';
@@ -95,7 +96,7 @@ function ProjectCollectionIndexPage(): ReactElement {
             })
           }
         >
-          Configure
+          <Trans>Configure</Trans>
         </Button>
       </>
     );

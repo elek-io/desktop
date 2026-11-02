@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import type { ReactElement } from 'react';
 
 import { Button } from '@renderer/components/ui/button';
@@ -101,9 +102,11 @@ export const EntryReferencePicker = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Reference an Entry</DialogTitle>
+          <DialogTitle>
+            <Trans>Reference an Entry</Trans>
+          </DialogTitle>
           <DialogDescription>
-            The reference is inserted at the cursor position.
+            <Trans>The reference is inserted at the cursor position.</Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -117,8 +120,10 @@ export const EntryReferencePicker = ({
             </div>
           ) : hasEntries === false ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No Entries available. Create Entries in the allowed Collections
-              first.
+              <Trans>
+                No Entries available. Create Entries in the allowed Collections
+                first.
+              </Trans>
             </p>
           ) : (
             <div className="space-y-6">
@@ -160,7 +165,7 @@ export const EntryReferencePicker = ({
 
         <DialogFooter>
           <DialogClose render={<Button variant="secondary" />}>
-            Cancel
+            <Trans>Cancel</Trans>
           </DialogClose>
         </DialogFooter>
       </DialogContent>

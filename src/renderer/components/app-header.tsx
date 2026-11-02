@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { version as desktopVersion, dependencies } from '@root/package.json';
 import { Link, useRouter } from '@tanstack/react-router';
 import {
@@ -128,7 +129,9 @@ function HelpMenu(): ReactElement {
         <DropdownMenuTrigger
           render={<Button variant="ghost" size="icon-sm" Icon={CircleHelp} />}
         >
-          <span className="sr-only">Help</span>
+          <span className="sr-only">
+            <Trans>Help</Trans>
+          </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           className="window-not-draggable-area w-60"
@@ -208,7 +211,9 @@ export function HeaderTrail(): ReactElement {
           onClick={() => router.history.back()}
           Icon={ArrowLeft}
         >
-          <span className="sr-only">Go back</span>
+          <span className="sr-only">
+            <Trans>Go back</Trans>
+          </span>
         </Button>
         <Button
           variant="ghost"
@@ -216,7 +221,9 @@ export function HeaderTrail(): ReactElement {
           onClick={() => router.history.forward()}
           Icon={ArrowRight}
         >
-          <span className="sr-only">Go forward</span>
+          <span className="sr-only">
+            <Trans>Go forward</Trans>
+          </span>
         </Button>
       </ButtonGroup>
 

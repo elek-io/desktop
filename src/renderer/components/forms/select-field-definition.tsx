@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { Plus, TrashIcon } from 'lucide-react';
 import { useEffect, useId, useState, type ReactElement } from 'react';
 import { useFieldArray, useWatch, type UseFormReturn } from 'react-hook-form';
@@ -69,7 +70,7 @@ function ValueTypeSelect({
   return (
     <div className="grid gap-2">
       <Label htmlFor={selectId} isRequired>
-        Type of options
+        <Trans>Type of options</Trans>
       </Label>
       <Select
         items={{ string: 'Text', number: 'Number' }}
@@ -84,12 +85,18 @@ function ValueTypeSelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="string">Text</SelectItem>
-          <SelectItem value="number">Number</SelectItem>
+          <SelectItem value="string">
+            <Trans>Text</Trans>
+          </SelectItem>
+          <SelectItem value="number">
+            <Trans>Number</Trans>
+          </SelectItem>
         </SelectContent>
       </Select>
       <p id={descriptionId} className="text-sm text-muted-foreground">
-        Whether the options of this Field hold text or number values.
+        <Trans>
+          Whether the options of this Field hold text or number values.
+        </Trans>
       </p>
     </div>
   );
@@ -108,7 +115,9 @@ function DefaultOptionSelect({
 }): ReactElement {
   return (
     <FormItem>
-      <FormLabel isRequired={false}>Default value</FormLabel>
+      <FormLabel isRequired={false}>
+        <Trans>Default value</Trans>
+      </FormLabel>
       <FormControl>
         <Select
           items={{
@@ -128,7 +137,9 @@ function DefaultOptionSelect({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="none">
+              <Trans>None</Trans>
+            </SelectItem>
             {items.map((item) => (
               <SelectItem key={item.itemValue} value={item.itemValue}>
                 {item.display}
@@ -137,7 +148,9 @@ function DefaultOptionSelect({
           </SelectContent>
         </Select>
       </FormControl>
-      <FormDescription>The initial option for the field.</FormDescription>
+      <FormDescription>
+        <Trans>The initial option for the field.</Trans>
+      </FormDescription>
       <FormMessage />
     </FormItem>
   );
@@ -251,7 +264,9 @@ function StringSelectExtras({
         name="options"
         render={() => (
           <FormItem>
-            <FormLabel isRequired>Options</FormLabel>
+            <FormLabel isRequired>
+              <Trans>Options</Trans>
+            </FormLabel>
             <div className="space-y-2">
               {options.fields.map((option, index) => (
                 <StringSelectOptionRow
@@ -282,11 +297,13 @@ function StringSelectExtras({
                 })
               }
             >
-              Add option
+              <Trans>Add option</Trans>
             </Button>
             <FormDescription>
-              The options a user can choose between. The label is what users
-              see, the value is what gets stored.
+              <Trans>
+                The options a user can choose between. The label is what users
+                see, the value is what gets stored.
+              </Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -406,7 +423,9 @@ function NumberSelectExtras({
         name="options"
         render={() => (
           <FormItem>
-            <FormLabel isRequired>Options</FormLabel>
+            <FormLabel isRequired>
+              <Trans>Options</Trans>
+            </FormLabel>
             <div className="space-y-2">
               {options.fields.map((option, index) => (
                 <NumberSelectOptionRow
@@ -437,11 +456,13 @@ function NumberSelectExtras({
                 })
               }
             >
-              Add option
+              <Trans>Add option</Trans>
             </Button>
             <FormDescription>
-              The options a user can choose between. The label is what users
-              see, the value is what gets stored.
+              <Trans>
+                The options a user can choose between. The label is what users
+                see, the value is what gets stored.
+              </Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>

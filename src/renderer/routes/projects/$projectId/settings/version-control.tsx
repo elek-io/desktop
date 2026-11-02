@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -89,7 +90,7 @@ function ProjectSettingsVersionControlPage(): ReactElement {
           actions={
             <FormActions form={remoteOriginUrlForm}>
               <SubmitButton requireDirty Icon={Check}>
-                Save changes
+                <Trans>Save changes</Trans>
               </SubmitButton>
             </FormActions>
           }
@@ -100,7 +101,9 @@ function ProjectSettingsVersionControlPage(): ReactElement {
               name="url"
               render={({ field }) => (
                 <FormItem className="col-span-12">
-                  <FormLabel isRequired>Remote URL</FormLabel>
+                  <FormLabel isRequired>
+                    <Trans>Remote URL</Trans>
+                  </FormLabel>
                   <FormControl>
                     <FormInputField field={field} type="url" />
                   </FormControl>

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
   useForm,
@@ -66,7 +67,9 @@ export function DefaultValueInputField<Def extends FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem>
-          <FormLabel isRequired={isRequired}>Default value</FormLabel>
+          <FormLabel isRequired={isRequired}>
+            <Trans>Default value</Trans>
+          </FormLabel>
           <FormControl>
             <FormInputField
               field={field}
@@ -105,7 +108,9 @@ export function MinMaxRow<Def extends FieldValues>({
         name={minName}
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired={isRequired}>Minimum</FormLabel>
+            <FormLabel isRequired={isRequired}>
+              <Trans>Minimum</Trans>
+            </FormLabel>
             <FormControl>
               <FormInputField field={field} type="number" />
             </FormControl>
@@ -119,7 +124,9 @@ export function MinMaxRow<Def extends FieldValues>({
         name={maxName}
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired={isRequired}>Maximum</FormLabel>
+            <FormLabel isRequired={isRequired}>
+              <Trans>Maximum</Trans>
+            </FormLabel>
             <FormControl>
               <FormInputField field={field} type="number" />
             </FormControl>

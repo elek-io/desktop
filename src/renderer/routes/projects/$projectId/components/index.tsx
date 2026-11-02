@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { Blocks, Plus } from 'lucide-react';
 import { type ReactElement } from 'react';
@@ -53,7 +54,7 @@ function ProjectComponentsPage(): ReactElement {
           })
         }
       >
-        Create Component
+        <Trans>Create Component</Trans>
       </Button>
     );
   }
@@ -86,10 +87,14 @@ function ProjectComponentsPage(): ReactElement {
             <EmptyMedia variant="icon">
               <Blocks />
             </EmptyMedia>
-            <EmptyTitle>No Components yet</EmptyTitle>
+            <EmptyTitle>
+              <Trans>No Components yet</Trans>
+            </EmptyTitle>
             <EmptyDescription>
-              Nothing in this Project is built from Components yet. Create one
-              to give a Collection a field whose sections an editor fills in.
+              <Trans>
+                Nothing in this Project is built from Components yet. Create one
+                to give a Collection a field whose sections an editor fills in.
+              </Trans>
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>

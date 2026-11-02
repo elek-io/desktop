@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { CheckIcon } from 'lucide-react';
 import type { ReactElement } from 'react';
 
@@ -55,9 +56,11 @@ export const AssetReferencePicker = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Reference an Asset</DialogTitle>
+          <DialogTitle>
+            <Trans>Reference an Asset</Trans>
+          </DialogTitle>
           <DialogDescription>
-            The Asset is inserted at the cursor position.
+            <Trans>The Asset is inserted at the cursor position.</Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -71,7 +74,9 @@ export const AssetReferencePicker = ({
             </div>
           ) : availableAssets.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No matching Assets available. Add Assets to the project first.
+              <Trans>
+                No matching Assets available. Add Assets to the project first.
+              </Trans>
             </p>
           ) : (
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -99,7 +104,7 @@ export const AssetReferencePicker = ({
 
         <DialogFooter>
           <DialogClose render={<Button variant="secondary" />}>
-            Cancel
+            <Trans>Cancel</Trans>
           </DialogClose>
         </DialogFooter>
       </DialogContent>

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
@@ -188,7 +189,7 @@ function ProjectCollectionUpdate(): ReactElement {
     return (
       <FormActions form={updateCollectionForm} id={formId}>
         <SubmitButton requireDirty Icon={Check}>
-          Save changes
+          <Trans>Save changes</Trans>
         </SubmitButton>
       </FormActions>
     );
@@ -249,7 +250,7 @@ function ProjectCollectionUpdate(): ReactElement {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm leading-6 font-medium">
-                Delete this Collection
+                <Trans>Delete this Collection</Trans>
               </p>
             </div>
             <div>
@@ -260,14 +261,20 @@ function ProjectCollectionUpdate(): ReactElement {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this Collection?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      <Trans>Delete this Collection?</Trans>
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Deleting this Collection also permanently deletes every
-                      Entry inside it. This cannot be undone.
+                      <Trans>
+                        Deleting this Collection also permanently deletes every
+                        Entry inside it. This cannot be undone.
+                      </Trans>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>
+                      <Trans>Cancel</Trans>
+                    </AlertDialogCancel>
                     <AlertDialogAction
                       variant="destructive"
                       Icon={Trash}
@@ -278,7 +285,7 @@ function ProjectCollectionUpdate(): ReactElement {
                         })
                       }
                     >
-                      Yes, delete this Collection
+                      <Trans>Yes, delete this Collection</Trans>
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -290,7 +297,9 @@ function ProjectCollectionUpdate(): ReactElement {
               >
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Could not delete this Collection</DialogTitle>
+                    <DialogTitle>
+                      <Trans>Could not delete this Collection</Trans>
+                    </DialogTitle>
                     <DialogDescription>
                       {describeCoreError(
                         deleteErrorType,
@@ -303,7 +312,7 @@ function ProjectCollectionUpdate(): ReactElement {
                     <DialogClose
                       render={<Button type="button" variant="secondary" />}
                     >
-                      Close
+                      <Trans>Close</Trans>
                     </DialogClose>
                   </DialogFooter>
                 </DialogContent>
@@ -319,7 +328,9 @@ function ProjectCollectionUpdate(): ReactElement {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not save this Collection</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not save this Collection</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
                 saveErrorType,
@@ -330,7 +341,7 @@ function ProjectCollectionUpdate(): ReactElement {
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="secondary" />}>
-              Close
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

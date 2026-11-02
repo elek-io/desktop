@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { errorLogAttributes } from '@root/src/shared/logError';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
@@ -221,7 +222,7 @@ function PaneReadFailed({ error, reset }: ErrorComponentProps): ReactElement {
           reset();
         }}
       >
-        Try again
+        <Trans>Try again</Trans>
       </Button>
     </div>
   );

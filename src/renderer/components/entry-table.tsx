@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { useRouter } from '@tanstack/react-router';
 import {
   flexRender,
@@ -298,7 +299,7 @@ export function EntryTable({
                 colSpan={table.getAllColumns().length}
                 className="h-24 text-center"
               >
-                No results.
+                <Trans>No results.</Trans>
               </TableCell>
             </TableRow>
           )}

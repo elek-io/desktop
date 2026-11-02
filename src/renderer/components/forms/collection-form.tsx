@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
   type FieldValues,
@@ -90,7 +91,9 @@ export function CollectionForm<
             name="icon"
             render={({ field }) => (
               <FormItem className="col-span-12 sm:col-span-2">
-                <FormLabel isRequired>Icon</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>Icon</Trans>
+                </FormLabel>
                 <FormControl>
                   <Select
                     items={iconItems}
@@ -120,7 +123,9 @@ export function CollectionForm<
             name={`name.plural.${project.settings.language.default}`}
             render={({ field }) => (
               <FormItem className="col-span-12 sm:col-span-5">
-                <FormLabel isRequired>Collection name (Plural)</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>Collection name (Plural)</Trans>
+                </FormLabel>
                 <TranslatableFormInputField
                   title="Collection name (Plural)"
                   description='The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. "Blogposts".'
@@ -130,9 +135,11 @@ export function CollectionForm<
                   supportedLanguages={project.settings.language.supported}
                 />
                 <FormDescription>
-                  The name of your new collection. Choose a short name in plural
-                  that explains the content of the collection - e.g.
-                  &quot;Blogposts&quot;.
+                  <Trans>
+                    The name of your new collection. Choose a short name in
+                    plural that explains the content of the collection - e.g.
+                    &quot;Blogposts&quot;.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -144,7 +151,9 @@ export function CollectionForm<
             name={`name.singular.${project.settings.language.default}`}
             render={({ field }) => (
               <FormItem className="col-span-12 sm:col-span-5">
-                <FormLabel isRequired>Entry name (Singular)</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>Entry name (Singular)</Trans>
+                </FormLabel>
                 <TranslatableFormInputField
                   title="Entry name (Singular)"
                   description='The name of each Entry inside your new Collection. Choose a short name in singular - e.g. "Blogpost".'
@@ -154,8 +163,10 @@ export function CollectionForm<
                   supportedLanguages={project.settings.language.supported}
                 />
                 <FormDescription>
-                  The name of each Entry inside your new Collection. Choose a
-                  short name in singular - e.g. &quot;Blogpost&quot;.
+                  <Trans>
+                    The name of each Entry inside your new Collection. Choose a
+                    short name in singular - e.g. &quot;Blogpost&quot;.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -167,7 +178,9 @@ export function CollectionForm<
             name={`description.${project.settings.language.default}`}
             render={({ field }) => (
               <FormItem className="col-span-12 sm:col-span-12">
-                <FormLabel isRequired>Description</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>Description</Trans>
+                </FormLabel>
                 <TranslatableFormTextareaField
                   title="Description"
                   description="A description of what this new Collection is used for."
@@ -176,7 +189,9 @@ export function CollectionForm<
                   supportedLanguages={project.settings.language.supported}
                 />
                 <FormDescription>
-                  A description of what this new Collection is used for.
+                  <Trans>
+                    A description of what this new Collection is used for.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -189,14 +204,18 @@ export function CollectionForm<
           name="slug.plural"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired>Collection-Slug</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Collection-Slug</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="text" />
               </FormControl>
               <FormDescription>
-                A lowercase version without any special characters of the
-                Collection name. It's used to identify this Collection and needs
-                to be unique.
+                <Trans>
+                  A lowercase version without any special characters of the
+                  Collection name. It's used to identify this Collection and
+                  needs to be unique.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -208,14 +227,18 @@ export function CollectionForm<
           name="slug.singular"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired>Entry-Slug</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Entry-Slug</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="text" />
               </FormControl>
               <FormDescription>
-                A lowercase version without any special characters of the
-                Entry's name. It's used to identify this Collection's Entries
-                and needs to be unique.
+                <Trans>
+                  A lowercase version without any special characters of the
+                  Entry's name. It's used to identify this Collection's Entries
+                  and needs to be unique.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>

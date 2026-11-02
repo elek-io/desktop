@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -139,7 +140,9 @@ function ProjectComponentCreate(): ReactElement {
   function Actions(): ReactElement {
     return (
       <FormActions form={createComponentForm} id={formId}>
-        <SubmitButton Icon={Check}>Create Component</SubmitButton>
+        <SubmitButton Icon={Check}>
+          <Trans>Create Component</Trans>
+        </SubmitButton>
       </FormActions>
     );
   }
@@ -186,7 +189,9 @@ function ProjectComponentCreate(): ReactElement {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not create this Component</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not create this Component</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
                 saveErrorType,
@@ -197,7 +202,7 @@ function ProjectComponentCreate(): ReactElement {
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="secondary" />}>
-              Close
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

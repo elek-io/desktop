@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
 import { PlusIcon, LayersIcon } from 'lucide-react';
 import React from 'react';
@@ -43,7 +44,9 @@ export function CollectionsSidebar({
                 }
               >
                 <PlusIcon />
-                <span>Create Collection</span>
+                <span>
+                  <Trans>Create Collection</Trans>
+                </span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -51,7 +54,9 @@ export function CollectionsSidebar({
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Collections</SidebarGroupLabel>
+          <SidebarGroupLabel>
+            <Trans>Collections</Trans>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {collections.list.map((collection) => (
@@ -76,7 +81,9 @@ export function CollectionsSidebar({
                 </SidebarMenuItem>
               ))}
               {collections.total === 0 && (
-                <p className="px-3 text-sm">No Collections found</p>
+                <p className="px-3 text-sm">
+                  <Trans>No Collections found</Trans>
+                </p>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -108,7 +115,9 @@ export function CollectionsSidebarSkeleton({
                 }
               >
                 <PlusIcon />
-                <span>Create Collection</span>
+                <span>
+                  <Trans>Create Collection</Trans>
+                </span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -116,7 +125,9 @@ export function CollectionsSidebarSkeleton({
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Collections</SidebarGroupLabel>
+          <SidebarGroupLabel>
+            <Trans>Collections</Trans>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {[1, 2, 3, 4, 5].map((index) => (

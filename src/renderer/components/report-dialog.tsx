@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { version as desktopVersion } from '@root/package.json';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { errorLogAttributes } from '@root/src/shared/logError';
@@ -304,7 +305,9 @@ function ReportError({
   return (
     <Alert variant="destructive">
       <AlertCircle />
-      <AlertTitle>Could not send this report</AlertTitle>
+      <AlertTitle>
+        <Trans>Could not send this report</Trans>
+      </AlertTitle>
       <AlertDescription>
         {describeCoreError(type, descriptions, reportErrorFallback)}
       </AlertDescription>
@@ -338,7 +341,9 @@ function ContactFields<
         name={nameField}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Name</FormLabel>
+            <FormLabel>
+              <Trans>Name</Trans>
+            </FormLabel>
             <FormControl>
               <FormInputField field={field} type="text" />
             </FormControl>
@@ -353,7 +358,9 @@ function ContactFields<
         name={emailField}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Email</FormLabel>
+            <FormLabel>
+              <Trans>Email</Trans>
+            </FormLabel>
             <FormControl>
               <FormInputField field={field} type="email" />
             </FormControl>
@@ -389,7 +396,7 @@ function ReportFooter<
     <FormActions form={form} id={formId}>
       <DialogFooter>
         <DialogClose render={<Button variant="secondary" />}>
-          Cancel
+          <Trans>Cancel</Trans>
         </DialogClose>
         <SubmitButton Icon={Send}>{label}</SubmitButton>
       </DialogFooter>
@@ -436,14 +443,18 @@ function BugReportForm({
             name="message"
             render={({ field }) => (
               <FormItem>
-                <FormLabel isRequired>What went wrong?</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>What went wrong?</Trans>
+                </FormLabel>
                 <FormControl>
                   <FormTextareaField field={field} rows={8} />
                 </FormControl>
                 <FormDescription>
-                  What you did just before it happened, roughly when, and what
-                  you expected instead. That is usually what lets us find it in
-                  the logs and reproduce it.
+                  <Trans>
+                    What you did just before it happened, roughly when, and what
+                    you expected instead. That is usually what lets us find it
+                    in the logs and reproduce it.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -474,15 +485,19 @@ function BugReportForm({
                     label carrying the user's consent to send data, so it has to
                     read exactly as written.
                   */}
-                  <FormLabel isRequired>Also send my logs</FormLabel>
+                  <FormLabel isRequired>
+                    <Trans>Also send my logs</Trans>
+                  </FormLabel>
                 </div>
                 <FormDescription>
-                  Sends what elek.io Desktop recorded on this machine in the
-                  last 24 hours. That includes the ids of your Projects,
-                  Collections and Entries, the files they live in and the
-                  actions you took, but never the content you wrote or the names
-                  you gave them. It is the single most useful thing for finding
-                  a bug.
+                  <Trans>
+                    Sends what elek.io Desktop recorded on this machine in the
+                    last 24 hours. That includes the ids of your Projects,
+                    Collections and Entries, the files they live in and the
+                    actions you took, but never the content you wrote or the
+                    names you gave them. It is the single most useful thing for
+                    finding a bug.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -544,14 +559,16 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
             render={({ field }) => (
               <FormItem>
                 <FormLabel isRequired>
-                  What would you like to tell us?
+                  <Trans>What would you like to tell us?</Trans>
                 </FormLabel>
                 <FormControl>
                   <FormTextareaField field={field} rows={8} />
                 </FormControl>
                 <FormDescription>
-                  What is missing, what got in your way, or what you would like
-                  to see next.
+                  <Trans>
+                    What is missing, what got in your way, or what you would
+                    like to see next.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -647,14 +664,14 @@ export function ReportDialog({
               aria-pressed={mode === 'bug'}
               onClick={() => setMode('bug')}
             >
-              Report a bug
+              <Trans>Report a bug</Trans>
             </Button>
             <Button
               variant="outline"
               aria-pressed={mode === 'feedback'}
               onClick={() => setMode('feedback')}
             >
-              Share feedback
+              <Trans>Share feedback</Trans>
             </Button>
           </ButtonGroup>
         </DialogHeader>

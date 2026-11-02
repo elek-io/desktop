@@ -60,9 +60,10 @@ function mutationLogAttributes(
  * The display of a notification depends on the availability of the meta object with
  * method and objectType keys, which is enforced here too.
  *
- * `toasts` replaces the text both notifications are built from, for a mutation
- * whose outcome needs to be said in words rather than as `{method} {objectType}`.
- * Without it the generated text is used, so an existing mutation reads the same.
+ * `toasts` is required, and it is what the two notifications say. Each sentence
+ * is written for the person in front of the app and read from the message
+ * catalog when the toast shows, never built from the call, so no toast can read
+ * as a method and an object. A mutation without it does not compile.
  *
  * It adds `throwOnError: true` to propagate errors to the nearest error boundary (__root.tsx).
  *
@@ -91,9 +92,11 @@ export function customMutationOptions<
     context: MutationFunctionContext
   ) => Promise<unknown> | unknown;
   meta: LogableMutationMeta;
-  toasts?: {
-    success: (data: TData) => string;
-    error: string;
+  toasts: {
+    /** What happened, named by what it happened to where the answer carries it. */
+    success: (data: TData, variables: TVariables) => string;
+    /** What did not happen. It names no call, type, id or git output. */
+    error: (variables: TVariables) => string;
   };
 }): Omit<
   UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
@@ -120,11 +123,7 @@ export function customMutationOptions<
           meta: errorLogAttributes(logableMutationMeta.error),
         });
       } else {
-        toast.success(
-          toasts
-            ? toasts.success(data)
-            : `${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`
-        );
+        toast.success(toasts.success(data, variables));
 
         await window.ipc.core.logger.info({
           source: 'desktop',
@@ -139,7 +138,7 @@ export function customMutationOptions<
       // reaches the mutation instead of becoming an unhandled rejection.
       await originalOnSuccess(data, variables, result, context);
     },
-    onError: async (error, _variables, _result, context) => {
+    onError: async (error, variables, _result, context) => {
       const logableMutationMeta = logableMutationMetaSchema.safeParse(
         context.meta
       );
@@ -151,11 +150,7 @@ export function customMutationOptions<
           meta: errorLogAttributes(error),
         });
       } else {
-        toast.error(
-          toasts
-            ? toasts.error
-            : `${logableMutationMeta.data.method} ${logableMutationMeta.data.objectType}`
-        );
+        toast.error(toasts.error(variables));
 
         await window.ipc.core.logger.error({
           source: 'desktop',

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { createFileRoute } from '@tanstack/react-router';
 import { Rocket, Tag } from 'lucide-react';
 import { type ReactElement } from 'react';
@@ -53,14 +54,16 @@ function ProjectReleasesPage(): ReactElement {
     if (isReadingProject) {
       return (
         <Button Icon={Rocket} disabled>
-          Release
+          <Trans>Release</Trans>
         </Button>
       );
     }
 
     return (
       <ReleaseDialog project={project}>
-        <Button Icon={Rocket}>Release</Button>
+        <Button Icon={Rocket}>
+          <Trans>Release</Trans>
+        </Button>
       </ReleaseDialog>
     );
   }
@@ -94,10 +97,14 @@ function ProjectReleasesPage(): ReactElement {
               <EmptyMedia variant="icon">
                 <Rocket />
               </EmptyMedia>
-              <EmptyTitle>No Releases yet</EmptyTitle>
+              <EmptyTitle>
+                <Trans>No Releases yet</Trans>
+              </EmptyTitle>
               <EmptyDescription>
-                Nothing has been published from this Project yet. A Release
-                takes everything saved here and gives it a version.
+                <Trans>
+                  Nothing has been published from this Project yet. A Release
+                  takes everything saved here and gives it a version.
+                </Trans>
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -138,7 +145,9 @@ function ReleaseRow({
           rather than listed as the version a site builds from. elek.io Desktop
           cannot make one, see contributing/not-yet-implemented.md. */}
       {release.type === 'preview' ? (
-        <Badge variant="outline">Preview</Badge>
+        <Badge variant="outline">
+          <Trans>Preview</Trans>
+        </Badge>
       ) : null}
       <span className="ml-auto text-sm text-muted-foreground">
         Published {published}

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -205,7 +206,9 @@ function CreateEntryPage(): React.JSX.Element {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not save this Entry</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not save this Entry</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
                 conflictErrorType,
@@ -216,7 +219,7 @@ function CreateEntryPage(): React.JSX.Element {
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="secondary" />}>
-              Close
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

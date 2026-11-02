@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
@@ -122,7 +123,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
     return (
       <FormActions form={updateProjectForm} id={formId}>
         <SubmitButton requireDirty Icon={Check}>
-          Save changes
+          <Trans>Save changes</Trans>
         </SubmitButton>
       </FormActions>
     );
@@ -182,20 +183,24 @@ function ProjectSettingsGeneralPage(): ReactElement {
                 <DialogTrigger
                   render={<Button Icon={Trash} variant="destructive" />}
                 >
-                  Delete Project
+                  <Trans>Delete Project</Trans>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Remove this Project?</DialogTitle>
+                    <DialogTitle>
+                      <Trans>Remove this Project?</Trans>
+                    </DialogTitle>
                     <DialogDescription>
-                      You are about to delete the Project from this device.
+                      <Trans>
+                        You are about to delete the Project from this device.
+                      </Trans>
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
                     <DialogClose
                       render={<Button type="button" variant="secondary" />}
                     >
-                      Cancel
+                      <Trans>Cancel</Trans>
                     </DialogClose>
                     <Button
                       Icon={Trash}
@@ -203,7 +208,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
                       isLoading={isDeletingProject}
                       onClick={() => void onDelete()}
                     >
-                      Delete
+                      <Trans>Delete</Trans>
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -215,7 +220,9 @@ function ProjectSettingsGeneralPage(): ReactElement {
               >
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Force delete this Project?</DialogTitle>
+                    <DialogTitle>
+                      <Trans>Force delete this Project?</Trans>
+                    </DialogTitle>
                     <DialogDescription>
                       {describeCoreError(
                         forceDeleteErrorType,
@@ -228,7 +235,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
                     <DialogClose
                       render={<Button type="button" variant="secondary" />}
                     >
-                      Cancel
+                      <Trans>Cancel</Trans>
                     </DialogClose>
                     <Button
                       Icon={Trash}
@@ -236,7 +243,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
                       isLoading={isForceDeletingProject}
                       onClick={() => void onForceDelete()}
                     >
-                      Yes, delete
+                      <Trans>Yes, delete</Trans>
                     </Button>
                   </DialogFooter>
                 </DialogContent>

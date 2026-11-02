@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import { customMutationOptions } from '../util';
@@ -16,6 +17,10 @@ export const userOptions = {
     meta: {
       method: 'set',
       objectType: 'user',
+    },
+    toasts: {
+      success: () => t`Profile saved`,
+      error: () => t`Could not save your profile`,
     },
     onSuccess: (updatedUser, _variables, _result, context) => {
       context.client.setQueryData(['user'], updatedUser);

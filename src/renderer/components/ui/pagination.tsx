@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -140,7 +141,9 @@ function PaginationEllipsis({
       {...props}
     >
       <MoreHorizontalIcon />
-      <span className="sr-only">More pages</span>
+      <span className="sr-only">
+        <Trans>More pages</Trans>
+      </span>
     </span>
   );
 }

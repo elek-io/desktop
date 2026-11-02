@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Link, type ToPathOption } from '@tanstack/react-router';
 import {
@@ -99,7 +100,9 @@ const projectNavigation: {
 function ProjectNavigation(): React.JSX.Element {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel className="shrink-0">Navigation</SidebarGroupLabel>
+      <SidebarGroupLabel className="shrink-0">
+        <Trans>Navigation</Trans>
+      </SidebarGroupLabel>
       <SidebarGroupContent className="shrink-0">
         <SidebarMenu>
           {projectNavigation.map((item) => (
@@ -210,7 +213,7 @@ export function ProjectSidebar(): React.JSX.Element {
                 }
                 Icon={ArrowDownUp}
               >
-                Synchronize
+                <Trans>Synchronize</Trans>
               </Button>
               <ButtonGroupSeparator />
               <Button
@@ -218,7 +221,9 @@ export function ProjectSidebar(): React.JSX.Element {
                 disabled={isFetchingProjectChanges || isSynchronizingProject}
                 Icon={RefreshCw}
               >
-                <span className="sr-only">Refresh changes</span>
+                <span className="sr-only">
+                  <Trans>Refresh changes</Trans>
+                </span>
               </Button>
             </ButtonGroup>
             <p className="mt-2 text-center text-xs font-medium text-muted-foreground">
@@ -240,7 +245,9 @@ export function ProjectSidebar(): React.JSX.Element {
             >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Could not synchronize this Project</DialogTitle>
+                  <DialogTitle>
+                    <Trans>Could not synchronize this Project</Trans>
+                  </DialogTitle>
                   <DialogDescription>
                     {describeCoreError(
                       syncErrorType,
@@ -253,7 +260,7 @@ export function ProjectSidebar(): React.JSX.Element {
                   <DialogClose
                     render={<Button type="button" variant="secondary" />}
                   >
-                    Close
+                    <Trans>Close</Trans>
                   </DialogClose>
                 </DialogFooter>
               </DialogContent>

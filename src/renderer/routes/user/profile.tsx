@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -132,8 +133,10 @@ function UserProfilePage(): ReactElement {
           Before we start you need to set up a local User first. Don&apos;t
           worry, you are not creating an account and this information is only
           saved locally on this device! Read more about{' '}
-          <a href="#">local Users in our documentation</a> if you have questions
-          about this step.
+          <a href="#">
+            <Trans>local Users in our documentation</Trans>
+          </a>{' '}
+          if you have questions about this step.
         </>
       );
     }
@@ -141,7 +144,10 @@ function UserProfilePage(): ReactElement {
     return (
       <>
         By editing your Users details, ... Read more about{' '}
-        <a href="#">local Users in our documentation</a>.
+        <a href="#">
+          <Trans>local Users in our documentation</Trans>
+        </a>
+        .
       </>
     );
   }
@@ -150,7 +156,7 @@ function UserProfilePage(): ReactElement {
     return (
       <FormActions form={setUserForm} id={formId}>
         <SubmitButton requireDirty Icon={Check}>
-          Save local User
+          <Trans>Save local User</Trans>
         </SubmitButton>
       </FormActions>
     );
@@ -215,7 +221,9 @@ function UserProfilePage(): ReactElement {
                   name="language"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel isRequired>Preferred language</FormLabel>
+                      <FormLabel isRequired>
+                        <Trans>Preferred language</Trans>
+                      </FormLabel>
                       <FormControl>
                         <Select
                           items={languageItems}
@@ -245,7 +253,7 @@ function UserProfilePage(): ReactElement {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          GitHub repository
+                          <Trans>GitHub repository</Trans>
                         </a>
                         .
                       </FormDescription>
@@ -258,13 +266,17 @@ function UserProfilePage(): ReactElement {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel isRequired>Full name</FormLabel>
+                      <FormLabel isRequired>
+                        <Trans>Full name</Trans>
+                      </FormLabel>
                       <FormControl>
                         <FormInputField field={field} type="text" />
                       </FormControl>
                       <FormDescription>
-                        Your name will be used by others to identify changes
-                        made by you.
+                        <Trans>
+                          Your name will be used by others to identify changes
+                          made by you.
+                        </Trans>
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -275,13 +287,17 @@ function UserProfilePage(): ReactElement {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel isRequired>Email</FormLabel>
+                      <FormLabel isRequired>
+                        <Trans>Email</Trans>
+                      </FormLabel>
                       <FormControl>
                         <FormInputField field={field} type="email" />
                       </FormControl>
                       <FormDescription>
-                        Your email allows other members of Projects to contact
-                        you.
+                        <Trans>
+                          Your email allows other members of Projects to contact
+                          you.
+                        </Trans>
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -299,13 +315,17 @@ function UserProfilePage(): ReactElement {
                   name="localApi.port"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel isRequired>Port</FormLabel>
+                      <FormLabel isRequired>
+                        <Trans>Port</Trans>
+                      </FormLabel>
                       <FormControl>
                         <FormInputField field={field} type="number" />
                       </FormControl>
                       <FormDescription>
-                        The port used to access the local API. Make sure it is
-                        not in use by another application.
+                        <Trans>
+                          The port used to access the local API. Make sure it is
+                          not in use by another application.
+                        </Trans>
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -317,11 +337,15 @@ function UserProfilePage(): ReactElement {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
                       <div className="mr-4">
-                        <FormLabel isRequired>Enabled</FormLabel>
+                        <FormLabel isRequired>
+                          <Trans>Enabled</Trans>
+                        </FormLabel>
                         <FormDescription>
-                          By enabling the local API it will start whenever
-                          elek.io Desktop is opened. This allows you to read
-                          local Project data from other applications.
+                          <Trans>
+                            By enabling the local API it will start whenever
+                            elek.io Desktop is opened. This allows you to read
+                            local Project data from other applications.
+                          </Trans>
                         </FormDescription>
                       </div>
                       <FormControl>

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import {
   Fragment,
   useCallback,
@@ -185,7 +186,9 @@ function DefaultFieldDefinitionForm<
         name={base(`label.${currentLanguage}`)}
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired>Label</FormLabel>
+            <FormLabel isRequired>
+              <Trans>Label</Trans>
+            </FormLabel>
             <TranslatableFormInputField
               title="Label"
               description='The label is displayed above the input Field and should
@@ -198,9 +201,12 @@ function DefaultFieldDefinitionForm<
               supportedLanguages={supportedLanguages}
             />
             <FormDescription>
-              The label is displayed above the input Field and should indicate
-              what the user is supposed to enter. For example &quot;Title&quot;,
-              &quot;Date of birth&quot; or &quot;Summary&quot;.
+              <Trans>
+                The label is displayed above the input Field and should indicate
+                what the user is supposed to enter. For example
+                &quot;Title&quot;, &quot;Date of birth&quot; or
+                &quot;Summary&quot;.
+              </Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -212,13 +218,17 @@ function DefaultFieldDefinitionForm<
         name={base('slug')}
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired>Slug</FormLabel>
+            <FormLabel isRequired>
+              <Trans>Slug</Trans>
+            </FormLabel>
             <FormControl>
               <Input type="text" {...field} />
             </FormControl>
             <FormDescription>
-              The technical key this Field&apos;s Values are stored under. It is
-              generated from the label until edited manually.
+              <Trans>
+                The technical key this Field&apos;s Values are stored under. It
+                is generated from the label until edited manually.
+              </Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -230,7 +240,9 @@ function DefaultFieldDefinitionForm<
         name={base(`description.${currentLanguage}`)}
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired={false}>Description</FormLabel>
+            <FormLabel isRequired={false}>
+              <Trans>Description</Trans>
+            </FormLabel>
             <TranslatableFormTextareaField
               title="Description"
               description="Describe what to input into this field. This text will be
@@ -240,9 +252,11 @@ function DefaultFieldDefinitionForm<
               supportedLanguages={supportedLanguages}
             />
             <FormDescription>
-              Optional. Describe what to input into this field. This text is
-              displayed under the field to guide users. Leave every language
-              empty for no description, or fill them all.
+              <Trans>
+                Optional. Describe what to input into this field. This text is
+                displayed under the field to guide users. Leave every language
+                empty for no description, or fill them all.
+              </Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -254,7 +268,9 @@ function DefaultFieldDefinitionForm<
         name={base('inputWidth')}
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired>Width</FormLabel>
+            <FormLabel isRequired>
+              <Trans>Width</Trans>
+            </FormLabel>
             <FormControl>
               <Select
                 items={fieldWidthItems}
@@ -276,7 +292,7 @@ function DefaultFieldDefinitionForm<
               </Select>
             </FormControl>
             <FormDescription>
-              Defines how wide the input field will be.
+              <Trans>Defines how wide the input field will be.</Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -291,7 +307,9 @@ function DefaultFieldDefinitionForm<
         render={({ field }) => (
           <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
-              <FormLabel isRequired>Required</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Required</Trans>
+              </FormLabel>
               <FormDescription>
                 Required fields need to be filled before an Item of the
                 Collection can be created or updated.{' '}
@@ -299,8 +317,10 @@ function DefaultFieldDefinitionForm<
                   <>
                     <Separator className="my-2" />
                     <i>
-                      Toggles are always required, since they can only be
-                      checked or unchecked.
+                      <Trans>
+                        Toggles are always required, since they can only be
+                        checked or unchecked.
+                      </Trans>
                     </i>
                   </>
                 )}
@@ -308,8 +328,10 @@ function DefaultFieldDefinitionForm<
                   <>
                     <Separator className="my-2" />
                     <i>
-                      Ranges are always required, since the slider always
-                      returns a number.
+                      <Trans>
+                        Ranges are always required, since the slider always
+                        returns a number.
+                      </Trans>
                     </i>
                   </>
                 )}
@@ -333,7 +355,9 @@ function DefaultFieldDefinitionForm<
         render={({ field }) => (
           <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
-              <FormLabel isRequired>Unique</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Unique</Trans>
+              </FormLabel>
               <FormDescription>
                 You won&apos;t be able to create an Entry if there is an
                 existing Entry with identical content.
@@ -366,9 +390,13 @@ function DefaultFieldDefinitionForm<
         render={({ field }) => (
           <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
-              <FormLabel isRequired>Disabled</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Disabled</Trans>
+              </FormLabel>
               <FormDescription>
-                You won&apos;t be able to change the Value if this is active.
+                <Trans>
+                  You won&apos;t be able to change the Value if this is active.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </div>

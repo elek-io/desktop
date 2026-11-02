@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
 import { EllipsisIcon } from 'lucide-react';
 
@@ -46,12 +47,22 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuGroup>
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  <Trans>My Account</Trans>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Billing</DropdownMenuItem>
-                <DropdownMenuItem>Team</DropdownMenuItem>
-                <DropdownMenuItem>Subscription</DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Trans>Profile</Trans>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Trans>Billing</Trans>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Trans>Team</Trans>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Trans>Subscription</Trans>
+                </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { useState, type ReactElement } from 'react';
 
 import { Button } from '@renderer/components/ui/button';
@@ -43,15 +44,21 @@ export const LinkDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Link the selected text</DialogTitle>
+          <DialogTitle>
+            <Trans>Link the selected text</Trans>
+          </DialogTitle>
           <DialogDescription>
-            The link applies to the text selected in the editor. Core accepts
-            http(s), mailto and tel URLs, plus relative and fragment links.
+            <Trans>
+              The link applies to the text selected in the editor. Core accepts
+              http(s), mailto and tel URLs, plus relative and fragment links.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
 
         <DialogBody>
-          <Label htmlFor="markdown-link-href">URL</Label>
+          <Label htmlFor="markdown-link-href">
+            <Trans>URL</Trans>
+          </Label>
           <Input
             id="markdown-link-href"
             type="url"
@@ -71,10 +78,10 @@ export const LinkDialog = ({
 
         <DialogFooter>
           <DialogClose render={<Button variant="secondary" />}>
-            Cancel
+            <Trans>Cancel</Trans>
           </DialogClose>
           <Button type="button" onClick={confirm} disabled={href.trim() === ''}>
-            Apply link
+            <Trans>Apply link</Trans>
           </Button>
         </DialogFooter>
       </DialogContent>

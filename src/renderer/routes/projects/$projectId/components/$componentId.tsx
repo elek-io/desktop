@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
@@ -198,7 +199,7 @@ function ProjectComponentUpdate(): ReactElement {
     return (
       <FormActions form={updateComponentForm} id={formId}>
         <SubmitButton requireDirty Icon={Check}>
-          Save changes
+          <Trans>Save changes</Trans>
         </SubmitButton>
       </FormActions>
     );
@@ -271,7 +272,7 @@ function ProjectComponentUpdate(): ReactElement {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm leading-6 font-medium">
-                Delete this Component
+                <Trans>Delete this Component</Trans>
               </p>
             </div>
             <div>
@@ -279,24 +280,30 @@ function ProjectComponentUpdate(): ReactElement {
                 <AlertDialogTrigger
                   render={<Button variant="destructive" Icon={Trash} />}
                 >
-                  Delete Component
+                  <Trans>Delete Component</Trans>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this Component?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      <Trans>Delete this Component?</Trans>
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      A Component a Collection or another Component still uses
-                      cannot be deleted. This cannot be undone.
+                      <Trans>
+                        A Component a Collection or another Component still uses
+                        cannot be deleted. This cannot be undone.
+                      </Trans>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>
+                      <Trans>Cancel</Trans>
+                    </AlertDialogCancel>
                     <AlertDialogAction
                       variant="destructive"
                       Icon={Trash}
                       onClick={onDelete}
                     >
-                      Yes, delete this Component
+                      <Trans>Yes, delete this Component</Trans>
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -308,7 +315,9 @@ function ProjectComponentUpdate(): ReactElement {
               >
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Could not delete this Component</DialogTitle>
+                    <DialogTitle>
+                      <Trans>Could not delete this Component</Trans>
+                    </DialogTitle>
                     <DialogDescription>
                       {describeCoreError(
                         deleteErrorType,
@@ -321,7 +330,7 @@ function ProjectComponentUpdate(): ReactElement {
                     <DialogClose
                       render={<Button type="button" variant="secondary" />}
                     >
-                      Close
+                      <Trans>Close</Trans>
                     </DialogClose>
                   </DialogFooter>
                 </DialogContent>
@@ -337,7 +346,9 @@ function ProjectComponentUpdate(): ReactElement {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not save this Component</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not save this Component</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
                 saveErrorType,
@@ -361,7 +372,7 @@ function ProjectComponentUpdate(): ReactElement {
           ) : null}
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="secondary" />}>
-              Close
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

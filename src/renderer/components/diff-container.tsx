@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import type { ReactElement } from 'react';
 
 import { CommitAuthor } from '@renderer/components/commit-author';
@@ -61,7 +62,9 @@ export function DiffContainerSkeleton({
   return (
     <Card className={`col-span-6 ${centered ? 'col-start-3' : ''}`}>
       <CardHeader>
-        <CardTitle>Loading...</CardTitle>
+        <CardTitle>
+          <Trans>Loading...</Trans>
+        </CardTitle>
         <CardDescription />
         <CardAction />
       </CardHeader>

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -43,7 +44,11 @@ function CreateProjectPage(): ReactElement {
       <>
         New Projects start with no history or data.
         <br />
-        Read more about <a href="#">Projects in the documentation</a>.
+        Read more about{' '}
+        <a href="#">
+          <Trans>Projects in the documentation</Trans>
+        </a>
+        .
       </>
     );
   }
@@ -51,7 +56,9 @@ function CreateProjectPage(): ReactElement {
   function Actions(): ReactElement {
     return (
       <FormActions form={createProjectForm} id={formId}>
-        <SubmitButton Icon={Check}>Create Project</SubmitButton>
+        <SubmitButton Icon={Check}>
+          <Trans>Create Project</Trans>
+        </SubmitButton>
       </FormActions>
     );
   }

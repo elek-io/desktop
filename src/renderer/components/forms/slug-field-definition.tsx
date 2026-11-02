@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { useWatch } from 'react-hook-form';
 
@@ -93,17 +94,23 @@ function SlugExtras({
         name="ofFieldDefinitions"
         render={() => (
           <FormItem>
-            <FormLabel isRequired={false}>Generate from Fields</FormLabel>
+            <FormLabel isRequired={false}>
+              <Trans>Generate from Fields</Trans>
+            </FormLabel>
             <FormDescription>
-              The slug is generated from the selected Fields while creating an
-              Entry, in the order the Fields appear in the Collection. If none
-              are selected, users enter the slug manually.
+              <Trans>
+                The slug is generated from the selected Fields while creating an
+                Entry, in the order the Fields appear in the Collection. If none
+                are selected, users enter the slug manually.
+              </Trans>
             </FormDescription>
             <div className="space-y-2">
               {eligibleSources.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No text based Fields to generate from yet. Add one first or
-                  leave this empty.
+                  <Trans>
+                    No text based Fields to generate from yet. Add one first or
+                    leave this empty.
+                  </Trans>
                 </p>
               ) : (
                 eligibleSources.map((definition) => (
@@ -141,7 +148,9 @@ function SlugExtras({
         name="separator"
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired>Separator</FormLabel>
+            <FormLabel isRequired>
+              <Trans>Separator</Trans>
+            </FormLabel>
             <Select
               items={separatorItems}
               value={field.value === '' ? NO_SEPARATOR : field.value}
@@ -161,7 +170,7 @@ function SlugExtras({
               </SelectContent>
             </Select>
             <FormDescription>
-              The character placed between words of the slug.
+              <Trans>The character placed between words of the slug.</Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -174,8 +183,12 @@ function SlugExtras({
         render={({ field }) => (
           <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
-              <FormLabel isRequired>Lowercase</FormLabel>
-              <FormDescription>Convert the slug to lowercase.</FormDescription>
+              <FormLabel isRequired>
+                <Trans>Lowercase</Trans>
+              </FormLabel>
+              <FormDescription>
+                <Trans>Convert the slug to lowercase.</Trans>
+              </FormDescription>
               <FormMessage />
             </div>
             <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -189,10 +202,14 @@ function SlugExtras({
         render={({ field }) => (
           <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
             <div className="mr-4">
-              <FormLabel isRequired>Decamelize</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Decamelize</Trans>
+              </FormLabel>
               <FormDescription>
-                Split camelCase words, so &quot;myWord&quot; becomes
-                &quot;my-word&quot;.
+                <Trans>
+                  Split camelCase words, so &quot;myWord&quot; becomes
+                  &quot;my-word&quot;.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </div>

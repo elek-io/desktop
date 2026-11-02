@@ -260,6 +260,17 @@ export default [
     files: ['src/renderer/**/*.{ts,tsx}'],
     plugins: { lingui: pluginLingui },
     rules: {
+      // Lingui's own recommended set, raised from warnings to errors so CI
+      // holds them. They are what keeps a message whole: `t` inside a function
+      // so it reads the catalog in use rather than at import time, a title or a
+      // name as a named placeholder rather than a piece the sentence is
+      // assembled from, and no nested or empty message.
+      'lingui/t-call-in-function': 'error',
+      'lingui/no-single-tag-to-translate': 'error',
+      'lingui/no-single-variables-to-translate': 'error',
+      'lingui/no-trans-inside-trans': 'error',
+      'lingui/no-expression-in-message': 'error',
+      'lingui/no-unnamed-tag-placeholders': 'error',
       'lingui/no-unlocalized-strings': [
         'error',
         {

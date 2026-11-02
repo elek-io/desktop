@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Rocket } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
@@ -109,10 +110,14 @@ export function ReleaseDialog({
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create a Release</DialogTitle>
+          <DialogTitle>
+            <Trans>Create a Release</Trans>
+          </DialogTitle>
           <DialogDescription>
-            A Release publishes everything saved in this Project, so a website
-            can build from it. It cannot be undone.
+            <Trans>
+              A Release publishes everything saved in this Project, so a website
+              can build from it. It cannot be undone.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -144,7 +149,7 @@ export function ReleaseDialog({
 
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="secondary" />}>
-            Close
+            <Trans>Close</Trans>
           </DialogClose>
           {pendingRelease?.status === 'refused' &&
           RELEASE_READ_RETRYABLE.has(pendingRelease.errorType) ? (
@@ -153,7 +158,7 @@ export function ReleaseDialog({
               variant="outline"
               onClick={async () => await readPendingReleaseAgain()}
             >
-              Try again
+              <Trans>Try again</Trans>
             </Button>
           ) : null}
           {canRelease ? (
@@ -210,7 +215,9 @@ function ReleaseChangeList({
 }): ReactElement {
   return (
     <div className="grid gap-2">
-      <h3 className="text-sm font-medium">What changed</h3>
+      <h3 className="text-sm font-medium">
+        <Trans>What changed</Trans>
+      </h3>
       {/* Each change in words. The bump of a single change is not repeated
           here: the badge above carries the Release's, and the sentence above
           names the change that drove it. */}

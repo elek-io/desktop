@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { editorViewCtx, type CmdKey } from '@milkdown/kit/core';
 import {
   createCodeBlockCommand,
@@ -141,7 +142,9 @@ export const MarkdownToolbar = ({
             }
           >
             <HeadingIcon />
-            <span className="sr-only">Heading</span>
+            <span className="sr-only">
+              <Trans>Heading</Trans>
+            </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem

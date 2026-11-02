@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
 import { Skeleton } from '@renderer/components/ui/skeleton';
@@ -55,8 +56,10 @@ export function AssetMimeTypePicker({
   if (availableMimeTypes.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No Assets in this Project yet, so there are no file types to restrict
-        to. Every type stays allowed.
+        <Trans>
+          No Assets in this Project yet, so there are no file types to restrict
+          to. Every type stays allowed.
+        </Trans>
       </p>
     );
   }

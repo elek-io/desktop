@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import {
   createContext,
   useCallback,
@@ -193,8 +194,10 @@ export function AppForm<
                 className="m-6 rounded-md border border-destructive p-4 text-sm text-error"
               >
                 <p className="font-medium">
-                  This form could not be saved, because of a problem that is not
-                  shown on any of its fields:
+                  <Trans>
+                    This form could not be saved, because of a problem that is
+                    not shown on any of its fields:
+                  </Trans>
                 </p>
                 <ul className="mt-2 list-inside list-disc">
                   {unsurfacedErrors.map((error) => (

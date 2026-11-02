@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import React from 'react';
 
 import {
@@ -30,7 +31,9 @@ export function HistorySidebar({
     <aside className="flex min-h-0 flex-1 flex-col">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Changes</SidebarGroupLabel>
+          <SidebarGroupLabel>
+            <Trans>Changes</Trans>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             {history === undefined ? (
               <SidebarMenu>
@@ -42,7 +45,9 @@ export function HistorySidebar({
                 commits={history.fullHistory}
               />
             ) : (
-              <p className="px-3 text-sm">No Changes found</p>
+              <p className="px-3 text-sm">
+                <Trans>No Changes found</Trans>
+              </p>
             )}
           </SidebarGroupContent>
         </SidebarGroup>
@@ -57,7 +62,9 @@ export function HistorySidebarSkeleton(): React.JSX.Element {
     <aside className="flex min-h-0 flex-1 flex-col">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Changes</SidebarGroupLabel>
+          <SidebarGroupLabel>
+            <Trans>Changes</Trans>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <CommitHistorySkeleton />

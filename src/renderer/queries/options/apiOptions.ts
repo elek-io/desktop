@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import { customMutationOptions } from '../util';
@@ -17,6 +18,10 @@ export const apiOptions = {
       method: 'start',
       objectType: 'api',
     },
+    toasts: {
+      success: () => t`Local API started`,
+      error: () => t`Could not start the local API`,
+    },
     onSuccess: (_data, _variables, _result, context) => {
       context.client.setQueryData(['user', 'localApi', 'isRunning'], true);
     },
@@ -26,6 +31,10 @@ export const apiOptions = {
     meta: {
       method: 'stop',
       objectType: 'api',
+    },
+    toasts: {
+      success: () => t`Local API stopped`,
+      error: () => t`Could not stop the local API`,
     },
     onSuccess: (_data, _variables, _result, context) => {
       context.client.setQueryData(['user', 'localApi', 'isRunning'], false);

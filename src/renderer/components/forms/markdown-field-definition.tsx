@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { type Resolver } from 'react-hook-form';
 
@@ -202,13 +203,17 @@ function MarkdownExtras({
           name="min"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Minimum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Minimum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The minimum number of blocks (paragraphs, headings, lists) the
-                content needs.
+                <Trans>
+                  The minimum number of blocks (paragraphs, headings, lists) the
+                  content needs.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -219,12 +224,16 @@ function MarkdownExtras({
           name="max"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Maximum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Maximum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The maximum number of blocks the content can hold.
+                <Trans>
+                  The maximum number of blocks the content can hold.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -233,16 +242,22 @@ function MarkdownExtras({
       </div>
 
       <FieldSet>
-        <FieldLegend>Block features</FieldLegend>
+        <FieldLegend>
+          <Trans>Block features</Trans>
+        </FieldLegend>
         <div className="space-y-2">
           <FormField
             control={form.control}
             name="features.headings"
             render={() => (
               <FormItem className="rounded-lg border border-border p-3 shadow-xs">
-                <FormLabel isRequired>Headings</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>Headings</Trans>
+                </FormLabel>
                 <FormDescription>
-                  Which heading levels can be used. None disables headings.
+                  <Trans>
+                    Which heading levels can be used. None disables headings.
+                  </Trans>
                 </FormDescription>
                 <div className="flex flex-row gap-4">
                   {markdownHeadingDepthSchema.options.map((option) => {
@@ -271,7 +286,9 @@ function MarkdownExtras({
       </FieldSet>
 
       <FieldSet>
-        <FieldLegend>Inline features</FieldLegend>
+        <FieldLegend>
+          <Trans>Inline features</Trans>
+        </FieldLegend>
         <div className="space-y-2">
           {inlineFeatures.map((feature) => featureRow(feature))}
         </div>
@@ -285,19 +302,21 @@ function MarkdownExtras({
             <FormItem>
               <FieldSet className="gap-2">
                 <FieldLegend variant="label" className="mb-0">
-                  Restrict Entry references to Collections
+                  <Trans>Restrict Entry references to Collections</Trans>
                 </FieldLegend>
                 <FormDescription>
-                  Only Entries from the selected Collections can be referenced.
-                  If none are selected, Entries from all Collections are
-                  available.
+                  <Trans>
+                    Only Entries from the selected Collections can be
+                    referenced. If none are selected, Entries from all
+                    Collections are available.
+                  </Trans>
                 </FormDescription>
                 <div className="space-y-2">
                   {isReadingCollections === true ? (
                     <Skeleton className="h-10" />
                   ) : collectionList.list.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No Collections available in this project.
+                      <Trans>No Collections available in this project.</Trans>
                     </p>
                   ) : (
                     collectionList.list.map((collection) => {
@@ -342,11 +361,13 @@ function MarkdownExtras({
             <FormItem>
               <FieldSet className="gap-2">
                 <FieldLegend variant="label" className="mb-0">
-                  Restrict Asset references to file types
+                  <Trans>Restrict Asset references to file types</Trans>
                 </FieldLegend>
                 <FormDescription>
-                  Only Assets of the selected file types can be referenced. If
-                  none are selected, Assets of any type are available.
+                  <Trans>
+                    Only Assets of the selected file types can be referenced. If
+                    none are selected, Assets of any type are available.
+                  </Trans>
                 </FormDescription>
                 <AssetMimeTypePicker
                   value={field.value}

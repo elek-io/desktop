@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
@@ -108,7 +109,7 @@ export function OfComponentsPicker({
         <FormItem>
           <FieldSet className="gap-2">
             <FieldLegend variant="label" className="mb-0">
-              Allowed Components
+              <Trans>Allowed Components</Trans>
             </FieldLegend>
             <FormDescription>
               {lockedComponentIds.length === 0
@@ -117,7 +118,9 @@ export function OfComponentsPicker({
             </FormDescription>
             {allowedAlready.length > 0 ? (
               <>
-                <p className="text-sm">Allowed already:</p>
+                <p className="text-sm">
+                  <Trans>Allowed already:</Trans>
+                </p>
                 <ul className="list-inside list-disc text-sm text-muted-foreground">
                   {allowedAlready.map((component) => (
                     <li key={component.id}>{componentName(component)}</li>
@@ -181,12 +184,16 @@ function DynamicExtras({
           name="min"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Minimum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Minimum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The minimum number of sections the user needs to add.
+                <Trans>
+                  The minimum number of sections the user needs to add.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -197,12 +204,16 @@ function DynamicExtras({
           name="max"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Maximum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Maximum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The maximum number of sections the user is able to add.
+                <Trans>
+                  The maximum number of sections the user is able to add.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>

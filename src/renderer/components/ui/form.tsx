@@ -2,6 +2,7 @@
 
 import { useRender } from '@base-ui/react/use-render';
 import { arrayMove } from '@dnd-kit/sortable';
+import { Trans } from '@lingui/react/macro';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -536,7 +537,7 @@ function TranslatableField<TFieldValues extends FieldValues>({
 
           <DialogFooter>
             <DialogClose render={<Button variant="secondary" />}>
-              Done
+              <Trans>Done</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -947,7 +948,9 @@ function FormSelectField<TFieldValues extends FieldValues>({
       </SelectTrigger>
       <SelectContent>
         {fieldDefinition.isRequired === false ? (
-          <SelectItem value="none">None</SelectItem>
+          <SelectItem value="none">
+            <Trans>None</Trans>
+          </SelectItem>
         ) : null}
         {items.map((item) => (
           <SelectItem key={item.itemValue} value={item.itemValue}>
@@ -1076,7 +1079,9 @@ function FormSlugField<TFieldValues extends FieldValues>({
               field.onChange(derivedOrNull);
             }}
           >
-            <span className="sr-only">Generate from the source Fields</span>
+            <span className="sr-only">
+              <Trans>Generate from the source Fields</Trans>
+            </span>
           </Button>
         </InputGroupAddon>
       ) : null}
@@ -1258,7 +1263,9 @@ function FormAssetField<TFieldValues extends FieldValues>({
         </DialogTrigger>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Select Assets</DialogTitle>
+            <DialogTitle>
+              <Trans>Select Assets</Trans>
+            </DialogTitle>
             <DialogDescription>
               {fieldDefinition.max !== null
                 ? `Select up to ${fieldDefinition.max} asset${fieldDefinition.max !== 1 ? 's' : ''}.`
@@ -1321,7 +1328,7 @@ function FormAssetField<TFieldValues extends FieldValues>({
 
           <DialogFooter>
             <DialogClose render={<Button variant="secondary" />}>
-              Done
+              <Trans>Done</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -1520,7 +1527,9 @@ function FormEntryField<TFieldValues extends FieldValues>({
         </DialogTrigger>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Select Entries</DialogTitle>
+            <DialogTitle>
+              <Trans>Select Entries</Trans>
+            </DialogTitle>
             <DialogDescription>
               {fieldDefinition.max !== null
                 ? `Select up to ${fieldDefinition.max} ${fieldDefinition.max !== 1 ? 'entries' : 'entry'}.`
@@ -1541,8 +1550,10 @@ function FormEntryField<TFieldValues extends FieldValues>({
               </div>
             ) : availableEntries.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No entries available. Create entries in the allowed collections
-                first.
+                <Trans>
+                  No entries available. Create entries in the allowed
+                  collections first.
+                </Trans>
               </p>
             ) : (
               <div className="space-y-6">
@@ -1600,7 +1611,7 @@ function FormEntryField<TFieldValues extends FieldValues>({
 
           <DialogFooter>
             <DialogClose render={<Button variant="secondary" />}>
-              Done
+              <Trans>Done</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -1677,7 +1688,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
       <div className="grid gap-2">
         <Skeleton className="h-9 w-40 rounded-md" />
         <span className="text-sm text-muted-foreground">
-          Loading this Project&apos;s Components
+          <Trans>Loading this Project&apos;s Components</Trans>
         </span>
       </div>
     );
@@ -1786,7 +1797,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
     >
       {items.length === 0 ? (
         <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-          No sections yet. Add one to start building this page.
+          <Trans>No sections yet. Add one to start building this page.</Trans>
         </p>
       ) : (
         items.map((item, index) => {
@@ -1860,8 +1871,10 @@ function FormDynamicField<TFieldValues extends FieldValues>({
               {component !== undefined &&
               component.fieldDefinitions.length === 0 ? (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  This Component has no fields yet, so this section holds
-                  nothing. Add fields to it to fill this section in.
+                  <Trans>
+                    This Component has no fields yet, so this section holds
+                    nothing. Add fields to it to fill this section in.
+                  </Trans>
                 </p>
               ) : null}
             </div>
@@ -1871,8 +1884,10 @@ function FormDynamicField<TFieldValues extends FieldValues>({
 
       {allowedComponents.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          This Project has no Component this field allows, so no section can be
-          added. Create one, or allow another one on this field.
+          <Trans>
+            This Project has no Component this field allows, so no section can
+            be added. Create one, or allow another one on this field.
+          </Trans>
         </p>
       ) : (
         <DropdownMenu>
@@ -1886,7 +1901,7 @@ function FormDynamicField<TFieldValues extends FieldValues>({
               />
             }
           >
-            Add section
+            <Trans>Add section</Trans>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {allowedComponents.map((component) => (

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -139,7 +140,9 @@ function ProjectCollectionCreate(): ReactElement {
   function Actions(): ReactElement {
     return (
       <FormActions form={createCollectionForm} id={formId}>
-        <SubmitButton Icon={Check}>Create Collection</SubmitButton>
+        <SubmitButton Icon={Check}>
+          <Trans>Create Collection</Trans>
+        </SubmitButton>
       </FormActions>
     );
   }
@@ -189,7 +192,9 @@ function ProjectCollectionCreate(): ReactElement {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not create this Collection</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not create this Collection</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
                 saveErrorType,
@@ -200,7 +205,7 @@ function ProjectCollectionCreate(): ReactElement {
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="secondary" />}>
-              Close
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

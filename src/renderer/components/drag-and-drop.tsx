@@ -18,6 +18,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Trans } from '@lingui/react/macro';
 import { GripVerticalIcon } from 'lucide-react';
 import * as React from 'react';
 
@@ -43,7 +44,9 @@ function DragHandle({
       size="icon"
       className={cn('hover:cursor-grab', className)}
     >
-      <span className="sr-only">Drag to reorder</span>
+      <span className="sr-only">
+        <Trans>Drag to reorder</Trans>
+      </span>
     </Button>
   );
 }

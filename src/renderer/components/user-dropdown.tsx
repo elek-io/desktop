@@ -1,3 +1,4 @@
+import { useLingui, Trans } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { Moon, Sun, ChevronDown, ExternalLinkIcon } from 'lucide-react';
@@ -36,6 +37,7 @@ import { queryOptions } from '@renderer/queries';
 import type { User } from '@elek-io/core';
 
 export function UserDropdown({ user }: { user: User }): React.JSX.Element {
+  const { t } = useLingui();
   const router = useRouter();
   const { data: isLocalApiRunning } = useQueryNoError(
     queryOptions.api.isRunning()
@@ -48,11 +50,12 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
     handled: {
       // Something else holds the port. There is no form here to mark, so point
       // to the profile, where the port is changed.
-      Conflict: () =>
-        toast.error(`Port ${user.localApi.port} is already in use`, {
-          description:
-            'Choose a different port on your profile to start the local API.',
-        }),
+      Conflict: () => {
+        const port = user.localApi.port;
+        toast.error(t`Port ${port} is already in use`, {
+          description: t`Choose a different port on your profile to start the local API.`,
+        });
+      },
     },
   });
   const { mutateAsync: stopApi, isPending: isStoppingApi } = useMutation(
@@ -100,6 +103,8 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
           onClick={async () => router.navigate({ to: '/user/profile' })}
         >
           Profile
+          {/* eslint-disable-next-line lingui/no-unlocalized-strings -- A
+          keyboard shortcut's symbols are the same in every language. */}
           <DropdownMenuAddOn>⇧⌘P</DropdownMenuAddOn>
         </DropdownMenuItem>
 
@@ -111,7 +116,7 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
           switch with it. */}
           <div className="flex place-content-between px-2 py-1.5">
             <Label htmlFor={localApiSwitchId} isRequired>
-              Local API
+              <Trans>Local API</Trans>
             </Label>
             <Switch
               id={localApiSwitchId}
@@ -146,7 +151,9 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
 
         <DropdownMenuGroup>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Theme</DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger>
+              <Trans>Theme</Trans>
+            </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent>
                 <DropdownMenuRadioGroup
@@ -154,7 +161,7 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
                   onValueChange={(theme) => setTheme(theme as Theme)}
                 >
                   <DropdownMenuRadioItem value="system">
-                    System
+                    <Trans>System</Trans>
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="light">
                     <Sun className="mr-2 h-4 w-4" />

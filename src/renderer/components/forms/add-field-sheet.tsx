@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { Plus } from 'lucide-react';
 import { useId, useState, type ReactElement } from 'react';
 
@@ -115,7 +116,7 @@ export function AddFieldSheet({
           />
         }
       >
-        Add Field
+        <Trans>Add Field</Trans>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
@@ -131,7 +132,7 @@ export function AddFieldSheet({
           </SheetDescription>
           <div className="grid gap-2">
             <Label htmlFor={inputTypeId} isRequired>
-              Input type
+              <Trans>Input type</Trans>
             </Label>
             <Select
               items={fieldTypeItems}
@@ -161,7 +162,9 @@ export function AddFieldSheet({
               </SelectContent>
             </Select>
             <p id={inputTypeHintId} className="text-sm text-muted-foreground">
-              The type of input the user is able to enter for this Field.
+              <Trans>
+                The type of input the user is able to enter for this Field.
+              </Trans>
             </p>
           </div>
         </SheetHeader>
@@ -174,7 +177,7 @@ export function AddFieldSheet({
 
         <SheetFooter>
           <SubmitButton className="w-full" form={addFieldFormId}>
-            Add definition
+            <Trans>Add definition</Trans>
           </SubmitButton>
         </SheetFooter>
       </SheetContent>

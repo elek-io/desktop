@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
 import { PageSection } from '@renderer/components/page-section';
@@ -204,8 +205,10 @@ export function ComponentImpact({
     return (
       <PageSection title="What saving changes">
         <p className="text-sm">
-          No Collection uses this Component yet, so saving changes nothing but
-          the Component itself.
+          <Trans>
+            No Collection uses this Component yet, so saving changes nothing but
+            the Component itself.
+          </Trans>
         </p>
       </PageSection>
     );

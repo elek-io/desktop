@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import type {
@@ -16,6 +17,10 @@ export const componentOptions = {
     meta: {
       method: 'create',
       objectType: 'component',
+    },
+    toasts: {
+      success: () => t`Component created`,
+      error: () => t`Could not create the Component`,
     },
     onSuccess: (createdComponent, variables, _result, context) => {
       // Add Component to cache individually
@@ -59,6 +64,10 @@ export const componentOptions = {
       method: 'update',
       objectType: 'component',
     },
+    toasts: {
+      success: () => t`Component saved`,
+      error: () => t`Could not save the Component`,
+    },
     onSuccess: async (updatedComponent, variables, _result, context) => {
       // Update Component in cache individually
       context.client.setQueryData(
@@ -94,6 +103,10 @@ export const componentOptions = {
     meta: {
       method: 'delete',
       objectType: 'component',
+    },
+    toasts: {
+      success: () => t`Component deleted`,
+      error: () => t`Could not delete the Component`,
     },
     onSuccess: (_deletedComponent, variables, _result, context) => {
       // Remove Component from cache individually

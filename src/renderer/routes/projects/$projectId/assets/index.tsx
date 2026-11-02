@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
@@ -80,7 +81,7 @@ function ProjectAssetsPage(): React.JSX.Element {
           Icon={Plus}
           onClick={async () => onAddAsset()}
         >
-          Add Asset
+          <Trans>Add Asset</Trans>
         </Button>
       </>
     );
@@ -133,10 +134,14 @@ function ProjectAssetsPage(): React.JSX.Element {
               <EmptyMedia variant="icon">
                 <Plus />
               </EmptyMedia>
-              <EmptyTitle>No Assets yet</EmptyTitle>
+              <EmptyTitle>
+                <Trans>No Assets yet</Trans>
+              </EmptyTitle>
               <EmptyDescription>
-                You haven&apos;t added any Assets yet. Get started by adding an
-                Asset by clicking the button in the top right corner.
+                <Trans>
+                  You haven&apos;t added any Assets yet. Get started by adding
+                  an Asset by clicking the button in the top right corner.
+                </Trans>
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -155,9 +160,11 @@ function ProjectAssetsPage(): React.JSX.Element {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Asset</DialogTitle>
+            <DialogTitle>
+              <Trans>Add Asset</Trans>
+            </DialogTitle>
             <DialogDescription>
-              Provide a name and description for this Asset.
+              <Trans>Provide a name and description for this Asset.</Trans>
             </DialogDescription>
           </DialogHeader>
 
@@ -171,10 +178,12 @@ function ProjectAssetsPage(): React.JSX.Element {
 
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="secondary" />}>
-              Cancel
+              <Trans>Cancel</Trans>
             </DialogClose>
             <FormActions form={createAssetForm} id={addAssetFormId}>
-              <SubmitButton Icon={Plus}>Add Asset</SubmitButton>
+              <SubmitButton Icon={Plus}>
+                <Trans>Add Asset</Trans>
+              </SubmitButton>
             </FormActions>
           </DialogFooter>
         </DialogContent>

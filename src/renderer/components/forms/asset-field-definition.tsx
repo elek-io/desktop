@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
 import { AssetMimeTypePicker } from '@renderer/components/forms/asset-mime-type-picker';
@@ -43,12 +44,16 @@ function AssetExtras({
           name="min"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Minimum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Minimum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The minimum number of Assets the user needs to select.
+                <Trans>
+                  The minimum number of Assets the user needs to select.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -59,12 +64,16 @@ function AssetExtras({
           name="max"
           render={({ field }) => (
             <FormItem>
-              <FormLabel isRequired={false}>Maximum</FormLabel>
+              <FormLabel isRequired={false}>
+                <Trans>Maximum</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="number" />
               </FormControl>
               <FormDescription>
-                The maximum number of Assets the user is able to select.
+                <Trans>
+                  The maximum number of Assets the user is able to select.
+                </Trans>
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -78,11 +87,13 @@ function AssetExtras({
           <FormItem>
             <FieldSet className="gap-2">
               <FieldLegend variant="label" className="mb-0">
-                Restrict to file types
+                <Trans>Restrict to file types</Trans>
               </FieldLegend>
               <FormDescription>
-                Only Assets of the selected file types can be referenced. If
-                none are selected, Assets of any type are available.
+                <Trans>
+                  Only Assets of the selected file types can be referenced. If
+                  none are selected, Assets of any type are available.
+                </Trans>
               </FormDescription>
               <AssetMimeTypePicker
                 value={field.value}

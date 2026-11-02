@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 
 import {
@@ -43,7 +44,7 @@ function ProjectDashboardPage(): React.JSX.Element {
               })
             }
           >
-            Full History
+            <Trans>Full History</Trans>
           </Button>
         )}
       </>

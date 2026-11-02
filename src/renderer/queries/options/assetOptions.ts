@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import type {
@@ -10,12 +11,24 @@ import type {
 import { queryClient } from '../client';
 import { customMutationOptions, mergeListWithObject } from '../util';
 
+/** What the Assets grid calls an Asset, so a toast names it the same way. */
+function assetFileName(asset: Asset): string {
+  return `${asset.name}.${asset.extension}`;
+}
+
 export const assetOptions = {
   create: customMutationOptions({
     mutationFn: window.ipc.core.assets.create,
     meta: {
       method: 'create',
       objectType: 'asset',
+    },
+    toasts: {
+      success: (createdAsset) => {
+        const fileName = assetFileName(createdAsset);
+        return t`Asset ${fileName} added`;
+      },
+      error: () => t`Could not add the Asset`,
     },
     onSuccess: (createdAsset, variables, _result, context) => {
       // Add Asset to cache individually
@@ -59,6 +72,13 @@ export const assetOptions = {
       method: 'update',
       objectType: 'asset',
     },
+    toasts: {
+      success: (updatedAsset) => {
+        const fileName = assetFileName(updatedAsset);
+        return t`Asset ${fileName} saved`;
+      },
+      error: () => t`Could not save the Asset`,
+    },
     onSuccess: (updatedAsset, variables, _result, context) => {
       // Update Asset in cache individually
       context.client.setQueryData(
@@ -85,6 +105,10 @@ export const assetOptions = {
     meta: {
       method: 'delete',
       objectType: 'asset',
+    },
+    toasts: {
+      success: () => t`Asset deleted`,
+      error: () => t`Could not delete the Asset`,
     },
     onSuccess: (_deletedAsset, variables, _result, context) => {
       // Remove Asset from cache individually
@@ -113,6 +137,10 @@ export const assetOptions = {
     meta: {
       method: 'save',
       objectType: 'asset',
+    },
+    toasts: {
+      success: () => t`Asset saved to your computer`,
+      error: () => t`Could not save the Asset to your computer`,
     },
     onSuccess: async (_data, variables, _result, context) => {
       // Invalidate asset queries to refetch updated data

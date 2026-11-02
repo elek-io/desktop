@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import {
   type FieldPath,
   type FieldValues,
@@ -52,7 +53,9 @@ export function AssetForm<TFieldValues extends FieldValues>({
           name={'name' as FieldPath<TFieldValues>}
           render={({ field }) => (
             <FormItem className="col-span-12">
-              <FormLabel isRequired>Asset name</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Asset name</Trans>
+              </FormLabel>
               <FormControl>
                 <FormInputField field={field} type="text" />
               </FormControl>
@@ -67,7 +70,9 @@ export function AssetForm<TFieldValues extends FieldValues>({
           name={'description' as FieldPath<TFieldValues>}
           render={({ field }) => (
             <FormItem className="col-span-12">
-              <FormLabel isRequired>Asset description</FormLabel>
+              <FormLabel isRequired>
+                <Trans>Asset description</Trans>
+              </FormLabel>
               <FormControl>
                 <FormTextareaField field={field} />
               </FormControl>

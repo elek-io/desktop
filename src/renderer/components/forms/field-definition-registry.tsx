@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
 import { AssetDefinitionDraft } from '@renderer/components/forms/asset-field-definition';
@@ -108,11 +109,15 @@ const textareaSpec: DefinitionSpec<TextareaFieldDefinition> = {
         name="defaultValue"
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired={false}>Default value</FormLabel>
+            <FormLabel isRequired={false}>
+              <Trans>Default value</Trans>
+            </FormLabel>
             <FormControl>
               <FormTextareaField field={field} />
             </FormControl>
-            <FormDescription>The initial value for the field.</FormDescription>
+            <FormDescription>
+              <Trans>The initial value for the field.</Trans>
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -147,11 +152,15 @@ const numberSpec: DefinitionSpec<NumberFieldDefinition> = {
         name="defaultValue"
         render={({ field }) => (
           <FormItem>
-            <FormLabel isRequired={false}>Default value</FormLabel>
+            <FormLabel isRequired={false}>
+              <Trans>Default value</Trans>
+            </FormLabel>
             <FormControl>
               <FormInputField field={field} type="number" />
             </FormControl>
-            <FormDescription>The initial value for the field.</FormDescription>
+            <FormDescription>
+              <Trans>The initial value for the field.</Trans>
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -185,8 +194,12 @@ const toggleSpec: DefinitionSpec<ToggleFieldDefinition> = {
       render={({ field }) => (
         <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
           <div>
-            <FormLabel isRequired>Default value</FormLabel>
-            <FormDescription>The initial value for the field.</FormDescription>
+            <FormLabel isRequired>
+              <Trans>Default value</Trans>
+            </FormLabel>
+            <FormDescription>
+              <Trans>The initial value for the field.</Trans>
+            </FormDescription>
             <FormMessage />
           </div>
           <FormControl>
@@ -231,11 +244,15 @@ const dateSpec: DefinitionSpec<DateFieldDefinition> = {
       name="defaultValue"
       render={({ field }) => (
         <FormItem>
-          <FormLabel isRequired={false}>Default value</FormLabel>
+          <FormLabel isRequired={false}>
+            <Trans>Default value</Trans>
+          </FormLabel>
           <FormControl>
             <FormDateField field={field} />
           </FormControl>
-          <FormDescription>The initial value for the field.</FormDescription>
+          <FormDescription>
+            <Trans>The initial value for the field.</Trans>
+          </FormDescription>
           <FormMessage />
         </FormItem>
       )}
@@ -261,13 +278,17 @@ const datetimeSpec: DefinitionSpec<DatetimeFieldDefinition> = {
       name="defaultValue"
       render={({ field }) => (
         <FormItem>
-          <FormLabel isRequired={false}>Default value</FormLabel>
+          <FormLabel isRequired={false}>
+            <Trans>Default value</Trans>
+          </FormLabel>
           <FormControl>
             <FormDatetimeField field={field} />
           </FormControl>
           <FormDescription>
-            The initial value for the field. It is shown in your local time and
-            stored as UTC.
+            <Trans>
+              The initial value for the field. It is shown in your local time
+              and stored as UTC.
+            </Trans>
           </FormDescription>
           <FormMessage />
         </FormItem>

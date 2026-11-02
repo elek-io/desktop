@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import type {
@@ -16,6 +17,10 @@ export const entryOptions = {
     meta: {
       method: 'create',
       objectType: 'entry',
+    },
+    toasts: {
+      success: () => t`Entry created`,
+      error: () => t`Could not create the Entry`,
     },
     onSuccess: (createdEntry, variables, _result, context) => {
       // Add Entry to cache individually
@@ -74,6 +79,10 @@ export const entryOptions = {
       method: 'update',
       objectType: 'entry',
     },
+    toasts: {
+      success: () => t`Entry saved`,
+      error: () => t`Could not save the Entry`,
+    },
     onSuccess: (updatedEntry, variables, _result, context) => {
       // Update Entry in cache individually
       context.client.setQueryData(
@@ -112,6 +121,10 @@ export const entryOptions = {
     meta: {
       method: 'delete',
       objectType: 'entry',
+    },
+    toasts: {
+      success: () => t`Entry deleted`,
+      error: () => t`Could not delete the Entry`,
     },
     onSuccess: (_deletedEntry, variables, _result, context) => {
       // Remove Entry from cache individually

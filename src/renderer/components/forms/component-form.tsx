@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
   type FieldPath,
@@ -79,7 +80,9 @@ export function ComponentForm<
             name={path(`name.${defaultLanguage}`)}
             render={({ field }) => (
               <FormItem className="col-span-12 sm:col-span-6">
-                <FormLabel isRequired>Component name</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>Component name</Trans>
+                </FormLabel>
                 <TranslatableFormInputField
                   title="Component name"
                   description='What this group of fields is, in singular, such as "Teaser".'
@@ -89,8 +92,10 @@ export function ComponentForm<
                   supportedLanguages={project.settings.language.supported}
                 />
                 <FormDescription>
-                  What this group of fields is, in singular, such as
-                  &quot;Teaser&quot;.
+                  <Trans>
+                    What this group of fields is, in singular, such as
+                    &quot;Teaser&quot;.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -102,14 +107,18 @@ export function ComponentForm<
             name={path('slug')}
             render={({ field }) => (
               <FormItem className="col-span-12 sm:col-span-6">
-                <FormLabel isRequired>Component slug</FormLabel>
+                <FormLabel isRequired>
+                  <Trans>Component slug</Trans>
+                </FormLabel>
                 <FormControl>
                   <FormInputField field={field} type="text" />
                 </FormControl>
                 <FormDescription>
-                  A lowercase version of the name without special characters. It
-                  identifies this Component and has to be unique in this
-                  Project.
+                  <Trans>
+                    A lowercase version of the name without special characters.
+                    It identifies this Component and has to be unique in this
+                    Project.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -121,7 +130,9 @@ export function ComponentForm<
             name={path(`description.${defaultLanguage}`)}
             render={({ field }) => (
               <FormItem className="col-span-12">
-                <FormLabel isRequired={false}>Description</FormLabel>
+                <FormLabel isRequired={false}>
+                  <Trans>Description</Trans>
+                </FormLabel>
                 <TranslatableFormTextareaField
                   title="Description"
                   description="What this Component is used for. Leave every language empty for no description, or fill them all."
@@ -130,8 +141,10 @@ export function ComponentForm<
                   supportedLanguages={project.settings.language.supported}
                 />
                 <FormDescription>
-                  Optional. What this Component is used for. Leave every
-                  language empty for no description, or fill them all.
+                  <Trans>
+                    Optional. What this Component is used for. Leave every
+                    language empty for no description, or fill them all.
+                  </Trans>
                 </FormDescription>
                 <FormMessage />
               </FormItem>

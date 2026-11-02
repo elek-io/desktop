@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import type {
@@ -36,6 +37,13 @@ export const projectOptions = {
     meta: {
       method: 'create',
       objectType: 'project',
+    },
+    toasts: {
+      success: (createdProject) => {
+        const { name } = createdProject;
+        return t`Project ${name} created`;
+      },
+      error: () => t`Could not create the Project`,
     },
     onSuccess: (createdProject, _variables, _result, context) => {
       // Add Project to cache individually
@@ -77,6 +85,13 @@ export const projectOptions = {
       method: 'update',
       objectType: 'project',
     },
+    toasts: {
+      success: (updatedProject) => {
+        const { name } = updatedProject;
+        return t`Project ${name} saved`;
+      },
+      error: () => t`Could not save the Project`,
+    },
     onSuccess: (updatedProject, _variables, _result, context) => {
       // Update Project in cache individually
       context.client.setQueryData(
@@ -96,6 +111,10 @@ export const projectOptions = {
     meta: {
       method: 'delete',
       objectType: 'project',
+    },
+    toasts: {
+      success: () => t`Project deleted`,
+      error: () => t`Could not delete the Project`,
     },
     onSuccess: (_deletedProject, variables, _result, context) => {
       // Remove Project from cache individually
@@ -141,6 +160,13 @@ export const projectOptions = {
       method: 'clone',
       objectType: 'project',
     },
+    toasts: {
+      success: (clonedProject) => {
+        const { name } = clonedProject;
+        return t`Project ${name} cloned`;
+      },
+      error: () => t`Could not clone the Project`,
+    },
     onSuccess: (clonedProject, _variables, _result, context) => {
       // Add Project to cache individually
       context.client.setQueryData(
@@ -171,6 +197,10 @@ export const projectOptions = {
       method: 'synchronize',
       objectType: 'project',
     },
+    toasts: {
+      success: () => t`Changes synced`,
+      error: () => t`Sync failed`,
+    },
     onSuccess: async (_data, variables, _result, context) => {
       // On synchronization anything inside the Project may have changed
       // so we invalidate it entirely
@@ -189,6 +219,10 @@ export const projectOptions = {
     meta: {
       method: 'update',
       objectType: 'project',
+    },
+    toasts: {
+      success: () => t`Remote URL saved`,
+      error: () => t`Could not save the remote URL`,
     },
     onSuccess: async (_data, variables, _result, context) => {
       // Remote origin URL is part of the Project data

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { DownloadCloud, Plus } from 'lucide-react';
 import { type ReactElement, useId, useState } from 'react';
@@ -83,10 +84,14 @@ function ProjectList(): ReactElement {
           <EmptyMedia variant="icon">
             <Plus />
           </EmptyMedia>
-          <EmptyTitle>No Projects yet</EmptyTitle>
+          <EmptyTitle>
+            <Trans>No Projects yet</Trans>
+          </EmptyTitle>
           <EmptyDescription>
-            You haven&apos;t created any Projects yet. Get started by creating a
-            new or cloning an existing Project.
+            <Trans>
+              You haven&apos;t created any Projects yet. Get started by creating
+              a new or cloning an existing Project.
+            </Trans>
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -140,7 +145,11 @@ function ListProjectsPage(): ReactElement {
       <>
         A Project ...
         <br />
-        Read more about <a href="#">Projects in the documentation</a>.
+        Read more about{' '}
+        <a href="#">
+          <Trans>Projects in the documentation</Trans>
+        </a>
+        .
       </>
     );
   }
@@ -152,14 +161,14 @@ function ListProjectsPage(): ReactElement {
           Icon={Plus}
           onClick={async () => router.navigate({ to: '/projects/create' })}
         >
-          Create Project
+          <Trans>Create Project</Trans>
         </Button>
         <Button
           Icon={DownloadCloud}
           variant="secondary"
           onClick={() => setIsCloningDialogOpen(true)}
         >
-          Clone Project
+          <Trans>Clone Project</Trans>
         </Button>
       </>
     );
@@ -188,10 +197,14 @@ function ListProjectsPage(): ReactElement {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Clone a Project by URL</DialogTitle>
+            <DialogTitle>
+              <Trans>Clone a Project by URL</Trans>
+            </DialogTitle>
             <DialogDescription>
-              You can clone an existing Project by providing the URL. Make sure
-              you have the necessary permissions to access the Project.
+              <Trans>
+                You can clone an existing Project by providing the URL. Make
+                sure you have the necessary permissions to access the Project.
+              </Trans>
             </DialogDescription>
           </DialogHeader>
 
@@ -206,7 +219,9 @@ function ListProjectsPage(): ReactElement {
                 name="url"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel isRequired>URL</FormLabel>
+                    <FormLabel isRequired>
+                      <Trans>URL</Trans>
+                    </FormLabel>
                     <FormControl>
                       <FormInputField field={field} type="text" />
                     </FormControl>
@@ -217,8 +232,10 @@ function ListProjectsPage(): ReactElement {
               />
               {isCloneRefused ? (
                 <p role="alert" className="mt-4 text-sm text-error">
-                  This repository holds no Project, or one made with an older
-                  version of elek.io Desktop. Ask whoever set it up.
+                  <Trans>
+                    This repository holds no Project, or one made with an older
+                    version of elek.io Desktop. Ask whoever set it up.
+                  </Trans>
                 </p>
               ) : null}
             </AppForm>
@@ -226,7 +243,9 @@ function ListProjectsPage(): ReactElement {
 
           <DialogFooter>
             <FormActions form={cloneProjectForm} id={cloneFormId}>
-              <SubmitButton Icon={DownloadCloud}>Clone</SubmitButton>
+              <SubmitButton Icon={DownloadCloud}>
+                <Trans>Clone</Trans>
+              </SubmitButton>
             </FormActions>
           </DialogFooter>
         </DialogContent>

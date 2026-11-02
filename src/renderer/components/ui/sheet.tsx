@@ -1,6 +1,7 @@
 'use client';
 
 import { Dialog as SheetPrimitive } from '@base-ui/react/dialog';
+import { Trans } from '@lingui/react/macro';
 import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
@@ -83,7 +84,9 @@ function SheetContent({
             }
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">
+              <Trans>Close</Trans>
+            </span>
           </SheetPrimitive.Close>
         ) : null}
       </SheetPrimitive.Popup>

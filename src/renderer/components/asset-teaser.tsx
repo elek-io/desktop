@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -259,7 +260,9 @@ export function AssetTeaser(
                 />
               }
             >
-              <span className="sr-only">View</span>
+              <span className="sr-only">
+                <Trans>View</Trans>
+              </span>
             </DialogTrigger>
             <DialogContent className="sm:max-w-4xl">
               <DialogHeader>
@@ -287,7 +290,9 @@ export function AssetTeaser(
                 />
               }
             >
-              <span className="sr-only">Update</span>
+              <span className="sr-only">
+                <Trans>Update</Trans>
+              </span>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -309,7 +314,7 @@ export function AssetTeaser(
                       Icon={Replace}
                       onClick={async () => onReplaceFile()}
                     >
-                      Replace file
+                      <Trans>Replace file</Trans>
                     </Button>
                     {newFilePath !== undefined ? (
                       <div className="flex max-w-full items-center gap-1 text-sm text-muted-foreground">
@@ -325,7 +330,9 @@ export function AssetTeaser(
                             updateAssetForm.resetField('newFilePath')
                           }
                         >
-                          <span className="sr-only">Undo file replacement</span>
+                          <span className="sr-only">
+                            <Trans>Undo file replacement</Trans>
+                          </span>
                         </Button>
                       </div>
                     ) : null}
@@ -344,7 +351,7 @@ export function AssetTeaser(
               <DialogFooter>
                 <FormActions form={updateAssetForm} id={updateAssetFormId}>
                   <SubmitButton requireDirty variant="outline" Icon={Edit2Icon}>
-                    Update
+                    <Trans>Update</Trans>
                   </SubmitButton>
                 </FormActions>
               </DialogFooter>
@@ -358,7 +365,9 @@ export function AssetTeaser(
             Icon={DownloadIcon}
             onClick={onAssetSave}
           >
-            <span className="sr-only">Save as</span>
+            <span className="sr-only">
+              <Trans>Save as</Trans>
+            </span>
           </Button>
 
           <AlertDialog>
@@ -372,29 +381,35 @@ export function AssetTeaser(
                 />
               }
             >
-              <span className="sr-only">Delete</span>
+              <span className="sr-only">
+                <Trans>Delete</Trans>
+              </span>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  You are about to delete this Asset
+                  <Trans>You are about to delete this Asset</Trans>
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action can be undone later by restoring the Asset via
-                  it&apos;s history.
+                  <Trans>
+                    This action can be undone later by restoring the Asset via
+                    it&apos;s history.
+                  </Trans>
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
               <AssetDisplay {...props} static />
 
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>
+                  <Trans>Cancel</Trans>
+                </AlertDialogCancel>
                 <AlertDialogAction
                   variant="destructive"
                   Icon={TrashIcon}
                   onClick={() => void onDelete()}
                 >
-                  Delete
+                  <Trans>Delete</Trans>
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -407,7 +422,9 @@ export function AssetTeaser(
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Could not delete this Asset</DialogTitle>
+              <DialogTitle>
+                <Trans>Could not delete this Asset</Trans>
+              </DialogTitle>
               <DialogDescription>
                 {describeCoreError(
                   deleteErrorType,
@@ -420,7 +437,7 @@ export function AssetTeaser(
               <DialogClose
                 render={<Button type="button" variant="secondary" />}
               >
-                Close
+                <Trans>Close</Trans>
               </DialogClose>
             </DialogFooter>
           </DialogContent>

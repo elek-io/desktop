@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { Plus, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -138,7 +139,9 @@ export function ProjectForm<
               name="name"
               render={({ field }) => (
                 <FormItem className="col-span-12">
-                  <FormLabel isRequired>Project name</FormLabel>
+                  <FormLabel isRequired>
+                    <Trans>Project name</Trans>
+                  </FormLabel>
                   <FormControl>
                     <FormInputField field={field} type="text" />
                   </FormControl>
@@ -153,7 +156,9 @@ export function ProjectForm<
               name="description"
               render={({ field }) => (
                 <FormItem className="col-span-12">
-                  <FormLabel isRequired>Project description</FormLabel>
+                  <FormLabel isRequired>
+                    <Trans>Project description</Trans>
+                  </FormLabel>
                   <FormControl>
                     <FormTextareaField field={field} />
                   </FormControl>
@@ -176,7 +181,9 @@ export function ProjectForm<
               render={({ field }) => (
                 <>
                   <FormItem className="col-span-6">
-                    <FormLabel isRequired>Supported</FormLabel>
+                    <FormLabel isRequired>
+                      <Trans>Supported</Trans>
+                    </FormLabel>
                     <FormControl>
                       <div>
                         <ul className="flex flex-wrap">
@@ -243,14 +250,16 @@ export function ProjectForm<
                               aria-label="Add language"
                               render={<Button variant="outline" Icon={Plus} />}
                             >
-                              Add language
+                              <Trans>Add language</Trans>
                             </ComboboxTrigger>
                             <ComboboxContent>
                               <ComboboxInput
                                 placeholder="Search languages"
                                 showTrigger={false}
                               />
-                              <ComboboxEmpty>No languages found.</ComboboxEmpty>
+                              <ComboboxEmpty>
+                                <Trans>No languages found.</Trans>
+                              </ComboboxEmpty>
                               <ComboboxList>
                                 {(language: SupportedLanguage) => (
                                   <ComboboxItem key={language} value={language}>
@@ -264,11 +273,13 @@ export function ProjectForm<
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Select which languages this Projects content has to be
-                      translated into. Adding one means every existing
-                      Collection and Entry needs a translation for it before it
-                      can be saved again, and removing one orphans the content
-                      already translated into it.
+                      <Trans>
+                        Select which languages this Projects content has to be
+                        translated into. Adding one means every existing
+                        Collection and Entry needs a translation for it before
+                        it can be saved again, and removing one orphans the
+                        content already translated into it.
+                      </Trans>
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -292,7 +303,9 @@ export function ProjectForm<
 
                 return (
                   <FormItem className="col-span-6">
-                    <FormLabel isRequired>Default</FormLabel>
+                    <FormLabel isRequired>
+                      <Trans>Default</Trans>
+                    </FormLabel>
                     <Select
                       items={Object.fromEntries(
                         availableOptions.map((option) => [
@@ -319,8 +332,10 @@ export function ProjectForm<
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      The default language of this Project. Needs to be one of
-                      the supported languages.
+                      <Trans>
+                        The default language of this Project. Needs to be one of
+                        the supported languages.
+                      </Trans>
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -351,7 +366,9 @@ export function ProjectForm<
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>
+                  <Trans>Cancel</Trans>
+                </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
                     if (languagePendingRemoval !== null) {
@@ -360,7 +377,7 @@ export function ProjectForm<
                     setLanguagePendingRemoval(null);
                   }}
                 >
-                  Remove language
+                  <Trans>Remove language</Trans>
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -372,17 +389,22 @@ export function ProjectForm<
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Deleting the default language</DialogTitle>
+                <DialogTitle>
+                  <Trans>Deleting the default language</Trans>
+                </DialogTitle>
                 <DialogDescription>
-                  The default language can&apos;t be deleted. Please select
-                  another language as the default and then delete this language.
+                  <Trans>
+                    The default language can&apos;t be deleted. Please select
+                    another language as the default and then delete this
+                    language.
+                  </Trans>
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <DialogClose
                   render={<Button type="button" variant="secondary" />}
                 >
-                  Ok
+                  <Trans>Ok</Trans>
                 </DialogClose>
               </DialogFooter>
             </DialogContent>

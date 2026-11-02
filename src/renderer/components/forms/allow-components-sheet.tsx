@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
 import { useId, type ReactElement } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 
@@ -91,18 +92,22 @@ export function AllowComponentsSheet({
         <SheetHeader>
           <SheetTitle>Allow more Components on {label}</SheetTitle>
           <SheetDescription>
-            A dynamic Field can allow more Components after it was added.
-            Nothing else about a Field can be changed yet, and a Component it
-            allows cannot be taken away, since that would delete the sections
-            built from it.
+            <Trans>
+              A dynamic Field can allow more Components after it was added.
+              Nothing else about a Field can be changed yet, and a Component it
+              allows cannot be taken away, since that would delete the sections
+              built from it.
+            </Trans>
           </SheetDescription>
         </SheetHeader>
 
         {allowsEveryComponent ? (
           <SheetBody>
             <p className="text-sm">
-              This Field allows every Component of this Project, the ones added
-              later included, so there is nothing to add.
+              <Trans>
+                This Field allows every Component of this Project, the ones
+                added later included, so there is nothing to add.
+              </Trans>
             </p>
           </SheetBody>
         ) : (
@@ -119,7 +124,7 @@ export function AllowComponentsSheet({
             <SheetFooter>
               <FormActions form={form} id={formId}>
                 <SubmitButton className="w-full" requireDirty>
-                  Allow these Components
+                  <Trans>Allow these Components</Trans>
                 </SubmitButton>
               </FormActions>
             </SheetFooter>
