@@ -68,6 +68,8 @@ const title = translateContent({
 });
 ```
 
+The chain itself lives in [`lib/translateContent.ts`](../../src/renderer/lib/translateContent.ts), and the provider only binds the two languages to it. A language a query has not answered yet is skipped rather than ending the chain, so a name resolves as soon as the record can answer it.
+
 ## Seeding multi-language form state (`translatableDefault`)
 
 When a form needs a `TranslatableString` field initialized for every supported language, use `translatableDefault` from [`lib/utils.ts`](../../src/renderer/lib/utils.ts) instead of building the record by hand:
