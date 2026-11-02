@@ -218,6 +218,43 @@ const noResetInEffect = {
     'Fill a form from its query with `values` on `useAppForm`, not by resetting it in an effect (contributing/renderer/loading-and-updating-data.md).',
 };
 
+// Everything `no-restricted-syntax` bans in the renderer, declared once. Each
+// blessed file below subtracts the one or two bans it legitimately needs
+// dropped, with `exceptFor`, rather than repeating the list: a rule added here
+// has to reach every one of those files, and a repeated list is how four of
+// them missed app-form.tsx.
+const rendererRestrictedSyntax = [
+  noEnumDeclaration,
+  noRawForm,
+  noLiteralSubmitType,
+  noFormReturnLaunderingCast,
+  noControlLaunderingCast,
+  noFieldTypeComparison,
+  noFieldTypeSwitch,
+  noRawUseForm,
+  noResetInEffect,
+  noUnlocalizedPaneName,
+  noUnlocalizedPaneNameInBraces,
+  noUnlocalizedTextAttribute,
+  noUnlocalizedTextAttributeInBraces,
+  noUnlocalizedSelectText,
+  noUnlocalizedSelectTextInBraces,
+  noUnlocalizedSelectItem,
+  noUnlocalizedSelectAttribute,
+  noUnlocalizedSelectAttributeInBraces,
+  noUnlocalizedFieldErrorMessage,
+  noUnlocalizedWiringText,
+  noSplitTransSentence,
+  noJoinedMessages,
+];
+
+/** The renderer's bans without the ones a blessed file drops. */
+function exceptFor(...dropped) {
+  return rendererRestrictedSyntax.filter(
+    (rule) => dropped.includes(rule) === false
+  );
+}
+
 export default [
   // Global ignores
   {
@@ -369,53 +406,28 @@ export default [
   },
 
   // Form guardrails for the renderer (see the constants above and
-  // contributing/renderer/forms.md). Ban a raw <form>, a literal
-  // type="submit", and the whole-form laundering casts everywhere in the
-  // renderer. The two exemption blocks that follow narrow this for the files that
-  // legitimately need it. The enum ban is re-listed because these options replace
-  // the base block's rather than merge with it.
+  // contributing/renderer/forms.md). Every ban applies everywhere in the
+  // renderer, and the three blessed files below each drop exactly what it
+  // needs. These options replace a previous block's rather than merge with it,
+  // which is why each of them reads the whole list through `exceptFor`.
   {
     files: ['src/renderer/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-syntax': [
-        'error',
-        noEnumDeclaration,
-        noRawForm,
-        noLiteralSubmitType,
-        noFormReturnLaunderingCast,
-        noControlLaunderingCast,
-        noFieldTypeComparison,
-        noFieldTypeSwitch,
-        noRawUseForm,
-        noResetInEffect,
-        noUnlocalizedPaneName,
-        noUnlocalizedPaneNameInBraces,
-        noUnlocalizedTextAttribute,
-        noUnlocalizedTextAttributeInBraces,
-        noUnlocalizedSelectText,
-        noUnlocalizedSelectTextInBraces,
-        noUnlocalizedSelectItem,
-        noUnlocalizedSelectAttribute,
-        noUnlocalizedSelectAttributeInBraces,
-        noUnlocalizedFieldErrorMessage,
-        noUnlocalizedWiringText,
-        noSplitTransSentence,
-        noJoinedMessages,
-      ],
+      'no-restricted-syntax': ['error', ...rendererRestrictedSyntax],
     },
   },
 
   // app-form.tsx is the single blessed home for a <form> element and the literal
-  // type="submit" (inside SubmitButton), so drop those two bans here. The enum
-  // and form-cast bans still apply (app-form has neither, and must not gain one).
+  // type="submit" (inside SubmitButton), so those two bans are dropped here.
+  // Every other ban still applies, the field-type, raw-useForm and
+  // reset-in-effect ones included: app-form has none of them and must not gain
+  // one.
   {
     files: ['src/renderer/components/ui/app-form.tsx'],
     rules: {
       'no-restricted-syntax': [
         'error',
-        noEnumDeclaration,
-        noFormReturnLaunderingCast,
-        noControlLaunderingCast,
+        ...exceptFor(noRawForm, noLiteralSubmitType),
       ],
     },
   },
@@ -429,26 +441,7 @@ export default [
     rules: {
       'no-restricted-syntax': [
         'error',
-        noEnumDeclaration,
-        noRawForm,
-        noLiteralSubmitType,
-        noFormReturnLaunderingCast,
-        noControlLaunderingCast,
-        noRawUseForm,
-        noResetInEffect,
-        noUnlocalizedPaneName,
-        noUnlocalizedPaneNameInBraces,
-        noUnlocalizedTextAttribute,
-        noUnlocalizedTextAttributeInBraces,
-        noUnlocalizedSelectText,
-        noUnlocalizedSelectTextInBraces,
-        noUnlocalizedSelectItem,
-        noUnlocalizedSelectAttribute,
-        noUnlocalizedSelectAttributeInBraces,
-        noUnlocalizedFieldErrorMessage,
-        noUnlocalizedWiringText,
-        noSplitTransSentence,
-        noJoinedMessages,
+        ...exceptFor(noFieldTypeComparison, noFieldTypeSwitch),
       ],
     },
   },
@@ -458,17 +451,7 @@ export default [
   {
     files: ['src/renderer/hooks/useAppForm.ts'],
     rules: {
-      'no-restricted-syntax': [
-        'error',
-        noEnumDeclaration,
-        noRawForm,
-        noLiteralSubmitType,
-        noFormReturnLaunderingCast,
-        noControlLaunderingCast,
-        noFieldTypeComparison,
-        noFieldTypeSwitch,
-        noResetInEffect,
-      ],
+      'no-restricted-syntax': ['error', ...exceptFor(noRawUseForm)],
     },
   },
 
