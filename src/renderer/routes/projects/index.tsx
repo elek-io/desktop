@@ -3,7 +3,7 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { DownloadCloud, Plus } from 'lucide-react';
 import { type ReactElement, useId, useState } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { Page } from '@renderer/components/page';
 import { Pane, Panel } from '@renderer/components/pane';
@@ -35,6 +35,7 @@ import {
   EmptyTitle,
 } from '@renderer/components/ui/empty';
 import { TextControl } from '@renderer/components/ui/field-controls';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import queryOptions from '@renderer/queries/options';
@@ -104,7 +105,7 @@ function ListProjectsPage(): ReactElement {
   const { t } = useLingui();
 
   const router = useRouter();
-  const cloneProjectForm = useForm<CloneProjectProps>({
+  const cloneProjectForm = useAppForm<CloneProjectProps>({
     resolver: zodResolver(cloneProjectSchema),
     defaultValues: {
       url: '',

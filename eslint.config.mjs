@@ -176,6 +176,48 @@ const noUnlocalizedNestedDialogText = {
   message: dialogTextMessage,
 };
 
+// Everything Desktop knows about one field type lives in that type's own
+// folder, and everything else asks the registry (components/fields/index.ts).
+// The two selectors below catch the shapes a branch on a type takes: a
+// comparison against one of Core's type names, and a switch over one. A lookup
+// keyed by the type is not a branch, which is what the registry is. A backstop:
+// a set built by hand elsewhere still slips through.
+const fieldTypeBranchMessage =
+  "Ask the field type's own folder through the registry (components/fields/index.ts) rather than branching on `fieldType` or `valueType` (contributing/renderer/dynamic-form-field-generation.md).";
+const fieldTypeNames = '/^(fieldType|valueType)$/';
+// The type read in every shape it is written: `a.fieldType`, `a?.fieldType`
+// (an optional chain wraps the member), `a['fieldType']` (a computed key) and a
+// `fieldType` taken out by a destructuring. A ChainExpression sits between the
+// branch and the member, which is why it is named rather than matched with a
+// descendant combinator: a descendant would also catch a type read deep inside
+// an unrelated comparison.
+const fieldTypeRead = `:matches(MemberExpression[property.name=${fieldTypeNames}],MemberExpression[property.value=${fieldTypeNames}],ChainExpression:has(> MemberExpression[property.name=${fieldTypeNames}]),ChainExpression:has(> MemberExpression[property.value=${fieldTypeNames}]),Identifier[name=${fieldTypeNames}])`;
+const noFieldTypeComparison = {
+  selector: `BinaryExpression[operator=/^[!=]==?$/] > ${fieldTypeRead}`,
+  message: fieldTypeBranchMessage,
+};
+const noFieldTypeSwitch = {
+  selector: `SwitchStatement > ${fieldTypeRead}`,
+  message: fieldTypeBranchMessage,
+};
+// `useForm` is wrapped once, by useAppForm, which pins the reset options a form
+// filled from a query must not forget. Importing it anywhere else is how a form
+// loses `keepDirtyValues` and starts overwriting what somebody typed.
+const noRawUseForm = {
+  selector:
+    "ImportDeclaration[source.value='react-hook-form'] > ImportSpecifier[imported.name='useForm']",
+  message:
+    'Build a form with `useAppForm` (hooks/useAppForm.ts), which pins the reset options a form filled from a query needs (contributing/renderer/loading-and-updating-data.md).',
+};
+// A form fills from its query through `values`, never by resetting it in an
+// effect, which is what overwrote a Value somebody was typing.
+const noResetInEffect = {
+  selector:
+    "CallExpression[callee.name='useEffect'] CallExpression[callee.property.name='reset']",
+  message:
+    'Fill a form from its query with `values` on `useAppForm`, not by resetting it in an effect (contributing/renderer/loading-and-updating-data.md).',
+};
+
 export default [
   // Global ignores
   {
@@ -342,6 +384,10 @@ export default [
         noLiteralSubmitType,
         noFormReturnLaunderingCast,
         noControlLaunderingCast,
+        noFieldTypeComparison,
+        noFieldTypeSwitch,
+        noRawUseForm,
+        noResetInEffect,
         noUnlocalizedPaneName,
         noUnlocalizedPaneNameInBraces,
         noUnlocalizedTextAttribute,
@@ -370,6 +416,58 @@ export default [
         noEnumDeclaration,
         noFormReturnLaunderingCast,
         noControlLaunderingCast,
+      ],
+    },
+  },
+
+  // A field type's own folder is where branching on that type belongs, so the
+  // two field-type bans are dropped there and nowhere else. Everything else in
+  // the renderer keeps them, including fields/index.ts, which assembles the
+  // folders and must not read a type either.
+  {
+    files: ['src/renderer/components/fields/*/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        noEnumDeclaration,
+        noRawForm,
+        noLiteralSubmitType,
+        noFormReturnLaunderingCast,
+        noControlLaunderingCast,
+        noRawUseForm,
+        noResetInEffect,
+        noUnlocalizedPaneName,
+        noUnlocalizedPaneNameInBraces,
+        noUnlocalizedTextAttribute,
+        noUnlocalizedTextAttributeInBraces,
+        noUnlocalizedSelectText,
+        noUnlocalizedSelectTextInBraces,
+        noUnlocalizedSelectItem,
+        noUnlocalizedSelectAttribute,
+        noUnlocalizedSelectAttributeInBraces,
+        noUnlocalizedFieldErrorMessage,
+        noUnlocalizedWiringText,
+        noSplitTransSentence,
+        noJoinedMessages,
+      ],
+    },
+  },
+
+  // useAppForm is the one wrapper around react-hook-form's own hook, so it is
+  // the one file that may import it.
+  {
+    files: ['src/renderer/hooks/useAppForm.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        noEnumDeclaration,
+        noRawForm,
+        noLiteralSubmitType,
+        noFormReturnLaunderingCast,
+        noControlLaunderingCast,
+        noFieldTypeComparison,
+        noFieldTypeSwitch,
+        noResetInEffect,
       ],
     },
   },

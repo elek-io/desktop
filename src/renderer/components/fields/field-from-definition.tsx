@@ -25,6 +25,7 @@ import { Button } from '@renderer/components/ui/button';
 import { ButtonGroup } from '@renderer/components/ui/button-group';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import { TranslatableField } from '@renderer/components/ui/translatable-field';
+import { useAppFormMode } from '@renderer/hooks/useAppFormContext';
 import { useProject } from '@renderer/hooks/useProject';
 import { cn, fieldWidth } from '@renderer/lib/utils';
 
@@ -107,6 +108,11 @@ export function FieldFromDefinition<
   TTransformedValues
 >): React.ReactElement {
   const { translateContent } = useProject();
+  // A view-only form disables its fields through a disabled fieldset, which
+  // only turns off native controls, so a control that is not one (the markdown
+  // editor's contenteditable) is told here. Every control takes `disabled`, so
+  // the mode is folded in once rather than per type.
+  const mode = useAppFormMode();
   const module = fieldModule(fieldDefinition);
   // A per-language Value is bound one level deeper, at the language being
   // edited, because TranslatableField derives the sibling languages from that
@@ -136,7 +142,10 @@ export function FieldFromDefinition<
       {module.Control({
         field,
         fieldDefinition,
-        disabled: fieldDefinition.isDisabled || field.disabled === true,
+        disabled:
+          fieldDefinition.isDisabled ||
+          field.disabled === true ||
+          mode === 'view',
         controlProps: controlPropsFor(fieldDefinition, controlProps),
       })}
     </>

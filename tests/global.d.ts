@@ -13,6 +13,7 @@ declare const window: Window & {
 /** The one element shape the specs read, with the attributes they ask for. */
 interface ProbedElement {
   readonly tagName: string;
+  readonly textContent: string | null;
   readonly parentElement: ProbedElement | null;
   readonly clientHeight: number;
   readonly scrollHeight: number;
@@ -60,6 +61,7 @@ declare const getComputedStyle: (
 
 declare const document: {
   body: { scrollWidth: number };
+  getElementById(id: string): ProbedElement | null;
   readonly activeElement: ProbedElement | null;
   readonly documentElement: ProbedElement;
   getAnimations(): ArrayLike<unknown>;

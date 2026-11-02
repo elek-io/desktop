@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useId, useState } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { type SubmitHandler } from 'react-hook-form';
 
 import {
   AssetTeaser,
@@ -31,6 +31,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
@@ -56,7 +57,7 @@ function ProjectAssetsPage(): React.JSX.Element {
   const [isAddAssetDialogOpen, setIsAddAssetDialogOpen] =
     useState<boolean>(false);
   const addAssetFormId = useId();
-  const createAssetForm = useForm<CreateAssetProps>({
+  const createAssetForm = useAppForm<CreateAssetProps>({
     resolver: zodResolver(createAssetSchema),
     defaultValues: {
       name: '',

@@ -13,7 +13,6 @@ import {
   type FieldValues,
   type SubmitHandler,
   type UseFormReturn,
-  useForm,
 } from 'react-hook-form';
 
 import {
@@ -44,6 +43,7 @@ import {
   TextControl,
   TextareaControl,
 } from '@renderer/components/ui/field-controls';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { queryOptions } from '@renderer/queries';
@@ -414,7 +414,7 @@ function BugReportForm({
   const contact = useCachedContact();
   const { send, sendError } = useSendReport(onSent);
 
-  const form = useForm({
+  const form = useAppForm({
     resolver: zodResolver(bugReportFormSchema),
     defaultValues: {
       type: 'bug' as const,
@@ -516,7 +516,7 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
   const contact = useCachedContact();
   const { send, sendError } = useSendReport(onSent);
 
-  const form = useForm({
+  const form = useAppForm({
     resolver: zodResolver(feedbackReportFormSchema),
     defaultValues: {
       type: 'feedback' as const,

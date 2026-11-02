@@ -123,8 +123,12 @@ export function FieldShell({
 
   const control = children({
     id: controlId,
+    // Only the parts that are on screen are named, so a label, a description
+    // and an error always point at something that exists.
     ...(describedBy === '' ? {} : { 'aria-describedby': describedBy }),
-    ...(error === undefined ? {} : { 'aria-invalid': true }),
+    // Said either way, since a control that was valid and then is not has to
+    // change rather than gain the state.
+    'aria-invalid': error !== undefined,
   });
   const labelPart = (
     <FieldLabel htmlFor={controlId} isRequired={required}>

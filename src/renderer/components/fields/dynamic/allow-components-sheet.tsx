@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans } from '@lingui/react/macro';
 import { useId, type ReactElement } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { OfComponentsPicker } from '@renderer/components/fields/dynamic/definition';
 import {
@@ -18,6 +18,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@renderer/components/ui/sheet';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useProject } from '@renderer/hooks/useProject';
 
 import {
@@ -61,12 +62,10 @@ export function AllowComponentsSheet({
   const formId = useId();
   // Seeded with the stored definition, so the submit yields it with nothing but
   // ofComponents changed, validated by Core's own schema.
-  const form = useForm<DynamicFieldDefinition, unknown, DynamicFieldDefinition>(
-    {
-      resolver: zodResolver(dynamicFieldDefinitionSchema),
-      defaultValues: fieldDefinition,
-    }
-  );
+  const form = useAppForm<DynamicFieldDefinition, DynamicFieldDefinition>({
+    resolver: zodResolver(dynamicFieldDefinitionSchema),
+    defaultValues: fieldDefinition,
+  });
   const label = translateContent({
     key: 'fieldDefinition.label',
     record: fieldDefinition.label,

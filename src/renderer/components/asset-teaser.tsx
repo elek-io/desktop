@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { Fragment, useId, useState } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { AssetDisplay } from '@renderer/components/asset-display';
 import { AssetForm } from '@renderer/components/forms/asset-form';
@@ -59,6 +59,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@renderer/components/ui/tooltip';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
@@ -104,7 +105,7 @@ export function AssetTeaser(
         },
       },
     });
-  const updateAssetForm = useForm<UpdateAssetProps>({
+  const updateAssetForm = useAppForm<UpdateAssetProps>({
     resolver: zodResolver(updateAssetSchema),
     defaultValues: {
       id: props.id,

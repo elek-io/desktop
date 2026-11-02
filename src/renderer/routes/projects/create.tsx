@@ -4,12 +4,13 @@ import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
 import { type ReactElement, useId } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { ProjectForm } from '@renderer/components/forms/project-form';
 import { Page } from '@renderer/components/page';
 import { Pane, Panel } from '@renderer/components/pane';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { queryOptions } from '@renderer/queries';
 
@@ -24,7 +25,7 @@ function CreateProjectPage(): ReactElement {
 
   const router = useRouter();
   useBreadcrumb(Route, t`Create`);
-  const createProjectForm = useForm<CreateProjectProps>({
+  const createProjectForm = useAppForm<CreateProjectProps>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: '',

@@ -37,8 +37,8 @@ import type { FieldTypeModule } from './module';
  */
 const FIELD_TYPES: { [T in FieldType]: FieldTypeModule<T> } = {
   text: textField,
-  textarea: textareaField,
   number: numberField,
+  textarea: textareaField,
   toggle: toggleField,
   email: emailField,
   date: dateField,
