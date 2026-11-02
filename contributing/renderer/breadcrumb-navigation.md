@@ -118,10 +118,10 @@ function ProjectLayoutContent(): React.JSX.Element {
 To access current breadcrumbs without registering a new one:
 
 ```tsx
-// src/renderer/components/user-header.tsx
+// src/renderer/components/app-header.tsx
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 
-export function UserHeader(): React.JSX.Element {
+export function HeaderTrail(): ReactElement {
   const { breadcrumbs } = useBreadcrumb();
 
   return (

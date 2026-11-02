@@ -4,7 +4,7 @@ The client is tested end to end with [Playwright](https://playwright.dev/docs/ap
 
 There is no unit test setup yet. Everything below is about E2E tests.
 
-The suite covers each object type end to end (Projects, Collections, Components, Entries, Assets, User) plus the cross-cutting surfaces: navigation and breadcrumbs, empty states, history and diffs, git sync, Releases, persistence across a reload, the root error boundary and not-found route, the main process security policy, the IPC guards, the local API and accessibility. `tests/specs` is the map, and each spec's name says what it pins.
+The suite covers each object type end to end (Projects, Collections, Components, Entries, Assets, User) plus the cross-cutting surfaces: navigation and breadcrumbs, empty states, history and diffs, git sync, Releases, persistence across a reload, the window and its panes, the root error boundary and not-found route, the main process security policy, the IPC guards, the local API and accessibility. `tests/specs` is the map, and each spec's name says what it pins.
 
 New tests are written where a change lands rather than from a standing list. What earns one is the desktop app's own responsibility (see [What a desktop test verifies](#what-a-desktop-test-verifies)): a flow that drives Core, a failure the UI has to surface, or a form invariant that would otherwise regress silently. Build the shared helper in `tests/helpers` before its first consumer, and extend an existing helper rather than inlining a second copy of a UI drive.
 
@@ -81,6 +81,8 @@ When a mutation handles some `CoreError` types in place and lets the rest propag
 Follow the arrange, act, assert split. Arrange preconditions over IPC (the `ViaIpc` helpers, see the naming convention below) since that is fast and does not depend on unrelated UI. Act through the UI for the flow under test. Assert on the surface that proves the desktop app's responsibility, usually the UI.
 
 ## Writing tests
+
+A spec that has to observe the main process rather than the window takes the `electronApp` fixture and replaces something there, which is what the `stubCore*` helpers do. Three more read instead of replace: `tests/helpers/window.ts` asks for a window size and reads back what the window manager gave, `tests/helpers/log.ts` records what the app writes to Core's logger, which is the only way to observe logging since a log file is Core's, and `tests/helpers/external.ts` records what the app asks the system to open, so a link that leaves the app is asserted without a browser. The last two keep their records in the main process, declared in `tests/global.d.ts`.
 
 Reusable page interactions belong in `tests/helpers` as plain functions that take the `Page` first. Prefer role and label based locators over CSS selectors, and auto-retrying assertions like `toHaveURL` over one-shot reads, since route redirects happen client side. `getByLabel(text, { exact: true })` addresses form fields, including the translatable ones, since their inputs carry the label association. Scope it to an open dialog (`dialog.getByLabel(...)`) to disambiguate a label that also appears on the page behind it.
 

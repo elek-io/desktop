@@ -176,7 +176,7 @@ test.describe('The window', () => {
     expect(measured.panelSurface).not.toBe(measured.ground);
   });
 
-  test('leaves the window controls bar to the system', async ({
+  test('leaves the window controls bar to the system, as high as it draws it', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -186,9 +186,15 @@ test.describe('The window', () => {
       if (element === null) {
         throw new Error('The header has no window controls bar');
       }
+      const overlay = navigator.windowControlsOverlay;
+
       return {
         controls: element.querySelectorAll('a, button').length,
         appRegion: getComputedStyle(element).getPropertyValue('app-region'),
+        overlayHeight:
+          overlay?.visible === true
+            ? overlay.getTitlebarAreaRect().height
+            : null,
       };
     });
 
@@ -196,6 +202,13 @@ test.describe('The window', () => {
     // it to themselves and the whole bar moves the window.
     expect(bar.controls).toBe(0);
     expect(bar.appRegion).toBe('drag');
+
+    // Where the system draws the controls into an overlay, which is Windows
+    // and Linux, it is as high as the bar the app left it. macOS draws its
+    // traffic lights instead, which the group below places.
+    if (bar.overlayHeight !== null) {
+      expect(bar.overlayHeight).toBe(WINDOW_CONTROLS_BAR_HEIGHT);
+    }
   });
 
   // Only macOS draws traffic lights, and only there does Electron answer a

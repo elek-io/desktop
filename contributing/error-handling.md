@@ -12,6 +12,8 @@ Two kinds of error reach the renderer, and the difference drives everything belo
 - **`CoreError`** is thrown by a Core operation and travels to the renderer through an IPC channel. It is the app's expected failure shape. Core raises a `CoreError` with a `type` (`NotFound`, `BadRequest`, `Unauthorized`, `Conflict`, `PreconditionFailed`, `UpgradeFailed`, `VersionSkew`, `RateLimited`, `Internal`) and a matching `statusCode`. The `type` is the stable, machine readable contract, like an HTTP status code. See Core's [error-handling doc](../node_modules/@elek-io/core/docs/error-handling.md) for the full table.
 - **Renderer errors** are ordinary JavaScript or React errors: a route that fails to load, a render that throws, a bug. These are not `CoreError`s and carry no `type`.
 
+Where one surfaces depends on what it was doing rather than on what it is: a read that failed stays in its pane, and everything else is fatal to the view. See [how errors surface in the UI](#how-errors-surface-in-the-ui).
+
 ## Preserving `CoreError.type` across IPC
 
 The main and renderer processes are separate, so an error thrown by a handler does not travel to the renderer as itself. Electron reconstructs it on the renderer side, and that reconstruction **drops the `CoreError` subclass along with its `type` and `statusCode`, and carries no stack frames** (verified: the renderer-side rejection is a plain `Error` whose `message` is `Error invoking remote method '<channel>': <original message>` and whose `stack` has zero `at ...` frames). Without help the renderer sees only a message string, cannot tell a `Conflict` from a `PreconditionFailed`, and has no origin stack.
@@ -44,11 +46,24 @@ An error Core raised without a cause encodes and decodes exactly as it did befor
 
 ### Unexpected errors: the root error boundary
 
-By default, query and mutation failures are meant to be fatal to the current view. `throwOnError: true` is set app wide, by [`useQueryNoError`](/src/renderer/hooks/useQueryNoError.ts) for queries and by `customMutationOptions` ([`util.ts`](/src/renderer/queries/util.ts)) for mutations. The error is re-thrown during render and caught by the only `errorComponent` in the app, the root `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx). It replaces the whole view with a friendly error page whose only exits are Back to Projects and Reload, plus Report this problem, which opens the report dialog on top of it.
+By default, a mutation failure and a render error are meant to be fatal to the current view. `throwOnError: true` is set app wide, by [`useQueryNoError`](/src/renderer/hooks/useQueryNoError.ts) for queries and by `customMutationOptions` ([`util.ts`](/src/renderer/queries/util.ts)) for mutations. The error is re-thrown during render and caught by the root `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx). It replaces the whole view with a friendly error page whose only exits are Back to Projects and Reload, plus Report this problem, which opens the report dialog on top of it.
 
 `ErrorComponent` runs the caught error through `parseIpcError`, so it shows and logs the clean message and never the raw sentinel payload. It uses the decoded stack too: for a CoreError that is Core's origin stack, and a non-Core error falls back to its own stack, so the technical detail block and the log never leak the encoded form either.
 
-This full view takeover is the right default for an unexpected error but the wrong response to an expected, recoverable one. Those are handled in place instead.
+This full view takeover is the right default for an unexpected failure but the wrong response to two other things: a read a pane could not make, which the pane answers itself, and an expected, recoverable guard, which is handled in place.
+
+### A read that failed: the pane says so
+
+A query failure is not fatal to the view. It belongs to the one pane that read it, so [`Pane`](/src/renderer/components/pane.tsx) puts a boundary of its own around what it holds: TanStack Router's `CatchBoundary` inside Query's `QueryErrorResetBoundary`. The pane keeps its place in the window and shows one sentence and Try again, while the header, the sidebar and every other pane carry on. Try again clears the query's error and then the boundary, so the read runs again, and navigating away clears it too, since the router's location is the boundary's reset key.
+
+**It logs what it caught the way the root boundary does**, through `errorLogAttributes`, with the message `Uncaught pane error: ...`. That is the point of a boundary rather than an `isError` branch: a read that failed is in the log file with its type, message and stack, whichever pane it happened in. An `isError` branch or a blanket `throwOnError: false` would show the same sentence and write nothing.
+
+**A pane's boundary takes a failed read and nothing else.** A React boundary catches everything thrown below it and cannot tell a failed read from a failed save, because both arrive as the same `CoreError`. So the query cache marks every read that failed, in [`client.ts`](/src/renderer/queries/client.ts), and `PaneReadFailed` re-throws anything without that mark, which carries it up to the root error screen. The mark is set there rather than in `useQueryNoError`, because `throwOnError: true` makes TanStack Query itself throw during render, before the hook looks at the result. It is kept in a `WeakSet` (see [`readFailure.ts`](/src/renderer/lib/readFailure.ts)), so nothing is added to what the error screen shows, what a log record carries or what crosses IPC.
+
+Two rules follow for a screen:
+
+- **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it.
+- **A read belongs inside the pane that shows it.** A boundary only catches what is thrown below it, so a read in a layout above two panes takes both of them, which is right when both depend on it and wrong when one does. Read in the component that shows the data.
 
 ### Expected errors: handled in place
 
@@ -170,6 +185,7 @@ There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC
 | A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ran ... on ..." plus a success toast |
 | A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to run ... on ..." plus an error toast    |
 | An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"         |
+| A read fails inside a pane               | `PaneReadFailed` in [`pane.tsx`](/src/renderer/components/pane.tsx)                  | error: "Uncaught pane error: {decoded message}"          |
 | A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                            |
 | A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"                |
 | React recovers from an error             | `onRecoverableError` in [`app.tsx`](/src/renderer/app.tsx)                           | warn: "React recovered from an error"                    |
@@ -247,7 +263,7 @@ It holds two independent forms behind one dialog. A bug report and a suggestion 
 
 **Two entry points.**
 
-- **The header.** A "Feedback" button in [`user-header.tsx`](/src/renderer/components/user-header.tsx), which renders on every normal route. It sits outside the `user === null` check on purpose: a broken first run is exactly the thing worth reporting, so reporting must not depend on having finished onboarding. It opens on the bug form with the log switch **off**.
+- **The header.** Report an issue in the Help menu of [`app-header.tsx`](/src/renderer/components/app-header.tsx), which renders on every route, the error screen included. It sits outside anything that depends on a User: a broken first run is exactly the thing worth reporting, so reporting must not depend on having finished onboarding. It opens on the bug form with the log switch **off**.
 - **The root error boundary.** `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx) offers "Report this problem" as its primary action, opening the same dialog in bug mode with an empty message and the log switch **on**. A crash is the moment a report is worth most and the moment a user is least likely to go hunting for a header button. The error and its stack are already in the logs, since the screen writes them when it mounts, so the message is left for what only the user knows: what they did and when. Copying the error into the message would also send it with the logs switched off, which is not what the user chose. This screen replaces `RootComponent` outright, so it mounts its own `Toaster` (otherwise a sent report closes its dialog and leaves no evidence it worked, and the user sends it again) and writes its own log from an effect rather than the render body (otherwise opening and closing the dialog rewrites the same entry, inflating the very log tail the report attaches).
 
 **The dialog must not depend on `UserProvider`.** The boundary renders outside it, so `useUser()` would throw there. The contact prefill reads the User from the query **cache** instead of fetching, which also avoids the worse failure: `useQueryNoError` carries `throwOnError: true`, so a fetch that failed while the boundary was already rendering an error would take the boundary down with it.
@@ -274,13 +290,14 @@ Handling a type suppresses the wrapper's toast and log, and here that would mean
 
 ## Testing implications
 
-The E2E fixture asserts zero console errors or warnings on a passing test (see [testing.md](./testing.md)). A UI driven negative path that hits the boundary may need the console escape hatch, though the boundary itself is console-clean in the packaged build, because all three React root handlers are defined and the app logs over IPC rather than to the renderer console. A flow handled in place never reaches the boundary at all, which is one reason the expected error pattern above is preferred for recoverable guards. Assert the reason specific copy you wrote, not Core's raw message.
+The E2E fixture asserts zero console errors or warnings on a passing test (see [testing.md](./testing.md)). A UI driven negative path that hits a boundary may need the console escape hatch, though the boundaries themselves are console-clean in the packaged build, because all three React root handlers are defined and the app logs over IPC rather than to the renderer console. A flow handled in place never reaches the boundary at all, which is one reason the expected error pattern above is preferred for recoverable guards. Assert the reason specific copy you wrote, not Core's raw message.
 
 ## Quick reference
 
 | Scenario                                  | UI surface                                    | Local log                                                             |
 | ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
-| Unexpected query error                    | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
+| A read fails inside a pane                | One sentence and Try again, in the pane       | Pane error log plus the `onCaughtError` log                           |
+| A read fails above every pane             | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
 | Unexpected mutation error                 | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
 | Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page | None by default                                                       |
 | Unhandled `type` on an in-place mutation  | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |

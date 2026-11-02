@@ -12,7 +12,8 @@ The base configuration for all queries and mutations is in [`client.ts`](../../s
 
 **Key Settings:**
 
-- `staleTime: Infinity` (line 9) - Queries remain "fresh" indefinitely and won't automatically refetch. This is appropriate for local data that only changes through user actions.
+- `staleTime: Infinity` - Queries remain "fresh" indefinitely and won't automatically refetch. This is appropriate for local data that only changes through user actions.
+- A `QueryCache` whose `onError` marks every read that failed, which is how a pane's error boundary tells a failed read from a failed write (see [A read that fails belongs to its pane](#a-read-that-fails-belongs-to-its-pane)).
 
 ### Query and Mutation Options
 
@@ -101,12 +102,12 @@ The [`UserProvider`](../../src/renderer/providers/UserProvider.tsx) wraps the en
 - `userQuery: UseQueryResultNoError<User | null>` - The current user query result
 - `formatDatetime: (props: FormatDatetimeProps) => { relative: string; absolute: string }` - Formats datetime strings according to the user's locale
 
-**Example:** See [`components/user-header.tsx`](../../src/renderer/components/user-header.tsx)
+**Example:** See `HeaderUser` in [`components/app-header.tsx`](../../src/renderer/components/app-header.tsx)
 
 ```typescript
 import { useUser } from '@renderer/hooks/useUser';
 
-function UserHeader() {
+function HeaderUser() {
   const { userQuery, formatDatetime } = useUser();
 
   // Access user data
@@ -172,6 +173,8 @@ We prioritize fast, responsive UI by rendering pages immediately without waiting
 
 **Pattern:** Show Skeleton components while data loads, then replace them with actual content when ready.
 
+**Nothing moves while a pane loads.** [`Skeleton`](../../src/renderer/components/ui/skeleton.tsx) is a still placeholder in the muted surface, not a pulse, because the design rules out motion while a page loads. It is the one skeleton: a screen does not write its own `bg-muted` placeholder, and a list uses `SkeletonRows` from the same file, which draws the rows of a list in the geometry of a real row and carries the `aria-busy` label that says what is being read. `tests/specs/panes.spec.ts` reads the computed animation of every skeleton in a loading pane, so a pulse put back anywhere fails a test.
+
 **Example:** See [`routes/projects/index.tsx`](../../src/renderer/routes/projects/index.tsx)
 
 ```typescript
@@ -194,6 +197,17 @@ This ensures the page structure renders immediately, with placeholders that are 
 
 **Lists load fully and paginate client side.** List queries pass `limit: 0`, so Core returns the whole list into a single cached `'list'` query (kept fresh by `staleTime: Infinity` and updated in place by `mergeListWithObject`, not refetched). Any pagination or filtering a list view offers is therefore applied client side over that already-loaded list, not by refetching a page from Core. The Entry table is the current example: it feeds the full list to TanStack Table with `getPaginationRowModel()` (a fixed page size) and `getFilteredRowModel()` (the filter input drives `state.globalFilter`), resets the page index when the filter changes, and sets `autoResetPageIndex: false` because it rebuilds its `data` array each render (the default auto-reset would read that as a data change and snap the page back to the first one).
 
+### A read that fails belongs to its pane
+
+A query failure is not fatal to the view. The pane that read it keeps its place in the window and says in one sentence that it cannot be read, with Try again, while the header, the sidebar and every other pane carry on. That comes from [`Pane`](../../src/renderer/components/pane.tsx), which puts a `CatchBoundary` inside a `QueryErrorResetBoundary` around whatever it holds, and it is why no screen writes an `isError` branch of its own.
+
+Two rules follow for a screen:
+
+- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does.
+- **Read inside the pane that shows the data.** A boundary catches only what is thrown below it, so a read in a layout above two panes takes both of them. That is right when both depend on it, and wrong when one does.
+
+A failed write and a component that throws are not a read: they still replace the whole view with the root error screen, which offers Report an issue. How the two are told apart, and what a pane's name in the sentence comes from, is in [Error Handling](../error-handling.md#a-read-that-failed-the-pane-says-so).
+
 ### Error Handling - Prefer useQueryNoError
 
 **Always use [`useQueryNoError`](../../src/renderer/hooks/useQueryNoError.ts) instead of `useQuery` for data fetching.**
@@ -215,7 +229,7 @@ if (isPending) return <LoadingSkeleton />;
 return <div>{collection.name}</div>;
 ```
 
-See the hook's JSDoc for implementation details. Errors are caught by the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx).
+See the hook's JSDoc for implementation details. A failed read is caught by the boundary of the pane it was read in, and by the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx) where it was read above every pane.
 
 For fetching a variable-length list of same-typed queries (for example one `entries.list` per Collection), use the sibling [`useQueriesNoError`](../../src/renderer/hooks/useQueriesNoError.ts) hook, which applies the same error narrowing to an array of query options.
 
@@ -499,7 +513,7 @@ Mutations already have `onSuccess` handlers that update the necessary caches. Us
 
 Data loading and mutations lean on the app's error handling defaults:
 
-- `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
+- `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the nearest error boundary. For a read that is the pane it was read in, and for everything else the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
 - All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. That is the only sink, and nothing it writes leaves the machine.
 - An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete and sync-conflict modals do this today.
 - One query does the same in its own layer. `releases.prepare` catches the `CoreError` types the Release dialog can explain inside its `queryFn` and returns them as a `refused` outcome, re-throwing everything else so its `throwOnError: true` still reaches the boundary. The caught set is the same map the dialog's copy comes from, so the two cannot drift apart.

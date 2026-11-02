@@ -44,10 +44,11 @@ test.describe('Reporting a bug or feedback', () => {
   test('the report dialog is reachable before a User exists', async ({
     mainWindow,
   }) => {
-    // No setUserViaIpc on purpose. The button sits outside user-header's
-    // `user === null` check because a broken first run is the thing most worth
-    // reporting, and every other spec here seeds a User, so without this one a
-    // refactor that moved the button inside that branch would pass CI.
+    // No setUserViaIpc on purpose. Report an issue sits in the header's Help
+    // menu, outside everything that depends on a User, because a broken first
+    // run is the thing most worth reporting, and every other spec here seeds a
+    // User, so without this one a refactor that moved it behind the User would
+    // pass CI.
     await navigate(mainWindow, '#/projects');
 
     const dialog = await openReportDialogFromHeader(mainWindow);

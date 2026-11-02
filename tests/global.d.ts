@@ -61,6 +61,18 @@ declare const document: {
   querySelectorAll(selectors: string): ArrayLike<ProbedElement>;
 };
 
+/**
+ * The window controls overlay, where the system draws the controls into the
+ * document's own top bar. Windows and Linux report it, which is where the
+ * window spec reads its height.
+ */
+declare const navigator: {
+  readonly windowControlsOverlay?: {
+    readonly visible: boolean;
+    getTitlebarAreaRect(): { readonly height: number };
+  };
+};
+
 declare const localStorage: {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
