@@ -6,6 +6,7 @@ import { ESLint } from 'eslint';
 import { execFile } from 'node:child_process';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { resolveAppLocale } from '../../src/shared/locale.js';
@@ -13,6 +14,18 @@ import { resolveAppLocale } from '../../src/shared/locale.js';
 const run = promisify(execFile);
 const root = path.resolve(import.meta.dirname, '../..');
 const catalogPath = path.join(root, 'src/locales/en.po');
+
+/**
+ * The Lingui CLI's own entry, which `pnpm i18n:check` runs.
+ *
+ * Run through the same Node this test runs in rather than through `pnpm exec`,
+ * because pnpm is a `.cmd` shim on Windows and Node refuses to spawn a batch
+ * file without a shell. Resolved rather than written out, so it follows the
+ * package instead of a path inside `node_modules`.
+ */
+const linguiCli = fileURLToPath(
+  new URL('lingui.js', import.meta.resolve('@lingui/cli'))
+);
 
 /** The two rules that keep a string a person reads out of the code. */
 const guards = ['lingui/no-unlocalized-strings', 'no-restricted-syntax'];
@@ -27,23 +40,37 @@ const guards = ['lingui/no-unlocalized-strings', 'no-restricted-syntax'];
  * it needs a window, and the suite's own runner is the one place to put them.
  */
 
-/** Runs a repository script and answers with its exit code and output. */
-async function runScript(
+/**
+ * Runs the catalog check and answers with its exit code and output.
+ *
+ * A process that ran and failed carries its exit code as a number. Anything
+ * else is the spawn itself failing, such as ENOENT or EINVAL, whose `code` is a
+ * string: that is rethrown rather than reported as a non-zero exit, because an
+ * assertion of "not zero" against a string passes while the check never ran.
+ */
+async function runCatalogCheck(
   args: string[]
 ): Promise<{ code: number; output: string }> {
   try {
-    const { stdout, stderr } = await run('pnpm', ['exec', ...args], {
-      cwd: root,
-    });
+    const { stdout, stderr } = await run(
+      process.execPath,
+      [linguiCli, ...args],
+      {
+        cwd: root,
+      }
+    );
     return { code: 0, output: `${stdout}${stderr}` };
   } catch (error) {
     const failure = error as {
-      code?: number;
+      code?: unknown;
       stdout?: string;
       stderr?: string;
     };
+    if (typeof failure.code !== 'number') {
+      throw error;
+    }
     return {
-      code: failure.code ?? 1,
+      code: failure.code,
       output: `${failure.stdout ?? ''}${failure.stderr ?? ''}`,
     };
   }
@@ -109,7 +136,7 @@ test.describe('The message catalog', () => {
     );
 
     try {
-      const failed = await runScript(['lingui', 'check', 'sync', '--clean']);
+      const failed = await runCatalogCheck(['check', 'sync', '--clean']);
       expect(failed.code).not.toBe(0);
       expect(failed.output).toContain('out-of-sync');
     } finally {
@@ -118,7 +145,7 @@ test.describe('The message catalog', () => {
 
     // And the same check passes again once the probe is gone, so the failure
     // above was the probe rather than a catalog that was already stale.
-    const passed = await runScript(['lingui', 'check', 'sync', '--clean']);
+    const passed = await runCatalogCheck(['check', 'sync', '--clean']);
     expect(passed.code).toBe(0);
   });
 
@@ -133,19 +160,32 @@ test.describe('The message catalog', () => {
       sourceLocale: config.sourceLocale,
     });
 
-    // The test-only second catalog: every message of the English one, with a
-    // single sentence translated and the rest left to the fallback chain the
-    // compiler applies. Adding a language is this file and nothing else, which
-    // is why no component takes part in it.
+    // The test-only second locale, which carries no catalog of its own. That
+    // is what every message of a language nobody has translated yet looks
+    // like, and what the compiler has to fill. Read through the compiler's own
+    // fallback chain rather than by copying the English messages in, which
+    // would prove nothing about a gap. Adding a language is this file and
+    // nothing else, which is why no component takes part in it.
+    const { messages: fallenBack } = await catalog!.getTranslations('xx', {
+      fallbackLocales: config.fallbackLocales,
+      sourceLocale: config.sourceLocale,
+    });
+
+    // One sentence translated by hand on top, so the second language is not
+    // only a copy of the first.
     const translatedSource = 'Could not create the Project';
     const translated = 'Das Projekt konnte nicht angelegt werden';
     const ids = Object.keys(english);
     const translatedId = ids.find((id) => english[id] === translatedSource);
     expect(translatedId).toBeDefined();
 
+    // Every id the code uses is in the compiled catalog, filled from English,
+    // rather than left out for the runtime to answer with the id.
+    expect(Object.keys(fallenBack).sort()).toEqual(ids.sort());
+
     const { source: compiled } = createCompiledCatalog(
       'xx',
-      { ...english, [translatedId!]: translated },
+      { ...fallenBack, [translatedId!]: translated },
       { namespace: 'json' }
     );
     const { messages } = JSON.parse(compiled) as {
@@ -159,7 +199,7 @@ test.describe('The message catalog', () => {
     expect(i18n._(translatedId!)).toBe(translated);
 
     // Every other message comes back in English, and never as its id, which is
-    // what the compiled catalog's fallback to the source locale guarantees.
+    // what the compiler's fallback to the source locale guarantees.
     const untranslated = ids.filter((id) => id !== translatedId);
     const asId = untranslated.filter(
       (id) => i18n._(id) === id && english[id] !== undefined
