@@ -84,7 +84,9 @@ test.describe('The app in one language', () => {
     );
     await mainWindow.getByLabel('Project name').fill('Autohaus Thamm');
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-    const projectToast = mainWindow.getByText('Project Autohaus Thamm saved');
+    const projectToast = mainWindow.getByText('Project Autohaus Thamm saved', {
+      exact: true,
+    });
     await expect(projectToast).toBeVisible();
     const shown = [(await projectToast.innerText()).trim()];
 
@@ -100,7 +102,12 @@ test.describe('The app in one language', () => {
       .getByLabel('Collection name (Plural)', { exact: true })
       .fill('Blog posts');
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-    const collectionToast = mainWindow.getByText('Collection Blog posts saved');
+    const collectionToast = mainWindow.getByText(
+      'Collection Blog posts saved',
+      {
+        exact: true,
+      }
+    );
     await expect(collectionToast).toBeVisible();
     shown.push((await collectionToast.innerText()).trim());
 
@@ -112,7 +119,7 @@ test.describe('The app in one language', () => {
     });
     await fillEntryForm(mainWindow, { Title: 'Zwei Hallen, ein Dach' });
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
-    const entryToast = mainWindow.getByText('Entry created');
+    const entryToast = mainWindow.getByText('Entry created', { exact: true });
     await expect(entryToast).toBeVisible();
     shown.push((await entryToast.innerText()).trim());
 
@@ -170,7 +177,7 @@ test.describe('The app in one language', () => {
       field: { label: 'Headline', description: 'The headline of the event' },
     });
     await expect(
-      mainWindow.getByText('Collection Events created')
+      mainWindow.getByText('Collection Events created', { exact: true })
     ).toBeVisible();
 
     await navigateToComponentCreate(mainWindow, project.id);
@@ -187,7 +194,7 @@ test.describe('The app in one language', () => {
     });
     await mainWindow.getByRole('button', { name: 'Create Component' }).click();
     await expect(
-      mainWindow.getByText('Component Teaser created')
+      mainWindow.getByText('Component Teaser created', { exact: true })
     ).toBeVisible();
   });
 
@@ -196,14 +203,13 @@ test.describe('The app in one language', () => {
   }) => {
     // A Collection's and a Component's name is content, stored per language, so
     // the toast has to read it through the chain a screen reads it through: the
-    // User's language, then the Project's default, then English. The User's
-    // language below has a word in neither record, so only the Project's
-    // default can answer. English stands first in each record, so a toast that
-    // took whichever language a record happens to carry would answer with the
-    // English name instead.
-    await setUserViaIpc(mainWindow, { language: 'fr' });
+    // User's language, then the Project's default, then English. Both records
+    // below answer in both languages, with different words, so each language
+    // that can stand first in the chain gives a different name. Only the
+    // User's language gives the one every screen here shows.
+    await setUserViaIpc(mainWindow, { language: 'de' });
     const project = await createProjectViaIpc(mainWindow, {
-      settings: { language: { default: 'de', supported: ['de', 'en'] } },
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
     });
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
@@ -228,8 +234,9 @@ test.describe('The app in one language', () => {
     });
 
     // The Collection, on the screen it is changed on. Its heading is the name
-    // the screen resolved, so the toast after the save has to carry the same
-    // one.
+    // the screen resolved, while the input beside it holds the Project's
+    // default language, which is the other name in the record. Neither name is
+    // edited here, so the toast after the save has to carry the heading's one.
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -237,17 +244,20 @@ test.describe('The app in one language', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'Configure Nachrichten' })
     ).toBeVisible();
+    await expect(
+      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+    ).toHaveValue('Articles');
     await mainWindow
-      .getByLabel('Collection name (Plural)', { exact: true })
-      .fill('Meldungen');
+      .getByLabel('Description', { exact: true })
+      .fill('What the dealership announces');
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     await expect(
-      mainWindow.getByText('Collection Meldungen saved')
+      mainWindow.getByText('Collection Nachrichten saved', { exact: true })
     ).toBeVisible();
     // The save lands on the Collection itself, whose heading is the same name
     // again, so the two cannot disagree.
     await expect(
-      mainWindow.getByRole('heading', { name: 'Meldungen' })
+      mainWindow.getByRole('heading', { name: 'Nachrichten', exact: true })
     ).toBeVisible();
 
     // And the Component, whose name is one record rather than two.
@@ -256,17 +266,22 @@ test.describe('The app in one language', () => {
       componentId: component.id,
     });
     await expect(
-      mainWindow.getByRole('heading', { name: 'Anreisser' })
+      mainWindow.getByRole('heading', { name: 'Anreisser', exact: true })
     ).toBeVisible();
+    await expect(
+      mainWindow.getByLabel('Component name', { exact: true })
+    ).toHaveValue('Teaser');
     await mainWindow
-      .getByLabel('Component name', { exact: true })
-      .fill('Werbung');
+      .getByLabel('Component slug', { exact: true })
+      .fill('anreisser');
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-    await expect(mainWindow.getByText('Component Werbung saved')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Component Anreisser saved', { exact: true })
+    ).toBeVisible();
     // The save lands on the list of Components, which names each one the same
     // way.
     await expect(
-      mainWindow.getByRole('link', { name: 'Werbung' })
+      mainWindow.getByRole('main').getByRole('link', { name: 'Anreisser' })
     ).toBeVisible();
   });
 
