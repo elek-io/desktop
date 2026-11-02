@@ -215,8 +215,13 @@ test.describe('Collections', () => {
       mainWindow.getByText('still reference Entries in this one')
     ).toBeVisible();
     // Confirming closed the confirmation, so the error is the only thing left
-    // on screen rather than the second of two stacked dialogs.
-    await expect(mainWindow.getByRole('alertdialog')).toBeHidden();
+    // on screen rather than the second of two stacked dialogs. The role is not
+    // what to look for: the error dialog marks the rest of the document
+    // aria-hidden, which takes a still open confirmation out of the role tree
+    // while it is on screen.
+    await expect(
+      mainWindow.locator('[data-slot="alert-dialog-content"]')
+    ).toBeHidden();
     await dismissDialog(mainWindow);
 
     // The Collection was not deleted: we stay on its settings page.
