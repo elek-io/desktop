@@ -55,6 +55,12 @@ export function TextControl<TFieldValues extends FieldValues>({
   return (
     <Input
       type={type}
+      // A numeric input steps by whole numbers unless it is told otherwise,
+      // which marks a decimal somebody typed as a step mismatch and snaps the
+      // spinner past it. zod is the sole validator here, so the input carries
+      // no bound of its own and leaves the step open, see
+      // contributing/renderer/forms.md#form-invariants.
+      {...(type === 'number' ? { step: 'any' } : {})}
       {...field}
       // Content can be null (cleared) or undefined (language absent from the
       // partial record); the input needs a string either way

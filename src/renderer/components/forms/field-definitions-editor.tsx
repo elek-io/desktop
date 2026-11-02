@@ -218,7 +218,7 @@ export function FieldDefinitionsEditor<
       silent no-op. See contributing/renderer/forms.md. */}
       <FieldSubtreeError form={form} name={name} className="mt-6" />
 
-      <div className="mt-6 grid grid-cols-12 gap-6">
+      <div className="@container mt-6 grid grid-cols-12 gap-6">
         <SortableFieldArray items={definitions} onReorder={moveDefinition}>
           {definitions.map((fieldDefinition, index) => {
             // Groups are presentational. Authoring them is not supported yet,

@@ -245,6 +245,10 @@ msgstr "Also send my logs"
 msgid "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
 msgstr "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
 
+#: src/renderer/hooks/useEntryRefusals.ts
+msgid "An Asset this field points at no longer exists. Choose another one."
+msgstr "An Asset this field points at no longer exists. Choose another one."
+
 #: src/renderer/lib/release.ts
 msgid "An Asset was added"
 msgstr "An Asset was added"
@@ -264,6 +268,10 @@ msgstr "An Asset's name or description changed"
 #: src/renderer/components/project-sidebar.tsx
 msgid "An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again."
 msgstr "An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again."
+
+#: src/renderer/hooks/useEntryRefusals.ts
+msgid "An Entry this field points at no longer exists. Choose another one."
+msgstr "An Entry this field points at no longer exists. Choose another one."
 
 #: src/renderer/lib/release.ts
 msgid "An Entry was added"
@@ -285,6 +293,10 @@ msgstr "Another Collection in this Project already uses one of these slugs. Chan
 #: src/renderer/routes/projects/$projectId/components/create.tsx
 msgid "Another Component in this Project already uses this slug. Choose another one."
 msgstr "Another Component in this Project already uses this slug. Choose another one."
+
+#: src/renderer/hooks/useEntryRefusals.ts
+msgid "Another Entry already uses this Value. Change it to save."
+msgstr "Another Entry already uses this Value. Change it to save."
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "Any content already translated into {languagePendingRemoval} stays in the Collection and Entry files but is no longer reachable, and saving does not remove it for you. This is a breaking change for anything consuming this Project's content. You can still discard it by leaving without saving."
@@ -469,8 +481,6 @@ msgstr "Clone Project"
 #: src/renderer/components/release-dialog.tsx
 #: src/renderer/components/ui/dialog.tsx
 #: src/renderer/components/ui/sheet.tsx
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
@@ -682,11 +692,6 @@ msgstr "Could not save this Collection"
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "Could not save this Component"
 msgstr "Could not save this Component"
-
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
-msgid "Could not save this Entry"
-msgstr "Could not save this Entry"
 
 #: src/renderer/queries/options/userOptions.ts
 msgid "Could not save your profile"
@@ -1491,11 +1496,6 @@ msgstr "Object changes"
 #: src/renderer/components/forms/project-form.tsx
 msgid "Ok"
 msgstr "Ok"
-
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
-msgid "One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again."
-msgstr "One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again."
 
 #: src/renderer/components/fields/asset/definition.tsx
 #: src/renderer/components/fields/markdown/definition.tsx
@@ -2323,14 +2323,13 @@ msgstr "This Component could not be saved. Please review your changes and try ag
 msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
-msgid "This Entry could not be saved. Please review your values and try again."
-msgstr "This Entry could not be saved. Please review your values and try again."
-
 #: src/renderer/components/fields/dynamic/allow-components-sheet.tsx
 msgid "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
 msgstr "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
+
+#: src/renderer/hooks/useEntryRefusals.ts
+msgid "This field does not take an Asset of that type. Choose another one."
+msgstr "This field does not take an Asset of that type. Choose another one."
 
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "This field holds at most {sectionMaximum} sections. Remove one to add another."

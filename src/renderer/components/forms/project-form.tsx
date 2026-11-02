@@ -46,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
+import { cn, fieldWidth } from '@renderer/lib/utils';
 
 import {
   supportedLanguageSchema,
@@ -154,7 +155,7 @@ export function ProjectForm({
           title={t`Language`}
           description={t`Settings related to the languages used in this Project`}
         >
-          <div className="grid grid-cols-12 gap-6">
+          <div className="@container grid grid-cols-12 gap-6">
             <AppField
               form={projectForm}
               name="settings.language.supported"
@@ -171,7 +172,7 @@ export function ProjectForm({
                   into it.
                 </Trans>
               }
-              className="col-span-6"
+              className={cn('col-span-12', fieldWidth('6'))}
             >
               {({ field, controlProps }) => {
                 // The chosen languages and the picker that adds one are
@@ -285,7 +286,7 @@ export function ProjectForm({
                   supported languages.
                 </Trans>
               }
-              className="col-span-6"
+              className={cn('col-span-12', fieldWidth('6'))}
             >
               {({ field, controlProps, disabled }) => {
                 const availableOptions = supportedLanguages.filter((language) =>

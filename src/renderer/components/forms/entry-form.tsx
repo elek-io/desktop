@@ -74,7 +74,7 @@ export function EntryForm<
         id={id}
         mode={isViewOnly ? 'view' : 'edit'}
       >
-        <div className="grid grid-cols-12 gap-x-4 gap-y-8 p-6 sm:gap-x-6 xl:gap-x-8">
+        <div className="@container grid grid-cols-12 gap-x-6 gap-y-8 p-6">
           {fieldDefinitions.map((fieldDefinition) => {
             // Groups are presentational, render their member fields inside a
             // labeled FieldSet that spans the full width of the form grid.
@@ -87,7 +87,7 @@ export function EntryForm<
                       record: fieldDefinition.label,
                     })}
                   </FieldLegend>
-                  <FieldGroup className="grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6 xl:gap-x-8">
+                  <FieldGroup className="grid grid-cols-12 gap-x-6 gap-y-8">
                     {fieldDefinition.fieldDefinitions.map((member) => (
                       <FieldFromDefinition
                         key={member.id}

@@ -126,21 +126,36 @@ export function classNames(...classes: string[]): string {
 }
 
 /**
- * Dynamic class names for field widths
- * @see https://tailwindcss.com/docs/content-configuration#dynamic-class-names
+ * The classes one field's width takes, out of the four widths Core offers.
+ *
+ * Each is a container query rather than a viewport one, because ci measures a
+ * field against the area it sits in and not against the window: the same Entry
+ * is edited in a narrow editor beside two other panes and in a wide one on its
+ * own. A field that would get less than 160 px stacks at full width, which is
+ * what each threshold below is: the width the twelve column grid needs, with
+ * its 24 px gaps, for a field of that span to reach 160 px.
+ *
+ * The class names are written out rather than built, since Tailwind reads them
+ * from the source.
+ *
+ * @see https://tailwindcss.com/docs/responsive-design#container-queries
  */
 export function fieldWidth(
   width: string
-): 'sm:col-span-3' | 'sm:col-span-4' | 'sm:col-span-6' | 'sm:col-span-12' {
+):
+  | '@min-[712px]:col-span-3'
+  | '@min-[528px]:col-span-4'
+  | '@min-[344px]:col-span-6'
+  | 'col-span-12' {
   switch (width) {
     case '3':
-      return 'sm:col-span-3';
+      return '@min-[712px]:col-span-3';
     case '4':
-      return 'sm:col-span-4';
+      return '@min-[528px]:col-span-4';
     case '6':
-      return 'sm:col-span-6';
+      return '@min-[344px]:col-span-6';
     case '12':
-      return 'sm:col-span-12';
+      return 'col-span-12';
     default:
       throw new Error(`Unsupported Field width "${width}"`);
   }

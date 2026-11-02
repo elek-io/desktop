@@ -566,6 +566,9 @@ export default [
             // than words. `useTsTypes` covers most of these already and misses
             // the ones whose type allows null or undefined too.
             'type',
+            // A native input's stepping, which `any` opens so zod stays the
+            // only judge of a number.
+            'step',
             'role',
             'variant',
             'size',

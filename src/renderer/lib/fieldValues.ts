@@ -27,9 +27,11 @@ export function rawTextFromInput(value: string): string {
 /**
  * A numeric input's text as the number it holds, or `null` when it is empty.
  *
- * Whole numbers only today, which is what Core's number fields are written
- * with, see contributing/not-yet-implemented.md.
+ * Decimals included, since Core's number Values and their bounds take any
+ * number. Reading the text with `parseInt` instead is what made a price of
+ * 19.99 save as 19, and silently: it is a number Core takes, so nothing
+ * refused it.
  */
 export function numberFromInput(value: string): number | null {
-  return value.trim() === '' ? null : parseInt(value);
+  return value.trim() === '' ? null : Number(value);
 }

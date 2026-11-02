@@ -295,7 +295,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
               </div>
 
               {component === undefined ? null : (
-                <div className="mt-4 grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6">
+                <div className="@container mt-4 grid grid-cols-12 gap-x-6 gap-y-8">
                   {component.fieldDefinitions.map((definition) => (
                     <FieldFromDefinition
                       key={definition.id}
