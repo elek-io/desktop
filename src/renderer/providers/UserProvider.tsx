@@ -1,3 +1,4 @@
+import { activateAppLocale } from '@root/src/shared/i18n';
 import { format, formatDistanceToNow, type Locale } from 'date-fns';
 import React from 'react';
 
@@ -42,6 +43,16 @@ export function UserProvider({
     return () => {
       active = false;
     };
+  }, [language]);
+
+  // The app's own words follow the same language. The catalog is activated here
+  // rather than where it is read, so one language drives the whole app, and
+  // `lang` on the document follows the catalog that answered rather than the
+  // language asked for: a language Desktop has no catalog for shows English, so
+  // that is what a screen reader has to be told. See
+  // contributing/renderer/internationalization.md.
+  React.useEffect(() => {
+    document.documentElement.lang = activateAppLocale(language);
   }, [language]);
 
   /**

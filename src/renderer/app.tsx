@@ -1,3 +1,6 @@
+import { i18n } from '@lingui/core';
+import { I18nProvider } from '@lingui/react';
+import { activateAppLocale } from '@root/src/shared/i18n';
 import {
   COMPONENT_STACK_ATTRIBUTE,
   errorLogAttributes,
@@ -49,6 +52,11 @@ function logReactError(
   }).catch(() => undefined);
 }
 
+// The source locale before the first render. `I18nProvider` renders nothing
+// until a catalog is active, and the User's language is only known once Core
+// answers, so the app starts in English and re-activates from `UserProvider`.
+activateAppLocale(null);
+
 // Render the app
 const rootElement = document.getElementById('app')!;
 if (!rootElement.innerHTML) {
@@ -82,11 +90,13 @@ if (!rootElement.innerHTML) {
 
   root.render(
     <StrictMode>
-      <ThemeProvider defaultTheme="system">
-        <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
-        </QueryClientProvider>
-      </ThemeProvider>
+      <I18nProvider i18n={i18n}>
+        <ThemeProvider defaultTheme="system">
+          <QueryClientProvider client={queryClient}>
+            <RouterProvider router={router} />
+          </QueryClientProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </StrictMode>
   );
 }

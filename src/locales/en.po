@@ -1,0 +1,15 @@
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+
+#: src/main/index.ts
+msgid "elek.io Desktop could not start"
+msgstr "elek.io Desktop could not start"
+
+#: src/main/index.ts
+msgid "If this keeps happening, please open an issue at {issuesUrl}"
+msgstr "If this keeps happening, please open an issue at {issuesUrl}"

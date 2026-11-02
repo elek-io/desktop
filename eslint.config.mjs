@@ -1,6 +1,7 @@
 import eslintConfigPrettier from '@electron-toolkit/eslint-config-prettier';
 import tseslint from '@electron-toolkit/eslint-config-ts';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
+import pluginLingui from 'eslint-plugin-lingui';
 import eslintPluginReact from 'eslint-plugin-react';
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks';
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh';
@@ -42,6 +43,15 @@ const noControlLaunderingCast = {
   selector:
     "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword'][typeAnnotation.typeName.name='Control']",
   message: castLaunderingMessage,
+};
+// The main process's only user-facing text is what a native dialog shows, so
+// that is where the catalog is enforced there. Lingui's own rule covers the
+// renderer; see the i18n block below.
+const noUnlocalizedDialogText = {
+  selector:
+    "CallExpression[callee.object.name='dialog'] > :matches(Literal,TemplateLiteral)",
+  message:
+    'Text in a native dialog comes from the message catalog. Wrap it with t`` from @lingui/core/macro (contributing/renderer/internationalization.md).',
 };
 
 export default [
@@ -237,6 +247,165 @@ export default [
   // whole form, and entry-form.tsx dropped its cast once FormFieldFromDefinition
   // took a defaulted TTransformedValues.
   // @todo Retire the two remaining casts (e.g. per-mode non-generic components).
+
+  // Every string a person reads comes from the message catalog, see
+  // contributing/renderer/internationalization.md. Lingui's own rule flags a
+  // literal in JSX text, in an accessible name, in `title`, `alt` and
+  // `placeholder`, and in every prop of a component, which is where the app's
+  // copy is. What it also sees is the renderer's wiring, so each group below
+  // says what it covers and why nobody reads it. A single line that needs an
+  // exception carries an `eslint-disable-next-line` with its own reason instead
+  // of widening one of these.
+  {
+    files: ['src/renderer/**/*.{ts,tsx}'],
+    plugins: { lingui: pluginLingui },
+    rules: {
+      'lingui/no-unlocalized-strings': [
+        'error',
+        {
+          // Reads each prop's type, so a prop whose values are a fixed set of
+          // string literals is not taken for text.
+          useTsTypes: true,
+          ignore: [
+            // An address, a protocol or the first half of a mime type.
+            '^(https?|elek-io-local-file|mailto|git@)',
+            '^(image|video|audio|text|application)/',
+            // A CSS custom property's value, such as var(--popover).
+            '^var\\(--',
+            // A date-fns format, such as Pp, and the ISO anchors around a
+            // stored date, time or datetime.
+            '^[Pp]{1,2}$',
+            '^(T00:00:00|1970-01-01T)',
+          ],
+          ignoreNames: [
+            // Styling. A class list is not text.
+            'className',
+            'fieldsetClassName',
+            // Wiring: what an element is, what a form field is called, what a
+            // query is keyed by. None of it is read by a person.
+            'id',
+            'htmlFor',
+            'key',
+            'name',
+            'slot',
+            'accessorKey',
+            'queryKey',
+            'storageKey',
+            'displayName',
+            { regex: { pattern: '^data-' } },
+            // Where something points, which is never translated.
+            'href',
+            'rel',
+            'target',
+            'src',
+            'to',
+            'from',
+            // A shape, a place, a size or a state out of a fixed set, rather
+            // than words. `useTsTypes` covers most of these already and misses
+            // the ones whose type allows null or undefined too.
+            'type',
+            'role',
+            'variant',
+            'size',
+            'align',
+            'side',
+            'orientation',
+            'mode',
+            'width',
+            'value',
+            'theme',
+            'defaultTheme',
+            'defaultMode',
+            'defaultTagName',
+            'buttonVariant',
+            'captionLayout',
+            'thumbAlignment',
+            'purpose',
+            'month',
+            'aria-hidden',
+            // An SVG's geometry.
+            'd',
+            'viewBox',
+          ],
+          ignoreFunctions: [
+            // Tailwind class helpers.
+            'cn',
+            'cva',
+            'clsx',
+            'twMerge',
+            // A log record and a programming error, which only a developer
+            // reads. A log file is diagnostics, so it stays in one language.
+            '*.logger.*',
+            'Error',
+            'logReactError',
+            'reportToCore',
+            // A cache key, or which way a list is merged.
+            '*.setQueryData',
+            '*.invalidateQueries',
+            'mergeListWithObject',
+            // A form field's path, as react-hook-form takes it.
+            '*.watch',
+            '*.setValue',
+            '*.setError',
+            '*.getValues',
+            '*.resetField',
+            '*.getFieldState',
+            '*.clearErrors',
+            '*.trigger',
+            '*.register',
+            // A route id, which TanStack Router generates.
+            'createFileRoute',
+            // A browser API that takes a name, a selector or a feature rather
+            // than text.
+            '*.addEventListener',
+            '*.removeEventListener',
+            '*.getAttribute',
+            '*.setAttribute',
+            '*.getContext',
+            '*.classList.*',
+            'window.matchMedia',
+            'window.open',
+            'document.getElementById',
+            'document.querySelector',
+            // A comparison against a known value, not a message.
+            '*.startsWith',
+            '*.endsWith',
+            '*.includes',
+            // A pattern or a format, not words.
+            'RegExp',
+            'Date',
+            'format',
+            // A zod path, a Milkdown node name and a Milkdown command name.
+            'z.*',
+            'discriminatedUnion',
+            '$nodeSchema',
+            '$command',
+            '$useKeymap',
+            '$remark',
+            // The mdast bridge's own readers, which take an attribute's name.
+            'text',
+            'textOrNull',
+            'booleanOrNull',
+          ],
+        },
+      ],
+    },
+  },
+
+  // The main process shows one string, the box that says Desktop could not
+  // start. Lingui's rule would spend its time on IPC channel names and log
+  // records here, so the guard is narrowed to what a person reads: the
+  // arguments of a native dialog.
+  {
+    files: ['src/main/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        noEnumDeclaration,
+        noUnlocalizedDialogText,
+      ],
+    },
+  },
 
   // Prettier must be last
   eslintConfigPrettier,

@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import {
   app,
   BrowserWindow,
@@ -18,6 +19,7 @@ import { colors } from '@elek-io/branding';
 import ElekIoCore, { CoreError } from '@elek-io/core';
 
 import icon from '../../resources/icon.png?asset';
+import { activateAppLocale } from '../shared/i18n.js';
 import { serializeCoreError } from '../shared/ipcError.js';
 import { errorLogAttributes } from '../shared/logError.js';
 import { windowThemeSchema, type WindowTheme } from '../shared/windowTheme.js';
@@ -43,6 +45,9 @@ const windowControlsBarHeight = 32;
  * 10 px down, which centers the 12 px buttons in the 32 px bar.
  */
 const trafficLightPosition = { x: 16, y: 10 } as const;
+
+/** Where somebody reports a start that failed, since the in-app report needs a running app. */
+const issuesUrl = 'https://github.com/elek-io/desktop/issues';
 
 class Main {
   public readonly customFileProtocol: string = 'elek-io-local-file';
@@ -160,10 +165,17 @@ class Main {
    * box too. When Core got far enough to exist, the error also goes to its log
    * file, and disposing Core flushes that record before the process exits. Core
    * may be what failed, so the console and the box never depend on it.
+   *
+   * The box takes the system's language rather than the User's. Nothing read a
+   * User at this point, and Core may be what failed, so the system is the only
+   * language on hand. `app.getLocale()` answers once Electron is ready, which
+   * it is here, since this only runs from the `ready` handler.
    */
   private async onAppReadyFailed(error: unknown): Promise<void> {
     // eslint-disable-next-line no-console
     console.error('Failed to initialize the app', error);
+
+    activateAppLocale(app.getLocale());
 
     if (this.core !== null) {
       try {
@@ -178,10 +190,13 @@ class Main {
       }
     }
 
-    dialog.showErrorBox(
-      'elek.io Desktop could not start',
-      `${error instanceof Error ? error.message : String(error)}\n\nIf this keeps happening, please open an issue at https://github.com/elek-io/desktop/issues`
-    );
+    // Composed outside the call, so the box's arguments stay a catalog message
+    // and a value rather than a literal, which is what the lint rule asks for.
+    const reason = error instanceof Error ? error.message : String(error);
+    const advice = t`If this keeps happening, please open an issue at ${issuesUrl}`;
+    const detail = `${reason}\n\n${advice}`;
+
+    dialog.showErrorBox(t`elek.io Desktop could not start`, detail);
     app.exit(1);
   }
 
