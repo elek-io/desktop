@@ -57,49 +57,53 @@ import { queryOptions } from '@renderer/queries';
 
 import { type CoreErrorType } from '@elek-io/core';
 
-const projectNavigation: {
-  name: string;
-  to: ToPathOption; // @todo fix type
-  icon: LucideIcon;
-}[] = [
-  {
-    name: 'Dashboard',
-    to: '/projects/$projectId/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    name: 'Assets',
-    to: '/projects/$projectId/assets',
-    icon: Image,
-  },
-  {
-    name: 'Collections',
-    to: '/projects/$projectId/collections',
-    icon: Layers,
-  },
-  {
-    name: 'Components',
-    to: '/projects/$projectId/components',
-    icon: Blocks,
-  },
-  {
-    name: 'History',
-    to: '/projects/$projectId/history',
-    icon: History,
-  },
-  {
-    name: 'Releases',
-    to: '/projects/$projectId/releases',
-    icon: Rocket,
-  },
-  {
-    name: 'Settings',
-    to: '/projects/$projectId/settings',
-    icon: Settings,
-  },
-];
-
 function ProjectNavigation(): React.JSX.Element {
+  const { t } = useLingui();
+
+  // Built here rather than at module scope, so each label reads the catalog in
+  // use rather than the one active at import time.
+  const projectNavigation: {
+    label: string;
+    to: ToPathOption; // @todo fix type
+    icon: LucideIcon;
+  }[] = [
+    {
+      label: t`Dashboard`,
+      to: '/projects/$projectId/dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      label: t`Assets`,
+      to: '/projects/$projectId/assets',
+      icon: Image,
+    },
+    {
+      label: t`Collections`,
+      to: '/projects/$projectId/collections',
+      icon: Layers,
+    },
+    {
+      label: t`Components`,
+      to: '/projects/$projectId/components',
+      icon: Blocks,
+    },
+    {
+      label: t`History`,
+      to: '/projects/$projectId/history',
+      icon: History,
+    },
+    {
+      label: t`Releases`,
+      to: '/projects/$projectId/releases',
+      icon: Rocket,
+    },
+    {
+      label: t`Settings`,
+      to: '/projects/$projectId/settings',
+      icon: Settings,
+    },
+  ];
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="shrink-0">
@@ -108,14 +112,14 @@ function ProjectNavigation(): React.JSX.Element {
       <SidebarGroupContent className="shrink-0">
         <SidebarMenu>
           {projectNavigation.map((item) => (
-            <SidebarMenuItem className="shrink-0" key={item.name}>
+            <SidebarMenuItem className="shrink-0" key={item.to}>
               <SidebarMenuButton
                 render={
                   <Link to={item.to} activeProps={{ 'data-active': true }} />
                 }
               >
                 <item.icon />
-                <span>{item.name}</span>
+                <span>{item.label}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}

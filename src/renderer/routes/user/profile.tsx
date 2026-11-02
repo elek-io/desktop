@@ -95,8 +95,7 @@ function UserProfilePage(): ReactElement {
           setUserForm.setError(
             'localApi.port',
             {
-              message:
-                'This port is already in use by another application. Choose a different one.',
+              message: t`This port is already in use by another application. Choose a different one.`,
             },
             { shouldFocus: true }
           ),

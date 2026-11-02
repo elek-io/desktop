@@ -904,6 +904,7 @@ function FormSelectField<TFieldValues extends FieldValues>({
   className,
   ...controlProps
 }: FormSelectFieldProps<TFieldValues>): React.ReactElement {
+  const { t } = useLingui();
   const { translateContent } = useProject();
 
   const optionDisplay = (
@@ -932,7 +933,7 @@ function FormSelectField<TFieldValues extends FieldValues>({
       name={field.name}
       disabled={disabled}
       items={{
-        none: 'None',
+        none: t`None`,
         ...Object.fromEntries(
           items.map((item) => [item.itemValue, item.display])
         ),
@@ -952,7 +953,7 @@ function FormSelectField<TFieldValues extends FieldValues>({
         ref={field.ref}
         onBlur={field.onBlur}
       >
-        <SelectValue placeholder="Select an option" />
+        <SelectValue placeholder={t`Select an option`} />
       </SelectTrigger>
       <SelectContent>
         {fieldDefinition.isRequired === false ? (

@@ -101,8 +101,7 @@ function ProjectComponentCreate(): ReactElement {
       Conflict: () => {
         createComponentForm.setError('slug', {
           type: 'conflict',
-          message:
-            'Another Component in this Project already uses this slug. Choose another one.',
+          message: t`Another Component in this Project already uses this slug. Choose another one.`,
         });
       },
       BadRequest: (error) => {

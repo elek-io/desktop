@@ -1,3 +1,5 @@
+import { i18n } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { clsx, type ClassValue } from 'clsx';
 import { type Locale } from 'date-fns';
 import type {
@@ -86,19 +88,27 @@ export async function loadLocale(language: SupportedLanguage): Promise<Locale> {
 }
 
 /**
+ * The one size unit that is a word rather than a symbol, so it is the one a
+ * language can have its own form of. Held as a descriptor at module scope and
+ * resolved per call, so it reads the catalog in use rather than the one active
+ * at import time.
+ */
+const BYTES_UNIT = msg`Bytes`;
+
+/**
  * Formats given number of bytes into a human readable format
  *
  * @param bytes Number of bytes
  */
 export function formatBytes(bytes: number): string {
-  // The unit symbols are the same in every language, so they stay out of the
-  // catalog. "Bytes" reads the same in English and German too.
-  // eslint-disable-next-line lingui/no-unlocalized-strings
-  if (bytes === 0) return '0 Bytes';
+  const bytesUnit = i18n._(BYTES_UNIT);
+  if (bytes === 0) return `0 ${bytesUnit}`;
   const k = 1024,
     decimals = 2,
+    // The remaining unit symbols are the same in every language, so they stay
+    // out of the catalog.
     // eslint-disable-next-line lingui/no-unlocalized-strings
-    sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+    sizes = [bytesUnit, 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
     i = Math.floor(Math.log(bytes) / Math.log(k));
   return (
     parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i]

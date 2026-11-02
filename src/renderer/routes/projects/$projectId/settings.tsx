@@ -32,17 +32,17 @@ function ProjectSettingsLayout(): ReactElement {
   const { projectId } = Route.useParams();
   useBreadcrumb(Route, t`Settings`);
   const settingsNavigation: {
-    name: string;
+    label: string;
     to: ToPathOption;
     icon: LucideIcon;
   }[] = [
     {
-      name: 'General',
+      label: t`General`,
       to: '/projects/$projectId/settings/general',
       icon: Settings,
     },
     {
-      name: 'Version Control',
+      label: t`Version Control`,
       to: '/projects/$projectId/settings/version-control',
       icon: GitBranch,
     },
@@ -61,7 +61,7 @@ function ProjectSettingsLayout(): ReactElement {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {settingsNavigation.map((item) => (
-                    <SidebarMenuItem key={item.name}>
+                    <SidebarMenuItem key={item.to}>
                       <SidebarMenuButton
                         render={
                           <Link
@@ -74,7 +74,7 @@ function ProjectSettingsLayout(): ReactElement {
                         }
                       >
                         <item.icon />
-                        <span>{item.name}</span>
+                        <span>{item.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}

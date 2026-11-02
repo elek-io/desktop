@@ -109,6 +109,10 @@ msgstr "A Field says what every section built from this Component holds, and how
 msgid "A Field was renamed to {slug}"
 msgstr "A Field was renamed to {slug}"
 
+#: src/renderer/components/forms/field-definition-draft.tsx
+msgid "A Field with the slug \"{slug}\" already exists"
+msgstr "A Field with the slug \"{slug}\" already exists"
+
 #: src/renderer/lib/release.ts
 msgid "A language was added"
 msgstr "A language was added"
@@ -269,6 +273,11 @@ msgstr "An Entry was removed"
 msgid "Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again."
 msgstr "Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again."
 
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+#: src/renderer/routes/projects/$projectId/components/create.tsx
+msgid "Another Component in this Project already uses this slug. Choose another one."
+msgstr "Another Component in this Project already uses this slug. Choose another one."
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Any content already translated into {languagePendingRemoval} stays in the Collection and Entry files but is no longer reachable, and saving does not remove it for you. This is a breaking change for anything consuming this Project's content. You can still discard it by leaving without saving."
 msgstr "Any content already translated into {languagePendingRemoval} stays in the Collection and Entry files but is no longer reachable, and saving does not remove it for you. This is a breaking change for anything consuming this Project's content. You can still discard it by leaving without saving."
@@ -309,6 +318,7 @@ msgstr "Asset references"
 msgid "Asset saved to your computer"
 msgstr "Asset saved to your computer"
 
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "Assets"
 msgstr "Assets"
@@ -376,6 +386,10 @@ msgstr "By editing your Users details, ... Read more about <0>local Users in our
 #: src/renderer/routes/user/profile.tsx
 msgid "By enabling the local API it will start whenever elek.io Desktop is opened. This allows you to read local Project data from other applications."
 msgstr "By enabling the local API it will start whenever elek.io Desktop is opened. This allows you to read local Project data from other applications."
+
+#: src/renderer/lib/utils.ts
+msgid "Bytes"
+msgstr "Bytes"
 
 #: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/forms/project-form.tsx
@@ -477,9 +491,14 @@ msgid "Collection-Slug"
 msgstr "Collection-Slug"
 
 #: src/renderer/components/collections-sidebar.tsx
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/collections.tsx
 msgid "Collections"
 msgstr "Collections"
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "Component"
+msgstr "Component"
 
 #: src/renderer/queries/options/componentOptions.ts
 msgid "Component created"
@@ -501,6 +520,7 @@ msgstr "Component saved"
 msgid "Component slug"
 msgstr "Component slug"
 
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/components.tsx
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "Components"
@@ -719,6 +739,7 @@ msgstr "Create Project"
 msgid "Create Release"
 msgstr "Create Release"
 
+#: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/diff-container.tsx
 #: src/renderer/components/entry-table.tsx
 msgid "Created"
@@ -741,6 +762,7 @@ msgstr "Danger Zone"
 msgid "Dark"
 msgstr "Dark"
 
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Dashboard"
 msgstr "Dashboard"
@@ -980,6 +1002,7 @@ msgstr "Full History"
 msgid "Full name"
 msgstr "Full name"
 
+#: src/renderer/routes/projects/$projectId/settings.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "General"
 msgstr "General"
@@ -1048,6 +1071,7 @@ msgstr "Here you can edit this Entries Values"
 msgid "Here you will be able to tweak this project to your liking"
 msgstr "Here you will be able to tweak this project to your liking"
 
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/history.tsx
 msgid "History"
 msgstr "History"
@@ -1616,6 +1640,7 @@ msgstr "Release {version}"
 msgid "Release {version} created"
 msgstr "Release {version} created"
 
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/releases.tsx
 msgid "Releases"
 msgstr "Releases"
@@ -1751,6 +1776,10 @@ msgstr "Section {position} of {total}"
 msgid "Select a replacement file"
 msgstr "Select a replacement file"
 
+#: src/renderer/components/ui/form.tsx
+msgid "Select an option"
+msgstr "Select an option"
+
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "Select Asset to add"
 msgstr "Select Asset to add"
@@ -1807,6 +1836,7 @@ msgstr "Sends what elek.io Desktop recorded on this machine in the last 24 hours
 msgid "Separator"
 msgstr "Separator"
 
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/settings.tsx
 msgid "Settings"
 msgstr "Settings"
@@ -1822,6 +1852,10 @@ msgstr "Share feedback"
 #: src/renderer/components/entry-table.tsx
 msgid "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
 msgstr "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
+
+#: src/renderer/components/asset-teaser.tsx
+msgid "Size"
+msgstr "Size"
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Slug"
@@ -1903,6 +1937,10 @@ msgstr "Task list items"
 #: src/renderer/components/project-card.tsx
 msgid "Team"
 msgstr "Team"
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Tell us what happened, in a sentence or two."
+msgstr "Tell us what happened, in a sentence or two."
 
 #: src/renderer/components/report-dialog.tsx
 msgid "Tell us what you think of elek.io Desktop. We read every one of these."
@@ -2268,6 +2306,10 @@ msgstr "This is a patch Release, because what a site reads is unchanged."
 msgid "This is how a change made by you will look like based on the information you've given on the left."
 msgstr "This is how a change made by you will look like based on the information you've given on the left."
 
+#: src/renderer/routes/user/profile.tsx
+msgid "This port is already in use by another application. Choose a different one."
+msgstr "This port is already in use by another application. Choose a different one."
+
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently."
 msgstr "This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently."
@@ -2325,6 +2367,10 @@ msgstr "Too much was sent from here recently. Please try again shortly."
 msgid "Try again"
 msgstr "Try again"
 
+#: src/renderer/components/asset-teaser.tsx
+msgid "Type"
+msgstr "Type"
+
 #: src/renderer/components/forms/select-field-definition.tsx
 msgid "Type of options"
 msgstr "Type of options"
@@ -2354,6 +2400,7 @@ msgstr "Update"
 msgid "Update {entryName}"
 msgstr "Update {entryName}"
 
+#: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/entry-table.tsx
 msgid "Updated"
 msgstr "Updated"
@@ -2391,6 +2438,7 @@ msgstr "Value the user is able to enter"
 msgid "Version {currentVersion} becomes"
 msgstr "Version {currentVersion} becomes"
 
+#: src/renderer/routes/projects/$projectId/settings.tsx
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Version Control"
 msgstr "Version Control"

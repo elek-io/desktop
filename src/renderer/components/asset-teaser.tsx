@@ -121,23 +121,29 @@ export function AssetTeaser(
   const newFileName = newFilePath?.split(/[/\\]/).pop();
   const createdTime = formatDatetime({ datetime: props.created });
   const updatedTime = formatDatetime({ datetime: props.updated });
+  // `label` is what the row shows and comes from the catalog, `key` is the
+  // stable id React keys the rows by and never shown.
   const information = [
     {
-      key: 'Size',
+      key: 'size',
+      label: t`Size`,
       value: formatBytes(props.size),
     },
     {
-      key: 'Type',
+      key: 'type',
+      label: t`Type`,
       value: props.extension.toUpperCase(),
       tooltip: props.mimeType,
     },
     {
-      key: 'Created',
+      key: 'created',
+      label: t`Created`,
       value: createdTime.relative,
       tooltip: createdTime.absolute,
     },
     {
-      key: 'Updated',
+      key: 'updated',
+      label: t`Updated`,
       value: updatedTime.relative,
       tooltip: updatedTime.absolute,
     },
@@ -233,7 +239,7 @@ export function AssetTeaser(
           return (
             <Fragment key={info.key}>
               <div className="flex justify-between">
-                <div className="">{info.key}</div>
+                <div className="">{info.label}</div>
                 <div className="whitespace-nowrap">
                   {info.tooltip !== undefined && info.tooltip !== '-' ? (
                     <TooltipProvider>

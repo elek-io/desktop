@@ -83,11 +83,97 @@ const noUnlocalizedTextAttributeInBraces = {
   selector: `JSXAttribute[name.name=${textAttributes}] > JSXExpressionContainer > :matches(Literal[value=/\\p{L}/u],TemplateLiteral)`,
   message: textAttributeMessage,
 };
+// `no-unlocalized-strings` reads a `<Select>` element as Lingui's own `Select`
+// macro and marks every string inside one as already translated, which shadcn's
+// select is not. The three selectors below re-cover what a person reads in one,
+// since `no-restricted-syntax` is unaffected by the confusion: an option's own
+// words, the words the trigger shows for the selected item, and a placeholder
+// or accessible name on any of the parts. Scoped to a part's own children
+// rather than the whole subtree, so a `<Trans>` inside an item still passes.
+const selectParts = '/^Select(Content|Group|Item|Label|Trigger|Value)?$/';
+const selectTextMessage =
+  'Text in a select comes from the message catalog. Wrap it with <Trans> or t`` from useLingui() (contributing/renderer/internationalization.md).';
+const noUnlocalizedSelectText = {
+  selector: `JSXElement[openingElement.name.name=${selectParts}] > JSXText[value=/\\p{L}/u]`,
+  message: selectTextMessage,
+};
+// The same words written in braces, as a string or a template. A `t` tagged
+// template is a TaggedTemplateExpression in between, so it never matches.
+const noUnlocalizedSelectTextInBraces = {
+  selector: `JSXElement[openingElement.name.name=${selectParts}] > JSXExpressionContainer > :matches(Literal[value=/\\p{L}/u],TemplateLiteral)`,
+  message: selectTextMessage,
+};
+// `items` maps each value to the words the closed trigger shows for it, so a
+// literal in that map is shown text rather than wiring. The Property is
+// reported rather than the string, because a selector cannot name a node's
+// field.
+const noUnlocalizedSelectItem = {
+  selector: `JSXOpeningElement[name.name='Select'] > JSXAttribute[name.name='items'] Property[value.type='Literal'][value.value=/\\p{L}/u]`,
+  message: selectTextMessage,
+};
+const selectAttributes = '/^(placeholder|aria-label)$/';
+const noUnlocalizedSelectAttribute = {
+  selector: `JSXOpeningElement[name.name=${selectParts}] > JSXAttribute[name.name=${selectAttributes}] > Literal[value=/\\p{L}/u]`,
+  message: selectTextMessage,
+};
+const noUnlocalizedSelectAttributeInBraces = {
+  selector: `JSXOpeningElement[name.name=${selectParts}] > JSXAttribute[name.name=${selectAttributes}] > JSXExpressionContainer > :matches(Literal[value=/\\p{L}/u],TemplateLiteral)`,
+  message: selectTextMessage,
+};
+// A sentence is one entry of the catalog, never pieces it is assembled from,
+// because a language that inflects a piece needs the whole sentence to do so.
+// Lingui's own rules refuse a message that is only a tag or only a variable,
+// and these two refuse the other half: a sentence split across entries. Two
+// <Trans> under one parent form one run of text, and a message joined to
+// another in a template or with `+` is the same thing written in code.
+const wholeSentenceMessage =
+  'A sentence is one entry of the message catalog. Write the whole sentence in one <Trans> or one t``, with a placeholder where a value goes (contributing/renderer/internationalization.md).';
+const noSplitTransSentence = {
+  selector:
+    "JSXElement > JSXElement[openingElement.name.name='Trans'] ~ JSXElement[openingElement.name.name='Trans']",
+  message: wholeSentenceMessage,
+};
+const noJoinedMessages = {
+  selector:
+    ":matches(BinaryExpression[operator='+'],TemplateLiteral) > TaggedTemplateExpression[tag.name=/^(t|msg|plural)$/]",
+  message: wholeSentenceMessage,
+};
+// react-hook-form's `setError` takes a field's path first, which is wiring, and
+// an error second, whose `message` is shown below that field. `ignoreFunctions`
+// exempts the call so the path passes, which leaves the message to this.
+const noUnlocalizedFieldErrorMessage = {
+  selector:
+    ":matches(CallExpression[callee.property.name='setError'],CallExpression[callee.name='setError']) Property[key.name='message'] > :matches(Literal[value=/\\p{L}/u],TemplateLiteral)",
+  message:
+    'A message shown below a field comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).',
+};
+// A string under `key` or `name` is wiring, which is why `ignoreNames` exempts
+// both: a React key, a query key or a form field's path. The app's copy is
+// sentence case, so a value that opens on a capital letter is words somebody
+// reads rather than wiring, and belongs in a `label` of its own. A backstop: a
+// lowercase sentence under one of those names slips through.
+const noUnlocalizedWiringText = {
+  selector: 'Property[key.name=/^(key|name)$/] > Literal[value=/^\\p{Lu}/u]',
+  message:
+    'Words somebody reads do not belong under `key` or `name`, which the catalog guard exempts as wiring. Give the item a `label` from the message catalog and keep the key for React (contributing/renderer/internationalization.md).',
+};
+const dialogTextMessage =
+  'Text in a native dialog comes from the message catalog. Wrap it with t`` from @lingui/core/macro (contributing/renderer/internationalization.md).';
 const noUnlocalizedDialogText = {
   selector:
     "CallExpression[callee.object.name='dialog'] > :matches(Literal,TemplateLiteral)",
-  message:
-    'Text in a native dialog comes from the message catalog. Wrap it with t`` from @lingui/core/macro (contributing/renderer/internationalization.md).',
+  message: dialogTextMessage,
+};
+// `showErrorBox` takes its two strings as arguments, which the selector above
+// reaches, while every other dialog of Electron's API takes an options object
+// and a `buttons` array, so the text sits deeper. A `t` tagged template holds
+// its own TemplateLiteral, which is why the parent may not be one. A value in
+// there that is not words, such as a file extension in a `filters` entry,
+// carries an `eslint-disable-next-line` with its reason.
+const noUnlocalizedNestedDialogText = {
+  selector:
+    "CallExpression[callee.object.name='dialog'] :not(TaggedTemplateExpression) > :matches(Literal[value=/\\p{L}/u],TemplateLiteral)",
+  message: dialogTextMessage,
 };
 
 export default [
@@ -260,6 +346,15 @@ export default [
         noUnlocalizedPaneNameInBraces,
         noUnlocalizedTextAttribute,
         noUnlocalizedTextAttributeInBraces,
+        noUnlocalizedSelectText,
+        noUnlocalizedSelectTextInBraces,
+        noUnlocalizedSelectItem,
+        noUnlocalizedSelectAttribute,
+        noUnlocalizedSelectAttributeInBraces,
+        noUnlocalizedFieldErrorMessage,
+        noUnlocalizedWiringText,
+        noSplitTransSentence,
+        noJoinedMessages,
       ],
     },
   },
@@ -340,7 +435,9 @@ export default [
             'className',
             'fieldsetClassName',
             // Wiring: what an element is, what a form field is called, what a
-            // query is keyed by. None of it is read by a person.
+            // query is keyed by. None of it is read by a person. Words an item
+            // shows go in a `label` of its own, which this list does not
+            // exempt, see `noUnlocalizedWiringText`.
             'id',
             'htmlFor',
             'key',
@@ -414,7 +511,9 @@ export default [
             '*.setQueryData',
             '*.invalidateQueries',
             'mergeListWithObject',
-            // A form field's path, as react-hook-form takes it.
+            // A form field's path, as react-hook-form takes it. `setError`
+            // takes a message beside the path, which a selector of its own
+            // keeps in the catalog, see `noUnlocalizedFieldErrorMessage`.
             '*.watch',
             '*.setValue',
             '*.setError',
@@ -451,9 +550,11 @@ export default [
             'RegExp',
             'Date',
             'format',
-            // A zod path, a Milkdown node name and a Milkdown command name.
-            'z.*',
-            'discriminatedUnion',
+            // A discriminator's property name, a Milkdown node name and a
+            // Milkdown command name. Named one by one rather than as `z.*`,
+            // which would exempt the copy a schema carries for a refused
+            // value.
+            'z.discriminatedUnion',
             '$nodeSchema',
             '$command',
             '$useKeymap',
@@ -485,6 +586,7 @@ export default [
         'error',
         noEnumDeclaration,
         noUnlocalizedDialogText,
+        noUnlocalizedNestedDialogText,
       ],
     },
   },

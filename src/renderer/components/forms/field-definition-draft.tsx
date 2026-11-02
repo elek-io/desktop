@@ -202,6 +202,7 @@ export function DefinitionDraft<
   onAdd,
   fieldDefinitions,
 }: DefinitionDraftProps & { spec: DefinitionSpec<Def> }): ReactElement {
+  const { t } = useLingui();
   const form = useForm<Def, unknown, Def>({
     resolver: withEmptyDescriptionAsNull(spec.resolver),
     // makeDefaults returns a full Def and DefaultValues<Def> is its DeepPartial,
@@ -212,10 +213,11 @@ export function DefinitionDraft<
   const onSubmit = (definition: Def): void => {
     // Core rejects duplicate slugs when the Collection is saved. Surface it here,
     // where the user can still fix it, as well.
-    if (existingSlugs.includes(definition.slug)) {
+    const slug = definition.slug;
+    if (existingSlugs.includes(slug)) {
       form.setError('slug' as FieldPath<Def>, {
         type: 'duplicate',
-        message: `A Field with the slug "${definition.slug}" already exists`,
+        message: t`A Field with the slug "${slug}" already exists`,
       });
       return;
     }

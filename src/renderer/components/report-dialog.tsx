@@ -154,7 +154,11 @@ type ReportContact = z.input<typeof reportContactSchema>;
  * one case without copying the length bounds out of it.
  */
 const reportMessageSchema = z
-  .string({ error: 'Tell us what happened, in a sentence or two.' })
+  .string({
+    // A function rather than a string, so the catalog is read when the form is
+    // validated rather than when this module loads.
+    error: () => i18n._(msg`Tell us what happened, in a sentence or two.`),
+  })
   .pipe(createReportBaseSchema.shape.message);
 
 const bugReportFormSchema = createBugReportSchema.extend({

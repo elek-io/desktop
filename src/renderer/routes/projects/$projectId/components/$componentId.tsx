@@ -171,8 +171,7 @@ function ProjectComponentUpdate(): ReactElement {
         if (entryIssuesOf(error).length === 0) {
           updateComponentForm.setError('slug', {
             type: 'conflict',
-            message:
-              'Another Component in this Project already uses this slug. Choose another one.',
+            message: t`Another Component in this Project already uses this slug. Choose another one.`,
           });
           return;
         }
@@ -209,7 +208,7 @@ function ProjectComponentUpdate(): ReactElement {
   }, [projectId, isReadingComponent, component, updateComponentForm]);
 
   const name = isReadingComponent
-    ? 'Component'
+    ? t`Component`
     : translateContent({ key: 'component.name', record: component.name });
 
   function Description(): ReactElement {

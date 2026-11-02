@@ -62,6 +62,7 @@ function ValueTypeSelect({
   valueType: SelectValueType;
   onValueTypeChange: (valueType: SelectValueType) => void;
 }): ReactElement {
+  const { t } = useLingui();
   // Not a form field (it selects which schema is active, above the form), so it
   // uses a plain Label bound to the trigger id rather than FormLabel, whose
   // htmlFor would point at a control that does not exist here.
@@ -73,7 +74,7 @@ function ValueTypeSelect({
         <Trans>Type of options</Trans>
       </Label>
       <Select
-        items={{ string: 'Text', number: 'Number' }}
+        items={{ string: t`Text`, number: t`Number` }}
         value={valueType}
         onValueChange={(value) => {
           if (value !== null) {
@@ -113,6 +114,7 @@ function DefaultOptionSelect({
   selectedIndex: number;
   onSelectIndex: (index: number | null) => void;
 }): ReactElement {
+  const { t } = useLingui();
   return (
     <FormItem>
       <FormLabel isRequired={false}>
@@ -121,7 +123,7 @@ function DefaultOptionSelect({
       <FormControl>
         <Select
           items={{
-            none: 'None',
+            none: t`None`,
             ...Object.fromEntries(
               items.map((item) => [item.itemValue, item.display])
             ),
