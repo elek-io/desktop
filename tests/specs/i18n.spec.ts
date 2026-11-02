@@ -2,13 +2,17 @@ import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
 import {
+  addFieldDefinition,
+  createCollection,
   createCollectionViaIpc,
+  navigateToCollectionCreate,
   navigateToCollectionSettings,
   textFieldDefinition,
 } from '../helpers/collection.js';
 import {
   createComponentViaIpc,
   navigateToComponent,
+  navigateToComponentCreate,
 } from '../helpers/component.js';
 import { fillEntryForm, navigateToEntryCreate } from '../helpers/entry.js';
 import { stubCoreReject } from '../helpers/ipc.js';
@@ -143,6 +147,45 @@ test.describe('The app in one language', () => {
     for (const text of shown) {
       expect(text).not.toMatch(asCall);
     }
+  });
+
+  test('a toast after a create names what was created', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // Both forms are driven rather than the call behind them, so the name in
+    // each toast is the one the editor just typed.
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await createCollection(mainWindow, {
+      namePlural: 'Events',
+      nameSingular: 'Event',
+      description: 'What the dealership puts on',
+      slugPlural: 'events',
+      slugSingular: 'event',
+      field: { label: 'Headline', description: 'The headline of the event' },
+    });
+    await expect(
+      mainWindow.getByText('Collection Events created')
+    ).toBeVisible();
+
+    await navigateToComponentCreate(mainWindow, project.id);
+    await mainWindow
+      .getByLabel('Component name', { exact: true })
+      .fill('Teaser');
+    await mainWindow
+      .getByLabel('Component slug', { exact: true })
+      .fill('teaser');
+    await addFieldDefinition(mainWindow, {
+      label: 'Headline',
+      description: 'The headline of the teaser',
+      owner: 'component',
+    });
+    await mainWindow.getByRole('button', { name: 'Create Component' }).click();
+    await expect(
+      mainWindow.getByText('Component Teaser created')
+    ).toBeVisible();
   });
 
   test('a toast names a Collection and a Component the way the screen does', async ({
