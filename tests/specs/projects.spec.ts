@@ -266,9 +266,12 @@ test.describe('Projects', () => {
       .getByRole('combobox', { name: 'Search languages' })
       .fill('es');
     await languages.getByRole('option', { name: 'es' }).click();
-    // Choosing closes the picker, which is also what keeps its popup out of the
-    // way of the dialogs the rest of this spec reaches for.
-    await expect(languages).toBeHidden();
+    // Choosing closes the picker. Wait for its popup to be gone rather than
+    // its list: the popup carries the dialog role for as long as it animates
+    // out, and the dialog helpers further down resolve to every dialog.
+    await expect(
+      mainWindow.locator('[data-slot="combobox-content"]')
+    ).toBeHidden();
     await expect(
       mainWindow.getByRole('button', { name: 'Remove es' })
     ).toBeVisible();
