@@ -163,7 +163,6 @@ function DefaultFieldDefinitionForm<
         {({ field, controlProps }) => (
           <TextControl
             field={field}
-            {...controlProps}
             type="text"
             transform={rawTextFromInput}
             {...controlProps}
@@ -203,14 +202,17 @@ function DefaultFieldDefinitionForm<
         required
         description={<Trans>Defines how wide the input field will be.</Trans>}
       >
-        {({ field, controlProps }) => (
+        {({ field, controlProps, disabled }) => (
           <Select
             items={fieldWidthItems}
             onValueChange={field.onChange}
             value={field.value}
-            {...controlProps}
+            disabled={disabled}
           >
-            <SelectTrigger>
+            {/* The trigger is the real focusable control, so the
+            control-association props land there rather than on the root, which
+            forwards none of them. */}
+            <SelectTrigger {...controlProps}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -250,12 +252,11 @@ function DefaultFieldDefinitionForm<
         }
         className="gap-4 rounded-lg border border-border p-3 shadow-xs"
       >
-        {({ field, controlProps }) => (
+        {({ field, controlProps, disabled }) => (
           <SwitchControl
             field={field}
             {...controlProps}
-            disabled={requiredNote !== undefined}
-            {...controlProps}
+            disabled={disabled || requiredNote !== undefined}
           />
         )}
       </AppField>
@@ -282,12 +283,11 @@ function DefaultFieldDefinitionForm<
         }
         className="gap-4 rounded-lg border border-border p-3 shadow-xs"
       >
-        {({ field, controlProps }) => (
+        {({ field, controlProps, disabled }) => (
           <SwitchControl
             field={field}
             {...controlProps}
-            disabled={uniqueNote !== null}
-            {...controlProps}
+            disabled={disabled || uniqueNote !== null}
           />
         )}
       </AppField>

@@ -221,14 +221,17 @@ function UserProfilePage(): ReactElement {
                     </Trans>
                   }
                 >
-                  {({ field, controlProps }) => (
+                  {({ field, controlProps, disabled }) => (
                     <Select
                       items={languageItems}
                       value={field.value}
                       onValueChange={field.onChange}
-                      {...controlProps}
+                      disabled={disabled}
                     >
-                      <SelectTrigger>
+                      {/* The trigger is the real focusable control, so the
+                      control-association props land there rather than on the
+                      root, which forwards none of them. */}
+                      <SelectTrigger {...controlProps}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

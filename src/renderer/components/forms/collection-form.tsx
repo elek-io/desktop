@@ -82,14 +82,17 @@ export function CollectionForm<
             required
             className="col-span-12 sm:col-span-2"
           >
-            {({ field, controlProps }) => (
+            {({ field, controlProps, disabled }) => (
               <Select
                 items={iconItems}
                 onValueChange={field.onChange}
                 value={field.value}
-                {...controlProps}
+                disabled={disabled}
               >
-                <SelectTrigger>
+                {/* The trigger is the real focusable control, so the
+                control-association props land there rather than on the root,
+                which forwards none of them. */}
+                <SelectTrigger {...controlProps}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

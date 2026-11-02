@@ -266,7 +266,7 @@ export function ProjectForm({
               }
               className="col-span-6"
             >
-              {({ field, controlProps }) => {
+              {({ field, controlProps, disabled }) => {
                 const availableOptions = supportedLanguages.filter((language) =>
                   projectForm
                     .watch('settings.language.supported')
@@ -283,6 +283,7 @@ export function ProjectForm({
                     )}
                     value={field.value}
                     onValueChange={(value) => field.onChange(value)}
+                    disabled={disabled}
                   >
                     <SelectTrigger {...controlProps}>
                       <SelectValue />

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { useWatch } from 'react-hook-form';
@@ -141,6 +142,7 @@ function EntryExtras({
 }
 
 const entrySpec: DefinitionSpec<EntryFieldDefinition> = {
+  uniquenessNote: msg`Reference fields cannot be unique.`,
   resolver: zodResolver(entryFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
@@ -86,6 +87,7 @@ function AssetExtras({
 }
 
 const assetSpec: DefinitionSpec<AssetFieldDefinition> = {
+  uniquenessNote: msg`Reference fields cannot be unique.`,
   resolver: zodResolver(assetFieldDefinitionSchema),
   // Reference fields are never unique. An empty ofAssetMimeTypes means any type.
   makeDefaults: (langs) => ({

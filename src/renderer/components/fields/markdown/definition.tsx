@@ -366,6 +366,7 @@ function MarkdownExtras({
 }
 
 const markdownSpec: DefinitionSpec<MarkdownFieldDefinitionFormValues> = {
+  uniquenessNote: msg`Markdown fields cannot be unique.`,
   // The resolver is typed over the schema input, whose recursive defaultValue
   // tree the form values pin to null (see MarkdownFieldDefinitionFormValues).
   // Every value the form holds is valid schema input, the Resolver generics just

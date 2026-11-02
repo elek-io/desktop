@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
@@ -215,6 +216,7 @@ function DynamicExtras({
 }
 
 const dynamicSpec: DefinitionSpec<DynamicFieldDefinition> = {
+  uniquenessNote: msg`Dynamic fields cannot be unique.`,
   resolver: zodResolver(dynamicFieldDefinitionSchema),
   // Core pins isUnique to false for a dynamic field, so it is re-narrowed here
   // to that literal. An empty ofComponents means every Component is allowed.

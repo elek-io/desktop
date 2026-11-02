@@ -151,16 +151,19 @@ function SlugExtras({
           <Trans>The character placed between words of the slug.</Trans>
         }
       >
-        {({ field, controlProps }) => (
+        {({ field, controlProps, disabled }) => (
           <Select
             items={separatorItems()}
             value={field.value === '' ? NO_SEPARATOR : field.value}
             onValueChange={(selected) =>
               field.onChange(selected === NO_SEPARATOR ? '' : selected)
             }
-            {...controlProps}
+            disabled={disabled}
           >
-            <SelectTrigger>
+            {/* The trigger is the real focusable control, so the
+            control-association props land there rather than on the root, which
+            forwards none of them. */}
+            <SelectTrigger {...controlProps}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -211,6 +214,7 @@ function SlugExtras({
 }
 
 const slugSpec: DefinitionSpec<SlugFieldDefinition> = {
+  uniquenessNote: msg`Slugs are always unique, so a single Entry can be identified by it.`,
   resolver: zodResolver(slugFieldDefinitionSchema),
   // Slugs are always unique and have no default value; the separator/lowercase/
   // decamelize deltas and the (initially empty) source list round out the type.

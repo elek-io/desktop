@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { Plus, TrashIcon } from 'lucide-react';
 import { useEffect, useId, useState, type ReactElement } from 'react';
@@ -60,8 +61,8 @@ function ValueTypeSelect({
 }): ReactElement {
   const { t } = useLingui();
   // Not a form field (it selects which schema is active, above the form), so it
-  // uses a plain Label bound to the trigger id rather than FormLabel, whose
-  // htmlFor would point at a control that does not exist here.
+  // uses a plain Label bound to the trigger id rather than an AppField, which
+  // needs a form and a path to bind its label to.
   const selectId = useId();
   const descriptionId = useId();
   return (
@@ -106,11 +107,13 @@ function DefaultOptionSelect({
   selectedIndex,
   onSelectIndex,
   controlProps,
+  disabled,
 }: {
   items: { itemValue: string; display: string }[];
   selectedIndex: number;
   onSelectIndex: (index: number | null) => void;
   controlProps: FieldControlProps;
+  disabled: boolean;
 }): ReactElement {
   const { t } = useLingui();
   return (
@@ -127,9 +130,12 @@ function DefaultOptionSelect({
           selected === null || selected === 'none' ? null : Number(selected)
         )
       }
-      {...controlProps}
+      disabled={disabled}
     >
-      <SelectTrigger>
+      {/* The trigger is the real focusable control, so the
+      control-association props land there rather than on the root, which
+      forwards none of them. */}
+      <SelectTrigger {...controlProps}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -315,9 +321,10 @@ function StringSelectExtras({
         required={false}
         description={<Trans>The initial option for the field.</Trans>}
       >
-        {({ field, controlProps }) => (
+        {({ field, controlProps, disabled }) => (
           <DefaultOptionSelect
             controlProps={controlProps}
+            disabled={disabled}
             items={items}
             selectedIndex={
               field.value === null
@@ -482,9 +489,10 @@ function NumberSelectExtras({
         required={false}
         description={<Trans>The initial option for the field.</Trans>}
       >
-        {({ field, controlProps }) => (
+        {({ field, controlProps, disabled }) => (
           <DefaultOptionSelect
             controlProps={controlProps}
+            disabled={disabled}
             items={items}
             selectedIndex={
               field.value === null
@@ -527,6 +535,9 @@ const stringSelectSpec: DefinitionSpec<StringSelectFieldDefinition> = {
 };
 
 const numberSelectSpec: DefinitionSpec<NumberSelectFieldDefinition> = {
+  // Only a number select's options are numbers, so a string select is left
+  // without a note and its uniqueness stays a real choice.
+  uniquenessNote: msg`Number fields cannot be unique.`,
   resolver: zodResolver(numberSelectFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),

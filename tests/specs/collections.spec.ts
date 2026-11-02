@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 
+import { type FieldType } from '@elek-io/core';
+
 import { test } from '../fixtures/electronApp.js';
 import {
   addFieldDefinition,
@@ -1133,34 +1135,80 @@ test.describe('Collections', () => {
     );
   });
 
-  // Core pins `isUnique` to false for every number backed field, so the switch
-  // shows a fixed fact instead of offering a choice that would only fail on save.
-  test('locks the Unique switch for number and range fields', async ({
+  // Core pins `isUnique` for some field types, so the switch shows a fixed fact
+  // instead of offering a choice that would only fail on save, and says why.
+  // Every type Core pins is listed, because a locked switch with no reason
+  // leaves an editor with an operable control and a validator's own words.
+  const pinnedUniqueness: { fieldType: FieldType; reason: string }[] = [
+    { fieldType: 'slug', reason: 'Slugs are always unique' },
+    { fieldType: 'toggle', reason: 'Toggles cannot be unique' },
+    { fieldType: 'number', reason: 'Number fields cannot be unique.' },
+    { fieldType: 'range', reason: 'Number fields cannot be unique.' },
+    { fieldType: 'asset', reason: 'Reference fields cannot be unique.' },
+    { fieldType: 'entry', reason: 'Reference fields cannot be unique.' },
+    { fieldType: 'markdown', reason: 'Markdown fields cannot be unique.' },
+    { fieldType: 'dynamic', reason: 'Dynamic fields cannot be unique.' },
+  ];
+
+  test('locks the Unique switch and says why, for every type Core pins', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     await navigateToCollectionCreate(mainWindow, project.id);
 
-    const numberSheet = await openAddFieldSheet(mainWindow, 'number');
+    for (const { fieldType, reason } of pinnedUniqueness) {
+      const sheet = await openAddFieldSheet(mainWindow, fieldType);
+      await expect(
+        sheet.getByRole('switch', { name: 'Unique' }),
+        `${fieldType} offers Unique as a choice`
+      ).toBeDisabled();
+      await expect(
+        sheet.getByText(reason),
+        `${fieldType} locks Unique without saying why`
+      ).toBeVisible();
+      await mainWindow.keyboard.press('Escape');
+      await expect(sheet).toBeHidden();
+    }
+
+    // A select's options are either text or numbers, and only the numeric
+    // variant is pinned, so the one type carries both answers.
+    const selectSheet = await openAddFieldSheet(mainWindow, 'select');
     await expect(
-      numberSheet.getByRole('switch', { name: 'Unique' })
+      selectSheet.getByRole('switch', { name: 'Unique' })
+    ).toBeEnabled();
+    await selectSheet
+      .getByRole('combobox', { name: /Type of options/ })
+      .click();
+    await mainWindow.getByRole('option', { name: 'Number' }).click();
+    await expect(
+      selectSheet.getByRole('switch', { name: 'Unique' })
     ).toBeDisabled();
     await expect(
-      numberSheet.getByText('Number fields cannot be unique.')
+      selectSheet.getByText('Number fields cannot be unique.')
     ).toBeVisible();
     await mainWindow.keyboard.press('Escape');
-    await expect(numberSheet).toBeHidden();
+    await expect(selectSheet).toBeHidden();
 
-    // Range is number backed too, and additionally always required, so both
-    // switches are locked and each explains itself.
+    // And the lock is not blanket: a text field's uniqueness is a real choice,
+    // offered with nothing to explain.
+    const textSheet = await openAddFieldSheet(mainWindow, 'text');
+    await expect(
+      textSheet.getByRole('switch', { name: 'Unique' })
+    ).toBeEnabled();
+    await expect(textSheet.getByText('cannot be unique')).toBeHidden();
+  });
+
+  // Range is the one type Core also pins to required, and the same note
+  // mechanism says so.
+  test('locks the Required switch of a range field and says why', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+
     const rangeSheet = await openAddFieldSheet(mainWindow, 'range');
-    await expect(
-      rangeSheet.getByRole('switch', { name: 'Unique' })
-    ).toBeDisabled();
-    await expect(
-      rangeSheet.getByText('Number fields cannot be unique.')
-    ).toBeVisible();
     await expect(
       rangeSheet.getByRole('switch', { name: 'Required' })
     ).toBeDisabled();
