@@ -104,7 +104,16 @@ export function ComponentDiff({
     // Filled from the query rather than reset in an effect.
     ...(isReadingComponentBefore
       ? {}
-      : { values: { ...componentBefore, projectId: project.id } }),
+      : {
+          values: {
+            projectId: project.id,
+            id: componentBefore.id,
+            name: componentBefore.name,
+            slug: componentBefore.slug,
+            description: componentBefore.description,
+            fieldDefinitions: componentBefore.fieldDefinitions,
+          },
+        }),
     disabled: isReadingComponentBefore,
   });
 
@@ -137,7 +146,16 @@ export function ComponentDiff({
     // Filled from the query rather than reset in an effect.
     ...(isReadingComponentAfter
       ? {}
-      : { values: { ...componentAfter, projectId: project.id } }),
+      : {
+          values: {
+            projectId: project.id,
+            id: componentAfter.id,
+            name: componentAfter.name,
+            slug: componentAfter.slug,
+            description: componentAfter.description,
+            fieldDefinitions: componentAfter.fieldDefinitions,
+          },
+        }),
     disabled: isReadingComponentAfter,
   });
 
