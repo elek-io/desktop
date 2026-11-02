@@ -4,9 +4,18 @@ import type { Collection } from '@elek-io/core';
 
 import { test } from '../fixtures/electronApp.js';
 import {
+  createAssetViaIpc,
+  deleteAssetViaIpc,
+  jpegBytes,
+  makeTempFile,
+  pngBytes,
+} from '../helpers/asset.js';
+import {
+  assetFieldDefinition,
   createCollectionViaIpc,
   dateFieldDefinition,
   datetimeFieldDefinition,
+  dynamicFieldDefinition,
   emailFieldDefinition,
   navigateToCollection,
   numberFieldDefinition,
@@ -17,17 +26,47 @@ import {
   updateCollectionViaIpc,
 } from '../helpers/collection.js';
 import {
+  createComponentViaIpc,
+  updateComponentViaIpc,
+} from '../helpers/component.js';
+import {
+  assetReferenceValue,
+  componentValue,
   createEntryViaIpc,
   fillEntryForm,
+  listEntriesViaIpc,
   navigateToEntryCreate,
   navigateToEntryUpdate,
   stringValue,
   temporalValue,
 } from '../helpers/entry.js';
-import { stubCoreReject } from '../helpers/ipc.js';
+import { stubCoreReject, stubCoreRejectWithType } from '../helpers/ipc.js';
 import { reloadWindow } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
+
+/**
+ * The message one field shows below itself, or `null` where it shows none.
+ *
+ * Read through the control the field's label points at, so what is asserted is
+ * the message that field names rather than any text on the page.
+ */
+async function errorOf(page: Page, labelText: string): Promise<string | null> {
+  return page.evaluate((text) => {
+    const label = Array.from(
+      document.querySelectorAll('label[data-slot="field-label"]')
+    ).find((candidate) => (candidate.textContent ?? '').trim() === text);
+    if (label === undefined) {
+      throw new Error(`No field is labelled "${text}"`);
+    }
+    const control = document.getElementById(label.getAttribute('for') ?? '');
+    const errors = (control?.getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map((id) => document.getElementById(id))
+      .filter((part) => part?.getAttribute('data-slot') === 'field-error');
+    return errors.length === 0 ? null : (errors[0]?.textContent ?? '').trim();
+  }, labelText);
+}
 
 /**
  * Create a Collection whose translatable name, description and Title field carry
@@ -645,23 +684,36 @@ test.describe('Entries', () => {
     ).toBeVisible();
   });
 
-  test('surfaces a unique-value collision in place instead of the error boundary', async ({
+  test('marks a Value another Entry already uses on the field that holds it', async ({
     mainWindow,
   }) => {
-    // A unique Title field: a second Entry reusing a value collides, and
-    // Core rejects the create with a Conflict (see Core's fields docs). The form
-    // handles that in place rather than letting it take over the whole screen.
+    // A unique Title field: a second Entry reusing a Value collides, and Core
+    // rejects the create with a Conflict naming the field and the language
+    // (see Core's fields docs). The form shows it below that field, which is
+    // where ci's Messages table puts a field that is wrong.
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
-      fieldDefinitions: [textFieldDefinition({ isUnique: true })],
+      fieldDefinitions: [
+        textFieldDefinition({ isUnique: true }),
+        textFieldDefinition({
+          slug: 'note',
+          label: { en: 'Note' },
+          isRequired: false,
+        }),
+      ],
     });
-    // Seed the first Entry over IPC holding the value the form will collide with.
+    // Seed the first Entry over IPC holding the Value the form will collide
+    // with. Core asks for a Value per field definition, so the optional one is
+    // seeded empty.
     await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
-      values: { title: stringValue({ en: 'Taken title' }) },
+      values: {
+        title: stringValue({ en: 'Taken title' }),
+        note: stringValue({ en: null }),
+      },
     });
 
     await navigateToEntryCreate(mainWindow, {
@@ -669,22 +721,25 @@ test.describe('Entries', () => {
       collectionId: collection.id,
     });
 
-    // Re-entering the taken value and submitting collides. The desktop app owns
-    // only its part: mapping the Conflict to an in-place surface rather than the
-    // boundary. Core's uniqueness enforcement is Core's own test.
+    // Re-entering the taken Value and submitting collides. The desktop app
+    // owns only its part: putting the Conflict on its own field. Core's
+    // uniqueness enforcement is Core's own test.
     await fillEntryForm(mainWindow, { Title: 'Taken title' });
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
-    // The Conflict is surfaced in place: the reason-specific dialog explains the
-    // collision, the URL stays on the create route (nothing was created), and the
-    // root error boundary is not hit. The fixture's console-clean assertion backs
-    // the no-boundary claim (a boundary would log and fail the run).
+    // The sentence stands below the Title field, that field is marked invalid,
+    // and no dialog and no error screen takes over. The fixture's
+    // console-clean assertion backs the no-boundary claim (a boundary would
+    // log and fail the run).
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await expect(title).toHaveAttribute('aria-invalid', 'true');
+    expect(await errorOf(mainWindow, 'Title')).toBe(
+      'Another Entry already uses this Value. Change it to save.'
+    );
+    expect(await errorOf(mainWindow, 'Note')).toBeNull();
     await expect(
-      mainWindow.getByText('Could not save this Entry')
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByText('another Entry in this Collection already uses it')
-    ).toBeVisible();
+      mainWindow.getByRole('dialog', { name: 'Could not save this Entry' })
+    ).toBeHidden();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
     );
@@ -693,12 +748,303 @@ test.describe('Entries', () => {
     ).toBeHidden();
   });
 
+  test('sends a refusal that names no field of this form to the error screen', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    // The same `Conflict` type Core raises for a taken Value also stands for
+    // refusals that name no field, and a `BadRequest` does too. One of those
+    // has no field to land on, so it has to reach the root error boundary
+    // rather than being swallowed by the map that places the others.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Anything' });
+
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:entries:create',
+      'Conflict'
+    );
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeVisible();
+  });
+
+  test('marks a reference whose Asset is gone on the field that holds it', async ({
+    mainWindow,
+  }, testInfo) => {
+    // An Asset chosen in the form and deleted before the save, which is the
+    // race between two windows. Core refuses the write with a BadRequest
+    // naming the field and the language of each reference it could not
+    // resolve.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const asset = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+      name: 'Showroom',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        assetFieldDefinition({
+          slug: 'cover',
+          label: { en: 'Cover' },
+          isRequired: false,
+          min: null,
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+
+    // The field's label names its trigger, since the label points at the
+    // button that opens the picker. The Asset in it is named after the file it
+    // was added from.
+    await mainWindow.getByRole('button', { name: 'Cover' }).click();
+    const picker = mainWindow.getByRole('dialog');
+    await expect(
+      picker.getByRole('heading', { name: 'Select Assets' })
+    ).toBeVisible();
+    await picker.getByRole('button', { name: /showroom/ }).click();
+    await picker.getByRole('button', { name: 'Done' }).click();
+    await expect(picker).toBeHidden();
+
+    // Somebody else removes the Asset while this Entry is still being written.
+    await deleteAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      id: asset.id,
+      extension: asset.extension,
+    });
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+
+    expect(await errorOf(mainWindow, 'Cover')).toBe(
+      'An Asset this field points at no longer exists. Choose another one.'
+    );
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeHidden();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
+    );
+  });
+
+  test('marks an Asset of a type a field no longer takes inside its own section', async ({
+    mainWindow,
+  }, testInfo) => {
+    // A section's Asset field that is narrowed to images of one type after the
+    // Entry was written. Core refuses the next save and names the section the
+    // field sits in, so the message has to land on that field rather than on
+    // the dynamic field around it.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const asset = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.jpg', jpegBytes),
+      name: 'Showroom',
+    });
+    // Both definitions are held here, so the update below keeps their ids,
+    // which is what Core matches a definition by.
+    const headlineDefinition = textFieldDefinition({
+      slug: 'headline',
+      label: { en: 'Headline' },
+    });
+    const coverDefinition = assetFieldDefinition({
+      slug: 'cover',
+      label: { en: 'Cover' },
+      isRequired: false,
+      min: null,
+    });
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [headlineDefinition, coverDefinition],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [hero.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Service' }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: {
+              headline: stringValue({ en: 'Service you can book online' }),
+              cover: assetReferenceValue(asset.id),
+            },
+          },
+        ]),
+      },
+    });
+
+    // The Component's Asset field is narrowed to PNG, which the JPEG the
+    // section holds is not. Core keeps the restriction off its schemas, since
+    // a reference carries no type, so nothing refuses it until the next save.
+    await updateComponentViaIpc(mainWindow, {
+      ...hero,
+      projectId: project.id,
+      fieldDefinitions: [
+        headlineDefinition,
+        { ...coverDefinition, ofAssetMimeTypes: ['image/png'] },
+      ],
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveValue(
+      'Service'
+    );
+    await fillEntryForm(mainWindow, { Title: 'Service and repairs' });
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+
+    // The section's own field carries the message, and the dynamic field it
+    // sits in is not marked at all.
+    expect(await errorOf(mainWindow, 'Cover')).toBe(
+      'This field does not take an Asset of that type. Choose another one.'
+    );
+    expect(await errorOf(mainWindow, 'Sections')).toBeNull();
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeHidden();
+  });
+
+  test('keeps the decimals of a number Value', async ({ mainWindow }) => {
+    // A price of 19.99, which Core's number Value and its bounds take. Reading
+    // the input with parseInt saved 19 instead, and silently, since 19 is a
+    // number Core takes as well.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        numberFieldDefinition({
+          slug: 'price',
+          label: { en: 'Price' },
+          min: 0,
+          max: 100,
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, {
+      Title: 'Spring service',
+      Price: '19.99',
+    });
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+
+    // What was saved, read back from Core rather than off the form.
+    const entries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const price = entries[0]?.values['price'];
+    expect(price?.valueType === 'number' ? price.content['en'] : null).toBe(
+      19.99
+    );
+  });
+
+  test('marks only the field a nested error belongs to', async ({
+    mainWindow,
+  }) => {
+    // A required field inside a section, left empty. The message belongs to
+    // that field, and the dynamic field around it must not claim it: an editor
+    // would be pointed at the list of sections rather than at the field inside
+    // it.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [hero.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Service' }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: { headline: stringValue({ en: 'Book online' }) },
+          },
+        ]),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    const headline = mainWindow.getByLabel('Headline', { exact: true });
+    await expect(headline).toHaveValue('Book online');
+    await headline.fill('');
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+
+    // The inner field says what is wrong and is marked invalid, while the
+    // field holding the sections says nothing and is not.
+    await expect(headline).toHaveAttribute('aria-invalid', 'true');
+    expect(await errorOf(mainWindow, 'Headline')).not.toBeNull();
+    expect(await errorOf(mainWindow, 'Sections')).toBeNull();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Add section' })
+    ).toHaveAttribute('aria-invalid', 'false');
+    // The form's own backstop stays quiet, since the field shows the message.
+    await expect(
+      mainWindow.getByText("This form can't be saved", { exact: false })
+    ).toBeHidden();
+  });
+
   test('routes an unexpected create failure to the root error boundary', async ({
     mainWindow,
     electronApp,
   }) => {
-    // The create handles only a unique-value Conflict in place; every other
-    // failure must reach the root error boundary. This guards the useAppMutation
+    // The create answers only the refusals that belong on a field in place;
+    // every other failure must reach the root error boundary. This guards the useAppMutation
     // predicate against a regression back to a blanket throwOnError: false, which
     // would swallow an unexpected failure into the in-place dialog and drop it
     // from the logs entirely (see error-handling.md and the projects delete
@@ -722,14 +1068,10 @@ test.describe('Entries', () => {
     await stubCoreReject(electronApp, 'core:entries:create');
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
-    // The failure propagates: the root error boundary replaces the view and the
-    // in-place conflict dialog never opens.
+    // The failure propagates: the root error boundary replaces the view.
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeVisible();
-    await expect(
-      mainWindow.getByText('Could not save this Entry')
-    ).toBeHidden();
   });
 
   test('paginates and filters the entry table client side', async ({
@@ -791,7 +1133,9 @@ test.describe('Entries', () => {
     // The filter narrows the rows client side across every page. 'Entry 11'
     // started on the second page, so a match proves the filter also resets to
     // the first page (one data row plus the header).
-    const filter = mainWindow.getByPlaceholder('Filter Articles...');
+    const filter = mainWindow.getByRole('searchbox', {
+      name: 'Filter Articles',
+    });
     await filter.fill('Entry 11');
     await expect(mainWindow.getByRole('row')).toHaveCount(2);
     await expect(

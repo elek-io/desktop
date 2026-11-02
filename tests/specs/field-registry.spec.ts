@@ -163,6 +163,60 @@ test.describe('The field registry', () => {
     }
   });
 
+  test('placeholder text is a lint error, apart from the one filter field', async () => {
+    const probe = path.join(
+      root,
+      'src/renderer/components/placeholderProbe.tsx'
+    );
+    // Every shape the attribute is written in, so the rule is not held by one
+    // spelling: a plain string, a translated one in braces, and a value.
+    await writeFile(
+      probe,
+      [
+        "import { t } from '@lingui/core/macro';",
+        '',
+        'export function probe(name: string): React.JSX.Element {',
+        '  return (',
+        '    <>',
+        '      <input placeholder="Your name" />',
+        '      <input placeholder={t`Your name`} />',
+        '      <input placeholder={name} />',
+        '    </>',
+        '  );',
+        '}',
+        '',
+      ].join('\n')
+    );
+
+    try {
+      const eslint = new ESLint({ cwd: root });
+      const [result] = await eslint.lintFiles([probe]);
+      const flagged = (result?.messages ?? []).filter(
+        (message) => message.ruleId === 'no-restricted-syntax'
+      );
+      // One per shape: the string on line 6, the translated one on 7 and the
+      // value on 8.
+      expect(
+        flagged.map((message) => message.line).sort((a, b) => a - b)
+      ).toEqual([6, 7, 8]);
+      expect(flagged[0]?.message).toContain('placeholder text');
+
+      // The filter of a list keeps its name inside its field, which is the one
+      // exception, and it is that component rather than a rule somebody writes
+      // again per filter.
+      const [filterResult] = await eslint.lintFiles([
+        path.join(root, 'src/renderer/components/ui/filter-input.tsx'),
+      ]);
+      expect(
+        (filterResult?.messages ?? []).filter(
+          (message) => message.ruleId === 'no-restricted-syntax'
+        )
+      ).toEqual([]);
+    } finally {
+      await rm(probe);
+    }
+  });
+
   test('a form built outside useAppForm, or reset in an effect, is a lint error', async () => {
     const probe = path.join(root, 'src/renderer/components/formProbe.ts');
     await writeFile(

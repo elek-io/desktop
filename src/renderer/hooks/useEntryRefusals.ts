@@ -57,15 +57,16 @@ export function useEntryRefusals<
       if (path === null) {
         continue;
       }
+      // Focus is deliberately left where it is: the fields of a form that is
+      // saving are disabled, and a disabled control cannot take focus, so
+      // asking for it here would only sometimes work. The message carries
+      // `role="alert"`, so it is announced where it stands.
       form.setError(
         // Built from the field definition Core names, which this form is
         // generated from, so only the name is asserted and never the form,
         // see contributing/renderer/forms.md#form-typing.
         path as FieldPath<TFieldValues>,
-        { type: 'core', message: refusal.message },
-        // The first one takes focus, so pressing Save leaves somebody at the
-        // field they have to change rather than at the button.
-        { shouldFocus: placed === 0 }
+        { type: 'core', message: refusal.message }
       );
       placed += 1;
     }

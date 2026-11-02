@@ -30,7 +30,14 @@ interface ProbedElement {
     readonly bottom: number;
   };
   matches(selectors: string): boolean;
+  querySelector(selectors: string): ProbedElement | null;
   querySelectorAll(selectors: string): ArrayLike<ProbedElement>;
+  /**
+   * The element's own styles, which one spec writes a width into: the area a
+   * field is measured against is a pane of the redesigned editor, and giving
+   * this one its width is how that is driven before the editor is rebuilt.
+   */
+  readonly style: { width: string };
   /**
    * Where `other` sits relative to this element, as the DOM's bit mask. A spec
    * reads one bit of it, `DOCUMENT_POSITION_FOLLOWING` (4), to say that `other`

@@ -1,6 +1,7 @@
 import {
   amountNotes,
   characterNotes,
+  countNotes,
   fieldRules,
   uniqueNote,
   type FieldRules,
@@ -62,7 +63,7 @@ export function countRules(
   notes: string[] = []
 ): FieldRules {
   return scalarRules(fieldDefinition, [
-    ...amountNotes(fieldDefinition),
+    ...countNotes(fieldDefinition),
     ...notes,
   ]);
 }

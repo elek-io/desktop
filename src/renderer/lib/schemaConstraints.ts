@@ -69,9 +69,17 @@ function isSchemaNode(value: unknown): value is SchemaNode {
 }
 
 function asNumber(value: unknown): number | undefined {
-  // zod answers `null` for a bound a schema does not set, so a bound is a
-  // number or it is not there.
-  return typeof value === 'number' ? value : undefined;
+  if (typeof value !== 'number') {
+    // zod answers `null` for a length a schema does not bound.
+    return undefined;
+  }
+  // Three answers are the type's own reach rather than a rule somebody set,
+  // and none of them is worth a word beside a label: an unbounded number
+  // schema answers with an infinity, and an integer one with the largest
+  // integer JavaScript counts exactly.
+  return Number.isFinite(value) && Math.abs(value) !== Number.MAX_SAFE_INTEGER
+    ? value
+    : undefined;
 }
 
 /** A wrapper's inner schema, or `null` where this is not a wrapper. */

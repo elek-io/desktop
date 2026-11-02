@@ -17,6 +17,7 @@ import {
   type SupportedLanguage,
   type TextFieldDefinition,
   type TimeFieldDefinition,
+  type ToggleFieldDefinition,
   type UpdateCollectionProps,
 } from '@elek-io/core';
 
@@ -97,6 +98,30 @@ export function numberFieldDefinition(
     defaultValue: null,
     min: 1,
     max: 9,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a toggle FieldDefinition with a caller-supplied id. Core pins a toggle
+ * to required and gives it a boolean default, because it always holds a Value,
+ * which is why it shows no rule beside its label.
+ */
+export function toggleFieldDefinition(
+  overrides: Partial<ToggleFieldDefinition> = {}
+): ToggleFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'featured',
+    label: { en: 'Featured' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'boolean',
+    fieldType: 'toggle',
+    defaultValue: false,
     ...overrides,
   };
 }

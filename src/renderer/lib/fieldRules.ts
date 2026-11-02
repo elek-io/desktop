@@ -103,6 +103,29 @@ export function characterNotes(bounds: {
 }
 
 /**
+ * How many things a Value may hold, such as the Assets a field points at or
+ * the sections of a dynamic field.
+ *
+ * A bound of one is left unsaid: a field that takes one thing shows one row,
+ * and Required already says it needs that one. Only a field that takes several
+ * has a number worth reading, which is what ci's "Up to 2, from Team" is.
+ */
+export function countNotes(bounds: {
+  min: number | null;
+  max: number | null;
+}): string[] {
+  const { min, max } = bounds;
+  // One at least is what Required says, so only more than one is a rule of its
+  // own.
+  const lowest = min === null || min <= 1 ? null : min;
+
+  if (max === 1) {
+    return [];
+  }
+  return amountNotes({ min: lowest, max });
+}
+
+/**
  * What a number Value, or how many of something, may be.
  *
  * One pair of words for both, because a bound on a number and a bound on a

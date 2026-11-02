@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import {
+  assetFieldDefinition,
   createCollectionViaIpc,
   emailFieldDefinition,
   markdownFieldDefinition,
@@ -10,6 +11,7 @@ import {
   navigateToCollectionSettings,
   referenceFieldDefinition,
   textFieldDefinition,
+  toggleFieldDefinition,
 } from '../helpers/collection.js';
 import {
   createEntryViaIpc,
@@ -24,7 +26,12 @@ import {
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
 import { setupRemote } from '../helpers/remote.js';
-import { setUserViaIpc } from '../helpers/user.js';
+import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  windowSize,
+} from '../helpers/window.js';
 
 /**
  * What every field of a screen looks like: the shell it sits in, the control
@@ -108,6 +115,46 @@ async function describedPartsOf(
           };
         }),
     };
+  }, labelText);
+}
+
+/**
+ * The rules one field shows beside its label, or `null` where it shows none.
+ *
+ * Read off the field's own head rather than off the control, so what is
+ * asserted is what somebody sees at the top right of the label.
+ */
+async function rulesOf(page: Page, labelText: string): Promise<string | null> {
+  return page.evaluate((text) => {
+    const label = Array.from(
+      document.querySelectorAll('label[data-slot="field-label"]')
+    ).find((candidate) => (candidate.textContent ?? '').trim() === text);
+    if (label === undefined) {
+      throw new Error(`No field is labelled "${text}"`);
+    }
+    const head = label.closest('[data-slot="field-header"]');
+    const rules = head?.querySelector('[data-slot="field-rules"]');
+    return rules === null || rules === undefined
+      ? null
+      : (rules.textContent ?? '').trim();
+  }, labelText);
+}
+
+/** Where one field sits and how wide it is, in the window's own pixels. */
+async function boxOf(
+  page: Page,
+  labelText: string
+): Promise<{ x: number; y: number; width: number }> {
+  return page.evaluate((text) => {
+    const label = Array.from(
+      document.querySelectorAll('label[data-slot="field-label"]')
+    ).find((candidate) => (candidate.textContent ?? '').trim() === text);
+    const field = label?.closest('[data-slot="field"]');
+    if (field === null || field === undefined) {
+      throw new Error(`No field is labelled "${text}"`);
+    }
+    const { x, y, width } = field.getBoundingClientRect();
+    return { x, y, width };
   }, labelText);
 }
 
@@ -243,7 +290,7 @@ test.describe('A form filled from its query', () => {
     expect(await oldPrimitives(mainWindow)).toBe(0);
 
     // A field with a description points at it, and the one without points at
-    // nothing rather than at an element that is not there.
+    // no description at all rather than at an element that is not there.
     const described = await mainWindow.evaluate(() => {
       const read = (label: string): string | null => {
         const element = Array.from(
@@ -252,13 +299,17 @@ test.describe('A form filled from its query', () => {
         const control = document.getElementById(
           element?.getAttribute('for') ?? ''
         );
-        const ids = control?.getAttribute('aria-describedby') ?? null;
-        if (ids === null) {
-          return null;
-        }
-        return (
-          document.getElementById(ids.split(' ')[0] ?? '')?.textContent ?? null
+        const ids = (control?.getAttribute('aria-describedby') ?? '').split(
+          ' '
         );
+        const descriptions = ids
+          .map((id) => document.getElementById(id))
+          .filter(
+            (part) => part?.getAttribute('data-slot') === 'field-description'
+          );
+        return descriptions.length === 0
+          ? null
+          : (descriptions[0]?.textContent ?? null);
       };
       return { title: read('Title'), email: read('Email') };
     });
@@ -289,7 +340,7 @@ test.describe('A form filled from its query', () => {
     expect(await oldPrimitives(mainWindow)).toBe(0);
   });
 
-  test('names its description and then its error, both after the control', async ({
+  test('names its rules, its description and then its error, in that order', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -315,12 +366,17 @@ test.describe('A form filled from its query', () => {
       collectionId: collection.id,
     });
 
-    // Before a submit the field shows its description only, and names nothing
-    // else.
+    // Before a submit the field names its rules and its description, and
+    // nothing else.
     await expect(mainWindow.getByLabel('Title', { exact: true })).toBeVisible();
     const clean = await describedPartsOf(mainWindow, 'Title');
     expect(clean.labelLeadsControl).toBe(true);
     expect(clean.parts).toEqual([
+      {
+        slot: 'field-rules',
+        followsControl: false,
+        text: 'Required',
+      },
       {
         slot: 'field-description',
         followsControl: true,
@@ -334,21 +390,25 @@ test.describe('A form filled from its query', () => {
     const title = mainWindow.getByLabel('Title', { exact: true });
     await expect(title).toHaveAttribute('aria-invalid', 'true');
 
-    // Label, control, description, error: the order ci draws a field in. The
-    // control names the description first and the error second, and both sit
-    // after it, so what a screen reader reads follows what is on screen.
+    // The label with its rules, then the control, the description and the
+    // error: the order ci draws a field in. The control names the rules first,
+    // which sit beside the label above it, and then the two parts below it, so
+    // what a screen reader reads follows what is on screen.
     const refused = await describedPartsOf(mainWindow, 'Title');
     expect(refused.labelLeadsControl).toBe(true);
     expect(refused.parts.map((part) => part.slot)).toEqual([
+      'field-rules',
       'field-description',
       'field-error',
     ]);
     expect(refused.parts.map((part) => part.followsControl)).toEqual([
+      false,
       true,
       true,
     ]);
-    expect(refused.parts[0]?.text).toBe('What the Entry is called');
-    expect(refused.parts[1]?.text).not.toBe('');
+    expect(refused.parts[0]?.text).toBe('Required');
+    expect(refused.parts[1]?.text).toBe('What the Entry is called');
+    expect(refused.parts[2]?.text).not.toBe('');
   });
 
   test('shows its fields disabled and holds Save while its query is still reading', async ({
@@ -386,6 +446,163 @@ test.describe('A form filled from its query', () => {
     await expect(
       mainWindow.getByRole('button', { name: 'Update Article' })
     ).toBeDisabled();
+  });
+
+  test('shows what each generated field asks for, beside its label', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // One field per shape of rule: a bounded required one, an optional one
+    // with a bound of its own, a unique one, an Asset field that takes images
+    // only, and a toggle, which can never be empty.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ min: 2, max: 80 }),
+        textFieldDefinition({
+          slug: 'note',
+          label: { en: 'Note' },
+          isRequired: false,
+          max: 200,
+        }),
+        textFieldDefinition({
+          slug: 'key',
+          label: { en: 'Key' },
+          isUnique: true,
+        }),
+        assetFieldDefinition({
+          label: { en: 'Cover' },
+          slug: 'cover',
+          ofAssetMimeTypes: ['image/png', 'image/jpeg'],
+        }),
+        toggleFieldDefinition(),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toBeVisible();
+
+    // Each rule comes off the field definition, in the words an editor reads,
+    // and the leading one is capitalized wherever it comes from.
+    expect(await rulesOf(mainWindow, 'Title')).toBe(
+      'Required, 2 to 80 characters'
+    );
+    expect(await rulesOf(mainWindow, 'Note')).toBe('Up to 200 characters');
+    expect(await rulesOf(mainWindow, 'Key')).toBe('Required, unique');
+    expect(await rulesOf(mainWindow, 'Cover')).toBe('Required, images only');
+    // A toggle always holds a Value, so it names no rule at all.
+    expect(await rulesOf(mainWindow, 'Featured')).toBeNull();
+
+    // The label is still the control's whole accessible name, and required
+    // reaches assistive tech as the state rather than as part of that name.
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await expect(title).toHaveAttribute('aria-required', 'true');
+    await expect(
+      mainWindow.getByLabel('Note', { exact: true })
+    ).not.toHaveAttribute('aria-required');
+
+    // The rules are named by the control, so they are read out with it rather
+    // than left to somebody who can see them.
+    const described = await describedPartsOf(mainWindow, 'Title');
+    expect(described.parts[0]?.slot).toBe('field-rules');
+    expect(described.parts[0]?.text).toBe('Required, 2 to 80 characters');
+    expect(described.parts[0]?.followsControl).toBe(false);
+  });
+
+  test('shows what Core asks of a hand-written field, without repeating it', async ({
+    mainWindow,
+  }) => {
+    // The Profile is hand written and checks against Core's own User schema,
+    // which caps a name at 256 characters and an email at 254. Neither number
+    // is written down in this app, so a field that shows one read it off that
+    // schema.
+    await setUserViaIpc(mainWindow);
+    await navigateToUserProfile(mainWindow);
+    await expect(
+      mainWindow.getByRole('heading', { name: 'User profile' })
+    ).toBeVisible();
+
+    expect(await rulesOf(mainWindow, 'Full name')).toBe(
+      'Required, up to 256 characters'
+    );
+    expect(await rulesOf(mainWindow, 'Email')).toBe(
+      'Required, up to 254 characters'
+    );
+    // A switch always holds a Value, so Core asking for the key is no rule
+    // anybody could break, and the field says nothing.
+    expect(await rulesOf(mainWindow, 'Enabled')).toBeNull();
+
+    // Required reaches assistive tech on every form, not only on a generated
+    // field, which is what the hand-written ones were silent about.
+    await expect(
+      mainWindow.getByLabel('Full name', { exact: true })
+    ).toHaveAttribute('aria-required', 'true');
+    await expect(
+      mainWindow.getByLabel('Email', { exact: true })
+    ).toHaveAttribute('aria-required', 'true');
+  });
+
+  test('stacks a field the area it sits in is too narrow for', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // Two half-width fields, which ci puts side by side while each gets at
+    // least 160 px and stacks below each other when they do not.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ inputWidth: '6' }),
+        textFieldDefinition({
+          slug: 'note',
+          label: { en: 'Note' },
+          isRequired: false,
+          inputWidth: '6',
+        }),
+      ],
+    });
+
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toBeVisible();
+
+    // At the smallest window the editor still holds both, so they stay side by
+    // side: the same row, each half the width.
+    const wide = {
+      title: await boxOf(mainWindow, 'Title'),
+      note: await boxOf(mainWindow, 'Note'),
+    };
+    expect(wide.note.y).toBe(wide.title.y);
+    expect(wide.note.x).toBeGreaterThan(wide.title.x);
+    expect(wide.title.width).toBeGreaterThanOrEqual(160);
+
+    // The editor the Entry is laid out in, narrowed to what it gets beside two
+    // other panes, with the window left at its minimum. What decides is the
+    // area the fields sit in rather than the window, so narrowing it alone has
+    // to stack them.
+    await mainWindow.evaluate(() => {
+      const grid = document.querySelector('[data-slot="field"]')?.parentElement;
+      if (grid === null || grid === undefined) {
+        throw new Error('The Entry form draws no grid of fields');
+      }
+      grid.style.width = '280px';
+    });
+
+    const narrow = {
+      title: await boxOf(mainWindow, 'Title'),
+      note: await boxOf(mainWindow, 'Note'),
+    };
+    expect(narrow.note.y).toBeGreaterThan(narrow.title.y);
+    expect(narrow.note.x).toBe(narrow.title.x);
+    expect(await windowSize(electronApp)).toEqual(MINIMUM_WINDOW_SIZE);
   });
 
   test('names an Entry the same way in its list, its pickers and the breadcrumb', async ({
