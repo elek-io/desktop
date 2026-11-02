@@ -97,7 +97,7 @@ For accessing the current user and project data, prefer using the `useUser()` an
 
 #### UserProvider and useUser Hook
 
-The [`UserProvider`](../../src/renderer/providers/UserProvider.tsx) wraps the entire application at the root level (see [`routes/__root.tsx:131`](../../src/renderer/routes/__root.tsx)). It provides:
+The [`UserProvider`](../../src/renderer/providers/UserProvider.tsx) wraps the entire application at the root level, in `RootComponent` (see [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx)). It provides:
 
 - `userQuery: UseQueryResultNoError<User | null>` - The current user query result
 - `formatDatetime: (props: FormatDatetimeProps) => { relative: string; absolute: string }` - Formats datetime strings according to the user's locale
@@ -127,7 +127,7 @@ function HeaderUser() {
 
 #### ProjectProvider and useProject Hook
 
-The [`ProjectProvider`](../../src/renderer/providers/ProjectProvider.tsx) wraps all project-specific routes (see [`routes/projects/$projectId.tsx:32`](../../src/renderer/routes/projects/$projectId.tsx)). It provides:
+The [`ProjectProvider`](../../src/renderer/providers/ProjectProvider.tsx) wraps all project-specific routes, in `ProjectLayout` (see [`routes/projects/$projectId.tsx`](../../src/renderer/routes/projects/$projectId.tsx)). It provides:
 
 - `projectId: string` - The current project ID from the route
 - `projectQuery: UseQueryResultNoError<Project>` - The current project query result

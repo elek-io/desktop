@@ -214,7 +214,7 @@ All external requests (e.g., when a user clicks a link inside the renderer or an
 - `api.elek.io`
 - `github.com`
 
-See `allowedHostnamesToLoadExternal` in [`src/main/index.ts:41-47`](/src/main/index.ts) for the implementation.
+See `allowedHostnamesToLoadExternal` in [`src/main/index.ts`](/src/main/index.ts) for the implementation.
 
 Links to whitelisted external hostnames are opened in the default system browser, not within an elek.io Desktop renderer window.
 
@@ -260,7 +260,7 @@ For how these three builds decide what ships in the packaged app, the resulting 
 
 ### Known Considerations
 
-- DevTools are opened automatically in development via `window.webContents.openDevTools()` in [`src/main/index.ts:242`](/src/main/index.ts) (the development branch of `loadWindow`). The packaged branch keeps a commented-out call to uncomment when debugging a production build.
+- DevTools are opened automatically in development via `window.webContents.openDevTools()` in the development branch of `loadWindow` (see [`src/main/index.ts`](/src/main/index.ts)). The packaged branch keeps a commented-out call to uncomment when debugging a production build.
 - The app sends no telemetry. There is no remote error tracker, no tracing and no session replay, so an error only ever reaches Core's local log files unless the user reports it themselves. For the full logging picture see [Error Handling](./error-handling.md). Why Sentry was removed, and what is planned instead, lives in the Cloud repository's `contributing/observability.md`.
 - Auto-update is currently disabled. The `update-electron-app` call in the `Main` constructor is commented out, and the `electron-updater` dependency is not imported anywhere, so there is no active auto-update path.
 - All Core methods are async in the renderer even when synchronous in Core (the IPC boundary requires it)
