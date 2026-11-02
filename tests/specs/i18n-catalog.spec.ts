@@ -57,14 +57,15 @@ test.describe('The message catalog', () => {
     await writeFile(
       probe,
       [
-        'export function LinguiProbe({ busy }: { busy: boolean }): React.JSX.Element {',
+        'export function LinguiProbe({ name }: { name: string }): React.JSX.Element {',
         '  return (',
         '    <div title="A tooltip nobody translated">',
         '      Some text nobody translated',
         '      <img src="/a.png" alt="An alt nobody translated" />',
         '      <button aria-label="A name nobody translated" />',
         '      <input placeholder="A placeholder nobody translated" />',
-        "      {busy ? 'A sentence nobody translated' : null}",
+        "      {name === '' ? 'A sentence nobody translated' : null}",
+        '      <span title={`A tooltip built around ${name}`} />',
         '    </div>',
         '  );',
         '}',
@@ -81,11 +82,12 @@ test.describe('The message catalog', () => {
 
       // One per surface the criterion names, by the line it sits on: `title`
       // and the JSX text on line 3, `alt` on 5, the accessible name on 6, the
-      // placeholder on 7 and a string in an expression on 8. `title` and `alt`
-      // are caught twice, by Lingui's rule and by the selector that covers the
-      // attributes it lets through on a native element.
+      // placeholder on 7, a string in an expression on 8 and a `title` built
+      // around a value on 9. `title` and `alt` are caught twice, by Lingui's
+      // rule and by the selector that covers the attributes it lets through on
+      // a native element.
       expect(flagged.map((message) => message.line).sort()).toEqual([
-        3, 3, 5, 5, 6, 7, 8,
+        3, 3, 5, 5, 6, 7, 8, 9,
       ]);
     } finally {
       await rm(probe);

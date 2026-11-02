@@ -50,21 +50,38 @@ const noControlLaunderingCast = {
 // A pane's name is read by a screen reader and shown when a read inside it
 // fails, so it is text. Lingui's rule cannot see that, because it arrives under
 // the prop name react-hook-form uses for a field's path, which is ignored.
+const paneNameMessage =
+  "A pane's name comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).";
 const noUnlocalizedPaneName = {
   selector:
-    "JSXOpeningElement[name.name='Pane'] > JSXAttribute[name.name='name'] > :matches(Literal,TemplateLiteral)",
-  message:
-    "A pane's name comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).",
+    "JSXOpeningElement[name.name='Pane'] > JSXAttribute[name.name='name'] > Literal",
+  message: paneNameMessage,
+};
+// The same name written in braces, as a string or a template. A `t` tagged
+// template is a TaggedTemplateExpression in between, so it never matches.
+const noUnlocalizedPaneNameInBraces = {
+  selector:
+    "JSXOpeningElement[name.name='Pane'] > JSXAttribute[name.name='name'] > JSXExpressionContainer > :matches(Literal,TemplateLiteral)",
+  message: paneNameMessage,
 };
 // Lingui's rule lets a few attributes of a native element through, `title`
 // among them, because it only blacklists `placeholder`, `alt`, `aria-label` and
 // `value` there. Each of the ones below is read by a person or heard by a
 // screen reader, so a literal in one is a string outside the catalog.
+const textAttributes =
+  '/^(title|alt|abbr|label|aria-description|aria-roledescription|aria-valuetext|aria-placeholder)$/';
+const textAttributeMessage =
+  'Text a person reads comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).';
 const noUnlocalizedTextAttribute = {
-  selector:
-    'JSXAttribute[name.name=/^(title|alt|abbr|label|aria-description|aria-roledescription|aria-valuetext|aria-placeholder)$/] > Literal[value=/\\p{L}/u]',
-  message:
-    'Text a person reads comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).',
+  selector: `JSXAttribute[name.name=${textAttributes}] > Literal[value=/\\p{L}/u]`,
+  message: textAttributeMessage,
+};
+// The same attribute written in braces, as a string or a template, which the
+// selector above does not reach. A `t` tagged template is a
+// TaggedTemplateExpression in between, so it never matches.
+const noUnlocalizedTextAttributeInBraces = {
+  selector: `JSXAttribute[name.name=${textAttributes}] > JSXExpressionContainer > :matches(Literal[value=/\\p{L}/u],TemplateLiteral)`,
+  message: textAttributeMessage,
 };
 const noUnlocalizedDialogText = {
   selector:
@@ -240,7 +257,9 @@ export default [
         noFormReturnLaunderingCast,
         noControlLaunderingCast,
         noUnlocalizedPaneName,
+        noUnlocalizedPaneNameInBraces,
         noUnlocalizedTextAttribute,
+        noUnlocalizedTextAttributeInBraces,
       ],
     },
   },
