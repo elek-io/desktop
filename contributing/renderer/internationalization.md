@@ -84,7 +84,7 @@ This is how the field definition forms initialize their `label` and `description
 
 ## The app's own words (Lingui)
 
-Every string elek.io Desktop shows comes from one message catalog, read through [Lingui](https://lingui.dev). That covers the renderer and the main process, which shows the native box that says Desktop could not start.
+Every word elek.io Desktop shows comes from one message catalog, read through [Lingui](https://lingui.dev). That covers the renderer and the main process, which shows the native box that says Desktop could not start. What stays in the code reads the same in every language and says so at the line it sits on: elek.io's own names and a third party's, a version marker, a keyboard shortcut's symbols, a language code and a file size's unit symbol.
 
 | Piece                                                                                      | Where                                                      |
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
@@ -150,7 +150,7 @@ Where a sentence changes with something that is not a count, such as whether a C
 
 ### How the main process reads the catalog
 
-`@lingui/vite-plugin` runs in the main build as well as the renderer's, so main imports the catalog like any other module and the macros compile there too. That is why Lingui's runtime packages are `dependencies` rather than `devDependencies`: the main bundle externalizes its imports, see [build-and-packaging.md](../build-and-packaging.md#the-rule-for-dependencies-vs-devdependencies).
+`@lingui/vite-plugin` runs in the main build as well as the renderer's, so main imports the catalog like any other module and the macros compile there too. That is why `@lingui/core` is a `dependency` rather than a `devDependency`: the main bundle externalizes its imports. `@lingui/react` stays a `devDependency`, because only the renderer imports it and the renderer is bundled. See [build-and-packaging.md](../build-and-packaging.md#the-rule-for-dependencies-vs-devdependencies).
 
 Main's one string is the box shown when the app could not start. It takes the **system's** language through `app.getLocale()`, because nothing read a User at that point and Core may be what failed. The renderer takes the **User's** language instead, which `UserProvider` activates, and sets `lang` on the document to the locale that answered rather than the language asked for: a language Desktop carries no catalog for shows English, so that is what a screen reader has to be told.
 
@@ -170,4 +170,20 @@ No component changes. A message the new catalog does not carry shows English, be
 | `pnpm i18n:check`   | The catalog is out of step with the code, or a translation is missing after the fallbacks |
 | `pnpm i18n:extract` | Never. It writes the catalog from the code                                                |
 
-`pnpm check` runs both of the first two. The lint rule is `lingui/no-unlocalized-strings`, configured in [`eslint.config.mjs`](../../eslint.config.mjs) with every exception it allows and the reason for each, plus `no-restricted-syntax` selectors for what it lets through: a pane's name, and the attributes of a native element it does not cover, `title` among them. Each of those comes in two shapes, the plain string and the braces around a string or a template, since a sentence built around a value is a string outside the catalog too. A single line that genuinely holds no text carries an `eslint-disable-next-line` with its own reason.
+`pnpm check` runs both of the first two. The lint rule is `lingui/no-unlocalized-strings`, configured in [`eslint.config.mjs`](../../eslint.config.mjs) with every exception it allows and the reason for each, plus `no-restricted-syntax` selectors for what it lets through:
+
+| It lets through                                                 | Covered by                                                                |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| The attributes of a native element it does not blacklist        | A selector per attribute, `title` among them                              |
+| A pane's name, which arrives under the prop name a field uses   | A selector on `Pane`'s `name`                                             |
+| Everything inside a `<Select>`, which it reads as its own macro | A selector per Select part, for its words, its `items` map and its labels |
+| The message `setError` puts below a field                       | A selector on that call's `message`                                       |
+| A string under `key` or `name`, which is wiring                 | A selector that refuses sentence case there                               |
+| The text of a native dialog nested in an options object         | A selector for a `dialog` call's descendants                              |
+
+Each of those comes in two shapes where it can, the plain string and the braces around a string or a template, since a sentence built around a value is a string outside the catalog too. A single line that genuinely holds no text carries an `eslint-disable-next-line` with its own reason.
+
+Two conventions follow from that table, because a selector cannot tell wiring from words on its own:
+
+- Words an item in a list shows go in a `label` of their own. `key` and `name` are what React and react-hook-form key and address an item by, so the guard exempts them and the words would ride along.
+- A select's options carry their words twice, once as the item's own markup and once in the `items` map the closed trigger reads. Both come from the catalog.
