@@ -43,7 +43,9 @@ test.describe('Projects', () => {
       .getByRole('link', { name: 'Projects', exact: true })
       .click();
     await expect(mainWindow).toHaveURL(/#\/projects$/);
-    await expect(mainWindow.getByText(name)).toBeVisible();
+    // Scoped to the page, since the toast that confirmed the create names the
+    // Project too and would make a bare text locator ambiguous.
+    await expect(mainWindow.getByRole('main').getByText(name)).toBeVisible();
   });
 
   test('renders a persisted project after a renderer reload', async ({
@@ -432,7 +434,11 @@ test.describe('Projects', () => {
     // the same id twice hits the root error boundary, which the spec below
     // drives.
     await expect(dialog).toBeHidden();
-    await expect(mainWindow.getByText('Cloned Project')).toBeVisible();
+    // Scoped to the page, since the toast that confirmed the clone names the
+    // Project too.
+    await expect(
+      mainWindow.getByRole('main').getByText('Cloned Project')
+    ).toBeVisible();
     await expect(mainWindow.getByText('No Projects yet')).toBeHidden();
   });
 

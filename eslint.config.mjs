@@ -56,6 +56,16 @@ const noUnlocalizedPaneName = {
   message:
     "A pane's name comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).",
 };
+// Lingui's rule lets a few attributes of a native element through, `title`
+// among them, because it only blacklists `placeholder`, `alt`, `aria-label` and
+// `value` there. Each of the ones below is read by a person or heard by a
+// screen reader, so a literal in one is a string outside the catalog.
+const noUnlocalizedTextAttribute = {
+  selector:
+    'JSXAttribute[name.name=/^(title|alt|abbr|label|aria-description|aria-roledescription|aria-valuetext|aria-placeholder)$/] > Literal[value=/\\p{L}/u]',
+  message:
+    'Text a person reads comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).',
+};
 const noUnlocalizedDialogText = {
   selector:
     "CallExpression[callee.object.name='dialog'] > :matches(Literal,TemplateLiteral)",
@@ -230,6 +240,7 @@ export default [
         noFormReturnLaunderingCast,
         noControlLaunderingCast,
         noUnlocalizedPaneName,
+        noUnlocalizedTextAttribute,
       ],
     },
   },

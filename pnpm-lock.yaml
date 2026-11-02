@@ -236,6 +236,9 @@ importers:
       '@lingui/cli':
         specifier: 6.11.0
         version: 6.11.0(babel-plugin-macros@3.1.0)(rolldown@1.2.15)(supports-color@7.2.0)
+      '@lingui/conf':
+        specifier: 6.11.0
+        version: 6.11.0
       '@lingui/format-po':
         specifier: 6.11.0
         version: 6.11.0

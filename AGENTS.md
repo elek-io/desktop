@@ -29,8 +29,10 @@ Two rules follow:
 - `pnpm build:win` / `pnpm build:mac` / `pnpm build:linux` - package for a specific platform
 - `pnpm check-types` - type-check both processes with tsc, no emit (`check-types:node` and `check-types:web` cover one process each)
 - `pnpm lint` - run eslint
+- `pnpm i18n:extract` - write the message catalogs from the code, after adding or rewording a string
+- `pnpm i18n:check` - fail when a catalog is out of step with the code, or a translation is missing
 - `pnpm format` - format with prettier
-- `pnpm check` - run lint, check-types and check-format together, the same set CI runs
+- `pnpm check` - run lint, check-types, check-format and i18n:check together, the same set CI runs
 - `pnpm test` - build the unpacked app, then run the Playwright E2E tests against it (`test:ui`, `test:debug` and `test:report` variants exist, `pnpm exec playwright test` skips the rebuild)
 
 ## Conventions
@@ -39,6 +41,7 @@ Two rules follow:
 - Avoid type casts. Shape the types so a cast is not needed.
 - Keep comments short and put deeper detail in the docs. Avoid em-dashes and semicolons, use simple sentences for readability.
 - Handle errors by type. When a handler catches some errors but not all, catch only the `CoreError` types you can act on in place and let the rest reach the root error boundary, which logs to Core. Never opt a whole mutation out with a blanket `throwOnError: false`. The one mutation that handles every type is the report dialog's, because it can be mounted inside the error boundary's own fallback and so cannot rely on it, and it logs each failure explicitly to make up for the suppressed one. See [`contributing/error-handling.md`](./contributing/error-handling.md).
+- Every string a person reads comes from the message catalog, in the renderer and in the main process. `pnpm lint` fails on one that does not, and `pnpm i18n:check` fails on a catalog out of step with the code. See [`contributing/renderer/internationalization.md`](./contributing/renderer/internationalization.md).
 - Log an error with `errorLogAttributes` from [`shared/logError.ts`](./src/shared/logError.ts), never by hand, in either process. It writes the flat dotted `error.type`, `exception.*` names Core also uses, so one grep finds every stack in a log file. A log record must never carry mutation `variables` (an Entry's is the content the user wrote) or anything unclonable like the QueryClient, which would fail the structured clone and lose the record silently.
 
 ## Form invariants

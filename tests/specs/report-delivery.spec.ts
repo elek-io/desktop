@@ -33,7 +33,7 @@ test.describe('Delivering a report to Cloud', () => {
     // The dialog closes and the toast is the only evidence it worked, so a
     // missing one would make the user send it again.
     await expect(dialog).toBeHidden();
-    await expect(mainWindow.getByText('create report')).toBeVisible();
+    await expect(mainWindow.getByText('Report sent')).toBeVisible();
 
     expect(cloudStub.reports).toHaveLength(1);
     const [report] = cloudStub.reports;

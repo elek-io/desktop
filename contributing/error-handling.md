@@ -104,11 +104,13 @@ Use the [`useAppMutation`](/src/renderer/hooks/useAppMutation.ts) hook when a sp
    }
    ```
 
-3. **Map the type to copy.** Use `describeCoreError(type, overrides?, fallback?)` from [`lib/coreErrorText.ts`](/src/renderer/lib/coreErrorText.ts). A matching per type `override` wins, then the consumer's `fallback` (its own generic sentence), then an app wide generic per type, then a default for an unknown type. Read the `type` with `parseIpcError(error)` on the held error state. These components use hardcoded English today, so the maps are plain strings. When i18n lands, `describeCoreError` is the single seam that maps `type` to a localized string.
+3. **Map the type to copy.** Use `describeCoreError(type, overrides?, fallback?)` from [`lib/coreErrorText.ts`](/src/renderer/lib/coreErrorText.ts). A matching per type `override` wins, then the consumer's `fallback` (its own generic sentence), then an app wide generic per type, then a default for an unknown type. Read the `type` with `parseIpcError(error)` on the held error state. Every sentence comes from the message catalog: the maps hold `msg` descriptors rather than strings, so a map at module scope is not read before a catalog is active, and `describeCoreError` renders one with `i18n._` at the moment it is shown. It is the single seam that maps a `type` to a localized string, see [internationalization.md](./renderer/internationalization.md).
 
 Because the predicate and the dispatch both read the same `handled` map, they cannot fall out of sync, which is the whole point of the helper: the "expected" set lives in one place.
 
 Keep dialog titles and button labels stable, since the E2E specs assert them. Only the description changes with the `type`. Assert the copy you wrote in specs, never Core's raw message, which belongs to Core's own tests.
+
+**A mutation says its own two sentences.** `customMutationOptions` takes a required `toasts` with a `success` and an `error` function, each reading the catalog when the toast shows, so a mutation without them does not compile. Nothing builds a toast from the call any more: a success names what happened to what, where the answer carries its title, and a failure names what did not happen, with no call name, error type, id or git output. The log records beside them are unchanged, and still carry the method and the object type.
 
 A `type` handled this way is intentionally invisible to the standard logging (see [Logging](#logging-where-what-and-when)): only the in place UI reacts. The `type`s you did not handle are unaffected, they still propagate to the boundary and are logged and toasted as usual, because the suppression is keyed on the same `handled` map. If you also want a handled `type` recorded, log it explicitly in the `catch`.
 
