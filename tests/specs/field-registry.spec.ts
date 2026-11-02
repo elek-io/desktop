@@ -62,13 +62,14 @@ test.describe('The field registry', () => {
         "import { markdownField } from '@renderer/components/fields/markdown';",
         "import { textField } from '@renderer/components/fields/text';",
         '',
-        "import type { FieldType } from '@elek-io/core';",
-        '',
-        "import type { FieldTypeModule } from '@renderer/components/fields/module';",
+        "import type { FieldTypeRegistry } from '@renderer/components/fields';",
         '',
         "// Two of Core's field types, which is what the registry would hold",
-        '// if a type Core added had no folder of its own yet.',
-        'export const incomplete: { [T in FieldType]: FieldTypeModule<T> } = {',
+        '// if a type Core added had no folder of its own yet. Annotated with',
+        "// the registry's own exported type, so loosening that type is what",
+        '// this goes green on rather than what TypeScript does with any',
+        '// mapped type.',
+        'export const incomplete: FieldTypeRegistry = {',
         '  text: textField,',
         '  markdown: markdownField,',
         '};',
@@ -81,20 +82,20 @@ test.describe('The field registry', () => {
       expect(failed.code).not.toBe(0);
       // The registry itself is where it fails, and the message names the types
       // whose folder is missing, so a field type Core adds says what it needs
-      // rather than only that something is wrong.
+      // rather than only that something is wrong. Nothing but the probe is
+      // asserted on, because `pnpm check` is what proves the project itself is
+      // green and a spec running beside this one writes probes of its own into
+      // the same project.
       expect(failed.output).toContain('registryProbe.ts');
-      expect(failed.output).toContain('is missing the following properties');
+      // Named, so what refuses the incomplete registry is this registry's own
+      // exported type rather than a mapped type written out again here.
+      expect(failed.output).toContain(
+        "is missing the following properties from type 'FieldTypeRegistry'"
+      );
       expect(failed.output).toContain('textarea');
     } finally {
       await rm(probe);
     }
-
-    // And nothing is reported against the probe once it is gone, so the failure
-    // above was the probe rather than a project that was already red. Only the
-    // probe is looked at, because a spec running beside this one writes probe
-    // files of its own into the same project.
-    const after = await typeCheck();
-    expect(after.output).not.toContain('registryProbe');
   });
 
   test('a branch on a field type outside a type folder is a lint error', async () => {

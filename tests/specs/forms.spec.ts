@@ -5,6 +5,7 @@ import { test, testDataDirs } from '../fixtures/electronApp.js';
 import {
   createCollectionViaIpc,
   emailFieldDefinition,
+  markdownFieldDefinition,
   navigateToCollection,
   navigateToCollectionSettings,
   referenceFieldDefinition,
@@ -17,6 +18,7 @@ import {
   stringValue,
   updateEntryViaIpc,
 } from '../helpers/entry.js';
+import { stubCoreHang } from '../helpers/ipc.js';
 import {
   createProjectViaIpc,
   setRemoteOriginUrlViaIpc,
@@ -57,6 +59,56 @@ async function fieldsOf(page: Page): Promise<
       }
     )
   );
+}
+
+/**
+ * One field's described parts, in the order its control names them, and where
+ * each sits relative to the control. What `aria-describedby` lists is what a
+ * screen reader reads out after the control, so its order is the shell's order.
+ */
+async function describedPartsOf(
+  page: Page,
+  labelText: string
+): Promise<{
+  labelLeadsControl: boolean;
+  parts: { slot: string | null; followsControl: boolean; text: string }[];
+}> {
+  return page.evaluate((text) => {
+    const label = Array.from(
+      document.querySelectorAll('label[data-slot="field-label"]')
+    ).find((candidate) =>
+      (candidate.textContent ?? '').trim().startsWith(text)
+    );
+    if (label === undefined) {
+      throw new Error(`No field is labelled "${text}"`);
+    }
+    const control = document.getElementById(label.getAttribute('for') ?? '');
+    if (control === null) {
+      throw new Error(`The label "${text}" points at no control`);
+    }
+    // Node.DOCUMENT_POSITION_FOLLOWING, named here because the specs
+    // type-check under a tsconfig with no DOM lib.
+    const following = 4;
+    const follows = (node: ProbedElement): boolean =>
+      (control.compareDocumentPosition(node) & following) !== 0;
+    return {
+      labelLeadsControl: follows(label) === false,
+      parts: (control.getAttribute('aria-describedby') ?? '')
+        .split(' ')
+        .filter((id) => id !== '')
+        .map((id) => {
+          const node = document.getElementById(id);
+          if (node === null) {
+            throw new Error(`"${text}" is described by the missing id ${id}`);
+          }
+          return {
+            slot: node.getAttribute('data-slot'),
+            followsControl: follows(node),
+            text: (node.textContent ?? '').trim(),
+          };
+        }),
+    };
+  }, labelText);
 }
 
 /** The slots the form primitives this layer replaced used to draw. */
@@ -237,7 +289,106 @@ test.describe('A form filled from its query', () => {
     expect(await oldPrimitives(mainWindow)).toBe(0);
   });
 
-  test('names an Entry the same way in its list, in a picker and in the breadcrumb', async ({
+  test('names its description and then its error, both after the control', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // A described required field to refuse, and an optional one that dirties
+    // the form past the create gate without filling the required one.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({
+          description: { en: 'What the Entry is called' },
+        }),
+        textFieldDefinition({
+          slug: 'note',
+          label: { en: 'Note' },
+          isRequired: false,
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+
+    // Before a submit the field shows its description only, and names nothing
+    // else.
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toBeVisible();
+    const clean = await describedPartsOf(mainWindow, 'Title');
+    expect(clean.labelLeadsControl).toBe(true);
+    expect(clean.parts).toEqual([
+      {
+        slot: 'field-description',
+        followsControl: true,
+        text: 'What the Entry is called',
+      },
+    ]);
+
+    // A refused submit, which is the only way an error is on screen.
+    await mainWindow.getByLabel('Note').fill('Just a note');
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await expect(title).toHaveAttribute('aria-invalid', 'true');
+
+    // Label, control, description, error: the order ci draws a field in. The
+    // control names the description first and the error second, and both sit
+    // after it, so what a screen reader reads follows what is on screen.
+    const refused = await describedPartsOf(mainWindow, 'Title');
+    expect(refused.labelLeadsControl).toBe(true);
+    expect(refused.parts.map((part) => part.slot)).toEqual([
+      'field-description',
+      'field-error',
+    ]);
+    expect(refused.parts.map((part) => part.followsControl)).toEqual([
+      true,
+      true,
+    ]);
+    expect(refused.parts[0]?.text).toBe('What the Entry is called');
+    expect(refused.parts[1]?.text).not.toBe('');
+  });
+
+  test('shows its fields disabled and holds Save while its query is still reading', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'The stored title' }) },
+    });
+
+    // The Entry's own read never settles, so the window the form fills in is
+    // stable to assert instead of racing the answer.
+    await stubCoreHang(electronApp, 'core:entries:read');
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+
+    // The form is on screen with its fields, rather than nothing being there,
+    // and none of them can be written into.
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await expect(title).toBeVisible();
+    await expect(title).toBeDisabled();
+    // Save is held by the same fact, so the defaults cannot be written over
+    // what is stored.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Update Article' })
+    ).toBeDisabled();
+  });
+
+  test('names an Entry the same way in its list, its pickers and the breadcrumb', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -275,12 +426,18 @@ test.describe('A form filled from its query', () => {
         .getByText('Ada Lovelace')
     ).toBeVisible();
 
-    // And so does the picker of a field that references it.
+    // And so do both pickers that offer an Entry: the one an entry field opens
+    // and the one the markdown editor opens to reference an Entry in the text.
+    const markdownDefaults = markdownFieldDefinition();
     const article = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       fieldDefinitions: [
         textFieldDefinition(),
         referenceFieldDefinition({ ofCollections: [target.id] }),
+        markdownFieldDefinition({
+          features: { ...markdownDefaults.features, entryReferences: true },
+          ofCollections: [target.id],
+        }),
       ],
     });
     await navigateToEntryCreate(mainWindow, {
@@ -292,5 +449,19 @@ test.describe('A form filled from its query', () => {
     await mainWindow.getByRole('button', { name: 'Related' }).click();
     const picker = mainWindow.getByRole('dialog', { name: 'Select Entries' });
     await expect(picker.getByText('Ada Lovelace')).toBeVisible();
+    await picker.getByRole('button', { name: 'Done' }).click();
+    await expect(picker).toBeHidden();
+
+    // The markdown editor's own picker, reached from the toolbar of a markdown
+    // field that allows entry references.
+    await mainWindow
+      .getByRole('button', { name: 'Reference an Entry' })
+      .click();
+    const markdownPicker = mainWindow.getByRole('dialog', {
+      name: 'Reference an Entry',
+    });
+    await expect(
+      markdownPicker.getByRole('button', { name: 'Ada Lovelace' })
+    ).toBeVisible();
   });
 });

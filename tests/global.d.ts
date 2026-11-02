@@ -31,6 +31,12 @@ interface ProbedElement {
   };
   matches(selectors: string): boolean;
   querySelectorAll(selectors: string): ArrayLike<ProbedElement>;
+  /**
+   * Where `other` sits relative to this element, as the DOM's bit mask. A spec
+   * reads one bit of it, `DOCUMENT_POSITION_FOLLOWING` (4), to say that `other`
+   * comes after this element in document order.
+   */
+  compareDocumentPosition(other: ProbedElement): number;
 }
 
 /** The computed properties the branding spec measures. */
