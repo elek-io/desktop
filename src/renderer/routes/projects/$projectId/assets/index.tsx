@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
@@ -42,8 +42,10 @@ export const Route = createFileRoute('/projects/$projectId/assets/')({
 });
 
 function ProjectAssetsPage(): React.JSX.Element {
+  const { t } = useLingui();
+
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Assets');
+  useBreadcrumb(Route, t`Assets`);
   const { data: assets, isPending: isListingAssets } = useQueryNoError(
     queryOptions.assets.list({
       projectId: projectId,
@@ -66,10 +68,10 @@ function ProjectAssetsPage(): React.JSX.Element {
 
   function Description(): React.JSX.Element {
     return (
-      <>
+      <Trans>
         An Asset is a file like an image, PDF or other document that can be used
         inside your Collections.
-      </>
+      </Trans>
     );
   }
 
@@ -89,8 +91,8 @@ function ProjectAssetsPage(): React.JSX.Element {
 
   async function onAddAsset(): Promise<void> {
     const result = await window.ipc.electron.dialog.showOpenDialog({
-      title: 'Select Asset to add',
-      buttonLabel: 'Add to Assets',
+      title: t`Select Asset to add`,
+      buttonLabel: t`Add to Assets`,
       properties: ['openFile'],
     });
 
@@ -121,7 +123,11 @@ function ProjectAssetsPage(): React.JSX.Element {
 
   return (
     <>
-      <Page title="Assets" description={<Description />} actions={<Actions />}>
+      <Page
+        title={t`Assets`}
+        description={<Description />}
+        actions={<Actions />}
+      >
         {isListingAssets ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
             {[1, 2, 3, 4, 5].map((i) => (

@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { FileQuestion, FolderArchive } from 'lucide-react';
 import { forwardRef, useEffect, useRef } from 'react';
 
@@ -45,6 +46,8 @@ export function AssetDisplay(
     static?: boolean;
   }
 ): React.JSX.Element {
+  const { t } = useLingui();
+
   const absolutePath = toLocalFileSrc(props.absolutePath);
   const ref = useRef(null);
 
@@ -88,12 +91,14 @@ export function AssetDisplay(
     );
   }
 
+  const assetName = props.name;
+
   if (props.mimeType.startsWith('image/')) {
     return (
       <div className="flex aspect-4/3 basis-full">
         <img
           src={absolutePath}
-          alt={`Asset "${props.name}"`}
+          alt={t`Asset "${assetName}"`}
           className={cn('h-full w-full object-contain', props.className)}
         />
       </div>

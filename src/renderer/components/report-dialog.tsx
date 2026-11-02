@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type MessageDescriptor } from '@lingui/core';
+import { i18n, type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { version as desktopVersion } from '@root/package.json';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { errorLogAttributes } from '@root/src/shared/logError';
@@ -77,6 +77,9 @@ export type ReportMode = 'bug' | 'feedback';
 type ReportDesktop = CreateReportBase['desktop'];
 
 function describeDesktop(): ReportDesktop {
+  // A runtime version Electron did not report. It travels to us in a report
+  // body rather than onto a screen, so it stays out of the catalog.
+  /* eslint-disable lingui/no-unlocalized-strings */
   return {
     version: desktopVersion,
     runtime: {
@@ -85,6 +88,7 @@ function describeDesktop(): ReportDesktop {
       node: window.ipc.electron.process.versions['node'] ?? 'unknown',
     },
   };
+  /* eslint-enable lingui/no-unlocalized-strings */
 }
 
 /**
@@ -117,14 +121,18 @@ const reportContactSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['email'],
-        message: 'Add an email, or clear your name to send this anonymously.',
+        message: i18n._(
+          msg`Add an email, or clear your name to send this anonymously.`
+        ),
       });
     }
     if (contact.email !== null && contact.name === null) {
       ctx.addIssue({
         code: 'custom',
         path: ['name'],
-        message: 'Add a name, or clear the email to send this anonymously.',
+        message: i18n._(
+          msg`Add a name, or clear the email to send this anonymously.`
+        ),
       });
     }
   })
@@ -347,7 +355,9 @@ function ContactFields<
             <FormControl>
               <FormInputField field={field} type="text" />
             </FormControl>
-            <FormDescription>Who this {purpose} is from.</FormDescription>
+            <FormDescription>
+              <Trans>Who this {purpose} is from.</Trans>
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -365,8 +375,10 @@ function ContactFields<
               <FormInputField field={field} type="email" />
             </FormControl>
             <FormDescription>
-              Only so we can come back to you about this {purpose}. Both are
-              yours to change. Leave them empty to send this anonymously.
+              <Trans>
+                Only so we can come back to you about this {purpose}. Both are
+                yours to change. Leave them empty to send this anonymously.
+              </Trans>
             </FormDescription>
             <FormMessage />
           </FormItem>
@@ -411,6 +423,8 @@ function BugReportForm({
   defaultHasLogConsent: boolean;
   onSent: () => void;
 }): ReactElement {
+  const { t } = useLingui();
+
   const formId = useId();
   const contact = useCachedContact();
   const { send, sendError } = useSendReport(onSent);
@@ -505,25 +519,27 @@ function BugReportForm({
           />
 
           <p className="text-sm text-muted-foreground">
-            Prefer to report this in the open?{' '}
+            <Trans>Prefer to report this in the open?</Trans>{' '}
             <Button
               variant="link"
               className="h-auto p-0 text-sm"
               onClick={() => window.open(GITHUB_ISSUES_URL, '_blank')}
             >
-              Open an issue on GitHub
+              <Trans>Open an issue on GitHub</Trans>
               <ExternalLink className="ml-1 h-3 w-3" />
             </Button>
           </p>
         </DialogBody>
       </AppForm>
 
-      <ReportFooter form={form} formId={formId} label="Send report" />
+      <ReportFooter form={form} formId={formId} label={t`Send report`} />
     </>
   );
 }
 
 function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
+  const { t } = useLingui();
+
   const formId = useId();
   const contact = useCachedContact();
   const { send, sendError } = useSendReport(onSent);
@@ -584,7 +600,7 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
         </DialogBody>
       </AppForm>
 
-      <ReportFooter form={form} formId={formId} label="Send feedback" />
+      <ReportFooter form={form} formId={formId} label={t`Send feedback`} />
     </>
   );
 }
@@ -651,13 +667,27 @@ export function ReportDialog({
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'bug' ? 'Report a bug' : 'Share feedback'}
+            {mode === 'bug' ? (
+              <Trans>Report a bug</Trans>
+            ) : (
+              <Trans>Share feedback</Trans>
+            )}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'bug'
-              ? 'Nothing is sent to us automatically, so this is how we find out. Tell us what broke.'
-              : 'Tell us what you think of elek.io Desktop. We read every one of these.'}
+            {mode === 'bug' ? (
+              <Trans>
+                Nothing is sent to us automatically, so this is how we find out.
+                Tell us what broke.
+              </Trans>
+            ) : (
+              <Trans>
+                Tell us what you think of elek.io Desktop. We read every one of
+                these.
+              </Trans>
+            )}
           </DialogDescription>
+          {/* Which of the two forms is shown, not a word. */}
+          {/* eslint-disable lingui/no-unlocalized-strings */}
           <ButtonGroup className="mt-2">
             <Button
               variant="outline"
@@ -674,6 +704,7 @@ export function ReportDialog({
               <Trans>Share feedback</Trans>
             </Button>
           </ButtonGroup>
+          {/* eslint-enable lingui/no-unlocalized-strings */}
         </DialogHeader>
 
         {/*

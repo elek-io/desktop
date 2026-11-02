@@ -112,9 +112,18 @@ export function OfComponentsPicker({
               <Trans>Allowed Components</Trans>
             </FieldLegend>
             <FormDescription>
-              {lockedComponentIds.length === 0
-                ? 'Only the selected Components can be added as a section. If none are selected, every Component of this Project can be.'
-                : 'Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet.'}
+              {lockedComponentIds.length === 0 ? (
+                <Trans>
+                  Only the selected Components can be added as a section. If
+                  none are selected, every Component of this Project can be.
+                </Trans>
+              ) : (
+                <Trans>
+                  Select the Components to allow as well. The ones allowed
+                  already are listed rather than offered, since taking one away
+                  is not possible yet.
+                </Trans>
+              )}
             </FormDescription>
             {allowedAlready.length > 0 ? (
               <>
@@ -138,9 +147,17 @@ export function OfComponentsPicker({
                 </div>
               ) : offered.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  {lockedComponentIds.length === 0
-                    ? 'This Project has no Components yet. Create one first, then come back to choose it here.'
-                    : 'Every Component of this Project is allowed already, so there is nothing to add.'}
+                  {lockedComponentIds.length === 0 ? (
+                    <Trans>
+                      This Project has no Components yet. Create one first, then
+                      come back to choose it here.
+                    </Trans>
+                  ) : (
+                    <Trans>
+                      Every Component of this Project is allowed already, so
+                      there is nothing to add.
+                    </Trans>
+                  )}
                 </p>
               ) : (
                 offered.map((component) => {

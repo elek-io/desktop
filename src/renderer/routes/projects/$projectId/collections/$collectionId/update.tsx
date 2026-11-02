@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
@@ -81,6 +81,8 @@ const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
 const saveErrorFallback = msg`This Collection could not be saved. Please review your changes and try again.`;
 
 function ProjectCollectionUpdate(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId, collectionId } = Route.useParams();
   const {
@@ -93,7 +95,7 @@ function ProjectCollectionUpdate(): ReactElement {
       id: collectionId,
     })
   );
-  useBreadcrumb(Route, isReadingCollection ? undefined : 'Configure');
+  useBreadcrumb(Route, isReadingCollection ? undefined : t`Configure`);
   const formId = useId();
   const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
@@ -171,18 +173,23 @@ function ProjectCollectionUpdate(): ReactElement {
     }
   }, [projectId, isReadingCollection, collection, updateCollectionForm]);
 
-  const title = `Configure ${
+  // The Collection's name in plural, or the domain term while it is still
+  // loading, so the title takes one placeholder rather than being assembled
+  // around it.
+  const collectionName =
     isReadingCollection === false
       ? translateContent({
           key: 'collection.name.plural',
           record: collection.name.plural,
         })
-      : 'Collection'
-  }`;
+      : t`Collection`;
+  const title = t`Configure ${collectionName}`;
 
   function Description(): ReactElement {
     return (
-      <>A Collection holds information about how your content is structured.</>
+      <Trans>
+        A Collection holds information about how your content is structured.
+      </Trans>
     );
   }
 
@@ -247,7 +254,7 @@ function ProjectCollectionUpdate(): ReactElement {
         isViewOnly={isUpdatingCollection}
         onFormSubmit={onUpdate}
       >
-        <PageSection title="Danger Zone">
+        <PageSection title={t`Danger Zone`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm leading-6 font-medium">
@@ -258,7 +265,7 @@ function ProjectCollectionUpdate(): ReactElement {
               <AlertDialog>
                 <AlertDialogTrigger render={<Button variant="destructive" />}>
                   <Trash className="mr-2 h-4 w-4" />
-                  Delete Collection
+                  <Trans>Delete Collection</Trans>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>

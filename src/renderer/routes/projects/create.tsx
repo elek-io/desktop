@@ -23,17 +23,20 @@ function CreateProjectPage(): ReactElement {
   const { t } = useLingui();
 
   const router = useRouter();
-  useBreadcrumb(Route, 'Create');
+  useBreadcrumb(Route, t`Create`);
   const createProjectForm = useForm<CreateProjectProps>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: '',
       description: '',
       settings: {
+        // Language codes, which are the same in every language.
+        /* eslint-disable lingui/no-unlocalized-strings */
         language: {
           default: 'en',
           supported: ['en'],
         },
+        /* eslint-enable lingui/no-unlocalized-strings */
       },
     },
   });
@@ -43,15 +46,11 @@ function CreateProjectPage(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         New Projects start with no history or data.
         <br />
-        Read more about{' '}
-        <a href="#">
-          <Trans>Projects in the documentation</Trans>
-        </a>
-        .
-      </>
+        Read more about <a href="#">Projects in the documentation</a>.
+      </Trans>
     );
   }
 
@@ -77,7 +76,7 @@ function CreateProjectPage(): ReactElement {
     <Panel>
       <Pane name={t`what this screen shows`}>
         <Page
-          title="Create a new Project"
+          title={t`Create a new Project`}
           description={<Description />}
           actions={<Actions />}
         >

@@ -1,4 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+// `t` from the core macro rather than `useLingui`, because each spec's `Extras`
+// is a plain render function on an object rather than a component ESLint can
+// see, so a hook cannot be called inside it.
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
@@ -84,7 +88,7 @@ const textSpec: DefinitionSpec<TextFieldDefinition> = {
         form={form}
         minName="min"
         maxName="max"
-        unit="number of characters the user can enter"
+        unit={t`number of characters the user can enter`}
       />
     </>
   ),
@@ -126,7 +130,7 @@ const textareaSpec: DefinitionSpec<TextareaFieldDefinition> = {
         form={form}
         minName="min"
         maxName="max"
-        unit="number of characters the user can enter"
+        unit={t`number of characters the user can enter`}
       />
     </>
   ),
@@ -169,7 +173,7 @@ const numberSpec: DefinitionSpec<NumberFieldDefinition> = {
         form={form}
         minName="min"
         maxName="max"
-        unit="value the user can enter"
+        unit={t`value the user can enter`}
       />
     </>
   ),
@@ -390,7 +394,7 @@ const rangeSpec: DefinitionSpec<RangeFieldDefinition> = {
         form={form}
         minName="min"
         maxName="max"
-        unit="Value the user is able to enter"
+        unit={t`Value the user is able to enter`}
         isRequired
       />
     </>

@@ -30,7 +30,7 @@ function ProjectSettingsLayout(): ReactElement {
   const { t } = useLingui();
 
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Settings');
+  useBreadcrumb(Route, t`Settings`);
   const settingsNavigation: {
     name: string;
     to: ToPathOption;

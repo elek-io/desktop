@@ -62,6 +62,8 @@ export function EntryForm<
   // here. It stops at `content`: whether the Value is per-language is the render
   // registry's to know, so FormFieldFromDefinition appends the language itself.
   const valuePath = (slug: string): FieldPath<TFieldValues> =>
+    // A form field's path, which react-hook-form reads.
+    // eslint-disable-next-line lingui/no-unlocalized-strings
     `values.${slug}.content` as FieldPath<TFieldValues>;
 
   return (

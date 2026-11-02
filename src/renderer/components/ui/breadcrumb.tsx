@@ -1,6 +1,6 @@
 import { mergeProps } from '@base-ui/react/merge-props';
 import { useRender } from '@base-ui/react/use-render';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react';
 import * as React from 'react';
 
@@ -10,9 +10,11 @@ function Breadcrumb({
   className,
   ...props
 }: React.ComponentProps<'nav'>): React.JSX.Element {
+  const { t } = useLingui();
+
   return (
     <nav
-      aria-label="breadcrumb"
+      aria-label={t`breadcrumb`}
       data-slot="breadcrumb"
       className={cn(className)}
       {...props}

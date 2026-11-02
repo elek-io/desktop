@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -13,10 +13,12 @@ function Pagination({
   className,
   ...props
 }: React.ComponentProps<'nav'>): React.JSX.Element {
+  const { t } = useLingui();
+
   return (
     <nav
       role="navigation"
-      aria-label="pagination"
+      aria-label={t`pagination`}
       data-slot="pagination"
       className={cn('mx-auto flex w-full justify-center', className)}
       {...props}
@@ -74,16 +76,19 @@ function PaginationLink({
 
 function PaginationPrevious({
   className,
-  text = 'Previous',
+  text,
   disabled,
   ...props
 }: React.ComponentProps<typeof PaginationLink> & {
   text?: string;
   disabled?: boolean;
 }): React.JSX.Element {
+  const { t } = useLingui();
+  const label = text ?? t`Previous`;
+
   return (
     <PaginationLink
-      aria-label="Go to previous page"
+      aria-label={t`Go to previous page`}
       aria-disabled={disabled}
       size="default"
       className={cn(
@@ -94,23 +99,26 @@ function PaginationPrevious({
       {...props}
     >
       <ChevronLeftIcon data-icon="inline-start" />
-      <span className="hidden sm:block">{text}</span>
+      <span className="hidden sm:block">{label}</span>
     </PaginationLink>
   );
 }
 
 function PaginationNext({
   className,
-  text = 'Next',
+  text,
   disabled,
   ...props
 }: React.ComponentProps<typeof PaginationLink> & {
   text?: string;
   disabled?: boolean;
 }): React.JSX.Element {
+  const { t } = useLingui();
+  const label = text ?? t`Next`;
+
   return (
     <PaginationLink
-      aria-label="Go to next page"
+      aria-label={t`Go to next page`}
       aria-disabled={disabled}
       size="default"
       className={cn(
@@ -120,7 +128,7 @@ function PaginationNext({
       )}
       {...props}
     >
-      <span className="hidden sm:block">{text}</span>
+      <span className="hidden sm:block">{label}</span>
       <ChevronRightIcon data-icon="inline-end" />
     </PaginationLink>
   );

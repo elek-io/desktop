@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
   type FieldValues,
@@ -66,6 +66,8 @@ export function CollectionForm<
   onFormSubmit = () => {},
   id,
 }: CollectionFormProps<TFieldValues, TTransformedValues>): ReactElement {
+  const { t } = useLingui();
+
   // The concrete fields use literal paths RHF cannot resolve for a generic T, so
   // view the form as the collection props for those. This is the documented
   // exception to the form-cast guardrail, scoped to the cast line below so the
@@ -127,8 +129,8 @@ export function CollectionForm<
                   <Trans>Collection name (Plural)</Trans>
                 </FormLabel>
                 <TranslatableFormInputField
-                  title="Collection name (Plural)"
-                  description='The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. "Blogposts".'
+                  title={t`Collection name (Plural)`}
+                  description={t`The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. "Blogposts".`}
                   type="text"
                   field={field}
                   errors={collectionForm.formState.errors}
@@ -155,8 +157,8 @@ export function CollectionForm<
                   <Trans>Entry name (Singular)</Trans>
                 </FormLabel>
                 <TranslatableFormInputField
-                  title="Entry name (Singular)"
-                  description='The name of each Entry inside your new Collection. Choose a short name in singular - e.g. "Blogpost".'
+                  title={t`Entry name (Singular)`}
+                  description={t`The name of each Entry inside your new Collection. Choose a short name in singular - e.g. "Blogpost".`}
                   type="text"
                   field={field}
                   errors={collectionForm.formState.errors}
@@ -182,8 +184,8 @@ export function CollectionForm<
                   <Trans>Description</Trans>
                 </FormLabel>
                 <TranslatableFormTextareaField
-                  title="Description"
-                  description="A description of what this new Collection is used for."
+                  title={t`Description`}
+                  description={t`A description of what this new Collection is used for.`}
                   field={field}
                   errors={collectionForm.formState.errors}
                   supportedLanguages={project.settings.language.supported}

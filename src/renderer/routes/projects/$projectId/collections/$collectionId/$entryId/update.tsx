@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -52,9 +52,11 @@ const conflictDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
 const conflictFallback = msg`This Entry could not be saved. Please review your values and try again.`;
 
 function UpdateEntryPage(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId, collectionId, entryId } = Route.useParams();
-  useBreadcrumb(Route, 'Update');
+  useBreadcrumb(Route, t`Update`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     translateContent,
@@ -175,20 +177,23 @@ function UpdateEntryPage(): ReactElement {
   const title = entry ? entry.id : '';
 
   function Description(): ReactElement {
-    return <>Here you can edit this Entries Values</>;
+    return <Trans>Here you can edit this Entries Values</Trans>;
   }
+
+  // The Collection's name in singular, or the domain term while the Collection
+  // is still loading, so the sentence below takes one placeholder.
+  const entryName = collection
+    ? translateContent({
+        key: 'collection.name.singular',
+        record: collection.name.singular,
+      })
+    : t`Entry`;
 
   function Actions(): ReactElement {
     return (
       <FormActions form={updateEntryForm} id={formId}>
         <SubmitButton requireDirty Icon={Check}>
-          Update{' '}
-          {collection
-            ? translateContent({
-                key: 'collection.name.singular',
-                record: collection.name.singular,
-              })
-            : 'Entry'}
+          <Trans>Update {entryName}</Trans>
         </SubmitButton>
       </FormActions>
     );

@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute } from '@tanstack/react-router';
 import { Rocket, Tag } from 'lucide-react';
 import { type ReactElement } from 'react';
@@ -28,8 +28,10 @@ export const Route = createFileRoute('/projects/$projectId/releases')({
 });
 
 function ProjectReleasesPage(): ReactElement {
+  const { t } = useLingui();
+
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Releases');
+  useBreadcrumb(Route, t`Releases`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     formatDatetime,
@@ -40,10 +42,10 @@ function ProjectReleasesPage(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         A Release publishes everything saved in this Project as a version a
         website can build from. elek.io sets the version from what changed.
-      </>
+      </Trans>
     );
   }
 
@@ -81,7 +83,7 @@ function ProjectReleasesPage(): ReactElement {
   return (
     <>
       <Page
-        title="Releases"
+        title={t`Releases`}
         description={<Description />}
         actions={<Actions />}
       >
@@ -150,7 +152,7 @@ function ReleaseRow({
         </Badge>
       ) : null}
       <span className="ml-auto text-sm text-muted-foreground">
-        Published {published}
+        <Trans>Published {published}</Trans>
       </span>
     </div>
   );

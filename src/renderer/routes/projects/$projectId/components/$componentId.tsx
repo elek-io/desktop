@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
@@ -53,6 +53,30 @@ import {
   type UpdateComponentProps,
 } from '@elek-io/core';
 
+/**
+ * One Entry a field definition change could not be carried into: its
+ * Collection, the Entry, the field and what has to happen to it.
+ *
+ * Each value is a named placeholder of one message, so the line is one entry of
+ * the catalog rather than four fragments joined in the markup.
+ */
+function IssueLine({
+  issue,
+  name,
+}: {
+  issue: SchemaChangeIssue;
+  name: string;
+}): ReactElement {
+  const { entryId, fieldSlug } = issue;
+  const reason = describeEntryIssue(issue.issue);
+
+  return (
+    <Trans>
+      {name}, Entry {entryId}, Field {fieldSlug}: {reason}
+    </Trans>
+  );
+}
+
 export const Route = createFileRoute(
   '/projects/$projectId/components/$componentId'
 )({
@@ -81,6 +105,8 @@ const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
 const saveErrorFallback = msg`This Component could not be saved. Please review your changes and try again.`;
 
 function ProjectComponentUpdate(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId, componentId } = Route.useParams();
   const {
@@ -188,10 +214,10 @@ function ProjectComponentUpdate(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         A Component is a group of fields an Entry can hold more than once, in
         any order. Its fields cannot be unique, and it holds no slug field.
-      </>
+      </Trans>
     );
   }
 
@@ -245,7 +271,7 @@ function ProjectComponentUpdate(): ReactElement {
           (candidate) => candidate.id === issue.collectionId
         );
     if (collection === undefined) {
-      return 'A Collection';
+      return t`A Collection`;
     }
     return translateContent({
       key: 'collection.name.plural',
@@ -268,7 +294,7 @@ function ProjectComponentUpdate(): ReactElement {
       >
         <ComponentImpact componentId={componentId} />
 
-        <PageSection title="Danger Zone">
+        <PageSection title={t`Danger Zone`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm leading-6 font-medium">
@@ -364,8 +390,7 @@ function ProjectComponentUpdate(): ReactElement {
             <ul className="list-inside list-disc text-sm">
               {saveErrorIssues.map((issue) => (
                 <li key={`${issue.entryId}-${issue.fieldSlug}-${issue.issue}`}>
-                  {collectionName(issue)}, Entry {issue.entryId}, Field{' '}
-                  {issue.fieldSlug}: {describeEntryIssue(issue.issue)}
+                  <IssueLine issue={issue} name={collectionName(issue)} />
                 </li>
               ))}
             </ul>

@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { i18n, type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import { useWatch } from 'react-hook-form';
@@ -43,18 +45,22 @@ import {
 // reads `fieldDefinitions` from DefinitionExtrasProps.
 
 // A select item cannot hold an empty string, so "no separator" needs a sentinel
+// eslint-disable-next-line lingui/no-unlocalized-strings
 const NO_SEPARATOR = 'none';
-const separatorOptions: { value: string; label: string }[] = [
-  { value: '-', label: 'Hyphen (-)' },
-  { value: '_', label: 'Underscore (_)' },
-  { value: '.', label: 'Dot (.)' },
-  { value: '~', label: 'Tilde (~)' },
-  { value: NO_SEPARATOR, label: 'None' },
+const separatorOptions: { value: string; label: MessageDescriptor }[] = [
+  { value: '-', label: msg`Hyphen (-)` },
+  { value: '_', label: msg`Underscore (_)` },
+  { value: '.', label: msg`Dot (.)` },
+  { value: '~', label: msg`Tilde (~)` },
+  { value: NO_SEPARATOR, label: msg`None` },
 ];
 
-const separatorItems: Record<string, string> = Object.fromEntries(
-  separatorOptions.map((option) => [option.value, option.label])
-);
+/** The separators as a select's value-to-label map, read when it is shown. */
+function separatorItems(): Record<string, string> {
+  return Object.fromEntries(
+    separatorOptions.map((option) => [option.value, i18n._(option.label)])
+  );
+}
 
 function SlugExtras({
   form,
@@ -152,7 +158,7 @@ function SlugExtras({
               <Trans>Separator</Trans>
             </FormLabel>
             <Select
-              items={separatorItems}
+              items={separatorItems()}
               value={field.value === '' ? NO_SEPARATOR : field.value}
               onValueChange={(selected) =>
                 field.onChange(selected === NO_SEPARATOR ? '' : selected)
@@ -164,7 +170,7 @@ function SlugExtras({
               <SelectContent>
                 {separatorOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {i18n._(option.label)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -66,7 +66,12 @@ export function AddFieldSheet({
   onAppend,
 }: AddFieldSheetProps): ReactElement {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedFieldType, setSelectedFieldType] = useState<FieldType>('text');
+  const [selectedFieldType, setSelectedFieldType] = useState<FieldType>(
+    // The type the picker opens on, which is a Core field type rather than a
+    // word.
+    // eslint-disable-next-line lingui/no-unlocalized-strings
+    'text'
+  );
   const addFieldFormId = useId();
   // A plain state control, not a react-hook-form field, so it uses a bare Label
   // and Select and wires its own ids.
@@ -121,14 +126,25 @@ export function AddFieldSheet({
       <SheetContent>
         <SheetHeader>
           <SheetTitle>
-            {owner === 'collection'
-              ? 'Add a Field to this Collection'
-              : 'Add a Field to this Component'}
+            {owner === 'collection' ? (
+              <Trans>Add a Field to this Collection</Trans>
+            ) : (
+              <Trans>Add a Field to this Component</Trans>
+            )}
           </SheetTitle>
           <SheetDescription>
-            {owner === 'collection'
-              ? 'A Field says what every Entry of this Collection holds, and how somebody fills it in.'
-              : 'A Field says what every section built from this Component holds, and how somebody fills it in. A Component cannot hold a slug Field and none of its Fields can be unique.'}
+            {owner === 'collection' ? (
+              <Trans>
+                A Field says what every Entry of this Collection holds, and how
+                somebody fills it in.
+              </Trans>
+            ) : (
+              <Trans>
+                A Field says what every section built from this Component holds,
+                and how somebody fills it in. A Component cannot hold a slug
+                Field and none of its Fields can be unique.
+              </Trans>
+            )}
           </SheetDescription>
           <div className="grid gap-2">
             <Label htmlFor={inputTypeId} isRequired>

@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import type { ReactElement } from 'react';
 
 import { CommitAuthor } from '@renderer/components/commit-author';
@@ -25,16 +25,18 @@ export function DiffContainer({
   commit,
   children,
 }: DiffContainerProps): ReactElement {
+  const { t } = useLingui();
+
   function title(): string {
     switch (type) {
       case 'create':
-        return 'Created';
+        return t`Created`;
       case 'before':
-        return 'Before';
+        return t`Before`;
       case 'after':
-        return 'After';
+        return t`After`;
       case 'delete':
-        return 'Deleted';
+        return t`Deleted`;
     }
   }
 

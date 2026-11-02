@@ -6,9 +6,46 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
+#: src/renderer/components/ui/label.tsx
+msgid " - optional"
+msgstr " - optional"
+
+#: src/renderer/components/entry-table.tsx
+msgid "{count, plural, one {# Asset} other {# Assets}}"
+msgstr "{count, plural, one {# Asset} other {# Assets}}"
+
+#: src/renderer/components/entry-table.tsx
+msgid "{count, plural, one {# Entry} other {# Entries}}"
+msgstr "{count, plural, one {# Entry} other {# Entries}}"
+
+#: src/renderer/components/entry-table.tsx
+msgid "{count, plural, one {# Reference} other {# References}}"
+msgstr "{count, plural, one {# Reference} other {# References}}"
+
+#: src/renderer/routes/projects/$projectId/components/index.tsx
+msgid "{fieldCount, plural, one {# field} other {# fields}}"
+msgstr "{fieldCount, plural, one {# field} other {# fields}}"
+
 #: src/renderer/components/component-impact.tsx
 msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
+msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "A Collection"
+msgstr "A Collection"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+#: src/renderer/routes/projects/$projectId/collections/create.tsx
+msgid "A Collection holds information about how your content is structured."
+msgstr "A Collection holds information about how your content is structured."
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again."
+msgstr "A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again."
 
 #: src/renderer/lib/release.ts
 msgid "A Collection was added"
@@ -25,6 +62,20 @@ msgstr "A Collection was renamed"
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "A Component a Collection or another Component still uses cannot be deleted. This cannot be undone."
 msgstr "A Component a Collection or another Component still uses cannot be deleted. This cannot be undone."
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+#: src/renderer/routes/projects/$projectId/components/create.tsx
+msgid "A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again."
+msgstr "A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again."
+
+#: src/renderer/routes/projects/$projectId/components/index.tsx
+msgid "A Component is a group of fields an Entry can hold more than once, in any order. A page uses them as its sections."
+msgstr "A Component is a group of fields an Entry can hold more than once, in any order. A page uses them as its sections."
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+#: src/renderer/routes/projects/$projectId/components/create.tsx
+msgid "A Component is a group of fields an Entry can hold more than once, in any order. Its fields cannot be unique, and it holds no slug field."
+msgstr "A Component is a group of fields an Entry can hold more than once, in any order. Its fields cannot be unique, and it holds no slug field."
 
 #: src/renderer/lib/release.ts
 msgid "A Component was added"
@@ -45,6 +96,14 @@ msgstr "A description of what this new Collection is used for."
 #: src/renderer/components/forms/allow-components-sheet.tsx
 msgid "A dynamic Field can allow more Components after it was added. Nothing else about a Field can be changed yet, and a Component it allows cannot be taken away, since that would delete the sections built from it."
 msgstr "A dynamic Field can allow more Components after it was added. Nothing else about a Field can be changed yet, and a Component it allows cannot be taken away, since that would delete the sections built from it."
+
+#: src/renderer/components/forms/add-field-sheet.tsx
+msgid "A Field says what every Entry of this Collection holds, and how somebody fills it in."
+msgstr "A Field says what every Entry of this Collection holds, and how somebody fills it in."
+
+#: src/renderer/components/forms/add-field-sheet.tsx
+msgid "A Field says what every section built from this Component holds, and how somebody fills it in. A Component cannot hold a slug Field and none of its Fields can be unique."
+msgstr "A Field says what every section built from this Component holds, and how somebody fills it in. A Component cannot hold a slug Field and none of its Fields can be unique."
 
 #: src/renderer/lib/release.ts
 msgid "A Field was renamed to {slug}"
@@ -70,6 +129,18 @@ msgstr "A lowercase version without any special characters of the Collection nam
 msgid "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
 msgstr "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
 
+#: src/renderer/routes/projects/index.tsx
+msgid "A Project ...<0/>Read more about <1>Projects in the documentation</1>."
+msgstr "A Project ...<0/>Read more about <1>Projects in the documentation</1>."
+
+#: src/renderer/routes/projects/$projectId/settings/version-control.tsx
+msgid "A Projects remote is a place that makes it accessible for other users. By adding a remote you are able to work with multiple others together on the same Project."
+msgstr "A Projects remote is a place that makes it accessible for other users. By adding a remote you are able to work with multiple others together on the same Project."
+
+#: src/renderer/routes/projects/$projectId/releases.tsx
+msgid "A Release publishes everything saved in this Project as a version a website can build from. elek.io sets the version from what changed."
+msgstr "A Release publishes everything saved in this Project as a version a website can build from. elek.io sets the version from what changed."
+
 #: src/renderer/components/release-dialog.tsx
 msgid "A Release publishes everything saved in this Project, so a website can build from it. It cannot be undone."
 msgstr "A Release publishes everything saved in this Project, so a website can build from it. It cannot be undone."
@@ -77,6 +148,22 @@ msgstr "A Release publishes everything saved in this Project, so a website can b
 #: src/renderer/lib/coreErrorText.ts
 msgid "A required condition was not met, so the action was stopped."
 msgstr "A required condition was not met, so the action was stopped."
+
+#: src/renderer/components/forms/add-field-sheet.tsx
+msgid "Add a Field to this Collection"
+msgstr "Add a Field to this Collection"
+
+#: src/renderer/components/forms/add-field-sheet.tsx
+msgid "Add a Field to this Component"
+msgstr "Add a Field to this Component"
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Add a name, or clear the email to send this anonymously."
+msgstr "Add a name, or clear the email to send this anonymously."
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Add an email, or clear your name to send this anonymously."
+msgstr "Add an email, or clear your name to send this anonymously."
 
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "Add Asset"
@@ -90,6 +177,14 @@ msgstr "Add definition"
 msgid "Add Field"
 msgstr "Add Field"
 
+#: src/renderer/components/forms/field-definitions-editor.tsx
+msgid "Add Fields to say what every Entry of this Collection holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first."
+msgstr "Add Fields to say what every Entry of this Collection holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first."
+
+#: src/renderer/components/forms/field-definitions-editor.tsx
+msgid "Add Fields to say what every section built from this Component holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first."
+msgstr "Add Fields to say what every section built from this Component holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first."
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Add language"
 msgstr "Add language"
@@ -101,6 +196,22 @@ msgstr "Add option"
 #: src/renderer/components/ui/form.tsx
 msgid "Add section"
 msgstr "Add section"
+
+#: src/renderer/routes/projects/$projectId/assets/index.tsx
+msgid "Add to Assets"
+msgstr "Add to Assets"
+
+#: src/renderer/components/diff-container.tsx
+msgid "After"
+msgstr "After"
+
+#: src/renderer/components/forms/allow-components-sheet.tsx
+msgid "Allow more Components on {label}"
+msgstr "Allow more Components on {label}"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Allow more Components on the {label} field"
+msgstr "Allow more Components on the {label} field"
 
 #: src/renderer/components/forms/allow-components-sheet.tsx
 msgid "Allow these Components"
@@ -118,6 +229,10 @@ msgstr "Allowed Components"
 msgid "Also send my logs"
 msgstr "Also send my logs"
 
+#: src/renderer/routes/projects/$projectId/assets/index.tsx
+msgid "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
+msgstr "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
+
 #: src/renderer/lib/release.ts
 msgid "An Asset was added"
 msgstr "An Asset was added"
@@ -134,6 +249,10 @@ msgstr "An Asset's file was replaced"
 msgid "An Asset's name or description changed"
 msgstr "An Asset's name or description changed"
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again."
+msgstr "An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again."
+
 #: src/renderer/lib/release.ts
 msgid "An Entry was added"
 msgstr "An Entry was added"
@@ -146,9 +265,21 @@ msgstr "An Entry was changed"
 msgid "An Entry was removed"
 msgstr "An Entry was removed"
 
+#: src/renderer/routes/projects/$projectId/collections/create.tsx
+msgid "Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again."
+msgstr "Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again."
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "Any content already translated into {languagePendingRemoval} stays in the Collection and Entry files but is no longer reachable, and saving does not remove it for you. This is a breaking change for anything consuming this Project's content. You can still discard it by leaving without saving."
+msgstr "Any content already translated into {languagePendingRemoval} stays in the Collection and Entry files but is no longer reachable, and saving does not remove it for you. This is a breaking change for anything consuming this Project's content. You can still discard it by leaving without saving."
+
 #: src/renderer/components/markdown/link-dialog.tsx
 msgid "Apply link"
 msgstr "Apply link"
+
+#: src/renderer/components/asset-display.tsx
+msgid "Asset \"{assetName}\""
+msgstr "Asset \"{assetName}\""
 
 #: src/renderer/queries/options/assetOptions.ts
 msgid "Asset {fileName} added"
@@ -170,9 +301,37 @@ msgstr "Asset description"
 msgid "Asset name"
 msgstr "Asset name"
 
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Asset references"
+msgstr "Asset references"
+
 #: src/renderer/queries/options/assetOptions.ts
 msgid "Asset saved to your computer"
 msgstr "Asset saved to your computer"
+
+#: src/renderer/routes/projects/$projectId/assets/index.tsx
+msgid "Assets"
+msgstr "Assets"
+
+#: src/renderer/components/ui/form.tsx
+msgid "At least {assetMinimum} required."
+msgstr "At least {assetMinimum} required."
+
+#: src/renderer/components/ui/form.tsx
+msgid "At least {entryMinimum} required."
+msgstr "At least {entryMinimum} required."
+
+#: src/renderer/routes/__root.tsx
+msgid "Back to Projects"
+msgstr "Back to Projects"
+
+#: src/renderer/components/diff-container.tsx
+msgid "Before"
+msgstr "Before"
+
+#: src/renderer/routes/user/profile.tsx
+msgid "Before we start you need to set up a local User first. Don't worry, you are not creating an account and this information is only saved locally on this device! Read more about <0>local Users in our documentation</0> if you have questions about this step."
+msgstr "Before we start you need to set up a local User first. Don't worry, you are not creating an account and this information is only saved locally on this device! Read more about <0>local Users in our documentation</0> if you have questions about this step."
 
 #: src/renderer/components/project-card.tsx
 msgid "Billing"
@@ -181,6 +340,38 @@ msgstr "Billing"
 #: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Block features"
 msgstr "Block features"
+
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Blockquote"
+msgstr "Blockquote"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Blockquotes"
+msgstr "Blockquotes"
+
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Bold"
+msgstr "Bold"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Bold text."
+msgstr "Bold text."
+
+#: src/renderer/components/ui/breadcrumb.tsx
+msgid "breadcrumb"
+msgstr "breadcrumb"
+
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Bullet list"
+msgstr "Bullet list"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Bulleted and numbered lists."
+msgstr "Bulleted and numbered lists."
+
+#: src/renderer/routes/user/profile.tsx
+msgid "By editing your Users details, ... Read more about <0>local Users in our documentation</0>."
+msgstr "By editing your Users details, ... Read more about <0>local Users in our documentation</0>."
 
 #: src/renderer/routes/user/profile.tsx
 msgid "By enabling the local API it will start whenever elek.io Desktop is opened. This allows you to read local Project data from other applications."
@@ -210,6 +401,14 @@ msgstr "Changes synced"
 #: src/renderer/lib/release.ts
 msgid "Changes were saved or a Release was made on another computer, so synchronize this Project first."
 msgstr "Changes were saved or a Release was made on another computer, so synchronize this Project first."
+
+#: src/renderer/routes/user/profile.tsx
+msgid "Changing your preferred language will attempt to translate everything you see in elek.io Desktop. You can help translate elek.io Desktop by contributing to our <0>GitHub repository</0>."
+msgstr "Changing your preferred language will attempt to translate everything you see in elek.io Desktop. You can help translate elek.io Desktop by contributing to our <0>GitHub repository</0>."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Checkboxes inside lists. Requires lists."
+msgstr "Checkboxes inside lists. Requires lists."
 
 #: src/renderer/components/user-dropdown.tsx
 msgid "Choose a different port on your profile to start the local API."
@@ -241,6 +440,22 @@ msgstr "Clone Project"
 msgid "Close"
 msgstr "Close"
 
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Code block"
+msgstr "Code block"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Code blocks"
+msgstr "Code blocks"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Code spans inside text."
+msgstr "Code spans inside text."
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "Collection"
+msgstr "Collection"
+
 #: src/renderer/queries/options/collectionOptions.ts
 msgid "Collection created"
 msgstr "Collection created"
@@ -262,6 +477,7 @@ msgid "Collection-Slug"
 msgstr "Collection-Slug"
 
 #: src/renderer/components/collections-sidebar.tsx
+#: src/renderer/routes/projects/$projectId/collections.tsx
 msgid "Collections"
 msgstr "Collections"
 
@@ -285,13 +501,31 @@ msgstr "Component saved"
 msgid "Component slug"
 msgstr "Component slug"
 
+#: src/renderer/routes/projects/$projectId/components.tsx
+#: src/renderer/routes/projects/$projectId/components/index.tsx
+msgid "Components"
+msgstr "Components"
+
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Configure"
 msgstr "Configure"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "Configure {collectionName}"
+msgstr "Configure {collectionName}"
 
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "Convert the slug to lowercase."
 msgstr "Convert the slug to lowercase."
+
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "Core {coreVersion}"
+msgstr "Core {coreVersion}"
+
+#: src/renderer/components/project-card.tsx
+msgid "Core version: {coreVersion}"
+msgstr "Core version: {coreVersion}"
 
 #: src/renderer/queries/options/assetOptions.ts
 msgid "Could not add the Asset"
@@ -430,6 +664,34 @@ msgstr "Could not stop the local API"
 msgid "Could not synchronize this Project"
 msgstr "Could not synchronize this Project"
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+#: src/renderer/routes/projects/$projectId/collections/create.tsx
+#: src/renderer/routes/projects/$projectId/components/create.tsx
+#: src/renderer/routes/projects/create.tsx
+msgid "Create"
+msgstr "Create"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
+msgid "Create {entryName}"
+msgstr "Create {entryName}"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+msgid "Create a new {entryName}"
+msgstr "Create a new {entryName}"
+
+#: src/renderer/routes/projects/$projectId/collections/create.tsx
+msgid "Create a new Collection"
+msgstr "Create a new Collection"
+
+#: src/renderer/routes/projects/$projectId/components/create.tsx
+msgid "Create a new Component"
+msgstr "Create a new Component"
+
+#: src/renderer/routes/projects/create.tsx
+msgid "Create a new Project"
+msgstr "Create a new Project"
+
 #: src/renderer/components/release-dialog.tsx
 msgid "Create a Release"
 msgstr "Create a Release"
@@ -444,10 +706,44 @@ msgstr "Create Collection"
 msgid "Create Component"
 msgstr "Create Component"
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
+msgid "Create Entry"
+msgstr "Create Entry"
+
 #: src/renderer/routes/projects/create.tsx
 #: src/renderer/routes/projects/index.tsx
 msgid "Create Project"
 msgstr "Create Project"
+
+#: src/renderer/components/release-dialog.tsx
+msgid "Create Release"
+msgstr "Create Release"
+
+#: src/renderer/components/diff-container.tsx
+#: src/renderer/components/entry-table.tsx
+msgid "Created"
+msgstr "Created"
+
+#: src/renderer/components/release-dialog.tsx
+msgid "Creating Release"
+msgstr "Creating Release"
+
+#: src/renderer/routes/projects/$projectId/dashboard.tsx
+msgid "Current Project"
+msgstr "Current Project"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "Danger Zone"
+msgstr "Danger Zone"
+
+#: src/renderer/components/user-dropdown.tsx
+msgid "Dark"
+msgstr "Dark"
+
+#: src/renderer/routes/projects/$projectId/dashboard.tsx
+msgid "Dashboard"
+msgstr "Dashboard"
 
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "Decamelize"
@@ -463,6 +759,14 @@ msgstr "Default"
 msgid "Default value"
 msgstr "Default value"
 
+#: src/renderer/components/forms/field-definitions-editor.tsx
+msgid "Define this Collection's Fields"
+msgstr "Define this Collection's Fields"
+
+#: src/renderer/components/forms/field-definitions-editor.tsx
+msgid "Define this Component's Fields"
+msgstr "Define this Component's Fields"
+
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Defines how wide the input field will be."
 msgstr "Defines how wide the input field will be."
@@ -471,6 +775,10 @@ msgstr "Defines how wide the input field will be."
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Delete"
 msgstr "Delete"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "Delete Collection"
+msgstr "Delete Collection"
 
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "Delete Component"
@@ -496,6 +804,14 @@ msgstr "Delete this Component"
 msgid "Delete this Component?"
 msgstr "Delete this Component?"
 
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "Delete this Project from this device"
+msgstr "Delete this Project from this device"
+
+#: src/renderer/components/diff-container.tsx
+msgid "Deleted"
+msgstr "Deleted"
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Deleting the default language"
 msgstr "Deleting the default language"
@@ -504,11 +820,19 @@ msgstr "Deleting the default language"
 msgid "Deleting this Collection also permanently deletes every Entry inside it. This cannot be undone."
 msgstr "Deleting this Collection also permanently deletes every Entry inside it. This cannot be undone."
 
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Describe what to input into this field. This text will be displayed under the field to guide users."
+msgstr "Describe what to input into this field. This text will be displayed under the field to guide users."
+
 #: src/renderer/components/forms/collection-form.tsx
 #: src/renderer/components/forms/component-form.tsx
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Description"
 msgstr "Description"
+
+#: src/renderer/components/pane.tsx
+msgid "Desktop can't read {name}."
+msgstr "Desktop can't read {name}."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Disabled"
@@ -522,9 +846,29 @@ msgstr "Docs"
 msgid "Done"
 msgstr "Done"
 
+#: src/renderer/components/forms/slug-field-definition.tsx
+msgid "Dot (.)"
+msgstr "Dot (.)"
+
 #: src/renderer/components/drag-and-drop.tsx
 msgid "Drag to reorder"
 msgstr "Drag to reorder"
+
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Dynamic fields cannot be unique."
+msgstr "Dynamic fields cannot be unique."
+
+#: src/renderer/components/ui/form.tsx
+msgid "Edit translations for {title}"
+msgstr "Edit translations for {title}"
+
+#: src/renderer/components/report-dialog.tsx
+msgid "elek.io Cloud rejected this report. Shortening it usually helps."
+msgstr "elek.io Cloud rejected this report. Shortening it usually helps."
+
+#: src/renderer/components/report-dialog.tsx
+msgid "elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps."
+msgstr "elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps."
 
 #: src/main/index.ts
 msgid "elek.io Desktop could not start"
@@ -539,9 +883,22 @@ msgstr "elek.io Desktop, Projects"
 msgid "Email"
 msgstr "Email"
 
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Emphasis"
+msgstr "Emphasis"
+
 #: src/renderer/routes/user/profile.tsx
 msgid "Enabled"
 msgstr "Enabled"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again."
+msgstr "Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again."
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+msgid "Entry"
+msgstr "Entry"
 
 #: src/renderer/queries/options/entryOptions.ts
 msgid "Entry created"
@@ -555,6 +912,10 @@ msgstr "Entry deleted"
 msgid "Entry name (Singular)"
 msgstr "Entry name (Singular)"
 
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Entry references"
+msgstr "Entry references"
+
 #: src/renderer/queries/options/entryOptions.ts
 msgid "Entry saved"
 msgstr "Entry saved"
@@ -563,9 +924,49 @@ msgstr "Entry saved"
 msgid "Entry-Slug"
 msgstr "Entry-Slug"
 
+#: src/renderer/routes/__root.tsx
+msgid "Error"
+msgstr "Error"
+
+#: src/renderer/components/forms/dynamic-field-definition.tsx
+msgid "Every Component of this Project is allowed already, so there is nothing to add."
+msgstr "Every Component of this Project is allowed already, so there is nothing to add."
+
+#: src/renderer/routes/user/profile.tsx
+msgid "Example change"
+msgstr "Example change"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "External images"
+msgstr "External images"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "External links"
+msgstr "External links"
+
 #: src/renderer/queries/options/cloudOptions.ts
 msgid "Feedback sent"
 msgstr "Feedback sent"
+
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Fields of a Component cannot be unique, since the same Component is used in more than one place."
+msgstr "Fields of a Component cannot be unique, since the same Component is used in more than one place."
+
+#: src/renderer/routes/user/profile.tsx
+msgid "Fill out your information below and watch it influence how your future changes will look like on the right."
+msgstr "Fill out your information below and watch it influence how your future changes will look like on the right."
+
+#: src/renderer/components/entry-table.tsx
+msgid "Filter {collectionName}..."
+msgstr "Filter {collectionName}..."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Footnote references and definitions."
+msgstr "Footnote references and definitions."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Footnotes"
+msgstr "Footnotes"
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Force delete this Project?"
@@ -579,6 +980,14 @@ msgstr "Full History"
 msgid "Full name"
 msgstr "Full name"
 
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "General"
+msgstr "General"
+
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "General Settings"
+msgstr "General Settings"
+
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "Generate from Fields"
 msgstr "Generate from Fields"
@@ -586,10 +995,6 @@ msgstr "Generate from Fields"
 #: src/renderer/components/ui/form.tsx
 msgid "Generate from the source Fields"
 msgstr "Generate from the source Fields"
-
-#: src/renderer/routes/user/profile.tsx
-msgid "GitHub repository"
-msgstr "GitHub repository"
 
 #: src/renderer/components/app-header.tsx
 msgid "Go back"
@@ -599,9 +1004,33 @@ msgstr "Go back"
 msgid "Go forward"
 msgstr "Go forward"
 
+#: src/renderer/components/ui/pagination.tsx
+msgid "Go to next page"
+msgstr "Go to next page"
+
+#: src/renderer/components/ui/pagination.tsx
+msgid "Go to previous page"
+msgstr "Go to previous page"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "H{depth}"
+msgstr "H{depth}"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Hard line breaks"
+msgstr "Hard line breaks"
+
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Heading"
 msgstr "Heading"
+
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Heading {depth}"
+msgstr "Heading {depth}"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Heading level {depth}"
+msgstr "Heading level {depth}"
 
 #: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Headings"
@@ -610,6 +1039,18 @@ msgstr "Headings"
 #: src/renderer/components/app-header.tsx
 msgid "Help"
 msgstr "Help"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+msgid "Here you can edit this Entries Values"
+msgstr "Here you can edit this Entries Values"
+
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "Here you will be able to tweak this project to your liking"
+msgstr "Here you will be able to tweak this project to your liking"
+
+#: src/renderer/routes/projects/$projectId/history.tsx
+msgid "History"
+msgstr "History"
 
 #: src/renderer/lib/schemaChange.ts
 msgid "holds a Value another Entry already holds, and this Field is now unique"
@@ -623,6 +1064,14 @@ msgstr "holds a Value that does not fit this Field anymore"
 msgid "holds a Value this Field no longer allows"
 msgstr "holds a Value this Field no longer allows"
 
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Horizontal rules between sections."
+msgstr "Horizontal rules between sections."
+
+#: src/renderer/components/forms/slug-field-definition.tsx
+msgid "Hyphen (-)"
+msgstr "Hyphen (-)"
+
 #: src/renderer/components/forms/collection-form.tsx
 msgid "Icon"
 msgstr "Icon"
@@ -632,6 +1081,19 @@ msgid "If this keeps happening, please open an issue at {issuesUrl}"
 msgstr "If this keeps happening, please open an issue at {issuesUrl}"
 
 #: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Images and files from this Project's Assets."
+msgstr "Images and files from this Project's Assets."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Images from external URLs."
+msgstr "Images from external URLs."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Inline code"
+msgstr "Inline code"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Inline features"
 msgstr "Inline features"
 
@@ -639,13 +1101,63 @@ msgstr "Inline features"
 msgid "Input type"
 msgstr "Input type"
 
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Italic"
+msgstr "Italic"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Italic text."
+msgstr "Italic text."
+
 #: src/renderer/components/forms/default-field-definition-form.tsx
+#: src/renderer/components/forms/select-field-definition.tsx
 msgid "Label"
 msgstr "Label"
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "Language"
+msgstr "Language"
+
+#: src/renderer/routes/projects/$projectId/dashboard.tsx
+msgid "Latest changes"
+msgstr "Latest changes"
+
+#: src/renderer/components/user-dropdown.tsx
+msgid "Light"
+msgstr "Light"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Line breaks inside a paragraph."
+msgstr "Line breaks inside a paragraph."
+
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Link"
+msgstr "Link"
 
 #: src/renderer/components/markdown/link-dialog.tsx
 msgid "Link the selected text"
 msgstr "Link the selected text"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Links to Entries of this Project."
+msgstr "Links to Entries of this Project."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Links to external URLs."
+msgstr "Links to external URLs."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Lists"
+msgstr "Lists"
+
+#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/ui/spinner.tsx
+msgid "Loading"
+msgstr "Loading"
+
+#: src/renderer/components/entry-table.tsx
+msgid "Loading Entries"
+msgstr "Loading Entries"
 
 #: src/renderer/components/ui/form.tsx
 msgid "Loading this Project's Components"
@@ -655,7 +1167,12 @@ msgstr "Loading this Project's Components"
 msgid "Loading..."
 msgstr "Loading..."
 
+#: src/renderer/components/remote-origin-badge.tsx
+msgid "Local"
+msgstr "Local"
+
 #: src/renderer/components/user-dropdown.tsx
+#: src/renderer/routes/user/profile.tsx
 msgid "Local API"
 msgstr "Local API"
 
@@ -668,8 +1185,8 @@ msgid "Local API stopped"
 msgstr "Local API stopped"
 
 #: src/renderer/routes/user/profile.tsx
-msgid "local Users in our documentation"
-msgstr "local Users in our documentation"
+msgid "Local User"
+msgstr "Local User"
 
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "Lowercase"
@@ -678,6 +1195,10 @@ msgstr "Lowercase"
 #: src/renderer/lib/release.ts
 msgid "Major"
 msgstr "Major"
+
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Markdown fields cannot be unique."
+msgstr "Markdown fields cannot be unique."
 
 #: src/renderer/components/forms/asset-field-definition.tsx
 #: src/renderer/components/forms/dynamic-field-definition.tsx
@@ -707,6 +1228,26 @@ msgstr "More"
 msgid "More pages"
 msgstr "More pages"
 
+#: src/renderer/components/ui/form.tsx
+msgid "Move the {label} field down"
+msgstr "Move the {label} field down"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Move the {label} field up"
+msgstr "Move the {label} field up"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Move the {name} section down"
+msgstr "Move the {name} section down"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Move the {name} section up"
+msgstr "Move the {name} section up"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Multi line code with an optional language."
+msgstr "Multi line code with an optional language."
+
 #: src/renderer/components/project-card.tsx
 msgid "My Account"
 msgstr "My Account"
@@ -727,13 +1268,33 @@ msgstr "needs a Value for this Field, which is now required and has no default"
 msgid "New file: {newFileName}"
 msgstr "New file: {newFileName}"
 
+#: src/renderer/routes/projects/create.tsx
+msgid "New Projects start with no history or data.<0/>Read more about <1>Projects in the documentation</1>."
+msgstr "New Projects start with no history or data.<0/>Read more about <1>Projects in the documentation</1>."
+
+#: src/renderer/components/ui/pagination.tsx
+msgid "Next"
+msgstr "Next"
+
+#: src/renderer/components/ui/form.tsx
+msgid "No assets available. Add assets to the project first."
+msgstr "No assets available. Add assets to the project first."
+
 #: src/renderer/components/forms/asset-mime-type-picker.tsx
 msgid "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 msgstr "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 
+#: src/renderer/components/ui/form.tsx
+msgid "No assets of an allowed type available. This Field accepts {allowedMimeTypes}."
+msgstr "No assets of an allowed type available. This Field accepts {allowedMimeTypes}."
+
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "No Assets yet"
 msgstr "No Assets yet"
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project."
+msgstr "No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project."
 
 #: src/renderer/components/history-sidebar.tsx
 msgid "No Changes found"
@@ -793,9 +1354,14 @@ msgid "No text based Fields to generate from yet. Add one first or leave this em
 msgstr "No text based Fields to generate from yet. Add one first or leave this empty."
 
 #: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/forms/slug-field-definition.tsx
 #: src/renderer/components/ui/form.tsx
 msgid "None"
 msgstr "None"
+
+#: src/renderer/routes/__root.tsx
+msgid "Not Found"
+msgstr "Not Found"
 
 #: src/renderer/routes/projects/$projectId/releases.tsx
 msgid "Nothing has been published from this Project yet. A Release takes everything saved here and gives it a version."
@@ -808,6 +1374,10 @@ msgstr "Nothing has changed since version {currentVersion}, so there is nothing 
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "Nothing in this Project is built from Components yet. Create one to give a Collection a field whose sections an editor fills in."
 msgstr "Nothing in this Project is built from Components yet. Create one to give a Collection a field whose sections an editor fills in."
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Nothing is sent to us automatically, so this is how we find out. Tell us what broke."
+msgstr "Nothing is sent to us automatically, so this is how we find out. Tell us what broke."
 
 #: src/renderer/lib/release.ts
 msgid "Nothing was released, and this Project is exactly as it was. Changes were saved or a Release was made on another computer, so synchronize this Project first."
@@ -825,13 +1395,38 @@ msgstr "Nothing was released, and this Project is exactly as it was. The Git rep
 msgid "Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project."
 msgstr "Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project."
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now."
+msgstr "Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now."
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
+msgstr "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
+
 #: src/renderer/components/forms/select-field-definition.tsx
 msgid "Number"
 msgstr "Number"
 
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Number fields cannot be unique."
+msgstr "Number fields cannot be unique."
+
+#: src/renderer/components/forms/field-definition-registry.tsx
+msgid "number of characters the user can enter"
+msgstr "number of characters the user can enter"
+
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "Object changes"
+msgstr "Object changes"
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Ok"
 msgstr "Ok"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+msgid "One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again."
+msgstr "One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again."
 
 #: src/renderer/components/forms/asset-field-definition.tsx
 #: src/renderer/components/forms/markdown-field-definition.tsx
@@ -842,6 +1437,34 @@ msgstr "Only Assets of the selected file types can be referenced. If none are se
 #: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Only Entries from the selected Collections can be referenced. If none are selected, Entries from all Collections are available."
 msgstr "Only Entries from the selected Collections can be referenced. If none are selected, Entries from all Collections are available."
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Only so we can come back to you about this {purpose}. Both are yours to change. Leave them empty to send this anonymously."
+msgstr "Only so we can come back to you about this {purpose}. Both are yours to change. Leave them empty to send this anonymously."
+
+#: src/renderer/components/forms/dynamic-field-definition.tsx
+msgid "Only the selected Components can be added as a section. If none are selected, every Component of this Project can be."
+msgstr "Only the selected Components can be added as a section. If none are selected, every Component of this Project can be."
+
+#: src/renderer/components/user-dropdown.tsx
+msgid "Open"
+msgstr "Open"
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Open an issue on GitHub"
+msgstr "Open an issue on GitHub"
+
+#: src/renderer/components/forms/select-field-definition.tsx
+msgid "Option {position}"
+msgstr "Option {position}"
+
+#: src/renderer/components/forms/select-field-definition.tsx
+msgid "Option {position} label"
+msgstr "Option {position} label"
+
+#: src/renderer/components/forms/select-field-definition.tsx
+msgid "Option {position} value"
+msgstr "Option {position} value"
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Optional. Describe what to input into this field. This text is displayed under the field to guide users. Leave every language empty for no description, or fill them all."
@@ -855,6 +1478,18 @@ msgstr "Optional. What this Component is used for. Leave every language empty fo
 msgid "Options"
 msgstr "Options"
 
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Ordered list"
+msgstr "Ordered list"
+
+#: src/renderer/components/ui/pagination.tsx
+msgid "pagination"
+msgstr "pagination"
+
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Paragraph"
+msgstr "Paragraph"
+
 #: src/renderer/lib/release.ts
 msgid "Patch"
 msgstr "Patch"
@@ -867,6 +1502,10 @@ msgstr "Port"
 msgid "Port {port} is already in use"
 msgstr "Port {port} is already in use"
 
+#: src/renderer/components/report-dialog.tsx
+msgid "Prefer to report this in the open?"
+msgstr "Prefer to report this in the open?"
+
 #: src/renderer/routes/user/profile.tsx
 msgid "Preferred language"
 msgstr "Preferred language"
@@ -875,7 +1514,17 @@ msgstr "Preferred language"
 msgid "Preview"
 msgstr "Preview"
 
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "Preview {version}"
+msgstr "Preview {version}"
+
+#: src/renderer/components/ui/pagination.tsx
+msgid "Previous"
+msgstr "Previous"
+
 #: src/renderer/components/project-card.tsx
+#: src/renderer/components/user-dropdown.tsx
+#: src/renderer/routes/user/profile.tsx
 msgid "Profile"
 msgstr "Profile"
 
@@ -908,29 +1557,48 @@ msgid "Project name"
 msgstr "Project name"
 
 #: src/renderer/components/project-switcher.tsx
+#: src/renderer/routes/projects.tsx
+#: src/renderer/routes/projects/index.tsx
 msgid "Projects"
 msgstr "Projects"
-
-#: src/renderer/routes/projects/create.tsx
-#: src/renderer/routes/projects/index.tsx
-msgid "Projects in the documentation"
-msgstr "Projects in the documentation"
 
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "Provide a name and description for this Asset."
 msgstr "Provide a name and description for this Asset."
 
+#: src/renderer/routes/projects/$projectId/releases.tsx
+msgid "Published {published}"
+msgstr "Published {published}"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Quoted text blocks."
+msgstr "Quoted text blocks."
+
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Ranges are always required, since the slider always returns a number."
 msgstr "Ranges are always required, since the slider always returns a number."
 
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Raw HTML"
+msgstr "Raw HTML"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it."
+msgstr "Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it."
+
 #: src/renderer/components/markdown/asset-reference-picker.tsx
+#: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Reference an Asset"
 msgstr "Reference an Asset"
 
 #: src/renderer/components/markdown/entry-reference-picker.tsx
+#: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Reference an Entry"
 msgstr "Reference an Entry"
+
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Reference fields cannot be unique."
+msgstr "Reference fields cannot be unique."
 
 #: src/renderer/components/project-sidebar.tsx
 msgid "Refresh changes"
@@ -940,9 +1608,25 @@ msgstr "Refresh changes"
 msgid "Release"
 msgstr "Release"
 
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "Release {version}"
+msgstr "Release {version}"
+
 #: src/renderer/queries/options/releaseOptions.ts
 msgid "Release {version} created"
 msgstr "Release {version} created"
+
+#: src/renderer/routes/projects/$projectId/releases.tsx
+msgid "Releases"
+msgstr "Releases"
+
+#: src/renderer/routes/__root.tsx
+msgid "Reload"
+msgstr "Reload"
+
+#: src/renderer/routes/projects/$projectId/settings/version-control.tsx
+msgid "Remote"
+msgstr "Remote"
 
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Remote URL"
@@ -953,8 +1637,28 @@ msgid "Remote URL saved"
 msgstr "Remote URL saved"
 
 #: src/renderer/components/forms/project-form.tsx
+msgid "Remove {language}"
+msgstr "Remove {language}"
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "Remove {languagePendingRemoval} from this Project?"
+msgstr "Remove {languagePendingRemoval} from this Project?"
+
+#: src/renderer/components/forms/project-form.tsx
 msgid "Remove language"
 msgstr "Remove language"
+
+#: src/renderer/components/forms/select-field-definition.tsx
+msgid "Remove option {position}"
+msgstr "Remove option {position}"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Remove the {label} field"
+msgstr "Remove the {label} field"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Remove the {name} section"
+msgstr "Remove the {name} section"
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Remove this Project?"
@@ -976,9 +1680,17 @@ msgstr "Report an issue"
 msgid "Report sent"
 msgstr "Report sent"
 
+#: src/renderer/routes/__root.tsx
+msgid "Report this problem"
+msgstr "Report this problem"
+
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Required"
 msgstr "Required"
+
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Required fields need to be filled before an Item of the Collection can be created or updated."
+msgstr "Required fields need to be filled before an Item of the Collection can be created or updated."
 
 #: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Restrict Asset references to file types"
@@ -1023,9 +1735,25 @@ msgstr "Save local User"
 msgid "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
 msgstr "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
 
+#: src/renderer/components/forms/project-form.tsx
+msgid "Search languages"
+msgstr "Search languages"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Section"
+msgstr "Section"
+
+#: src/renderer/components/ui/form.tsx
+msgid "Section {position} of {total}"
+msgstr "Section {position} of {total}"
+
 #: src/renderer/components/asset-teaser.tsx
 msgid "Select a replacement file"
 msgstr "Select a replacement file"
+
+#: src/renderer/routes/projects/$projectId/assets/index.tsx
+msgid "Select Asset to add"
+msgstr "Select Asset to add"
 
 #: src/renderer/components/ui/form.tsx
 msgid "Select Assets"
@@ -1039,9 +1767,37 @@ msgstr "Select date"
 msgid "Select Entries"
 msgstr "Select Entries"
 
+#: src/renderer/components/ui/form.tsx
+msgid "Select one or more assets."
+msgstr "Select one or more assets."
+
+#: src/renderer/components/ui/form.tsx
+msgid "Select one or more entries."
+msgstr "Select one or more entries."
+
+#: src/renderer/components/forms/dynamic-field-definition.tsx
+msgid "Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet."
+msgstr "Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet."
+
+#: src/renderer/components/ui/form.tsx
+msgid "Select up to {assetMaximum, plural, one {# asset} other {# assets}}."
+msgstr "Select up to {assetMaximum, plural, one {# asset} other {# assets}}."
+
+#: src/renderer/components/ui/form.tsx
+msgid "Select up to {entryMaximum, plural, one {# entry} other {# entries}}."
+msgstr "Select up to {entryMaximum, plural, one {# entry} other {# entries}}."
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Select which languages this Projects content has to be translated into. Adding one means every existing Collection and Entry needs a translation for it before it can be saved again, and removing one orphans the content already translated into it."
 msgstr "Select which languages this Projects content has to be translated into. Adding one means every existing Collection and Entry needs a translation for it before it can be saved again, and removing one orphans the content already translated into it."
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Send feedback"
+msgstr "Send feedback"
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Send report"
+msgstr "Send report"
 
 #: src/renderer/components/report-dialog.tsx
 msgid "Sends what elek.io Desktop recorded on this machine in the last 24 hours. That includes the ids of your Projects, Collections and Entries, the files they live in and the actions you took, but never the content you wrote or the names you gave them. It is the single most useful thing for finding a bug."
@@ -1055,17 +1811,37 @@ msgstr "Separator"
 msgid "Settings"
 msgstr "Settings"
 
+#: src/renderer/components/forms/project-form.tsx
+msgid "Settings related to the languages used in this Project"
+msgstr "Settings related to the languages used in this Project"
+
 #: src/renderer/components/report-dialog.tsx
 msgid "Share feedback"
 msgstr "Share feedback"
+
+#: src/renderer/components/entry-table.tsx
+msgid "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
+msgstr "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Slug"
 msgstr "Slug"
 
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Slugs are always unique, so a single Entry can be identified by it."
+msgstr "Slugs are always unique, so a single Entry can be identified by it."
+
+#: src/renderer/routes/projects/$projectId/dashboard.tsx
+msgid "Some debug Project output"
+msgstr "Some debug Project output"
+
 #: src/renderer/lib/coreErrorText.ts
 msgid "Some of the information provided was not valid."
 msgstr "Some of the information provided was not valid."
+
+#: src/renderer/routes/__root.tsx
+msgid "Something went wrong and this screen is all we can show you. Nothing about it was sent to us automatically, so we only find out if you tell us. Reporting it takes a moment: tell us what you were doing, and the logs it sends along show us the error."
+msgstr "Something went wrong and this screen is all we can show you. Nothing about it was sent to us automatically, so we only find out if you tell us. Reporting it takes a moment: tell us what you were doing, and the logs it sends along show us the error."
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "Something went wrong. Please try again."
@@ -1074,6 +1850,19 @@ msgstr "Something went wrong. Please try again."
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "Split camelCase words, so \"myWord\" becomes \"my-word\"."
 msgstr "Split camelCase words, so \"myWord\" becomes \"my-word\"."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Strikethrough"
+msgstr "Strikethrough"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Strong"
+msgstr "Strong"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Struck through text."
+msgstr "Struck through text."
 
 #: src/renderer/components/project-card.tsx
 msgid "Subscription"
@@ -1095,21 +1884,67 @@ msgstr "Synchronize"
 msgid "System"
 msgstr "System"
 
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Table"
+msgstr "Table"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Tables"
+msgstr "Tables"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Tables with aligned columns."
+msgstr "Tables with aligned columns."
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Task list items"
+msgstr "Task list items"
+
 #: src/renderer/components/project-card.tsx
 msgid "Team"
 msgstr "Team"
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Tell us what you think of elek.io Desktop. We read every one of these."
+msgstr "Tell us what you think of elek.io Desktop. We read every one of these."
 
 #: src/renderer/components/forms/select-field-definition.tsx
 msgid "Text"
 msgstr "Text"
 
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "The action does not delete this Project from other devices - just\n"
+"              from the device you are currently using. But if this is the only\n"
+"              device your Project is stored at, you will remove it permanently -\n"
+"              there is no going back. Please be certain."
+msgstr "The action does not delete this Project from other devices - just\n"
+"              from the device you are currently using. But if this is the only\n"
+"              device your Project is stored at, you will remove it permanently -\n"
+"              there is no going back. Please be certain."
+
 #: src/renderer/components/markdown/asset-reference-picker.tsx
 msgid "The Asset is inserted at the cursor position."
 msgstr "The Asset is inserted at the cursor position."
 
+#: src/renderer/routes/projects/$projectId/history.tsx
+msgid "the changes of this Project"
+msgstr "the changes of this Project"
+
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "The character placed between words of the slug."
 msgstr "The character placed between words of the slug."
+
+#: src/renderer/routes/projects/$projectId/collections.tsx
+msgid "the Collections of this Project"
+msgstr "the Collections of this Project"
+
+#: src/renderer/components/markdown/markdown-editor.tsx
+msgid "The content could not be read from the editor: {bridgeError}"
+msgstr "The content could not be read from the editor: {bridgeError}"
+
+#: src/renderer/routes/projects/$projectId/dashboard.tsx
+msgid "The Dashboard gives you an overview of your project."
+msgstr "The Dashboard gives you an overview of your project."
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "The default language can't be deleted. Please select another language as the default and then delete this language."
@@ -1211,6 +2046,7 @@ msgstr "The Git repository refused access, so ask whoever set up this Project."
 msgid "The initial option for the field."
 msgstr "The initial option for the field."
 
+#: src/renderer/components/forms/field-definition-draft.tsx
 #: src/renderer/components/forms/field-definition-registry.tsx
 msgid "The initial value for the field."
 msgstr "The initial value for the field."
@@ -1223,9 +2059,17 @@ msgstr "The initial value for the field. It is shown in your local time and stor
 msgid "The label is displayed above the input Field and should indicate what the user is supposed to enter. For example \"Title\", \"Date of birth\" or \"Summary\"."
 msgstr "The label is displayed above the input Field and should indicate what the user is supposed to enter. For example \"Title\", \"Date of birth\" or \"Summary\"."
 
+#: src/renderer/components/forms/select-field-definition.tsx
+msgid "The label users see for this option."
+msgstr "The label users see for this option."
+
 #: src/renderer/components/markdown/link-dialog.tsx
 msgid "The link applies to the text selected in the editor. Core accepts http(s), mailto and tel URLs, plus relative and fragment links."
 msgstr "The link applies to the text selected in the editor. Core accepts http(s), mailto and tel URLs, plus relative and fragment links."
+
+#: src/renderer/components/forms/field-definition-draft.tsx
+msgid "The maximum {unit}."
+msgstr "The maximum {unit}."
 
 #: src/renderer/components/forms/asset-field-definition.tsx
 msgid "The maximum number of Assets the user is able to select."
@@ -1242,6 +2086,10 @@ msgstr "The maximum number of Entries the user is able to select."
 #: src/renderer/components/forms/dynamic-field-definition.tsx
 msgid "The maximum number of sections the user is able to add."
 msgstr "The maximum number of sections the user is able to add."
+
+#: src/renderer/components/forms/field-definition-draft.tsx
+msgid "The minimum {unit}."
+msgstr "The minimum {unit}."
 
 #: src/renderer/components/forms/asset-field-definition.tsx
 msgid "The minimum number of Assets the user needs to select."
@@ -1287,9 +2135,21 @@ msgstr "The Project's description changed"
 msgid "The reference is inserted at the cursor position."
 msgstr "The reference is inserted at the cursor position."
 
+#: src/renderer/components/report-dialog.tsx
+msgid "The report could not be sent. Your text is still here, so you can try again."
+msgstr "The report could not be sent. Your text is still here, so you can try again."
+
+#: src/renderer/routes/projects/$projectId/settings.tsx
+msgid "the Settings of this Project"
+msgstr "the Settings of this Project"
+
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "The slug is generated from the selected Fields while creating an Entry, in the order the Fields appear in the Collection. If none are selected, users enter the slug manually."
 msgstr "The slug is generated from the selected Fields while creating an Entry, in the order the Fields appear in the Collection. If none are selected, users enter the slug manually."
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again."
+msgstr "The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "The technical key this Field's Values are stored under. It is generated from the label until edited manually."
@@ -1299,9 +2159,21 @@ msgstr "The technical key this Field's Values are stored under. It is generated 
 msgid "The type of input the user is able to enter for this Field."
 msgstr "The type of input the user is able to enter for this Field."
 
+#: src/renderer/components/markdown/markdown-toolbar.tsx
+msgid "Thematic break"
+msgstr "Thematic break"
+
+#: src/renderer/components/forms/markdown-field-definition.tsx
+msgid "Thematic breaks"
+msgstr "Thematic breaks"
+
 #: src/renderer/components/user-dropdown.tsx
 msgid "Theme"
 msgstr "Theme"
+
+#: src/renderer/routes/projects/$projectId/settings.tsx
+msgid "these Settings"
+msgstr "these Settings"
 
 #: src/renderer/components/asset-teaser.tsx
 msgid "This action can be undone later by restoring the Asset via it's history."
@@ -1315,17 +2187,54 @@ msgstr "This Asset could not be deleted. Please review and try again."
 msgid "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
 msgstr "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
 
+#: src/renderer/routes/projects/$projectId/history.tsx
+msgid "this change"
+msgstr "this change"
+
 #: src/renderer/lib/coreErrorText.ts
 msgid "This change conflicts with the current state. Please review and try again."
 msgstr "This change conflicts with the current state. Please review and try again."
+
+#: src/renderer/routes/projects/$projectId/collections/create.tsx
+msgid "This Collection could not be created. Please review your changes and try again."
+msgstr "This Collection could not be created. Please review your changes and try again."
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "This Collection could not be deleted. Please review and try again."
+msgstr "This Collection could not be deleted. Please review and try again."
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "This Collection could not be saved. Please review your changes and try again."
+msgstr "This Collection could not be saved. Please review your changes and try again."
+
+#: src/renderer/routes/projects/$projectId/components/create.tsx
+msgid "This Component could not be created. Please review your changes and try again."
+msgstr "This Component could not be created. Please review your changes and try again."
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "This Component could not be deleted. Please review and try again."
+msgstr "This Component could not be deleted. Please review and try again."
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "This Component could not be saved. Please review your changes and try again."
+msgstr "This Component could not be saved. Please review your changes and try again."
 
 #: src/renderer/components/ui/form.tsx
 msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+msgid "This Entry could not be saved. Please review your values and try again."
+msgstr "This Entry could not be saved. Please review your values and try again."
+
 #: src/renderer/components/forms/allow-components-sheet.tsx
 msgid "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
 msgstr "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
+
+#: src/renderer/components/ui/form.tsx
+msgid "This field holds at most {sectionMaximum} sections. Remove one to add another."
+msgstr "This field holds at most {sectionMaximum} sections. Remove one to add another."
 
 #: src/renderer/components/ui/app-form.tsx
 msgid "This form could not be saved, because of a problem that is not shown on any of its fields:"
@@ -1355,9 +2264,29 @@ msgstr "This is a patch Release, because {change}."
 msgid "This is a patch Release, because what a site reads is unchanged."
 msgstr "This is a patch Release, because what a site reads is unchanged."
 
+#: src/renderer/routes/user/profile.tsx
+msgid "This is how a change made by you will look like based on the information you've given on the left."
+msgstr "This is how a change made by you will look like based on the information you've given on the left."
+
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently."
+msgstr "This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently."
+
 #: src/renderer/components/ui/form.tsx
 msgid "This Project has no Component this field allows, so no section can be added. Create one, or allow another one on this field."
 msgstr "This Project has no Component this field allows, so no section can be added. Create one, or allow another one on this field."
+
+#: src/renderer/components/forms/dynamic-field-definition.tsx
+msgid "This Project has no Components yet. Create one first, then come back to choose it here."
+msgstr "This Project has no Components yet. Create one first, then come back to choose it here."
+
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "This Project is not synchronized to a remote, or it has changes that were never pushed. Deleting it now removes those changes permanently, with no way to recover them."
+msgstr "This Project is not synchronized to a remote, or it has changes that were never pushed. Deleting it now removes those changes permanently, with no way to recover them."
+
+#: src/renderer/routes/projects/$projectId/settings/general.tsx
+msgid "This Project only exists on this device (no remote copy). Force delete removes it permanently."
+msgstr "This Project only exists on this device (no remote copy). Force delete removes it permanently."
 
 #: src/renderer/routes/projects/index.tsx
 msgid "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
@@ -1367,6 +2296,10 @@ msgstr "This repository holds no Project, or one made with an older version of e
 msgid "This was written by a newer version of elek.io. Update to open it."
 msgstr "This was written by a newer version of elek.io. Update to open it."
 
+#: src/renderer/components/forms/slug-field-definition.tsx
+msgid "Tilde (~)"
+msgstr "Tilde (~)"
+
 #: src/renderer/components/ui/sidebar.tsx
 msgid "Toggle Sidebar"
 msgstr "Toggle Sidebar"
@@ -1374,6 +2307,14 @@ msgstr "Toggle Sidebar"
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Toggles are always required, since they can only be checked or unchecked."
 msgstr "Toggles are always required, since they can only be checked or unchecked."
+
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "Toggles cannot be unique, since they can only be checked or unchecked."
+msgstr "Toggles cannot be unique, since they can only be checked or unchecked."
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Too many reports were sent from here recently. Your text is still here, so you can try again in a few minutes."
+msgstr "Too many reports were sent from here recently. Your text is still here, so you can try again in a few minutes."
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "Too much was sent from here recently. Please try again shortly."
@@ -1388,6 +2329,10 @@ msgstr "Try again"
 msgid "Type of options"
 msgstr "Type of options"
 
+#: src/renderer/components/forms/slug-field-definition.tsx
+msgid "Underscore (_)"
+msgstr "Underscore (_)"
+
 #: src/renderer/components/asset-teaser.tsx
 msgid "Undo file replacement"
 msgstr "Undo file replacement"
@@ -1396,9 +2341,22 @@ msgstr "Undo file replacement"
 msgid "Unique"
 msgstr "Unique"
 
+#: src/renderer/components/remote-origin-badge.tsx
+msgid "unknown"
+msgstr "unknown"
+
 #: src/renderer/components/asset-teaser.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 msgid "Update"
 msgstr "Update"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+msgid "Update {entryName}"
+msgstr "Update {entryName}"
+
+#: src/renderer/components/entry-table.tsx
+msgid "Updated"
+msgstr "Updated"
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "Upgrading this Project did not work."
@@ -1409,6 +2367,38 @@ msgstr "Upgrading this Project did not work."
 msgid "URL"
 msgstr "URL"
 
+#: src/renderer/routes/user/profile.tsx
+msgid "Use the local API to read data from your local Projects. The local API is only accessible on this device. You can access it at <0>{localApiUrl}</0> once it is enabled."
+msgstr "Use the local API to read data from your local Projects. The local API is only accessible on this device. You can access it at <0>{localApiUrl}</0> once it is enabled."
+
+#: src/renderer/routes/user.tsx
+msgid "User"
+msgstr "User"
+
+#: src/renderer/routes/user/profile.tsx
+msgid "User profile"
+msgstr "User profile"
+
+#: src/renderer/components/forms/field-definition-registry.tsx
+msgid "value the user can enter"
+msgstr "value the user can enter"
+
+#: src/renderer/components/forms/field-definition-registry.tsx
+msgid "Value the user is able to enter"
+msgstr "Value the user is able to enter"
+
+#: src/renderer/components/release-dialog.tsx
+msgid "Version {currentVersion} becomes"
+msgstr "Version {currentVersion} becomes"
+
+#: src/renderer/routes/projects/$projectId/settings/version-control.tsx
+msgid "Version Control"
+msgstr "Version Control"
+
+#: src/renderer/routes/projects/$projectId/settings/version-control.tsx
+msgid "Version Control Settings"
+msgstr "Version Control Settings"
+
 #: src/renderer/components/asset-teaser.tsx
 msgid "View"
 msgstr "View"
@@ -1416,6 +2406,22 @@ msgstr "View"
 #: src/renderer/components/project-switcher.tsx
 msgid "View all Projects"
 msgstr "View all Projects"
+
+#: src/renderer/routes/projects/$projectId/dashboard.tsx
+msgid "View the latest changes made to the project."
+msgstr "View the latest changes made to the project."
+
+#: src/renderer/components/entry-table.tsx
+msgid "Visible Values"
+msgstr "Visible Values"
+
+#: src/renderer/components/report-dialog.tsx
+msgid "We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment."
+msgstr "We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment."
+
+#: src/renderer/routes/user/profile.tsx
+msgid "Welcome to elek.io Desktop"
+msgstr "Welcome to elek.io Desktop"
 
 #: src/renderer/lib/release.ts
 msgid "What a Release would publish could not be read. Your changes on this computer are safe. Please try again."
@@ -1434,8 +2440,19 @@ msgid "What saving changes"
 msgstr "What saving changes"
 
 #: src/renderer/components/forms/component-form.tsx
+msgid "What this Component is used for. Leave every language empty for no description, or fill them all."
+msgstr "What this Component is used for. Leave every language empty for no description, or fill them all."
+
+#: src/renderer/components/forms/component-form.tsx
 msgid "What this group of fields is, in singular, such as \"Teaser\"."
 msgstr "What this group of fields is, in singular, such as \"Teaser\"."
+
+#: src/renderer/routes/__root.tsx
+#: src/renderer/routes/projects/$projectId.tsx
+#: src/renderer/routes/projects/$projectId/collections.tsx
+#: src/renderer/routes/projects/create.tsx
+msgid "what this screen shows"
+msgstr "what this screen shows"
 
 #: src/renderer/components/report-dialog.tsx
 msgid "What went wrong?"
@@ -1460,6 +2477,10 @@ msgstr "Whether the options of this Field hold text or number values."
 #: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Which heading levels can be used. None disables headings."
 msgstr "Which heading levels can be used. None disables headings."
+
+#: src/renderer/components/report-dialog.tsx
+msgid "Who this {purpose} is from."
+msgstr "Who this {purpose} is from."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Width"
@@ -1509,6 +2530,18 @@ msgstr "You need to set up a user before doing this."
 msgid "You won't be able to change the Value if this is active."
 msgstr "You won't be able to change the Value if this is active."
 
+#: src/renderer/components/forms/default-field-definition-form.tsx
+msgid "You won't be able to create an Entry if there is an existing Entry with identical content."
+msgstr "You won't be able to create an Entry if there is an existing Entry with identical content."
+
+#: src/renderer/routes/__root.tsx
+msgid "You've tried accessing a route that could not be found."
+msgstr "You've tried accessing a route that could not be found."
+
+#: src/renderer/routes/__root.tsx
+msgid "You've tried to access \"{href}\" but it does not exist. Use the buttons above to navigate back or try to reload the page."
+msgstr "You've tried to access \"{href}\" but it does not exist. Use the buttons above to navigate back or try to reload the page."
+
 #: src/renderer/routes/user/profile.tsx
 msgid "Your email allows other members of Projects to contact you."
 msgstr "Your email allows other members of Projects to contact you."
@@ -1516,3 +2549,11 @@ msgstr "Your email allows other members of Projects to contact you."
 #: src/renderer/routes/user/profile.tsx
 msgid "Your name will be used by others to identify changes made by you."
 msgstr "Your name will be used by others to identify changes made by you."
+
+#: src/renderer/routes/user.tsx
+msgid "your Profile"
+msgstr "your Profile"
+
+#: src/renderer/routes/projects/index.tsx
+msgid "your Projects"
+msgstr "your Projects"

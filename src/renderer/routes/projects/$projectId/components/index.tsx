@@ -1,4 +1,5 @@
-import { Trans } from '@lingui/react/macro';
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { Blocks, Plus } from 'lucide-react';
 import { type ReactElement } from 'react';
@@ -25,6 +26,8 @@ export const Route = createFileRoute('/projects/$projectId/components/')({
 });
 
 function ProjectComponentsPage(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId } = Route.useParams();
   const { translateContent } = useProject();
@@ -34,10 +37,10 @@ function ProjectComponentsPage(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         A Component is a group of fields an Entry can hold more than once, in
         any order. A page uses them as its sections.
-      </>
+      </Trans>
     );
   }
 
@@ -71,7 +74,7 @@ function ProjectComponentsPage(): ReactElement {
 
   return (
     <Page
-      title="Components"
+      title={t`Components`}
       description={<Description />}
       actions={<Actions />}
     >
@@ -130,6 +133,8 @@ function ComponentRow({
   component: Component;
   name: string;
 }): ReactElement {
+  const { t } = useLingui();
+
   const fieldCount = component.fieldDefinitions.length;
 
   return (
@@ -142,7 +147,7 @@ function ComponentRow({
       <span className="font-medium">{name}</span>
       <span className="text-sm text-muted-foreground">{component.slug}</span>
       <span className="ml-auto text-sm text-muted-foreground">
-        {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
+        {t`${plural(fieldCount, { one: '# field', other: '# fields' })}`}
       </span>
     </Link>
   );

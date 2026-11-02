@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -50,9 +50,11 @@ const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
 const saveErrorFallback = msg`This Collection could not be created. Please review your changes and try again.`;
 
 function ProjectCollectionCreate(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Create');
+  useBreadcrumb(Route, t`Create`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
@@ -134,7 +136,9 @@ function ProjectCollectionCreate(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>A Collection holds information about how your content is structured.</>
+      <Trans>
+        A Collection holds information about how your content is structured.
+      </Trans>
     );
   }
 
@@ -175,7 +179,7 @@ function ProjectCollectionCreate(): ReactElement {
 
   return (
     <Page
-      title="Create a new Collection"
+      title={t`Create a new Collection`}
       description={<Description />}
       actions={<Actions />}
     >

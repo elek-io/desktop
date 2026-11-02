@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro';
 import { CloudOffIcon, FolderGit2Icon } from 'lucide-react';
 import * as React from 'react';
 
@@ -41,6 +42,8 @@ function RemoteOriginBadge({
 }: React.ComponentProps<typeof Badge> & {
   remoteOriginUrl: string | null;
 }): React.JSX.Element {
+  const { t } = useLingui();
+
   if (remoteOriginUrl !== null) {
     let hostname: string;
     let path: string;
@@ -54,7 +57,7 @@ function RemoteOriginBadge({
         path = match[2];
       } else {
         // Fallback for malformed SSH URLs
-        hostname = 'unknown';
+        hostname = t`unknown`;
         path = remoteOriginUrl;
       }
     } else {
@@ -68,7 +71,7 @@ function RemoteOriginBadge({
       } catch {
         // Fallback for an origin that is not a parseable URL, like a bare
         // filesystem path. Render it as is instead of crashing the card.
-        hostname = 'unknown';
+        hostname = t`unknown`;
         path = remoteOriginUrl;
       }
     }
@@ -93,7 +96,7 @@ function RemoteOriginBadge({
   return (
     <Badge {...props}>
       <CloudOffIcon />
-      Local
+      <Trans>Local</Trans>
     </Badge>
   );
 }

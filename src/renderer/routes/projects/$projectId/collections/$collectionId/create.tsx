@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -52,6 +52,8 @@ const conflictDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
 const conflictFallback = msg`This Entry could not be saved. Please review your values and try again.`;
 
 function CreateEntryPage(): React.JSX.Element {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId, collectionId } = Route.useParams();
   const {
@@ -64,7 +66,7 @@ function CreateEntryPage(): React.JSX.Element {
       id: collectionId,
     })
   );
-  useBreadcrumb(Route, isReadingCollection ? undefined : 'Create');
+  useBreadcrumb(Route, isReadingCollection ? undefined : t`Create`);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   const [conflictError, setConflictError] = useState<unknown>(null);
   // A unique-value collision is handled in place on this form.
@@ -144,14 +146,16 @@ function CreateEntryPage(): React.JSX.Element {
     }
   };
 
-  const title = `Create a new ${
-    collection
-      ? translateContent({
-          key: 'currentCollection.name',
-          record: collection.name.singular,
-        })
-      : 'Entry'
-  }`;
+  // The Collection's name in singular, or the domain term while the Collection
+  // is still loading, so each sentence below takes one placeholder rather than
+  // being assembled around it.
+  const entryName = collection
+    ? translateContent({
+        key: 'currentCollection.name',
+        record: collection.name.singular,
+      })
+    : t`Entry`;
+  const title = t`Create a new ${entryName}`;
 
   function Description(): ReactElement {
     return (
@@ -170,13 +174,7 @@ function CreateEntryPage(): React.JSX.Element {
     return (
       <FormActions form={createEntryForm} id={formId}>
         <SubmitButton requireDirty Icon={Check}>
-          Create{' '}
-          {collection
-            ? translateContent({
-                key: 'currentCollection.name.singular',
-                record: collection.name.singular,
-              })
-            : 'Entry'}
+          <Trans>Create {entryName}</Trans>
         </SubmitButton>
       </FormActions>
     );

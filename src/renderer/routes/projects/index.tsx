@@ -144,15 +144,11 @@ function ListProjectsPage(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         A Project ...
         <br />
-        Read more about{' '}
-        <a href="#">
-          <Trans>Projects in the documentation</Trans>
-        </a>
-        .
-      </>
+        Read more about <a href="#">Projects in the documentation</a>.
+      </Trans>
     );
   }
 
@@ -181,7 +177,7 @@ function ListProjectsPage(): ReactElement {
       <Panel>
         <Pane name={t`your Projects`}>
           <Page
-            title="Projects"
+            title={t`Projects`}
             description={<Description />}
             actions={<Actions />}
           >

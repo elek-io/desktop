@@ -322,6 +322,8 @@ export default [
             'slot',
             'accessorKey',
             'queryKey',
+            // A zod issue's path, which names the field the message lands on.
+            'path',
             'storageKey',
             'displayName',
             { regex: { pattern: '^data-' } },

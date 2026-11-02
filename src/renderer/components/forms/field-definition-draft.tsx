@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
   useForm,
@@ -51,7 +51,7 @@ export function DefaultValueInputField<Def extends FieldValues>({
   name,
   type,
   isRequired = false,
-  description = 'The initial value for the field.',
+  description,
   placeholder,
 }: {
   form: UseFormReturn<Def>;
@@ -61,6 +61,9 @@ export function DefaultValueInputField<Def extends FieldValues>({
   description?: string;
   placeholder?: string;
 }): ReactElement {
+  const { t } = useLingui();
+  const shown = description ?? t`The initial value for the field.`;
+
   return (
     <FormField
       control={form.control}
@@ -77,7 +80,7 @@ export function DefaultValueInputField<Def extends FieldValues>({
               placeholder={placeholder}
             />
           </FormControl>
-          <FormDescription>{description}</FormDescription>
+          <FormDescription>{shown}</FormDescription>
           <FormMessage />
         </FormItem>
       )}
@@ -114,7 +117,9 @@ export function MinMaxRow<Def extends FieldValues>({
             <FormControl>
               <FormInputField field={field} type="number" />
             </FormControl>
-            <FormDescription>The minimum {unit}.</FormDescription>
+            <FormDescription>
+              <Trans>The minimum {unit}.</Trans>
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -130,7 +135,9 @@ export function MinMaxRow<Def extends FieldValues>({
             <FormControl>
               <FormInputField field={field} type="number" />
             </FormControl>
-            <FormDescription>The maximum {unit}.</FormDescription>
+            <FormDescription>
+              <Trans>The maximum {unit}.</Trans>
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

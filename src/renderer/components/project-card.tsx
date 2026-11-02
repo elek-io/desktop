@@ -27,6 +27,8 @@ import { Skeleton } from '@renderer/components/ui/skeleton';
 import type { Project } from '@elek-io/core';
 
 function ProjectCard({ project }: { project: Project }): React.JSX.Element {
+  const { coreVersion } = project;
+
   return (
     <Card className="hover:border-accent-foreground">
       <CardHeader>
@@ -73,7 +75,9 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
           variant="outline"
           remoteOriginUrl={project.remoteOriginUrl}
         />
-        <Badge variant="outline">Core version: {project.coreVersion}</Badge>
+        <Badge variant="outline">
+          <Trans>Core version: {coreVersion}</Trans>
+        </Badge>
       </CardContent>
     </Card>
   );

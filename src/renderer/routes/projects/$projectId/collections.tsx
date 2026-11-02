@@ -43,7 +43,7 @@ function ProjectCollectionsLayout(): ReactElement {
   const { t } = useLingui();
 
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Collections');
+  useBreadcrumb(Route, t`Collections`);
 
   return (
     <Panes>

@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { Plus, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -89,6 +89,8 @@ export function ProjectForm<
   isViewOnly = false,
   id,
 }: ProjectFormProps<TFieldValues, TTransformedValues>): React.JSX.Element {
+  const { t } = useLingui();
+
   // The concrete fields use literal paths RHF cannot resolve for a generic T, so
   // view the form as UpdateProjectProps for those. This is the documented
   // exception to the form-cast guardrail, scoped to the cast line below so the
@@ -171,8 +173,8 @@ export function ProjectForm<
         </div>
 
         <PageSection
-          title="Language"
-          description="Settings related to the languages used in this Project"
+          title={t`Language`}
+          description={t`Settings related to the languages used in this Project`}
         >
           <div className="grid grid-cols-12 gap-6">
             <FormField
@@ -213,7 +215,7 @@ export function ProjectForm<
                                   >
                                     <XIcon className="size-4" />
                                     <span className="sr-only">
-                                      Remove {language}
+                                      <Trans>Remove {language}</Trans>
                                     </span>
                                   </Button>
                                 </Chip>
@@ -247,14 +249,14 @@ export function ProjectForm<
                               // The trigger carries the combobox role, whose
                               // name is never its own text, so it says what it
                               // shows.
-                              aria-label="Add language"
+                              aria-label={t`Add language`}
                               render={<Button variant="outline" Icon={Plus} />}
                             >
                               <Trans>Add language</Trans>
                             </ComboboxTrigger>
                             <ComboboxContent>
                               <ComboboxInput
-                                placeholder="Search languages"
+                                placeholder={t`Search languages`}
                                 showTrigger={false}
                               />
                               <ComboboxEmpty>
@@ -355,14 +357,18 @@ export function ProjectForm<
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Remove {languagePendingRemoval} from this Project?
+                  <Trans>
+                    Remove {languagePendingRemoval} from this Project?
+                  </Trans>
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Any content already translated into {languagePendingRemoval}{' '}
-                  stays in the Collection and Entry files but is no longer
-                  reachable, and saving does not remove it for you. This is a
-                  breaking change for anything consuming this Project&apos;s
-                  content. You can still discard it by leaving without saving.
+                  <Trans>
+                    Any content already translated into {languagePendingRemoval}{' '}
+                    stays in the Collection and Entry files but is no longer
+                    reachable, and saving does not remove it for you. This is a
+                    breaking change for anything consuming this Project&apos;s
+                    content. You can still discard it by leaving without saving.
+                  </Trans>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

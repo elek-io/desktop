@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Rocket } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
@@ -62,6 +62,8 @@ export function ReleaseDialog({
   project,
   children,
 }: ReleaseDialogProps): ReactElement {
+  const { t } = useLingui();
+
   const [isOpen, setIsOpen] = useState(false);
   const {
     data: pendingRelease,
@@ -167,7 +169,7 @@ export function ReleaseDialog({
               isLoading={isCreatingRelease}
               onClick={onCreateRelease}
             >
-              {isCreatingRelease ? 'Creating Release' : 'Create Release'}
+              {isCreatingRelease ? t`Creating Release` : t`Create Release`}
             </Button>
           ) : null}
         </DialogFooter>
@@ -188,13 +190,14 @@ function PendingReleaseSkeleton(): ReactElement {
 
 function PendingReleaseSummary({ diff }: { diff: ReleaseDiff }): ReactElement {
   const changes = describeReleaseChanges(diff);
+  const { currentVersion } = diff;
 
   return (
     <div className="grid gap-4">
       {diff.bump === null || diff.nextVersion === null ? null : (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
-            Version {diff.currentVersion} becomes
+            <Trans>Version {currentVersion} becomes</Trans>
           </span>
           <span className="text-lg font-semibold">{diff.nextVersion}</span>
           <Badge variant="secondary">{bumpWord(diff.bump)}</Badge>

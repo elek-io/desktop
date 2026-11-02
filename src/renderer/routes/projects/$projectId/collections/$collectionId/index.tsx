@@ -60,6 +60,16 @@ function ProjectCollectionIndexPage(): ReactElement {
     );
   }
 
+  // The Collection's name in singular, so the button's sentence takes one
+  // placeholder rather than being assembled around it.
+  const entryName =
+    isReadingCollection === false
+      ? translateContent({
+          key: 'currentCollection.name.singular',
+          record: collection.name.singular,
+        })
+      : '';
+
   function Actions(): ReactElement {
     return (
       <>
@@ -75,12 +85,11 @@ function ProjectCollectionIndexPage(): ReactElement {
             })
           }
         >
-          {isReadingCollection === false
-            ? `Create ${translateContent({
-                key: 'currentCollection.name.singular',
-                record: collection.name.singular,
-              })}`
-            : 'Create Entry'}
+          {isReadingCollection === false ? (
+            <Trans>Create {entryName}</Trans>
+          ) : (
+            <Trans>Create Entry</Trans>
+          )}
         </Button>
 
         <Button

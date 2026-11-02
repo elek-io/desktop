@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
@@ -13,7 +14,9 @@ export const Route = createFileRoute('/projects')({
  * and the Projects page has none.
  */
 function ProjectsLayout(): ReactElement {
-  useBreadcrumb(Route, 'Projects');
+  const { t } = useLingui();
+
+  useBreadcrumb(Route, t`Projects`);
 
   return <Outlet />;
 }

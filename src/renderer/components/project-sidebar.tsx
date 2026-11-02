@@ -1,6 +1,6 @@
 import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Link, type ToPathOption } from '@tanstack/react-router';
 import {
@@ -141,6 +141,8 @@ const syncErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
 const syncErrorFallback = msg`The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again.`;
 
 export function ProjectSidebar(): React.JSX.Element {
+  const { t } = useLingui();
+
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
@@ -228,7 +230,7 @@ export function ProjectSidebar(): React.JSX.Element {
             </ButtonGroup>
             <p className="mt-2 text-center text-xs font-medium text-muted-foreground">
               {isFetchingProjectChanges ? (
-                'Loading'
+                t`Loading`
               ) : (
                 <span className="flex items-center justify-center">
                   <DownloadCloud className="mr-1 h-4 w-4" />

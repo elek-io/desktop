@@ -90,7 +90,9 @@ export function AllowComponentsSheet({
     >
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Allow more Components on {label}</SheetTitle>
+          <SheetTitle>
+            <Trans>Allow more Components on {label}</Trans>
+          </SheetTitle>
           <SheetDescription>
             <Trans>
               A dynamic Field can allow more Components after it was added.

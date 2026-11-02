@@ -1,4 +1,5 @@
 import { arrayMove } from '@dnd-kit/sortable';
+import { useLingui } from '@lingui/react/macro';
 import { useState, type ReactElement } from 'react';
 import {
   useController,
@@ -76,6 +77,8 @@ export function FieldDefinitionsEditor<
   TFieldValues,
   TTransformedValues
 >): ReactElement {
+  const { t } = useLingui();
+
   const { translateContent } = useProject();
   // Which definition's allowed Components are being grown, by its own id. The
   // sheet is mounted for that one definition rather than one per preview, so
@@ -164,11 +167,6 @@ export function FieldDefinitionsEditor<
     moveDefinition(current.id, target.id);
   };
 
-  const subject =
-    owner === 'collection'
-      ? 'every Entry of this Collection'
-      : 'every section built from this Component';
-
   // The definition the sheet is open on. Read out of the array each render, so
   // the sheet sees the ids and the allowed Components the array holds now.
   const growing = definitions.find(
@@ -182,10 +180,16 @@ export function FieldDefinitionsEditor<
     <PageSection
       title={
         owner === 'collection'
-          ? "Define this Collection's Fields"
-          : "Define this Component's Fields"
+          ? t`Define this Collection's Fields`
+          : t`Define this Component's Fields`
       }
-      description={`Add Fields to say what ${subject} holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`}
+      // One sentence per owner rather than a phrase dropped into one, since a
+      // phrase that carries grammar cannot be translated on its own.
+      description={
+        owner === 'collection'
+          ? t`Add Fields to say what every Entry of this Collection holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`
+          : t`Add Fields to say what every section built from this Component holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`
+      }
       actions={
         isViewOnly ? (
           <></>

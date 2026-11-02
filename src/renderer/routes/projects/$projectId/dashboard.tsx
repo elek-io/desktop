@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 
 import {
@@ -18,6 +18,8 @@ export const Route = createFileRoute('/projects/$projectId/dashboard')({
 });
 
 function ProjectDashboardPage(): React.JSX.Element {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId } = Route.useParams();
   const {
@@ -26,10 +28,10 @@ function ProjectDashboardPage(): React.JSX.Element {
   const { data: history } = useQueryNoError(
     queryOptions.projects.history({ id: projectId })
   );
-  useBreadcrumb(Route, 'Dashboard');
+  useBreadcrumb(Route, t`Dashboard`);
 
   function Description(): React.JSX.Element {
-    return <>The Dashboard gives you an overview of your project.</>;
+    return <Trans>The Dashboard gives you an overview of your project.</Trans>;
   }
 
   function LatestChangesActions(): React.JSX.Element {
@@ -52,11 +54,11 @@ function ProjectDashboardPage(): React.JSX.Element {
   }
 
   return (
-    <Page title="Dashboard" description={<Description />}>
+    <Page title={t`Dashboard`} description={<Description />}>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
         <PageSection
-          title="Current Project"
-          description="Some debug Project output"
+          title={t`Current Project`}
+          description={t`Some debug Project output`}
           className="lg:col-span-2"
           standalone
         >
@@ -65,8 +67,8 @@ function ProjectDashboardPage(): React.JSX.Element {
           </pre>
         </PageSection>
         <PageSection
-          title="Latest changes"
-          description="View the latest changes made to the project."
+          title={t`Latest changes`}
+          description={t`View the latest changes made to the project.`}
           actions={<LatestChangesActions />}
           className="lg:col-span-1"
           standalone

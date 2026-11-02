@@ -17,7 +17,7 @@ export const Route = createFileRoute('/projects/$projectId/history')({
 function ProjectHistoryLayout(): ReactElement {
   const { t } = useLingui();
 
-  useBreadcrumb(Route, 'History');
+  useBreadcrumb(Route, t`History`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();

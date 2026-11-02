@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import * as React from 'react';
 
 import { cn } from '@renderer/lib/utils';
@@ -10,6 +11,8 @@ function Label({
 }: React.ComponentProps<'label'> & {
   isRequired?: boolean;
 }): React.JSX.Element {
+  const { t } = useLingui();
+
   return (
     <label
       data-slot="label"
@@ -23,7 +26,7 @@ function Label({
       {isRequired === false && (
         // The leading space keeps the composed accessible name readable ("Title -
         // optional", not "Title- optional"). The flex gap collapses it visually.
-        <span className="text-sm text-muted-foreground">{' - optional'}</span>
+        <span className="text-sm text-muted-foreground">{t` - optional`}</span>
       )}
     </label>
   );

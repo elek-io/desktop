@@ -84,10 +84,13 @@ export function ProjectDiff({
       name: '',
       description: '',
       settings: {
+        // Language codes, which are the same in every language.
+        /* eslint-disable lingui/no-unlocalized-strings */
         language: {
           default: 'en',
           supported: ['en'],
         },
+        /* eslint-enable lingui/no-unlocalized-strings */
       },
     },
   });
@@ -114,10 +117,12 @@ export function ProjectDiff({
       name: '',
       description: '',
       settings: {
+        /* eslint-disable lingui/no-unlocalized-strings */
         language: {
           default: 'en',
           supported: ['en'],
         },
+        /* eslint-enable lingui/no-unlocalized-strings */
       },
     },
   });

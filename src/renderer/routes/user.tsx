@@ -12,7 +12,7 @@ export const Route = createFileRoute('/user')({
 function UserLayout(): ReactElement {
   const { t } = useLingui();
 
-  useBreadcrumb(Route, 'User');
+  useBreadcrumb(Route, t`User`);
 
   return (
     <Panel>

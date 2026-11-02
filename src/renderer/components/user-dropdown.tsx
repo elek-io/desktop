@@ -1,4 +1,4 @@
-import { useLingui, Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { Moon, Sun, ChevronDown, ExternalLinkIcon } from 'lucide-react';
@@ -102,9 +102,9 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
         <DropdownMenuItem
           onClick={async () => router.navigate({ to: '/user/profile' })}
         >
-          Profile
-          {/* eslint-disable-next-line lingui/no-unlocalized-strings -- A
-          keyboard shortcut's symbols are the same in every language. */}
+          <Trans>Profile</Trans>
+          {/* A keyboard shortcut's symbols are the same in every language. */}
+          {/* eslint-disable-next-line lingui/no-unlocalized-strings */}
           <DropdownMenuAddOn>⇧⌘P</DropdownMenuAddOn>
         </DropdownMenuItem>
 
@@ -140,7 +140,7 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
               isLocalApiRunning === false || isStartingApi || isStoppingApi
             }
           >
-            Open
+            <Trans>Open</Trans>
             <DropdownMenuAddOn>
               <ExternalLinkIcon />
             </DropdownMenuAddOn>
@@ -165,11 +165,11 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="light">
                     <Sun className="mr-2 h-4 w-4" />
-                    Light
+                    <Trans>Light</Trans>
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="dark">
                     <Moon className="mr-2 h-4 w-4" />
-                    Dark
+                    <Trans>Dark</Trans>
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>

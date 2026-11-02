@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
@@ -51,9 +51,11 @@ const forceDeleteDescriptions: Partial<
 const forceDeleteFallback = msg`This Project is not synchronized to a remote, or it has changes that were never pushed. Deleting it now removes those changes permanently, with no way to recover them.`;
 
 function ProjectSettingsGeneralPage(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'General');
+  useBreadcrumb(Route, t`General`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
@@ -65,10 +67,13 @@ function ProjectSettingsGeneralPage(): ReactElement {
       name: '',
       description: '',
       settings: {
+        // Language codes, which are the same in every language.
+        /* eslint-disable lingui/no-unlocalized-strings */
         language: {
           default: 'en',
           supported: ['en'],
         },
+        /* eslint-enable lingui/no-unlocalized-strings */
       },
     },
   });
@@ -117,7 +122,9 @@ function ProjectSettingsGeneralPage(): ReactElement {
     useAppMutation(queryOptions.projects.delete, { handled: {} });
 
   function Description(): ReactElement {
-    return <>Here you will be able to tweak this project to your liking</>;
+    return (
+      <Trans>Here you will be able to tweak this project to your liking</Trans>
+    );
   }
 
   function Actions(): ReactElement {
@@ -159,7 +166,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
 
   return (
     <Page
-      title="General Settings"
+      title={t`General Settings`}
       description={<Description />}
       actions={<Actions />}
     >
@@ -170,11 +177,11 @@ function ProjectSettingsGeneralPage(): ReactElement {
         onFormSubmit={onUpdate}
       >
         <PageSection
-          title="Delete this Project from this device"
-          description="The action does not delete this Project from other devices - just
+          title={t`Delete this Project from this device`}
+          description={t`The action does not delete this Project from other devices - just
               from the device you are currently using. But if this is the only
               device your Project is stored at, you will remove it permanently -
-              there is no going back. Please be certain."
+              there is no going back. Please be certain.`}
           actions={
             <>
               <Dialog

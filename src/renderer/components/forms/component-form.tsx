@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
   type FieldPath,
@@ -62,6 +62,8 @@ export function ComponentForm<
   onFormSubmit = () => {},
   id,
 }: ComponentFormProps<TFieldValues, TTransformedValues>): ReactElement {
+  const { t } = useLingui();
+
   const defaultLanguage = project.settings.language.default;
   const path = (name: string): FieldPath<TFieldValues> =>
     name as FieldPath<TFieldValues>;
@@ -84,8 +86,8 @@ export function ComponentForm<
                   <Trans>Component name</Trans>
                 </FormLabel>
                 <TranslatableFormInputField
-                  title="Component name"
-                  description='What this group of fields is, in singular, such as "Teaser".'
+                  title={t`Component name`}
+                  description={t`What this group of fields is, in singular, such as "Teaser".`}
                   type="text"
                   field={field}
                   errors={componentForm.formState.errors}
@@ -134,8 +136,8 @@ export function ComponentForm<
                   <Trans>Description</Trans>
                 </FormLabel>
                 <TranslatableFormTextareaField
-                  title="Description"
-                  description="What this Component is used for. Leave every language empty for no description, or fill them all."
+                  title={t`Description`}
+                  description={t`What this Component is used for. Leave every language empty for no description, or fill them all.`}
                   field={field}
                   errors={componentForm.formState.errors}
                   supportedLanguages={project.settings.language.supported}
