@@ -117,8 +117,9 @@ function valueOf(values: unknown, fieldSlug: string): unknown {
  * The path of the field one refusal belongs to, on an Entry form, or `null`
  * where the form holds no such field.
  *
- * `null` means Core named a place this form does not have, a section somebody
- * removed while the save was in flight for instance. A refusal nothing can
+ * `null` means Core named a place this form does not have: a field the
+ * Collection no longer holds, a section somebody removed while the save was in
+ * flight, or a language the form holds no slot for. A refusal nothing can
  * place reaches the root error boundary rather than landing on the wrong
  * field, see `hooks/useEntryRefusals.ts`.
  *
@@ -160,6 +161,13 @@ export function entryValuePath(
     valueOf(held, location.fieldSlug)
   );
   if (leaf.success === false) {
+    return null;
+  }
+  // The language too, not only the field: a Project that gained a language
+  // while the save was in flight leaves Core naming one this form holds no
+  // slot for, and a path to a slot that is not there is a message nothing
+  // renders.
+  if (Object.hasOwn(leaf.data.content, location.language) === false) {
     return null;
   }
 

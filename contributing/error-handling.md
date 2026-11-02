@@ -81,17 +81,21 @@ Use the [`useAppMutation`](/src/renderer/hooks/useAppMutation.ts) hook when a sp
 
    ```tsx
    const { mutateAsync, handleError } = useAppMutation(
-     queryOptions.entries.create,
+     queryOptions.assets.delete,
      {
        handled: {
          Conflict: (error) => {
-           setConflictError(error);
-           setIsConflictDialogOpen(true);
+           setDeleteError(error);
+           setIsDeleteErrorDialogOpen(true);
          },
        },
      }
    );
    ```
+
+   A form's submit reads the same map and marks its fields instead of opening a
+   dialog, see
+   [a Value, a reference or an Asset type an Entry cannot be saved with](#example-a-value-a-reference-or-an-asset-type-an-entry-cannot-be-saved-with).
 
 2. **Await inside try/catch, and dispatch in the catch.** `await mutateAsync(...)` still rejects on failure regardless of `throwOnError`, so the `catch` runs. Call `handleError(error)` there: it reads the `type` and runs the matching `handled` callback, or does nothing for an unhandled type (which `throwOnError` has already routed to the boundary, so touching state for it would fight it). Keep the success path (e.g. `router.navigate`) inside the `try`, so a handled failure skips it.
 
@@ -144,7 +148,7 @@ A missing `draft` branch is not the only cause of the type. Core classifies a gi
 
 ### Example: a Value, a reference or an Asset type an Entry cannot be saved with
 
-The Entry create and update forms ([`collections/$collectionId/create.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx) and [`$entryId/update.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx)) are the two form-submit sites that handle in place, not deletes or syncs. Both read one map, [`useEntryRefusals`](/src/renderer/hooks/useEntryRefusals.ts), so the same refusal reads the same way whichever of them somebody is in, and each refusal is marked below the field it is about with `setError`, which is where ci's Messages table puts a field that is wrong. Neither form opens a dialog for one any more.
+The Entry create and update forms ([`collections/$collectionId/create.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx) and [`$entryId/update.tsx`](/src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx)) are the two form-submit sites that handle in place, not deletes or syncs. Both read one map, [`useEntryRefusals`](/src/renderer/hooks/useEntryRefusals.ts), so the same refusal reads the same way whichever of them somebody is in, and each refusal that names a field this form holds is marked below that field with `setError`, which is where ci's Messages table puts a field that is wrong. Neither form opens a dialog for one any more.
 
 Three refusals land that way, two `CoreError` types between them:
 
@@ -152,7 +156,7 @@ Three refusals land that way, two `CoreError` types between them:
 - **A reference that points at nothing.** An Asset or an Entry that was deleted between being chosen and the save leaves Core refusing the write with a `BadRequest` whose cause carries one issue per reference, with the field, the language, and the sections it sits inside (see Core's [fields doc](../node_modules/@elek-io/core/docs/fields.md)).
 - **An Asset of a type the field does not take.** The same `BadRequest`, with an issue of its own kind. Core cannot put the restriction in a schema, because a reference carries only an id, so a field narrowed to one type after an Entry was written refuses that Entry on its next save.
 
-Each shape of cause has one typed reader in [`lib/entryRefusals.ts`](/src/renderer/lib/entryRefusals.ts), which parses it with zod and keeps only what a screen needs, the way [`entryIssuesOf`](/src/renderer/lib/schemaChange.ts) does for a refused field definition change. One helper there turns Core's location into the path of that field on the form: it walks the form's own Values to find the place of each section Core names, since Core names a section by its id while the form binds it by its place, so a section that was moved still gets its own message.
+Each shape of cause has one typed reader in [`lib/entryRefusals.ts`](/src/renderer/lib/entryRefusals.ts), which parses it with zod and keeps only what a screen needs, the way [`entryIssuesOf`](/src/renderer/lib/schemaChange.ts) does for a refused field definition change. One helper there turns Core's location into the path of that field on the form: it walks the form's own Values to find the place of each section Core names, since Core names a section by its id while the form binds it by its place, so a section that was moved still gets its own message. It answers nothing where the form holds no such place, which is a field the Collection no longer has, a section somebody removed while the save was in flight, or a language the form holds no slot for.
 
 **A refusal that names no field this form holds is thrown on.** The two types above also stand for refusals that name nothing a form holds, a `Conflict` on another object among them, and the reader answers with an empty list for each of those. The handler then re-throws, which leaves `handleSubmit` rejecting, so `AppForm` re-throws it during render and the root error boundary takes it with its log record (see [forms.md](./renderer/forms.md#when-an-error-has-no-field-to-land-on)). Three specs guard the legs of that: the Value another Entry holds lands on its field, an Asset of the wrong type lands on the field inside its section, and an injected `Conflict` with no cause reaches the error screen.
 

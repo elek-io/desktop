@@ -2,6 +2,17 @@ import { expect, test } from '@playwright/test';
 import { z } from 'zod';
 
 import {
+  assetFieldDefinitionSchema,
+  dynamicFieldDefinitionSchema,
+  entryFieldDefinitionSchema,
+  markdownFieldDefinitionSchema,
+  numberFieldDefinitionSchema,
+  rangeFieldDefinitionSchema,
+  slugFieldDefinitionSchema,
+  toggleFieldDefinitionSchema,
+} from '@elek-io/core';
+
+import {
   entryReferenceIssuesOf,
   entryValuePath,
   uniqueValueConflictsOf,
@@ -36,6 +47,12 @@ test.describe('What a schema says about a field', () => {
       message: z.string().pipe(z.string().max(5000)),
       tags: z.array(z.string()).min(1),
       isOn: z.boolean(),
+      // A switch Core pins, which is how it says a field type has no choice
+      // about one of its own switches.
+      isUnique: z.literal(true),
+      isDraft: z.literal(false),
+      // A literal of anything else is a Value somebody can still leave empty.
+      stage: z.literal('draft'),
       section: z.object({ headline: z.string().min(2) }),
     });
 
@@ -72,13 +89,42 @@ test.describe('What a schema says about a field', () => {
     });
     // A list and a boolean say nothing about being required: Core asks for the
     // key either way, and neither can be left empty by the person in front of
-    // it.
+    // it. A boolean Core pins to one of its two values is the same answer.
     expect(constraintsAt(schema, 'tags')).toEqual({ required: false });
     expect(constraintsAt(schema, 'isOn')).toEqual({ required: false });
+    expect(constraintsAt(schema, 'isUnique')).toEqual({ required: false });
+    expect(constraintsAt(schema, 'isDraft')).toEqual({ required: false });
+    // A pinned string is not: it can be left empty, and then Core refuses it.
+    expect(constraintsAt(schema, 'stage')).toEqual({ required: true });
     expect(constraintsAt(schema, 'section.headline')).toEqual({
       required: true,
       minLength: 2,
     });
+  });
+
+  test('says nothing about a switch Core pins, on every field type', () => {
+    // A field type whose Unique or Required switch has no choice carries it as
+    // `z.literal(true)` in Core's own schema, and a locked switch stating
+    // Required would name a rule nobody can break.
+    const pinned = [
+      slugFieldDefinitionSchema,
+      numberFieldDefinitionSchema,
+      rangeFieldDefinitionSchema,
+      toggleFieldDefinitionSchema,
+      assetFieldDefinitionSchema,
+      entryFieldDefinitionSchema,
+      dynamicFieldDefinitionSchema,
+      markdownFieldDefinitionSchema,
+    ].flatMap((schema) =>
+      ['isRequired', 'isUnique'].map((path) => ({
+        path,
+        required: constraintsAt(schema, path)?.required,
+      }))
+    );
+
+    expect(pinned.filter((switchOf) => switchOf.required !== false)).toEqual(
+      []
+    );
   });
 
   test('says nothing rather than guessing, for a path it cannot follow', () => {
@@ -175,6 +221,23 @@ test.describe("Where a refusal of an Entry's save belongs", () => {
           fieldSlug: 'headline',
           language: 'en',
           componentPath: [{ fieldSlug: 'title', itemId: 'section-one' }],
+        },
+        values
+      )
+    ).toBeNull();
+    // A language the form holds no slot for, which a Project that gained one
+    // while the save was in flight leaves Core naming. The field is there and
+    // the language is not, inside a section as well as on the Entry's own
+    // field.
+    expect(entryValuePath({ fieldSlug: 'title', language: 'de' }, values)).toBe(
+      null
+    );
+    expect(
+      entryValuePath(
+        {
+          fieldSlug: 'headline',
+          language: 'de',
+          componentPath: [{ fieldSlug: 'sections', itemId: 'section-two' }],
         },
         values
       )

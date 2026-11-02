@@ -26,6 +26,7 @@ interface SchemaNode {
     in?: unknown;
     out?: unknown;
     options?: unknown;
+    values?: unknown;
     getter?: unknown;
   };
   minLength?: unknown;
@@ -204,11 +205,29 @@ function child(node: SchemaNode, segment: string): unknown {
   return null;
 }
 
+/**
+ * Whether every value a `literal` takes is a boolean, which is what a key Core
+ * pins with `z.literal(true)` or `z.literal(false)` is.
+ *
+ * A literal of anything else is a Value somebody can still leave empty, a
+ * string among them, so only the boolean ones read like a `boolean` leaf.
+ */
+function isPinnedBoolean(node: SchemaNode): boolean {
+  const { values } = node.def;
+
+  return (
+    Array.isArray(values) &&
+    values.length > 0 &&
+    values.every((value) => typeof value === 'boolean')
+  );
+}
+
 function constraintsOf(
   node: SchemaNode,
   optionalAbove: boolean
 ): FieldConstraints {
-  const leafType = unwrapAll(node).def.type;
+  const leaf = unwrapAll(node);
+  const leafType = leaf.def.type;
   // Two shapes say nothing about being required, however strictly Core asks
   // for the key:
   //
@@ -216,9 +235,14 @@ function constraintsOf(
   //   field could break, and zod's public API carries no minimum for an array.
   //   A list that really has to hold something says so through the prop the
   //   shell takes, see `AppField`.
-  // - A boolean. It is true or false and can never be empty, so Required would
-  //   name a rule nobody can break.
-  const alwaysFilled = leafType === 'array' || leafType === 'boolean';
+  // - A boolean, and a key Core pins to `true` or `false`. It is one of the
+  //   two and can never be empty, so Required would name a rule nobody can
+  //   break. Core pins both switches of a field type that has no choice about
+  //   them, a slug's Unique and a range's Required among them.
+  const alwaysFilled =
+    leafType === 'array' ||
+    leafType === 'boolean' ||
+    (leafType === 'literal' && isPinnedBoolean(leaf));
 
   return {
     required:

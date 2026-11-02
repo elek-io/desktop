@@ -56,8 +56,8 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   answer, `required` is a prop with no default. See
   [What a field says it needs](#what-a-field-says-it-needs).
 - **No input carries placeholder text.** A lint rule bans the attribute across
-  the renderer, with one exception: the filter of a list keeps its name inside
-  its field, through `FilterInput`. See
+  the renderer, with one exception: a filter keeps its name inside its field,
+  through `FilterInput` above a list and `ComboboxInput` inside a popup. See
   [Placeholder text](#placeholder-text).
 - **Every field type has a folder, and the registry is exhaustive over Core's
   `FieldType`.** A field type Core adds fails to compile until it has one, and
@@ -317,11 +317,15 @@ each land below their own field, in their section and their language. That is
 where ci's Messages table puts a field that is wrong, and it replaced the dialog
 both forms used to open.
 
-**A handler whose refusal names no field of this form throws the error on.** The
+**A handler whose refusal names no place in this form throws the error on.** The
 same `Conflict` Core raises for a taken Value also stands for refusals that name
-nothing a form holds, and a `BadRequest` does too. The handler runs inside the
-submit's `catch`, so throwing there leaves `handleSubmit` rejecting, which
-`AppForm` re-throws during render and the root error boundary takes, see
+nothing a form holds, and a `BadRequest` does too. A place is the field, the
+sections around it and its language together, so a refusal on a field the
+Collection no longer has, on a section somebody removed while the save was in
+flight, or on a language the form holds no slot for is each one of these. The
+handler runs inside the submit's `catch`, so throwing there leaves
+`handleSubmit` rejecting, which `AppForm` re-throws during render and the root
+error boundary takes, see
 [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
 Swallowing it instead would leave a save that said nothing and wrote nothing to
 the log.
@@ -504,10 +508,17 @@ source:
   here.
 
 Two answers the walk deliberately does not give, because Core asking for a key
-is not a rule the person in front of the field could break: a list and a
-boolean are never reported as required. A list that really has to hold
-something says so through the `required` prop, which carries no default, and a
-field nothing can answer for shows no rule rather than claiming it is optional.
+is not a rule the person in front of the field could break: a list is never
+reported as required, and neither is a boolean, whether Core takes either value
+or pins it to one with `z.literal(true)` or `z.literal(false)`, as it does for
+the Unique switch of a slug and the Required switch of a range. A list that
+really has to hold something says so through the `required` prop, which carries
+no default, and a field nothing can answer for shows no rule rather than
+claiming it is optional. The prop is read on top of what the schema said rather
+than instead of it, so a list keeps the bounds the schema carries and only ever
+gains the word: a Core schema stays the authority on what Core refuses, and a
+Project's supported languages are the case, where Core takes no empty list and
+zod's public API carries no minimum for an array.
 That is the way round ci asks for: the app marks what is needed, where the old
 " - optional" suffix marked what is not.
 
@@ -517,14 +528,23 @@ No input carries placeholder text. It makes an empty field look filled and
 rarely adds anything the label does not already say, and a lint rule holds it
 across the renderer.
 
-The one exception is the field that filters a list, which keeps its name inside
-itself because it stands above that list with no label of its own and what
-somebody types in it is never read back as a Value. Every filter goes through
-[`components/ui/filter-input.tsx`](../../src/renderer/components/ui/filter-input.tsx),
-which is the one file the rule is dropped in, and which also puts the name on
-`aria-label` rather than leaving the accessible name to the placeholder.
+The one exception is a filter, which keeps its name inside itself because no
+label stands above it and what somebody types in it is never read back as a
+Value. Two components draw one, and the rule is dropped in those two files and
+nowhere else:
+
+- [`components/ui/filter-input.tsx`](../../src/renderer/components/ui/filter-input.tsx)
+  is the filter above a list, such as the Entries of a Collection.
+- [`components/ui/combobox.tsx`](../../src/renderer/components/ui/combobox.tsx)
+  is the filter inside a combobox's popup, such as the one that adds a language
+  to a Project. Its name is a required prop, so a combobox cannot be drawn with
+  an unnamed field.
+
+Both put the name on `aria-label` as well, rather than leaving the accessible
+name to the placeholder, which is only the last thing a field's name is
+computed from.
 [`field-registry.spec.ts`](../../tests/specs/field-registry.spec.ts) drives the
-rule on every spelling of the attribute and on that one component.
+rule on every spelling of the attribute and on both components.
 
 ### The shared controls and their value contracts
 
@@ -619,7 +639,8 @@ fire on an intentional violation.
   hand-written ones, whose character limits exist only in Core's own User
   schema, so a number on screen there proves the walk reads the real schema.
 - **Placeholder text is a lint error**, in every shape the attribute is written
-  in, with the one exception of `FilterInput`.
+  in, with the one exception of a filter, which `FilterInput` and
+  `ComboboxInput` draw.
   [`field-registry.spec.ts`](../../tests/specs/field-registry.spec.ts) drives
   all of them, see [Placeholder text](#placeholder-text).
 
