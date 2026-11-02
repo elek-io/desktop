@@ -1,10 +1,7 @@
 import { createContext, useContext } from 'react';
 
 import type { UseQueryResultNoError } from '@renderer/hooks/useQueryNoError';
-import {
-  type FormatDatetimeProps,
-  type FormatTemporalFieldValueProps,
-} from '@renderer/providers/UserProvider';
+import { type FormatDatetimeProps } from '@renderer/providers/UserProvider';
 
 import { type User } from '@elek-io/core';
 
@@ -14,7 +11,7 @@ export type UserContextValue = {
     relative: string;
     absolute: string;
   };
-  formatTemporalFieldValue: (props: FormatTemporalFieldValueProps) => unknown;
+  formatInUserLocale: (date: Date, pattern: string) => string;
 };
 
 export const UserContext = createContext<UserContextValue | null>(null);

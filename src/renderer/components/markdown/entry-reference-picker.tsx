@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro';
 import type { ReactElement } from 'react';
 
+import { entryTitle } from '@renderer/components/fields/entry-title';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -18,7 +19,11 @@ import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
 
-import type { Collection, Entry } from '@elek-io/core';
+import {
+  flattenFieldDefinitions,
+  type Collection,
+  type Entry,
+} from '@elek-io/core';
 
 export interface EntryReferencePickerProps {
   open: boolean;
@@ -33,25 +38,6 @@ export interface EntryReferencePickerProps {
 }
 
 /**
- * Returns a human-readable label for an entry by extracting the first string
- * value from its content, or falls back to a truncated id. Same heuristic as
- * the Entry field's picker.
- */
-function entryLabel(entry: Entry): string {
-  for (const value in entry.values) {
-    if (entry.values[value]?.valueType === 'string') {
-      const content = Object.values(entry.values[value].content).find(
-        (v) => typeof v === 'string' && v.length > 0
-      );
-      if (content !== undefined) {
-        return String(content);
-      }
-    }
-  }
-  return entry.id.slice(0, 8);
-}
-
-/**
  * Dialog to pick a single Entry for an entryReference inside the markdown
  * editor. Single-select variant of the Entry field's picker.
  */
@@ -61,7 +47,17 @@ export const EntryReferencePicker = ({
   ofCollections,
   onPick,
 }: EntryReferencePickerProps): ReactElement => {
-  const { projectId, translateContent } = useProject();
+  const {
+    projectId,
+    translateContent,
+    projectQuery: { data: project, isPending: isReadingProject },
+  } = useProject();
+  /* eslint-disable lingui/no-unlocalized-strings -- a language code, which is
+  the same in every language */
+  const titleLanguage = isReadingProject
+    ? 'en'
+    : project.settings.language.default;
+  /* eslint-enable lingui/no-unlocalized-strings */
   const { data: collectionList, isPending: isReadingCollections } =
     useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
 
@@ -141,7 +137,13 @@ export const EntryReferencePicker = ({
                     </h3>
                     <div className="space-y-1">
                       {entries.map((entry) => {
-                        const label = entryLabel(entry);
+                        const label = entryTitle({
+                          entry,
+                          fieldDefinitions: flattenFieldDefinitions(
+                            collection.fieldDefinitions
+                          ),
+                          language: titleLanguage,
+                        });
                         return (
                           <button
                             key={entry.id}

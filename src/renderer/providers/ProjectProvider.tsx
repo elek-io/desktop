@@ -21,7 +21,7 @@ export function ProjectProvider({
   projectId: string;
   children: React.ReactNode;
 }): React.JSX.Element {
-  const { userQuery, formatDatetime, formatTemporalFieldValue } = useUser();
+  const { userQuery, formatDatetime, formatInUserLocale } = useUser();
   const projectQuery = useQueryNoError(
     queryOptions.projects.read({ id: projectId })
   );
@@ -74,7 +74,7 @@ export function ProjectProvider({
         userQuery,
         projectQuery,
         formatDatetime,
-        formatTemporalFieldValue,
+        formatInUserLocale,
         translateContent,
       }}
     >

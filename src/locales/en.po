@@ -10,19 +10,13 @@ msgstr ""
 msgid " - optional"
 msgstr " - optional"
 
-#: src/renderer/components/entry-table.tsx
 #: src/renderer/components/fields/asset/index.tsx
 msgid "{count, plural, one {# Asset} other {# Assets}}"
 msgstr "{count, plural, one {# Asset} other {# Assets}}"
 
-#: src/renderer/components/entry-table.tsx
 #: src/renderer/components/fields/entry/index.tsx
 msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
-
-#: src/renderer/components/entry-table.tsx
-msgid "{count, plural, one {# Reference} other {# References}}"
-msgstr "{count, plural, one {# Reference} other {# References}}"
 
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "{fieldCount, plural, one {# field} other {# fields}}"

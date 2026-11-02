@@ -11,11 +11,6 @@ export interface FormatDatetimeProps {
   datetime: string | null | undefined;
 }
 
-export interface FormatTemporalFieldValueProps {
-  value: unknown;
-  fieldType: string | undefined;
-}
-
 export function UserProvider({
   children,
 }: {
@@ -90,35 +85,18 @@ export function UserProvider({
   );
 
   /**
-   * Formats a date, datetime or time field value string in the user's locale.
-   * Other field types (and non-strings) are returned unchanged.
+   * Formats a date in the user's locale, with a date-fns pattern.
+   *
+   * Which pattern a Value takes, and how its stored string becomes a date at
+   * all, is the field type's own answer, see components/fields/. This only
+   * knows the locale.
    */
-  const formatTemporalFieldValue = React.useCallback(
-    ({ value, fieldType }: FormatTemporalFieldValueProps): unknown => {
-      if (typeof value !== 'string' || value === '') {
-        return value;
-      }
-
+  const formatInUserLocale = React.useCallback(
+    (date: Date, pattern: string): string => {
+      // exactOptionalPropertyTypes forbids passing locale: undefined, so only
+      // include it once loaded. date-fns uses its en-US default meanwhile.
       const localeOption = locale ? { locale } : {};
-
-      if (fieldType === 'date') {
-        // "YYYY-MM-DD" carries no time or zone. Anchor it to local midnight so
-        // the shown day cannot shift by one in a negative UTC offset timezone.
-        const date = new Date(`${value}T00:00:00`);
-        return isNaN(date.getTime()) ? value : format(date, 'P', localeOption);
-      }
-      if (fieldType === 'datetime') {
-        // Full ISO datetime with zone.
-        const date = new Date(value);
-        return isNaN(date.getTime()) ? value : format(date, 'Pp', localeOption);
-      }
-      if (fieldType === 'time') {
-        // ISO time ("HH:mm:ss", no zone). Anchor to an arbitrary local date to
-        // build a formattable Date.
-        const date = new Date(`1970-01-01T${value}`);
-        return isNaN(date.getTime()) ? value : format(date, 'p', localeOption);
-      }
-      return value;
+      return format(date, pattern, localeOption);
     },
     [locale]
   );
@@ -128,7 +106,7 @@ export function UserProvider({
       value={{
         userQuery,
         formatDatetime,
-        formatTemporalFieldValue,
+        formatInUserLocale,
       }}
     >
       {children}

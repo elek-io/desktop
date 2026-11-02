@@ -1,4 +1,3 @@
-import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useRouter } from '@tanstack/react-router';
 import {
@@ -13,6 +12,7 @@ import {
 import { ChevronDown } from 'lucide-react';
 import { useLayoutEffect, useState } from 'react';
 
+import { fieldModule } from '@renderer/components/fields';
 import { Button } from '@renderer/components/ui/button';
 import {
   DropdownMenu,
@@ -41,7 +41,6 @@ import {
 import { useProject } from '@renderer/hooks/useProject';
 
 import {
-  extractText,
   flattenFieldDefinitions,
   type Collection,
   type Entry,
@@ -67,8 +66,7 @@ export function EntryTable({
 }): React.JSX.Element {
   const { t } = useLingui();
   const router = useRouter();
-  const { formatDatetime, translateContent, formatTemporalFieldValue } =
-    useProject();
+  const { formatDatetime, translateContent, formatInUserLocale } = useProject();
   const collectionName = translateContent({
     key: 'currentCollection.name.plural',
     record: collection.name.plural,
@@ -112,10 +110,10 @@ export function EntryTable({
 
     return columns;
   }
-  const fieldTypeBySlug = new Map(
+  const definitionBySlug = new Map(
     flattenFieldDefinitions(collection.fieldDefinitions).map((definition) => [
       definition.slug,
-      definition.fieldType,
+      definition,
     ])
   );
   const table = useReactTable({
@@ -126,43 +124,20 @@ export function EntryTable({
         updated: formatDatetime({ datetime: entry.updated }).relative,
       };
 
+      // What a Value looks like in a row is its field type's own answer, so
+      // each cell is drawn by the type's folder. A Value whose field the
+      // Collection no longer defines has no cell at all.
       for (const [slug, value] of Object.entries(entry.values)) {
-        if (value.valueType === 'reference') {
-          // Reference content is an array of { id, objectType } objects,
-          // which cannot be rendered directly - show a count instead
-          const references =
-            value.content[project.settings.language.default] ?? [];
-          const fieldType = fieldTypeBySlug.get(slug);
-          const count = references.length;
-          // One sentence per kind of reference rather than a count joined to a
-          // noun, so a language that inflects the noun with the count can.
-          const counted =
-            fieldType === 'asset'
-              ? t`${plural(count, { one: '# Asset', other: '# Assets' })}`
-              : fieldType === 'entry'
-                ? t`${plural(count, { one: '# Entry', other: '# Entries' })}`
-                : t`${plural(count, {
-                    one: '# Reference',
-                    other: '# References',
-                  })}`;
-          row[slug] = count === 0 ? undefined : counted;
-        } else if (value.valueType === 'mdast') {
-          // Structured markdown content - show its plain text
-          const tree = value.content[project.settings.language.default];
-          row[slug] =
-            tree === null || tree === undefined ? undefined : extractText(tree);
-        } else {
-          // Content is a per-language record; index it by the default language.
-          // Date, datetime and time values are formatted in the user's locale,
-          // every other type is shown as stored.
-          const content = (value.content as Record<string, unknown>)[
-            project.settings.language.default
-          ];
-          row[slug] = formatTemporalFieldValue({
-            value: content,
-            fieldType: fieldTypeBySlug.get(slug),
-          });
+        const fieldDefinition = definitionBySlug.get(slug);
+        if (fieldDefinition === undefined) {
+          continue;
         }
+        row[slug] = fieldModule(fieldDefinition).listCell({
+          content: value.content,
+          fieldDefinition,
+          language: project.settings.language.default,
+          formatInUserLocale,
+        });
       }
 
       return row;
