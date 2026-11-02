@@ -94,14 +94,15 @@ export function customMutationOptions<
   meta: LogableMutationMeta;
   toasts: {
     /**
-     * What happened, named by what it happened to.
+     * What happened, named by what it happened to wherever there is a name to
+     * read: out of the answer, or out of the cache where the answer carries
+     * none.
      *
      * `context` carries the QueryClient, so content stored per language, such
      * as a Collection's name, is read in the language a screen reads it in
      * through `translateContentFromCache`. It is called before this mutation's
-     * own `onSuccess`, which is what lets a delete name what it removed: the
-     * answer to a delete is empty, so the object comes out of the cache, as it
-     * stands before that handler writes to it.
+     * own `onSuccess`, so a delete, whose answer is empty, reads the object as
+     * that handler found it.
      */
     success: (
       data: TData,
