@@ -52,14 +52,26 @@ function ComboboxClear({
   );
 }
 
+/**
+ * The field that filters a combobox's list, which keeps its name inside itself.
+ *
+ * It is the second field in the app that carries placeholder text, beside
+ * `ui/filter-input.tsx`, and for the same reason: it stands inside the popup
+ * with no label above it, and what somebody types in it is never read back as
+ * a Value. The name is the accessible name too, so it is not left to the
+ * placeholder. See contributing/renderer/forms.md#placeholder-text.
+ */
 function ComboboxInput({
   className,
   children,
+  name,
   disabled = false,
   showTrigger = true,
   showClear = false,
   ...props
-}: ComboboxPrimitive.Input.Props & {
+}: Omit<ComboboxPrimitive.Input.Props, 'name' | 'placeholder'> & {
+  /** What this field filters, such as "Search languages". */
+  name: string;
   showTrigger?: boolean;
   showClear?: boolean;
 }): React.JSX.Element {
@@ -67,6 +79,8 @@ function ComboboxInput({
     <InputGroup className={cn('w-auto', className)}>
       <ComboboxPrimitive.Input
         render={<InputGroupInput disabled={disabled} />}
+        aria-label={name}
+        placeholder={name}
         {...props}
       />
       <InputGroupAddon align="inline-end">

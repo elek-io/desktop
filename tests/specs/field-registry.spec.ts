@@ -201,15 +201,19 @@ test.describe('The field registry', () => {
       ).toEqual([6, 7, 8]);
       expect(flagged[0]?.message).toContain('placeholder text');
 
-      // The filter of a list keeps its name inside its field, which is the one
-      // exception, and it is that component rather than a rule somebody writes
-      // again per filter.
-      const [filterResult] = await eslint.lintFiles([
+      // A filter keeps its name inside its field, which is the one exception,
+      // and it is the two components that draw one rather than a rule somebody
+      // writes again per filter: the field above a list, and the field inside
+      // a combobox's popup.
+      const filterResults = await eslint.lintFiles([
         path.join(root, 'src/renderer/components/ui/filter-input.tsx'),
+        path.join(root, 'src/renderer/components/ui/combobox.tsx'),
       ]);
       expect(
-        (filterResult?.messages ?? []).filter(
-          (message) => message.ruleId === 'no-restricted-syntax'
+        filterResults.flatMap((result) =>
+          result.messages
+            .filter((message) => message.ruleId === 'no-restricted-syntax')
+            .map((message) => `${result.filePath}: ${message.message}`)
         )
       ).toEqual([]);
     } finally {

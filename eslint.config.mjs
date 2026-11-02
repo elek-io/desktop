@@ -221,13 +221,14 @@ const noResetInEffect = {
 // ci rules out placeholder text in every input: it makes an empty field look
 // filled and rarely adds anything, while the label already says what the field
 // is. The one exception is a filter, which keeps its name inside its field, and
-// which goes through `ui/filter-input.tsx` so this rule holds everywhere else.
-// Both spellings are covered, the plain string and the braces a `t` template
-// needs, which is the shape a translated placeholder takes.
+// which goes through `ui/filter-input.tsx` above a list and `ui/combobox.tsx`
+// inside a popup, so this rule holds everywhere else. Both spellings are
+// covered, the plain string and the braces a `t` template needs, which is the
+// shape a translated placeholder takes.
 const noPlaceholderText = {
   selector: "JSXAttribute[name.name='placeholder']",
   message:
-    'No input carries placeholder text. A filter keeps its name inside its field through <FilterInput> (contributing/renderer/forms.md#placeholder-text).',
+    'No input carries placeholder text. A filter keeps its name inside its field through <FilterInput> or <ComboboxInput> (contributing/renderer/forms.md#placeholder-text).',
 };
 
 // Everything `no-restricted-syntax` bans in the renderer, declared once. Each
@@ -459,10 +460,14 @@ export default [
     },
   },
 
-  // The filter of a list is the one field that keeps its name inside itself, so
-  // the placeholder ban is dropped in that one component and nowhere else.
+  // A filter is the one field that keeps its name inside itself, so the
+  // placeholder ban is dropped in the two components that draw one and nowhere
+  // else: the filter above a list, and the one inside a combobox's popup.
   {
-    files: ['src/renderer/components/ui/filter-input.tsx'],
+    files: [
+      'src/renderer/components/ui/filter-input.tsx',
+      'src/renderer/components/ui/combobox.tsx',
+    ],
     rules: {
       'no-restricted-syntax': ['error', ...exceptFor(noPlaceholderText)],
     },

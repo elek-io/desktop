@@ -248,10 +248,10 @@ export function ProjectForm({
                         </ComboboxTrigger>
                         <ComboboxContent>
                           {/* The field inside the popup filters the list, and
-                        its name stands in no label above it, so it carries one
-                        of its own rather than placeholder text. */}
+                        no label stands above it, so it keeps its name inside
+                        itself, as every filter does. */}
                           <ComboboxInput
-                            aria-label={t`Search languages`}
+                            name={t`Search languages`}
                             showTrigger={false}
                           />
                           <ComboboxEmpty>

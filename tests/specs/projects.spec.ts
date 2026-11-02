@@ -264,9 +264,13 @@ test.describe('Projects', () => {
     const languages = mainWindow.getByRole('listbox');
     await expect(languages).toBeVisible();
     await expect(languages.getByRole('option', { name: 'de' })).toBeHidden();
-    await mainWindow
-      .getByRole('combobox', { name: 'Search languages' })
-      .fill('es');
+    const search = mainWindow.getByRole('combobox', {
+      name: 'Search languages',
+    });
+    // The field keeps its name inside itself as well, since no label stands
+    // above it, which is the one exception ci makes to placeholder text.
+    await expect(search).toHaveAttribute('placeholder', 'Search languages');
+    await search.fill('es');
     await languages.getByRole('option', { name: 'es' }).click();
     // Choosing closes the picker. Wait for its popup to be gone rather than
     // its list: the popup carries the dialog role for as long as it animates
