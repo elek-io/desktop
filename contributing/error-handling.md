@@ -112,6 +112,8 @@ Keep dialog titles and button labels stable, since the E2E specs assert them. On
 
 **A mutation says its own two sentences.** `customMutationOptions` takes a required `toasts` with a `success` and an `error` function, each reading the catalog when the toast shows, so a mutation without them does not compile. Nothing builds a toast from the call any more: a success names what happened to what, where the answer carries its title, and a failure names what did not happen, with no call name, error type, id or git output. The log records beside them are unchanged, and still carry the method and the object type.
 
+`success` is handed the mutation's `context` beside its answer and its variables, so a title stored per language, such as a Collection's or a Component's name, is read in the language the screen reads it in, see [internationalization.md](./renderer/internationalization.md#translating-content-translatecontent). An Entry carries no name, so its toast names the kind of object.
+
 A `type` handled this way is intentionally invisible to the standard logging (see [Logging](#logging-where-what-and-when)): only the in place UI reacts. The `type`s you did not handle are unaffected, they still propagate to the boundary and are logged and toasted as usual, because the suppression is keyed on the same `handled` map. If you also want a handled `type` recorded, log it explicitly in the `catch`.
 
 Every mutation below is built with `useAppMutation`, so the "predicate returns false only for X" behavior described in each is what the helper derives from that site's `handled` map. One read does the same thing in the query layer, where there is no mutation to hold the map, see the Release example.

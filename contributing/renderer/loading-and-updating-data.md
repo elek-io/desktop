@@ -22,7 +22,7 @@ All `queryOptions` and `mutationOptions` are centrally defined in the [`options/
 - Typed wrappers around IPC calls
 - Query keys for cache management
 - Automatic cache updates on mutations - Mutations automatically update related queries' cache data. For example, when you create a Project, both the individual Project cache AND the Projects list cache are updated without requiring a refetch.
-- Metadata for toast notifications (method and objectType)
+- Metadata for the log records (method and objectType), and the sentence each of a mutation's two toasts says
 
 ### Query Key Structure
 
@@ -356,7 +356,7 @@ form still shows its Save button enabled and reports the errors when submitted.
 
 ### Mutation Metadata
 
-All mutations should include metadata for proper toast notifications and logging. Use the `customMutationOptions` wrapper from [`util.ts`](../../src/renderer/queries/util.ts) to not only make sure the metadata is included, but also to automatically add `throwOnError: true` to propagate errors to the nearest error boundary and log all mutations with Core:
+Every mutation carries both `meta` and `toasts`, and `customMutationOptions` from [`util.ts`](../../src/renderer/queries/util.ts) is what requires them. It also adds `throwOnError: true`, so a failure propagates to the nearest error boundary, and logs every mutation with Core:
 
 ```typescript
 customMutationOptions({
@@ -367,25 +367,22 @@ customMutationOptions({
     method: 'create',
     objectType: 'project',
   },
+  toasts: {
+    success: (createdProject) => {
+      const { name } = createdProject;
+      return t`Project ${name} created`;
+    },
+    error: () => t`Could not create the Project`,
+  },
   // ...
 });
 ```
 
-This metadata is used by the query client to automatically display success/error toasts and log all mutations for debugging.
+`meta` is what the log records carry: `method` and `objectType` go into the record under the names Core uses for them, so one query finds a mutation across both sources.
+
+`toasts` is what the two notifications say. Each sentence is written for the person in front of the app and read from the message catalog when the toast shows, never built from `meta`, so no toast can read as a method and an object. Both are functions, so a mutation with nothing to name takes no argument and still reads the catalog at the moment the toast shows. `success` is handed the answer, the variables and the mutation's `context`, which is how a name stored per language is read in the language the screen reads it in, see [internationalization.md](./internationalization.md#translating-content-translatecontent) and [error-handling.md](../error-handling.md#handling-expected-errors-in-place).
 
 The wrapper awaits the `onSuccess` it is given, so a mutation resolves only once its own cache updates are done. A caller that awaits `mutateAsync` and then closes a dialog or navigates can rely on what it reads next, and a rejection inside `onSuccess` reaches the mutation rather than becoming an unhandled rejection.
-
-Pass `toasts` as well when `{method} {objectType}` is not something to show a
-user. It replaces the text of both notifications and nothing else, so a mutation
-without it reads exactly as before. `releases.create` is the one that uses it,
-since "Release 0.1.0 created" is the outcome an editor should read:
-
-```typescript
-toasts: {
-  success: (result) => `Release ${result.version} created`,
-  error: 'Could not create a Release',
-},
-```
 
 ## Cache Management
 
@@ -397,7 +394,7 @@ A query that fetches something another query owns writes its answer there too. `
 
 ### The `mergeListWithObject` Helper
 
-Located at [`util.ts:144-195`](../../src/renderer/queries/util.ts), this helper function merges individual objects into paginated list caches:
+Located in [`util.ts`](../../src/renderer/queries/util.ts), this helper function merges individual objects into paginated list caches:
 
 ```typescript
 function mergeListWithObject<T extends BaseFile>(

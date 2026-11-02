@@ -1,5 +1,8 @@
 import { t } from '@lingui/core/macro';
-import { queryOptions } from '@tanstack/react-query';
+import {
+  queryOptions,
+  type MutationFunctionContext,
+} from '@tanstack/react-query';
 
 import type {
   Component,
@@ -9,7 +12,26 @@ import type {
 } from '@elek-io/core';
 
 import { queryClient } from '../client';
+import { translateContentFromCache } from '../translateContentFromCache';
 import { customMutationOptions, mergeListWithObject } from '../util';
+
+/**
+ * A Component's name, which is what the app names a Component by.
+ *
+ * The name is stored per language, so it is read through the same chain a
+ * screen reads it through, rather than in whichever language happens to be
+ * filled in. See contributing/renderer/internationalization.md.
+ */
+function componentName(
+  component: Component,
+  projectId: string,
+  context: MutationFunctionContext
+): string {
+  return translateContentFromCache(context.client, projectId, {
+    key: 'component.name',
+    record: component.name,
+  });
+}
 
 export const componentOptions = {
   create: customMutationOptions({
@@ -19,7 +41,14 @@ export const componentOptions = {
       objectType: 'component',
     },
     toasts: {
-      success: () => t`Component created`,
+      success: (createdComponent, variables, context) => {
+        const name = componentName(
+          createdComponent,
+          variables.projectId,
+          context
+        );
+        return t`Component ${name} created`;
+      },
       error: () => t`Could not create the Component`,
     },
     onSuccess: (createdComponent, variables, _result, context) => {
@@ -65,7 +94,14 @@ export const componentOptions = {
       objectType: 'component',
     },
     toasts: {
-      success: () => t`Component saved`,
+      success: (updatedComponent, variables, context) => {
+        const name = componentName(
+          updatedComponent,
+          variables.projectId,
+          context
+        );
+        return t`Component ${name} saved`;
+      },
       error: () => t`Could not save the Component`,
     },
     onSuccess: async (updatedComponent, variables, _result, context) => {

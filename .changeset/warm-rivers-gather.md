@@ -9,6 +9,7 @@ Every word elek.io Desktop shows now comes from one English message catalog, in 
 Every message after a change says what happened to what, in your words:
 
 - "Project Autohaus Ebersfelde saved", "Collection deleted", "Changes synced", "Release 1.4.0 created", "Report sent". Until now each of these read as the name of the call that ran and the kind of object it ran on, such as "update project" or "create report", which said nothing to anybody who had not written the app.
+- A Collection or a Component you created or saved is named in its message, as "Collection Blog posts saved", by the same words the app names it by everywhere else, so one of fifteen Collections can be told from the other fourteen. An Entry's message says "Entry saved" instead, because what titles an Entry is one of its own fields rather than a name of its own.
 - A message after something failed says what did not happen, such as "Could not save the Collection" or "Sync failed". It never shows an error type, an id, the name of a call or what Git wrote.
 - A count is now one message with plural rules of its own, such as "1 Collection" and "3 Collections". A language that has more forms than English's two gets its own wording for each of them.
 

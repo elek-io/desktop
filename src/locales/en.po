@@ -467,8 +467,12 @@ msgid "Collection"
 msgstr "Collection"
 
 #: src/renderer/queries/options/collectionOptions.ts
-msgid "Collection created"
-msgstr "Collection created"
+msgid "Collection {name} created"
+msgstr "Collection {name} created"
+
+#: src/renderer/queries/options/collectionOptions.ts
+msgid "Collection {name} saved"
+msgstr "Collection {name} saved"
 
 #: src/renderer/queries/options/collectionOptions.ts
 msgid "Collection deleted"
@@ -477,10 +481,6 @@ msgstr "Collection deleted"
 #: src/renderer/components/forms/collection-form.tsx
 msgid "Collection name (Plural)"
 msgstr "Collection name (Plural)"
-
-#: src/renderer/queries/options/collectionOptions.ts
-msgid "Collection saved"
-msgstr "Collection saved"
 
 #: src/renderer/components/forms/collection-form.tsx
 msgid "Collection-Slug"
@@ -497,8 +497,12 @@ msgid "Component"
 msgstr "Component"
 
 #: src/renderer/queries/options/componentOptions.ts
-msgid "Component created"
-msgstr "Component created"
+msgid "Component {name} created"
+msgstr "Component {name} created"
+
+#: src/renderer/queries/options/componentOptions.ts
+msgid "Component {name} saved"
+msgstr "Component {name} saved"
 
 #: src/renderer/queries/options/componentOptions.ts
 msgid "Component deleted"
@@ -507,10 +511,6 @@ msgstr "Component deleted"
 #: src/renderer/components/forms/component-form.tsx
 msgid "Component name"
 msgstr "Component name"
-
-#: src/renderer/queries/options/componentOptions.ts
-msgid "Component saved"
-msgstr "Component saved"
 
 #: src/renderer/components/forms/component-form.tsx
 msgid "Component slug"

@@ -70,6 +70,8 @@ const title = translateContent({
 
 The chain itself lives in [`lib/translateContent.ts`](../../src/renderer/lib/translateContent.ts), and the provider only binds the two languages to it. A language a query has not answered yet is skipped rather than ending the chain, so a name resolves as soon as the record can answer it.
 
+Outside the React tree there is no `useProject()`, and that is where a mutation's toast is built. [`queries/translateContentFromCache.ts`](../../src/renderer/queries/translateContentFromCache.ts) takes the same two languages out of the query cache instead, under the keys the providers read them from, and runs the same chain. That is how the toast after a create or a save names a Collection or a Component: by the words every screen names it by, rather than through a second chain that could answer differently. An Entry has no name to read, since Core stores none on it, so its toast names the kind of object.
+
 ## Seeding multi-language form state (`translatableDefault`)
 
 When a form needs a `TranslatableString` field initialized for every supported language, use `translatableDefault` from [`lib/utils.ts`](../../src/renderer/lib/utils.ts) instead of building the record by hand:

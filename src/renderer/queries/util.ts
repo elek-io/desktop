@@ -93,8 +93,18 @@ export function customMutationOptions<
   ) => Promise<unknown> | unknown;
   meta: LogableMutationMeta;
   toasts: {
-    /** What happened, named by what it happened to where the answer carries it. */
-    success: (data: TData, variables: TVariables) => string;
+    /**
+     * What happened, named by what it happened to where the answer carries it.
+     *
+     * `context` carries the QueryClient, so content stored per language, such
+     * as a Collection's name, is read in the language a screen reads it in
+     * through `translateContentFromCache`.
+     */
+    success: (
+      data: TData,
+      variables: TVariables,
+      context: MutationFunctionContext
+    ) => string;
     /** What did not happen. It names no call, type, id or git output. */
     error: (variables: TVariables) => string;
   };
@@ -123,7 +133,7 @@ export function customMutationOptions<
           meta: errorLogAttributes(logableMutationMeta.error),
         });
       } else {
-        toast.success(toasts.success(data, variables));
+        toast.success(toasts.success(data, variables, context));
 
         await window.ipc.core.logger.info({
           source: 'desktop',

@@ -1,5 +1,8 @@
 import { t } from '@lingui/core/macro';
-import { queryOptions } from '@tanstack/react-query';
+import {
+  queryOptions,
+  type MutationFunctionContext,
+} from '@tanstack/react-query';
 
 import type {
   Collection,
@@ -9,7 +12,26 @@ import type {
 } from '@elek-io/core';
 
 import { queryClient } from '../client';
+import { translateContentFromCache } from '../translateContentFromCache';
 import { customMutationOptions, mergeListWithObject } from '../util';
+
+/**
+ * A Collection's name in plural, which is what the app names a Collection by.
+ *
+ * The name is stored per language, so it is read through the same chain a
+ * screen reads it through, rather than in whichever language happens to be
+ * filled in. See contributing/renderer/internationalization.md.
+ */
+function collectionName(
+  collection: Collection,
+  projectId: string,
+  context: MutationFunctionContext
+): string {
+  return translateContentFromCache(context.client, projectId, {
+    key: 'collection.name.plural',
+    record: collection.name.plural,
+  });
+}
 
 export const collectionOptions = {
   create: customMutationOptions({
@@ -19,7 +41,14 @@ export const collectionOptions = {
       objectType: 'collection',
     },
     toasts: {
-      success: () => t`Collection created`,
+      success: (createdCollection, variables, context) => {
+        const name = collectionName(
+          createdCollection,
+          variables.projectId,
+          context
+        );
+        return t`Collection ${name} created`;
+      },
       error: () => t`Could not create the Collection`,
     },
     onSuccess: (createdCollection, variables, _result, context) => {
@@ -65,7 +94,14 @@ export const collectionOptions = {
       objectType: 'collection',
     },
     toasts: {
-      success: () => t`Collection saved`,
+      success: (updatedCollection, variables, context) => {
+        const name = collectionName(
+          updatedCollection,
+          variables.projectId,
+          context
+        );
+        return t`Collection ${name} saved`;
+      },
       error: () => t`Could not save the Collection`,
     },
     onSuccess: (updatedCollection, variables, _result, context) => {
