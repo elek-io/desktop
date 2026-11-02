@@ -59,6 +59,8 @@ export async function resizeWindow(
   page: Page,
   size: { width: number; height: number }
 ): Promise<{ width: number; height: number }> {
+  let settled = size;
+
   await expect
     .poll(
       async () => {
@@ -81,7 +83,12 @@ export async function resizeWindow(
           return false;
         }
 
-        const settled = await windowSize(app);
+        // Read the size the window ended up with after it was laid out, inside
+        // the same attempt. A window manager that hands the old size back a
+        // frame later would otherwise pass a check taken before the bounce and
+        // leave the caller measuring a window of another size.
+        await waitForLayout(page);
+        settled = await windowSize(app);
         return (
           settled.width === wanted.width && settled.height === wanted.height
         );
@@ -89,9 +96,8 @@ export async function resizeWindow(
       { message: `the window never kept ${size.width}x${size.height}` }
     )
     .toBe(true);
-  await waitForLayout(page);
 
-  return windowSize(app);
+  return settled;
 }
 
 /** Two frames, so a resize has been laid out before anything is read. */
@@ -123,6 +129,51 @@ export async function windowButtonPosition(
     }
     return BrowserWindow.getAllWindows()[0]?.getWindowButtonPosition() ?? null;
   });
+}
+
+/**
+ * Keep every style the main process hands the window controls overlay.
+ *
+ * The overlay is Electron's and sits outside the document, so the renderer
+ * cannot read its colors and a spec has to watch the call instead. The
+ * window's own method is wrapped rather than replaced, so the window is styled
+ * exactly as it is without the recorder.
+ *
+ * macOS draws its traffic lights in the system's own colors and has no such
+ * method, so nothing is wrapped there and the list stays empty, which is the
+ * no-op the channel is on that system.
+ */
+export async function recordTitleBarOverlay(
+  app: ElectronApplication
+): Promise<void> {
+  await app.evaluate(({ BrowserWindow }) => {
+    globalThis.titleBarOverlayCalls = [];
+
+    if (process.platform === 'darwin') {
+      return;
+    }
+
+    const window = BrowserWindow.getAllWindows()[0];
+    if (window === undefined) {
+      throw new Error('No window to record the title bar overlay of');
+    }
+
+    const setTitleBarOverlay = window.setTitleBarOverlay.bind(window);
+    window.setTitleBarOverlay = (options): void => {
+      globalThis.titleBarOverlayCalls?.push(options);
+      setTitleBarOverlay(options);
+    };
+  });
+}
+
+/**
+ * Every style the overlay was given since `recordTitleBarOverlay`, newest
+ * last.
+ */
+export async function recordedTitleBarOverlays(
+  app: ElectronApplication
+): Promise<RecordedTitleBarOverlay[]> {
+  return app.evaluate(() => globalThis.titleBarOverlayCalls ?? []);
 }
 
 /**

@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 
+import { colors } from '@elek-io/branding';
+
 import { test } from '../fixtures/electronApp.js';
 import { contrastRatio, parseColor, toBytes } from '../helpers/color.js';
 import { navigate } from '../helpers/navigation.js';
@@ -9,6 +11,8 @@ import { setUserViaIpc } from '../helpers/user.js';
 import {
   HEADER_BAR_HEIGHT,
   MINIMUM_WINDOW_SIZE,
+  recordedTitleBarOverlays,
+  recordTitleBarOverlay,
   resizeWindow,
   setWindowTheme,
   WINDOW_CONTROLS_BAR_HEIGHT,
@@ -170,8 +174,8 @@ test.describe('The window', () => {
     expect(measured.panelRadius).toBe('12px');
     expect(measured.panel.x).toBe(measured.sidebar.width);
 
-    // The sidebar is 248 px including the gap, which is what puts its icons on
-    // the column the header lockup's ring sits on.
+    // The sidebar is the 248 px ci's Sidebar rule gives it, the gap to the
+    // panel included, which is its own padding.
     expect(measured.sidebar.width).toBe(248);
 
     // The panel is a surface on the ground, not the ground itself, and the
@@ -278,6 +282,14 @@ test.describe('The window', () => {
   }) => {
     await setUserViaIpc(mainWindow);
 
+    // Waited for through a locator, which retries until the bar is there.
+    // `#app` is empty until React renders, and the IPC round trip above waits
+    // only for the main process to answer, so the one-shot read below can
+    // otherwise land before the header has mounted.
+    await expect(
+      mainWindow.locator('header > .window-draggable-area')
+    ).toBeAttached();
+
     const bar = await mainWindow.evaluate(() => {
       const element = document.querySelector('header > .window-draggable-area');
       if (element === null) {
@@ -320,10 +332,58 @@ test.describe('The window', () => {
 
     test('places the traffic lights where the design draws them', async ({
       electronApp,
+      mainWindow,
     }) => {
+      // The window has to be open before it has buttons to place, and
+      // `mainWindow` is what waits for it. Without it the position is read, and
+      // the app is quit again, while the first window is still being created,
+      // and a window that opens during the quit cancels it, which on macOS
+      // leaves the app running with no window to close it (see
+      // `onAppAllWindowsClosed`).
+      await expect(mainWindow.locator('header')).toBeAttached();
+
       // 16 px in, and centered in the 32 px bar: the buttons are 12 px, so
       // 10 px down.
       expect(await windowButtonPosition(electronApp)).toEqual({ x: 16, y: 10 });
+    });
+  });
+
+  test('colors the window controls with the theme it is given', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    // The renderer tells the main process which theme it resolved to as soon
+    // as it mounts, so the recorder starts after that one call and reads only
+    // what the two below add.
+    await expect(
+      mainWindow.locator('header > .window-draggable-area')
+    ).toBeAttached();
+    await recordTitleBarOverlay(electronApp);
+
+    await setWindowTheme(mainWindow, 'light');
+    const afterLight = (await recordedTitleBarOverlays(electronApp)).at(-1);
+    await setWindowTheme(mainWindow, 'dark');
+    const afterDark = (await recordedTitleBarOverlays(electronApp)).at(-1);
+
+    // macOS has no overlay to restyle, so the channel sets nothing there and
+    // the traffic lights stay the system's own.
+    if (process.platform === 'darwin') {
+      expect(await recordedTitleBarOverlays(electronApp)).toEqual([]);
+      return;
+    }
+
+    // The ground the header sits on and the text color on it, read from the
+    // brand package rather than written out, and the height of the bar the app
+    // left the controls.
+    expect(afterLight).toEqual({
+      color: colors.light.sidebar.hex,
+      symbolColor: colors.light.foreground.hex,
+      height: WINDOW_CONTROLS_BAR_HEIGHT,
+    });
+    expect(afterDark).toEqual({
+      color: colors.dark.sidebar.hex,
+      symbolColor: colors.dark.foreground.hex,
+      height: WINDOW_CONTROLS_BAR_HEIGHT,
     });
   });
 

@@ -103,6 +103,21 @@ interface RecordedLog {
 declare var recordedLogs: RecordedLog[] | undefined;
 
 /**
+ * One style the main process handed the window controls overlay.
+ *
+ * Electron's own option shape, whose three keys the app always fills. Kept in
+ * the main process, where the window is, see tests/helpers/window.ts.
+ */
+interface RecordedTitleBarOverlay {
+  color?: string;
+  symbolColor?: string;
+  height?: number;
+}
+
+// eslint-disable-next-line no-var
+declare var titleBarOverlayCalls: RecordedTitleBarOverlay[] | undefined;
+
+/**
  * Every address the app asked the system to open, kept in the main process the
  * same way. See tests/helpers/external.ts.
  */
