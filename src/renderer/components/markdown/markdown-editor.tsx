@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import {
   Editor,
   editorViewCtx,
@@ -162,7 +163,9 @@ const MarkdownEditorInner = ({
       <Milkdown />
       {bridgeError !== null ? (
         <p className="border-t border-border p-2 text-sm text-error">
-          The content could not be read from the editor: {bridgeError}
+          <Trans>
+            The content could not be read from the editor: {bridgeError}
+          </Trans>
         </p>
       ) : null}
     </div>

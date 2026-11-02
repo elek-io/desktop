@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { editorViewCtx, type CmdKey } from '@milkdown/kit/core';
 import {
   createCodeBlockCommand,
@@ -68,6 +68,8 @@ export const MarkdownToolbar = ({
   fieldDefinition,
   disabled,
 }: MarkdownToolbarProps): ReactElement | null => {
+  const { t } = useLingui();
+
   const features = fieldDefinition.features;
   const [isLoading, getEditor] = useInstance();
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -152,7 +154,7 @@ export const MarkdownToolbar = ({
                 run(turnIntoTextCommand.key);
               }}
             >
-              <PilcrowIcon /> Paragraph
+              <PilcrowIcon /> <Trans>Paragraph</Trans>
             </DropdownMenuItem>
             {features.headings.map((depth) => (
               <DropdownMenuItem
@@ -161,7 +163,7 @@ export const MarkdownToolbar = ({
                   run(wrapInHeadingCommand.key, depth);
                 }}
               >
-                Heading {depth}
+                <Trans>Heading {depth}</Trans>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -169,69 +171,69 @@ export const MarkdownToolbar = ({
       ) : null}
 
       {features.strong
-        ? button('Bold', <BoldIcon />, () => {
+        ? button(t`Bold`, <BoldIcon />, () => {
             run(toggleStrongCommand.key);
           })
         : null}
       {features.emphasis
-        ? button('Italic', <ItalicIcon />, () => {
+        ? button(t`Italic`, <ItalicIcon />, () => {
             run(toggleEmphasisCommand.key);
           })
         : null}
       {features.inlineCode
-        ? button('Inline code', <CodeIcon />, () => {
+        ? button(t`Inline code`, <CodeIcon />, () => {
             run(toggleInlineCodeCommand.key);
           })
         : null}
       {features.strikethrough
-        ? button('Strikethrough', <StrikethroughIcon />, () => {
+        ? button(t`Strikethrough`, <StrikethroughIcon />, () => {
             run(toggleStrikethroughCommand.key);
           })
         : null}
 
       {features.lists
-        ? button('Bullet list', <ListIcon />, () => {
+        ? button(t`Bullet list`, <ListIcon />, () => {
             run(wrapInBulletListCommand.key);
           })
         : null}
       {features.lists
-        ? button('Ordered list', <ListOrderedIcon />, () => {
+        ? button(t`Ordered list`, <ListOrderedIcon />, () => {
             run(wrapInOrderedListCommand.key);
           })
         : null}
       {features.blockquotes
-        ? button('Blockquote', <TextQuoteIcon />, () => {
+        ? button(t`Blockquote`, <TextQuoteIcon />, () => {
             run(wrapInBlockquoteCommand.key);
           })
         : null}
       {features.codeBlocks
-        ? button('Code block', <SquareCodeIcon />, () => {
+        ? button(t`Code block`, <SquareCodeIcon />, () => {
             run(createCodeBlockCommand.key);
           })
         : null}
       {features.tables
-        ? button('Table', <TableIcon />, () => {
+        ? button(t`Table`, <TableIcon />, () => {
             run(insertTableCommand.key, {});
           })
         : null}
       {features.thematicBreak
-        ? button('Thematic break', <MinusIcon />, () => {
+        ? button(t`Thematic break`, <MinusIcon />, () => {
             run(insertHrCommand.key);
           })
         : null}
 
       {features.externalLinks
-        ? button('Link', <LinkIcon />, () => {
+        ? button(t`Link`, <LinkIcon />, () => {
             setIsLinkDialogOpen(true);
           })
         : null}
       {features.assetReferences
-        ? button('Reference an Asset', <ImagePlusIcon />, () => {
+        ? button(t`Reference an Asset`, <ImagePlusIcon />, () => {
             setIsAssetPickerOpen(true);
           })
         : null}
       {features.entryReferences
-        ? button('Reference an Entry', <ListPlusIcon />, () => {
+        ? button(t`Reference an Entry`, <ListPlusIcon />, () => {
             setIsEntryPickerOpen(true);
           })
         : null}

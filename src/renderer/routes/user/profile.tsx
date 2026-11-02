@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -55,8 +55,10 @@ export const Route = createFileRoute('/user/profile')({
 });
 
 function UserProfilePage(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
-  useBreadcrumb(Route, 'Profile');
+  useBreadcrumb(Route, t`Profile`);
   const {
     userQuery: { data: user, isPending: isGettingUser },
   } = useUser();
@@ -129,26 +131,21 @@ function UserProfilePage(): ReactElement {
   function Description(): ReactElement {
     if (user === null) {
       return (
-        <>
+        <Trans>
           Before we start you need to set up a local User first. Don&apos;t
           worry, you are not creating an account and this information is only
           saved locally on this device! Read more about{' '}
-          <a href="#">
-            <Trans>local Users in our documentation</Trans>
-          </a>{' '}
-          if you have questions about this step.
-        </>
+          <a href="#">local Users in our documentation</a> if you have questions
+          about this step.
+        </Trans>
       );
     }
 
     return (
-      <>
+      <Trans>
         By editing your Users details, ... Read more about{' '}
-        <a href="#">
-          <Trans>local Users in our documentation</Trans>
-        </a>
-        .
-      </>
+        <a href="#">local Users in our documentation</a>.
+      </Trans>
     );
   }
 
@@ -164,14 +161,14 @@ function UserProfilePage(): ReactElement {
 
   function LocalApiDescription(): ReactElement {
     return (
-      <>
+      <Trans>
         Use the local API to read data from your local Projects. The local API
         is only accessible on this device. You can access it at{' '}
         <a href={localApiUrl} target="_blank" rel="noreferrer">
           {localApiUrl}
         </a>{' '}
         once it is enabled.
-      </>
+      </Trans>
     );
   }
 
@@ -198,7 +195,7 @@ function UserProfilePage(): ReactElement {
 
   return (
     <Page
-      title={user === null ? 'Welcome to elek.io Desktop' : 'User profile'}
+      title={user === null ? t`Welcome to elek.io Desktop` : t`User profile`}
       description={<Description />}
       actions={<Actions />}
     >
@@ -211,8 +208,8 @@ function UserProfilePage(): ReactElement {
             mode={isGettingUser ? 'view' : 'edit'}
           >
             <PageSection
-              title="Local User"
-              description="Fill out your information below and watch it influence how your future changes will look like on the right."
+              title={t`Local User`}
+              description={t`Fill out your information below and watch it influence how your future changes will look like on the right.`}
               className="rounded-t-xl border-t-0"
             >
               <div className="grid gap-6">
@@ -245,17 +242,20 @@ function UserProfilePage(): ReactElement {
                         </Select>
                       </FormControl>
                       <FormDescription>
-                        Changing your preferred language will attempt to
-                        translate everything you see in elek.io Desktop. You can
-                        help translate elek.io Desktop by contributing to our{' '}
-                        <a
-                          href="https://github.com/elek-io/desktop"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <Trans>GitHub repository</Trans>
-                        </a>
-                        .
+                        <Trans>
+                          Changing your preferred language will attempt to
+                          translate everything you see in elek.io Desktop. You
+                          can help translate elek.io Desktop by contributing to
+                          our{' '}
+                          <a
+                            href="https://github.com/elek-io/desktop"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            GitHub repository
+                          </a>
+                          .
+                        </Trans>
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -306,7 +306,7 @@ function UserProfilePage(): ReactElement {
               </div>
             </PageSection>
             <PageSection
-              title="Local API"
+              title={t`Local API`}
               description={<LocalApiDescription />}
             >
               <div className="grid gap-6">
@@ -364,8 +364,8 @@ function UserProfilePage(): ReactElement {
         </Card>
         <aside className="grid grid-cols-1">
           <PageSection
-            title="Example change"
-            description="This is how a change made by you will look like based on the information you've given on the left."
+            title={t`Example change`}
+            description={t`This is how a change made by you will look like based on the information you've given on the left.`}
             standalone
           >
             <CommitHistory projectId="1" commits={[exampleCommit]} disabled />

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { Plus, TrashIcon } from 'lucide-react';
 import { useEffect, useId, useState, type ReactElement } from 'react';
 import { useFieldArray, useWatch, type UseFormReturn } from 'react-hook-form';
@@ -169,6 +169,9 @@ function StringSelectOptionRow({
   supportedLanguages: SupportedLanguage[];
   onRemove: (() => void) | undefined;
 }): ReactElement {
+  const { t } = useLingui();
+
+  const position = index + 1;
   const labelValue = useWatch({
     control: form.control,
     name: `options.${index}.label.${currentLanguage}`,
@@ -189,10 +192,10 @@ function StringSelectOptionRow({
           <FormItem className="flex-1">
             {/* sr-only labels name the option inputs for screen readers and for
             role/label based E2E, which the old option rows lacked. */}
-            <FormLabel className="sr-only">{`Option ${index + 1} label`}</FormLabel>
+            <FormLabel className="sr-only">{t`Option ${position} label`}</FormLabel>
             <TranslatableFormInputField
-              title="Label"
-              description="The label users see for this option."
+              title={t`Label`}
+              description={t`The label users see for this option.`}
               type="text"
               field={field}
               errors={form.formState.errors}
@@ -207,7 +210,7 @@ function StringSelectOptionRow({
         name={`options.${index}.value`}
         render={({ field }) => (
           <FormItem className="flex-1">
-            <FormLabel className="sr-only">{`Option ${index + 1} value`}</FormLabel>
+            <FormLabel className="sr-only">{t`Option ${position} value`}</FormLabel>
             <FormControl>
               {/* Option values are plain strings, not nullable Values, so the
                   null-for-empty transform of FormInputField does not apply */}
@@ -225,7 +228,7 @@ function StringSelectOptionRow({
         disabled={onRemove === undefined}
         onClick={onRemove}
       >
-        <span className="sr-only">{`Remove option ${index + 1}`}</span>
+        <span className="sr-only">{t`Remove option ${position}`}</span>
       </Button>
     </div>
   );
@@ -236,6 +239,7 @@ function StringSelectExtras({
   currentLanguage,
   supportedLanguages,
 }: DefinitionExtrasProps<StringSelectFieldDefinition>): ReactElement {
+  const { t } = useLingui();
   const options = useFieldArray({ control: form.control, name: 'options' });
   const watchedOptions = useWatch({ control: form.control, name: 'options' });
 
@@ -250,7 +254,8 @@ function StringSelectExtras({
     if (option.value !== '') {
       return option.value;
     }
-    return `Option ${String(index + 1)}`;
+    const position = index + 1;
+    return t`Option ${position}`;
   };
   const items = watchedOptions.map((option, index) => ({
     itemValue: String(index),
@@ -347,6 +352,10 @@ function NumberSelectOptionRow({
   supportedLanguages: SupportedLanguage[];
   onRemove: (() => void) | undefined;
 }): ReactElement {
+  const { t } = useLingui();
+
+  const position = index + 1;
+
   return (
     <div className="flex items-start gap-2">
       <FormField
@@ -354,10 +363,10 @@ function NumberSelectOptionRow({
         name={`options.${index}.label.${currentLanguage}`}
         render={({ field }) => (
           <FormItem className="flex-1">
-            <FormLabel className="sr-only">{`Option ${index + 1} label`}</FormLabel>
+            <FormLabel className="sr-only">{t`Option ${position} label`}</FormLabel>
             <TranslatableFormInputField
-              title="Label"
-              description="The label users see for this option."
+              title={t`Label`}
+              description={t`The label users see for this option.`}
               type="text"
               field={field}
               errors={form.formState.errors}
@@ -372,7 +381,7 @@ function NumberSelectOptionRow({
         name={`options.${index}.value`}
         render={({ field }) => (
           <FormItem className="flex-1">
-            <FormLabel className="sr-only">{`Option ${index + 1} value`}</FormLabel>
+            <FormLabel className="sr-only">{t`Option ${position} value`}</FormLabel>
             <FormControl>
               <FormInputField type="number" field={field} />
             </FormControl>
@@ -388,7 +397,7 @@ function NumberSelectOptionRow({
         disabled={onRemove === undefined}
         onClick={onRemove}
       >
-        <span className="sr-only">{`Remove option ${index + 1}`}</span>
+        <span className="sr-only">{t`Remove option ${position}`}</span>
       </Button>
     </div>
   );
@@ -550,6 +559,8 @@ const numberSelectSpec: DefinitionSpec<NumberSelectFieldDefinition> = {
 export function SelectDefinitionDraft(
   props: DefinitionDraftProps
 ): ReactElement {
+  // The variant the draft opens on, which is a value type rather than a word.
+  // eslint-disable-next-line lingui/no-unlocalized-strings
   const [valueType, setValueType] = useState<SelectValueType>('string');
 
   return (

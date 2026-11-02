@@ -296,8 +296,10 @@ export default [
             // An address, a protocol or the first half of a mime type.
             '^(https?|elek-io-local-file|mailto|git@)',
             '^(image|video|audio|text|application)/',
-            // A CSS custom property's value, such as var(--popover).
+            // A CSS custom property's value, such as var(--popover), and a CSS
+            // length.
             '^var\\(--',
+            '^\\d+(\\.\\d+)?(rem|px|em|%)$',
             // A date-fns format, such as Pp, and the ISO anchors around a
             // stored date, time or datetime.
             '^[Pp]{1,2}$',
@@ -355,6 +357,11 @@ export default [
             'purpose',
             'month',
             'aria-hidden',
+            // shadcn's sidebar marks each of its parts with this prop, the way
+            // the other components use `data-slot`.
+            'sidebar',
+            // A Tailwind class list a Milkdown node renders itself with.
+            'chipClass',
             // An SVG's geometry.
             'd',
             'viewBox',
@@ -419,6 +426,12 @@ export default [
             '$command',
             '$useKeymap',
             '$remark',
+            '*.addNode',
+            '*.openNode',
+            '*.setMeta',
+            // A programming error that only a developer reads, raised by the
+            // markdown bridge rather than shown anywhere.
+            'MdastBridgeError',
             // The mdast bridge's own readers, which take an attribute's name.
             'text',
             'textOrNull',

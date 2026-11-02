@@ -2,7 +2,7 @@
 
 import { mergeProps } from '@base-ui/react/merge-props';
 import { useRender } from '@base-ui/react/use-render';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type VariantProps } from 'class-variance-authority';
 import { PanelLeftIcon } from 'lucide-react';
 import * as React from 'react';
@@ -25,11 +25,15 @@ import {
 import { cn } from '@renderer/lib/utils';
 import { sidebarMenuButtonVariants } from '@renderer/lib/variants';
 
+// The cookie, the shortcut key and the two data-state values shadcn's sidebar
+// keeps its open state in. None of it reaches a screen.
+/* eslint-disable lingui/no-unlocalized-strings */
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = '16rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
+/* eslint-enable lingui/no-unlocalized-strings */
 
 function SidebarProvider({
   defaultOpen = true,
@@ -61,6 +65,7 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
+      // eslint-disable-next-line lingui/no-unlocalized-strings
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open]
@@ -89,6 +94,7 @@ function SidebarProvider({
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
+  // eslint-disable-next-line lingui/no-unlocalized-strings
   const state = open ? 'expanded' : 'collapsed';
 
   const contextValue = React.useMemo<SidebarContextProps>(
@@ -182,16 +188,18 @@ function SidebarRail({
   className,
   ...props
 }: React.ComponentProps<'button'>): React.JSX.Element {
+  const { t } = useLingui();
+
   const { toggleSidebar } = useSidebar();
 
   return (
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
+      aria-label={t`Toggle Sidebar`}
       tabIndex={-1}
       onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      title={t`Toggle Sidebar`}
       className={cn(
         'absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2',
         'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
