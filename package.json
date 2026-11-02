@@ -45,7 +45,6 @@
   "dependencies": {
     "@elek-io/core": "0.26.0",
     "@lingui/core": "6.11.0",
-    "@lingui/react": "6.11.0",
     "dugite": "3.3.2",
     "electron-updater": "6.8.11",
     "zod": "4.6.7"
@@ -70,6 +69,7 @@
     "@lingui/cli": "6.11.0",
     "@lingui/conf": "6.11.0",
     "@lingui/format-po": "6.11.0",
+    "@lingui/react": "6.11.0",
     "@lingui/vite-plugin": "6.11.0",
     "@milkdown/kit": "7.23.0",
     "@milkdown/react": "7.23.0",
