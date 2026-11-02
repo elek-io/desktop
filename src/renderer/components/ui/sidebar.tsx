@@ -130,10 +130,9 @@ function SidebarProvider({
 // collapses and never turns into a sheet, so this replaces the registry's
 // off-canvas Sidebar. Every other part below is the registry's.
 //
-// It is 248 px wide including its padding, which puts its icons, its group
-// labels and the Project card on one column 23 px from the window's edge, the
-// column the header lockup's ring sits on. Its own padding is the gap to the
-// panel, so the panel takes none on that side.
+// It is 248 px wide including its padding, which is ci's Sidebar width. Its
+// left padding of 12 px is where ci starts a row, and its right padding is the
+// gap to the panel, so the panel takes none on that side.
 function Sidebar({
   className,
   ...props

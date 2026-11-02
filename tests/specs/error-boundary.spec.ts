@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 import { IPC_CORE_ERROR_SENTINEL } from '../../src/shared/ipcError.js';
 import { test } from '../fixtures/electronApp.js';
+import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import { navigate, verifyCurrentRouteHash } from '../helpers/navigation.js';
 import { closeReportDialog, reportDialog } from '../helpers/report.js';
 import { setUserViaIpc } from '../helpers/user.js';
@@ -49,10 +50,12 @@ test.describe('Not found', () => {
 });
 
 test.describe('Root error boundary', () => {
-  test('a failed route read renders the error boundary and recovers', async ({
+  test('a failed route read renders the error boundary, logs it and recovers', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
+    await recordLogsViaIpc(electronApp);
     await openErrorBoundary(mainWindow);
 
     // The desktop app shows a decoded message (via parseIpcError) and, in the
@@ -71,6 +74,21 @@ test.describe('Root error boundary', () => {
     await expect(errorMessage).toBeVisible();
     await expect(mainWindow.getByRole('main')).not.toContainText(
       IPC_CORE_ERROR_SENTINEL
+    );
+
+    // It logs what it caught, the way a pane's boundary logs what it catches,
+    // so the error that took the whole view is in the log file with its type,
+    // message and stack.
+    const records = await recordedLogs(electronApp);
+    const logged = records.filter(
+      (record) =>
+        record.level === 'error' &&
+        record.message.startsWith('Uncaught route error')
+    );
+    expect(logged).toHaveLength(1);
+    expect(logged[0]?.source).toBe('desktop');
+    expect(Object.keys(logged[0]?.meta ?? {})).toContain(
+      'exception.stacktrace'
     );
 
     // Recovery: Back to Projects returns to the Projects list and the app is

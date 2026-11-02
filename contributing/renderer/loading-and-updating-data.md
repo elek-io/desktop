@@ -173,7 +173,7 @@ We prioritize fast, responsive UI by rendering pages immediately without waiting
 
 **Pattern:** Show Skeleton components while data loads, then replace them with actual content when ready.
 
-**Nothing moves while a pane loads.** [`Skeleton`](../../src/renderer/components/ui/skeleton.tsx) is a still placeholder in the muted surface, not a pulse, because the design rules out motion while a page loads. It is the one skeleton: a screen does not write its own `bg-muted` placeholder, and a list uses `SkeletonRows` from the same file, which draws the rows of a list in the geometry of a real row and carries the `aria-busy` label that says what is being read. `tests/specs/panes.spec.ts` reads the computed animation of every skeleton in a loading pane, so a pulse put back anywhere fails a test.
+**Nothing moves while a pane loads.** [`Skeleton`](../../src/renderer/components/ui/skeleton.tsx) is a still placeholder in the muted surface, not a pulse, because the design rules out motion while a page loads. It is the one skeleton: a screen does not write its own `bg-muted` placeholder, and a list uses `SkeletonRows` from the same file, which draws the rows of a list in the geometry of a real row and carries the `aria-busy` label that says what is being read. `tests/specs/panes.spec.ts` drives one loading pane, the History's list of changes, and reads both the computed animation of every skeleton on that screen and whether the document runs any animation at all, so a pulse put back on that screen fails a test. A pulse somewhere no spec drives does not.
 
 **Example:** See [`routes/projects/index.tsx`](../../src/renderer/routes/projects/index.tsx)
 

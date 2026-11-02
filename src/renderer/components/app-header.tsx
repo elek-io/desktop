@@ -59,9 +59,9 @@ const DOCS_URL = 'https://elek.io/en/documentation';
  * into it, so the header below it looks the same on every system and a window
  * menu has room later.
  *
- * The second bar is 48 px: the header lockup on the column of the sidebar's
- * icons, which leads to the Projects page, then what the main panel navigates
- * with, and Help and the user on the right.
+ * The second bar is 48 px: the header lockup 23 px in, which leads to the
+ * Projects page, then what the main panel navigates with, and Help and the user
+ * on the right.
  *
  * `trail` and `user` are slots rather than parts of this component, because the
  * root error screen renders the header outside `UserProvider` and
@@ -87,9 +87,10 @@ export function AppHeader({
         className="col-start-1 row-start-2 ml-[23px] self-center justify-self-start no-underline"
       >
         {/*
-          The header lockup, whose ring of 16 px covers the column of the
-          sidebar's icons. Each file is drawn for exactly 24 px, so neither is
-          scaled, and the theme decides which of the two is shown.
+          The header lockup, whose ring of 16 px starts 23 px in, the column
+          ci draws the sidebar's icons on. Each file is drawn for exactly 24 px,
+          so neither is scaled, and the theme decides which of the two is
+          shown.
         */}
         <img src={lockupLight} alt="" className="h-6 w-auto dark:hidden" />
         <img src={lockupDark} alt="" className="hidden h-6 w-auto dark:block" />
