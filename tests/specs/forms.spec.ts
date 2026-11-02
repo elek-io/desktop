@@ -326,6 +326,15 @@ test.describe('A form filled from its query', () => {
       mainWindow.getByLabel('Collection-Slug', { exact: true })
     ).toBeVisible();
 
+    // A Collection's settings say what each field needs the same way an Entry
+    // does: its hand-written fields off Core's Collection schema, which caps a
+    // slug at 128 characters, and the preview of each field definition off
+    // that definition.
+    expect(await rulesOf(mainWindow, 'Collection-Slug')).toBe(
+      'Required, up to 128 characters'
+    );
+    expect(await rulesOf(mainWindow, 'Title')).toBe('Required');
+
     const settingsFields = await fieldsOf(mainWindow);
     expect(settingsFields.length).toBeGreaterThan(0);
     expect(settingsFields.filter((field) => field.hasShell === false)).toEqual(

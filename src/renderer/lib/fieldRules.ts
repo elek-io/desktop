@@ -23,9 +23,6 @@ export interface FieldRules {
   words: string[];
 }
 
-/** A field with nothing to say, such as a toggle, which always holds a Value. */
-export const noFieldRules: FieldRules = { required: false, words: [] };
-
 /**
  * The rules of a field, with Required leading them where it holds.
  *
