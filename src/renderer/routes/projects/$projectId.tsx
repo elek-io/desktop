@@ -24,7 +24,12 @@ function ProjectLayoutContent(): React.JSX.Element {
         none on that side.
       */}
       <Panel className="ml-0">
-        <Pane>
+        {/*
+          Whatever screen of the Project is open renders in here, so the name
+          is the broadest of them. A screen that splits the panel into panes of
+          its own names each of them.
+        */}
+        <Pane name="what this screen shows">
           <Outlet />
         </Pane>
       </Panel>

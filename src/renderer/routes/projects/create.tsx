@@ -66,7 +66,7 @@ function CreateProjectPage(): ReactElement {
 
   return (
     <Panel>
-      <Pane>
+      <Pane name="what this screen shows">
         <Page
           title="Create a new Project"
           description={<Description />}

@@ -14,9 +14,15 @@ export const Route = createFileRoute('/projects/$projectId/collections')({
   component: ProjectCollectionsLayout,
 });
 
-function ProjectCollectionsLayout(): ReactElement {
-  const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Collections');
+/**
+ * The list of Collections, read inside the pane that shows it.
+ *
+ * A component of its own, so the list's own read is answered in the list's
+ * pane. Read in the layout above both panes it would take the Collection
+ * beside it down with it, which does not depend on it. See
+ * contributing/error-handling.md.
+ */
+function CollectionList({ projectId }: { projectId: string }): ReactElement {
   const { data: collections, isPending: isListingCollections } =
     useQueryNoError(
       queryOptions.collections.list({
@@ -25,16 +31,23 @@ function ProjectCollectionsLayout(): ReactElement {
       })
     );
 
+  if (isListingCollections) {
+    return <CollectionsSidebarSkeleton projectId={projectId} />;
+  }
+
+  return <CollectionsSidebar projectId={projectId} collections={collections} />;
+}
+
+function ProjectCollectionsLayout(): ReactElement {
+  const { projectId } = Route.useParams();
+  useBreadcrumb(Route, 'Collections');
+
   return (
     <Panes>
-      <Pane width="list">
-        {isListingCollections ? (
-          <CollectionsSidebarSkeleton projectId={projectId} />
-        ) : (
-          <CollectionsSidebar projectId={projectId} collections={collections} />
-        )}
+      <Pane width="list" name="the Collections of this Project">
+        <CollectionList projectId={projectId} />
       </Pane>
-      <Pane>
+      <Pane name="what this screen shows">
         <Outlet />
       </Pane>
     </Panes>

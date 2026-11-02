@@ -51,13 +51,59 @@ export const Route = createFileRoute('/projects/')({
   component: ListProjectsPage,
 });
 
-function ListProjectsPage(): ReactElement {
-  const router = useRouter();
+/**
+ * The Projects themselves, read inside the pane that shows them.
+ *
+ * A component of its own, because the read is what the pane answers for: the
+ * boundary only catches what is thrown below it, so a read in the route
+ * component above the pane would take the whole window to the error screen
+ * instead. See contributing/error-handling.md.
+ */
+function ProjectList(): ReactElement {
   const { data: projects, isPending: isListingProjects } = useQueryNoError(
     queryOptions.projects.list({
       limit: 0,
     })
   );
+
+  if (isListingProjects) {
+    return (
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        {[1, 2, 3, 4, 5].map((i) => {
+          return <ProjectCardSkeleton key={i} />;
+        })}
+      </div>
+    );
+  }
+
+  if (projects.total === 0) {
+    return (
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Plus />
+          </EmptyMedia>
+          <EmptyTitle>No Projects yet</EmptyTitle>
+          <EmptyDescription>
+            You haven&apos;t created any Projects yet. Get started by creating a
+            new or cloning an existing Project.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      {projects.list.map((project) => {
+        return <ProjectCard key={project.id} project={project} />;
+      })}
+    </div>
+  );
+}
+
+function ListProjectsPage(): ReactElement {
+  const router = useRouter();
   const cloneProjectForm = useForm<CloneProjectProps>({
     resolver: zodResolver(cloneProjectSchema),
     defaultValues: {
@@ -122,38 +168,13 @@ function ListProjectsPage(): ReactElement {
   return (
     <>
       <Panel>
-        <Pane>
+        <Pane name="your Projects">
           <Page
             title="Projects"
             description={<Description />}
             actions={<Actions />}
           >
-            {isListingProjects ? (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {[1, 2, 3, 4, 5].map((i) => {
-                  return <ProjectCardSkeleton key={i} />;
-                })}
-              </div>
-            ) : projects.total === 0 ? (
-              <Empty className="border border-dashed">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Plus />
-                  </EmptyMedia>
-                  <EmptyTitle>No Projects yet</EmptyTitle>
-                  <EmptyDescription>
-                    You haven&apos;t created any Projects yet. Get started by
-                    creating a new or cloning an existing Project.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {projects.list.map((project) => {
-                  return <ProjectCard key={project.id} project={project} />;
-                })}
-              </div>
-            )}
+            <ProjectList />
           </Page>
         </Pane>
       </Panel>

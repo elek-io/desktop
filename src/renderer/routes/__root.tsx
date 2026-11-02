@@ -104,7 +104,8 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
       <AppHeader />
       <AppGround>
         <Panel>
-          <Pane>
+          {/* Nothing in here is read, so the name is never shown. */}
+          <Pane name="what this screen shows">
             <Page
               title="Error"
               description={<Description />}
@@ -179,7 +180,7 @@ function NotFoundComponent(): ReactElement {
       <AppHeader />
       <AppGround>
         <Panel>
-          <Pane>
+          <Pane name="what this screen shows">
             <Page
               title="Not Found"
               description={<Description />}

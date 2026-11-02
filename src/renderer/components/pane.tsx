@@ -84,8 +84,11 @@ function Pane({
     /**
      * What this pane holds, in the words the failed-read sentence reads with,
      * such as "the History of this Entry".
+     *
+     * Required, so a new pane cannot ship saying only that it cannot read what
+     * belongs here.
      */
-    name?: string;
+    name: string;
   }): React.JSX.Element {
   return (
     <div
@@ -134,7 +137,7 @@ function PaneBoundary({
   name,
   children,
 }: {
-  name: string | undefined;
+  name: string;
   children: ReactNode;
 }): ReactElement {
   const location = useRouterState({ select: (state) => state.location.href });
@@ -158,11 +161,15 @@ function PaneBoundary({
 /**
  * What the pane's name is and how its queries are reset, for the one component
  * `CatchBoundary` renders, which it only ever hands an error and a reset.
+ *
+ * The default value is `createContext`'s own requirement and is never read:
+ * the only component that reads this context is rendered by the boundary
+ * inside the provider, and every pane passes a name.
  */
 const PaneContext = createContext<{
-  name: string | undefined;
+  name: string;
   resetQueries: () => void;
-}>({ name: undefined, resetQueries: () => undefined });
+}>({ name: 'what belongs here', resetQueries: () => undefined });
 
 /**
  * One sentence in the pane's place, and Try again.
@@ -204,7 +211,7 @@ function PaneReadFailed({ error, reset }: ErrorComponentProps): ReactElement {
       role="alert"
       className="flex flex-col items-start gap-3 px-(--pane-edge) py-4"
     >
-      <p>Desktop can&apos;t read {name ?? 'what belongs here'}.</p>
+      <p>Desktop can&apos;t read {name}.</p>
       <Button
         variant="outline"
         size="sm"

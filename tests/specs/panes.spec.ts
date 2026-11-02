@@ -56,8 +56,8 @@ test.describe('A pane that is still reading', () => {
     });
 
     // Still rows in the muted surface: ci rules out the pulse, since nothing
-    // moves while a page loads. Nothing in the whole document runs an
-    // animation, which is what catches a pulse put back anywhere else too.
+    // moves while a page loads. Nothing in this document runs an animation
+    // either, which catches a pulse put back anywhere else on this screen.
     expect(measured.count).toBeGreaterThan(0);
     expect(measured.animations).toEqual(['none']);
     expect(measured.running).toBe(0);
@@ -115,6 +115,37 @@ test.describe('A pane whose read fails', () => {
     expect(Object.keys(logged[0]?.meta ?? {})).toContain(
       'exception.stacktrace'
     );
+  });
+
+  test('names what it holds, on a screen that is one pane', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+
+    // The Projects page is the panel's only pane, and its own read. A read in
+    // the route component above the pane would take the whole window to the
+    // error screen instead, so this is where that is caught.
+    await stubCoreReject(electronApp, 'core:projects:list');
+    await navigate(mainWindow, '#/projects');
+
+    // Every pane says what it could not read, in its own words, rather than
+    // that it cannot read what belongs here.
+    await expect(
+      mainWindow.locator('[data-slot="pane"] [role="alert"]')
+    ).toContainText("Desktop can't read your Projects.", { timeout: 20000 });
+
+    // The window keeps working around it: the header is there and the root
+    // error screen did not take over.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeHidden();
+    await expect(
+      mainWindow.getByRole('link', { name: 'elek.io Desktop, Projects' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Try again' })
+    ).toBeVisible();
   });
 
   test('reads again when Try again is pressed', async ({

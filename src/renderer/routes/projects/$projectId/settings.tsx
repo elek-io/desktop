@@ -47,7 +47,7 @@ function ProjectSettingsLayout(): ReactElement {
 
   return (
     <Panes>
-      <Pane width="list">
+      <Pane width="list" name="the Settings of this Project">
         <ScrollArea>
           <SidebarHeader />
           <SidebarContent>
@@ -79,7 +79,7 @@ function ProjectSettingsLayout(): ReactElement {
           </SidebarContent>
         </ScrollArea>
       </Pane>
-      <Pane>
+      <Pane name="these Settings">
         <Outlet />
       </Pane>
     </Panes>

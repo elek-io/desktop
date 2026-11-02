@@ -28,7 +28,7 @@ function ProjectHistoryLayout(): ReactElement {
           <HistorySidebar project={project} />
         )}
       </Pane>
-      <Pane>
+      <Pane name="this change">
         <Outlet />
       </Pane>
     </Panes>

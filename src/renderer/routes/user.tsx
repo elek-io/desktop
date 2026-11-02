@@ -13,7 +13,7 @@ function UserLayout(): ReactElement {
 
   return (
     <Panel>
-      <Pane>
+      <Pane name="your Profile">
         <Outlet />
       </Pane>
     </Panel>
