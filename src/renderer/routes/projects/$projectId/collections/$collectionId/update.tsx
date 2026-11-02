@@ -269,19 +269,15 @@ function ProjectCollectionUpdate(): ReactElement {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      render={
-                        <Button
-                          variant="destructive"
-                          onClick={() =>
-                            onDelete({
-                              projectId,
-                              id: collectionId,
-                            })
-                          }
-                        />
+                      variant="destructive"
+                      Icon={Trash}
+                      onClick={() =>
+                        onDelete({
+                          projectId,
+                          id: collectionId,
+                        })
                       }
                     >
-                      <Trash className="mr-2 h-4 w-4" />
                       Yes, delete this Collection
                     </AlertDialogAction>
                   </AlertDialogFooter>

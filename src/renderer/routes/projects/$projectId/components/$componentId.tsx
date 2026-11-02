@@ -292,13 +292,9 @@ function ProjectComponentUpdate(): ReactElement {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      render={
-                        <Button
-                          variant="destructive"
-                          Icon={Trash}
-                          onClick={onDelete}
-                        />
-                      }
+                      variant="destructive"
+                      Icon={Trash}
+                      onClick={onDelete}
                     >
                       Yes, delete this Component
                     </AlertDialogAction>

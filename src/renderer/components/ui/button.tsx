@@ -19,7 +19,9 @@ function Button({
 }: ButtonPrimitive.Props &
   VariantProps<typeof buttonVariants> & {
     isLoading?: boolean;
-    Icon?: React.ComponentType<LucideProps>;
+    // Explicitly undefined, so a wrapper can forward an Icon it may not have
+    // got under exactOptionalPropertyTypes.
+    Icon?: React.ComponentType<LucideProps> | undefined;
   }): React.JSX.Element {
   return (
     <ButtonPrimitive

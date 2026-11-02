@@ -390,13 +390,9 @@ export function AssetTeaser(
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  render={
-                    <Button
-                      variant="destructive"
-                      Icon={TrashIcon}
-                      onClick={() => void onDelete()}
-                    />
-                  }
+                  variant="destructive"
+                  Icon={TrashIcon}
+                  onClick={() => void onDelete()}
                 >
                   Delete
                 </AlertDialogAction>

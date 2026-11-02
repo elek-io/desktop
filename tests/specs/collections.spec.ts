@@ -214,6 +214,9 @@ test.describe('Collections', () => {
     await expect(
       mainWindow.getByText('still reference Entries in this one')
     ).toBeVisible();
+    // Confirming closed the confirmation, so the error is the only thing left
+    // on screen rather than the second of two stacked dialogs.
+    await expect(mainWindow.getByRole('alertdialog')).toBeHidden();
     await dismissDialog(mainWindow);
 
     // The Collection was not deleted: we stay on its settings page.
