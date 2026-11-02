@@ -11,10 +11,12 @@ msgid " - optional"
 msgstr " - optional"
 
 #: src/renderer/components/entry-table.tsx
+#: src/renderer/components/fields/asset/index.tsx
 msgid "{count, plural, one {# Asset} other {# Assets}}"
 msgstr "{count, plural, one {# Asset} other {# Assets}}"
 
 #: src/renderer/components/entry-table.tsx
+#: src/renderer/components/fields/entry/index.tsx
 msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
 
@@ -93,7 +95,7 @@ msgstr "A Component was renamed"
 msgid "A description of what this new Collection is used for."
 msgstr "A description of what this new Collection is used for."
 
-#: src/renderer/components/forms/allow-components-sheet.tsx
+#: src/renderer/components/fields/dynamic/allow-components-sheet.tsx
 msgid "A dynamic Field can allow more Components after it was added. Nothing else about a Field can be changed yet, and a Component it allows cannot be taken away, since that would delete the sections built from it."
 msgstr "A dynamic Field can allow more Components after it was added. Nothing else about a Field can be changed yet, and a Component it allows cannot be taken away, since that would delete the sections built from it."
 
@@ -193,11 +195,11 @@ msgstr "Add Fields to say what every section built from this Component holds. A 
 msgid "Add language"
 msgstr "Add language"
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Add option"
 msgstr "Add option"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "Add section"
 msgstr "Add section"
 
@@ -209,23 +211,23 @@ msgstr "Add to Assets"
 msgid "After"
 msgstr "After"
 
-#: src/renderer/components/forms/allow-components-sheet.tsx
+#: src/renderer/components/fields/dynamic/allow-components-sheet.tsx
 msgid "Allow more Components on {label}"
 msgstr "Allow more Components on {label}"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/field-from-definition.tsx
 msgid "Allow more Components on the {label} field"
 msgstr "Allow more Components on the {label} field"
 
-#: src/renderer/components/forms/allow-components-sheet.tsx
+#: src/renderer/components/fields/dynamic/allow-components-sheet.tsx
 msgid "Allow these Components"
 msgstr "Allow these Components"
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Allowed already:"
 msgstr "Allowed already:"
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Allowed Components"
 msgstr "Allowed Components"
 
@@ -310,7 +312,7 @@ msgstr "Asset description"
 msgid "Asset name"
 msgstr "Asset name"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Asset references"
 msgstr "Asset references"
 
@@ -323,11 +325,11 @@ msgstr "Asset saved to your computer"
 msgid "Assets"
 msgstr "Assets"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/asset/control.tsx
 msgid "At least {assetMinimum} required."
 msgstr "At least {assetMinimum} required."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/entry/control.tsx
 msgid "At least {entryMinimum} required."
 msgstr "At least {entryMinimum} required."
 
@@ -347,7 +349,7 @@ msgstr "Before we start you need to set up a local User first. Don't worry, you 
 msgid "Billing"
 msgstr "Billing"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Block features"
 msgstr "Block features"
 
@@ -355,7 +357,7 @@ msgstr "Block features"
 msgid "Blockquote"
 msgstr "Blockquote"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Blockquotes"
 msgstr "Blockquotes"
 
@@ -363,7 +365,7 @@ msgstr "Blockquotes"
 msgid "Bold"
 msgstr "Bold"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Bold text."
 msgstr "Bold text."
 
@@ -375,7 +377,7 @@ msgstr "breadcrumb"
 msgid "Bullet list"
 msgstr "Bullet list"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Bulleted and numbered lists."
 msgstr "Bulleted and numbered lists."
 
@@ -420,7 +422,7 @@ msgstr "Changes were saved or a Release was made on another computer, so synchro
 msgid "Changing your preferred language will attempt to translate everything you see in elek.io Desktop. You can help translate elek.io Desktop by contributing to our <0>GitHub repository</0>."
 msgstr "Changing your preferred language will attempt to translate everything you see in elek.io Desktop. You can help translate elek.io Desktop by contributing to our <0>GitHub repository</0>."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Checkboxes inside lists. Requires lists."
 msgstr "Checkboxes inside lists. Requires lists."
 
@@ -458,11 +460,11 @@ msgstr "Close"
 msgid "Code block"
 msgstr "Code block"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Code blocks"
 msgstr "Code blocks"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Code spans inside text."
 msgstr "Code spans inside text."
 
@@ -535,7 +537,7 @@ msgstr "Configure"
 msgid "Configure {collectionName}"
 msgstr "Configure {collectionName}"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Convert the slug to lowercase."
 msgstr "Convert the slug to lowercase."
 
@@ -767,7 +769,7 @@ msgstr "Dark"
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Decamelize"
 msgstr "Decamelize"
 
@@ -775,9 +777,13 @@ msgstr "Decamelize"
 msgid "Default"
 msgstr "Default"
 
+#: src/renderer/components/fields/date/index.tsx
+#: src/renderer/components/fields/datetime/index.tsx
+#: src/renderer/components/fields/number/index.tsx
+#: src/renderer/components/fields/select/definition.tsx
+#: src/renderer/components/fields/textarea/index.tsx
+#: src/renderer/components/fields/toggle/index.tsx
 #: src/renderer/components/forms/field-definition-draft.tsx
-#: src/renderer/components/forms/field-definition-registry.tsx
-#: src/renderer/components/forms/select-field-definition.tsx
 msgid "Default value"
 msgstr "Default value"
 
@@ -864,11 +870,13 @@ msgstr "Disabled"
 msgid "Docs"
 msgstr "Docs"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/fields/entry/control.tsx
+#: src/renderer/components/ui/translatable-field.tsx
 msgid "Done"
 msgstr "Done"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Dot (.)"
 msgstr "Dot (.)"
 
@@ -876,11 +884,7 @@ msgstr "Dot (.)"
 msgid "Drag to reorder"
 msgstr "Drag to reorder"
 
-#: src/renderer/components/forms/default-field-definition-form.tsx
-msgid "Dynamic fields cannot be unique."
-msgstr "Dynamic fields cannot be unique."
-
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/ui/translatable-field.tsx
 msgid "Edit translations for {title}"
 msgstr "Edit translations for {title}"
 
@@ -905,7 +909,7 @@ msgstr "elek.io Desktop, Projects"
 msgid "Email"
 msgstr "Email"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Emphasis"
 msgstr "Emphasis"
 
@@ -934,7 +938,7 @@ msgstr "Entry deleted"
 msgid "Entry name (Singular)"
 msgstr "Entry name (Singular)"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Entry references"
 msgstr "Entry references"
 
@@ -950,7 +954,7 @@ msgstr "Entry-Slug"
 msgid "Error"
 msgstr "Error"
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Every Component of this Project is allowed already, so there is nothing to add."
 msgstr "Every Component of this Project is allowed already, so there is nothing to add."
 
@@ -958,11 +962,11 @@ msgstr "Every Component of this Project is allowed already, so there is nothing 
 msgid "Example change"
 msgstr "Example change"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "External images"
 msgstr "External images"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "External links"
 msgstr "External links"
 
@@ -982,11 +986,11 @@ msgstr "Fill out your information below and watch it influence how your future c
 msgid "Filter {collectionName}..."
 msgstr "Filter {collectionName}..."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Footnote references and definitions."
 msgstr "Footnote references and definitions."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Footnotes"
 msgstr "Footnotes"
 
@@ -1011,11 +1015,11 @@ msgstr "General"
 msgid "General Settings"
 msgstr "General Settings"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Generate from Fields"
 msgstr "Generate from Fields"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/slug/control.tsx
 msgid "Generate from the source Fields"
 msgstr "Generate from the source Fields"
 
@@ -1035,11 +1039,11 @@ msgstr "Go to next page"
 msgid "Go to previous page"
 msgstr "Go to previous page"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "H{depth}"
 msgstr "H{depth}"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Hard line breaks"
 msgstr "Hard line breaks"
 
@@ -1051,11 +1055,11 @@ msgstr "Heading"
 msgid "Heading {depth}"
 msgstr "Heading {depth}"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Heading level {depth}"
 msgstr "Heading level {depth}"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Headings"
 msgstr "Headings"
 
@@ -1088,11 +1092,11 @@ msgstr "holds a Value that does not fit this Field anymore"
 msgid "holds a Value this Field no longer allows"
 msgstr "holds a Value this Field no longer allows"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Horizontal rules between sections."
 msgstr "Horizontal rules between sections."
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Hyphen (-)"
 msgstr "Hyphen (-)"
 
@@ -1104,20 +1108,20 @@ msgstr "Icon"
 msgid "If this keeps happening, please open an issue at {issuesUrl}"
 msgstr "If this keeps happening, please open an issue at {issuesUrl}"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Images and files from this Project's Assets."
 msgstr "Images and files from this Project's Assets."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Images from external URLs."
 msgstr "Images from external URLs."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Inline code"
 msgstr "Inline code"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Inline features"
 msgstr "Inline features"
 
@@ -1129,12 +1133,12 @@ msgstr "Input type"
 msgid "Italic"
 msgstr "Italic"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Italic text."
 msgstr "Italic text."
 
+#: src/renderer/components/fields/select/definition.tsx
 #: src/renderer/components/forms/default-field-definition-form.tsx
-#: src/renderer/components/forms/select-field-definition.tsx
 msgid "Label"
 msgstr "Label"
 
@@ -1150,7 +1154,7 @@ msgstr "Latest changes"
 msgid "Light"
 msgstr "Light"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Line breaks inside a paragraph."
 msgstr "Line breaks inside a paragraph."
 
@@ -1162,15 +1166,15 @@ msgstr "Link"
 msgid "Link the selected text"
 msgstr "Link the selected text"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Links to Entries of this Project."
 msgstr "Links to Entries of this Project."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Links to external URLs."
 msgstr "Links to external URLs."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Lists"
 msgstr "Lists"
 
@@ -1183,7 +1187,7 @@ msgstr "Loading"
 msgid "Loading Entries"
 msgstr "Loading Entries"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "Loading this Project's Components"
 msgstr "Loading this Project's Components"
 
@@ -1212,7 +1216,7 @@ msgstr "Local API stopped"
 msgid "Local User"
 msgstr "Local User"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Lowercase"
 msgstr "Lowercase"
 
@@ -1220,23 +1224,19 @@ msgstr "Lowercase"
 msgid "Major"
 msgstr "Major"
 
-#: src/renderer/components/forms/default-field-definition-form.tsx
-msgid "Markdown fields cannot be unique."
-msgstr "Markdown fields cannot be unique."
-
-#: src/renderer/components/forms/asset-field-definition.tsx
-#: src/renderer/components/forms/dynamic-field-definition.tsx
-#: src/renderer/components/forms/entry-field-definition.tsx
+#: src/renderer/components/fields/asset/definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
+#: src/renderer/components/fields/entry/definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/forms/field-definition-draft.tsx
-#: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Maximum"
 msgstr "Maximum"
 
-#: src/renderer/components/forms/asset-field-definition.tsx
-#: src/renderer/components/forms/dynamic-field-definition.tsx
-#: src/renderer/components/forms/entry-field-definition.tsx
+#: src/renderer/components/fields/asset/definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
+#: src/renderer/components/fields/entry/definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/forms/field-definition-draft.tsx
-#: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Minimum"
 msgstr "Minimum"
 
@@ -1252,23 +1252,23 @@ msgstr "More"
 msgid "More pages"
 msgstr "More pages"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/field-from-definition.tsx
 msgid "Move the {label} field down"
 msgstr "Move the {label} field down"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/field-from-definition.tsx
 msgid "Move the {label} field up"
 msgstr "Move the {label} field up"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "Move the {name} section down"
 msgstr "Move the {name} section down"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "Move the {name} section up"
 msgstr "Move the {name} section up"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Multi line code with an optional language."
 msgstr "Multi line code with an optional language."
 
@@ -1300,7 +1300,7 @@ msgstr "New Projects start with no history or data.<0/>Read more about <1>Projec
 msgid "Next"
 msgstr "Next"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/asset/control.tsx
 msgid "No assets available. Add assets to the project first."
 msgstr "No assets available. Add assets to the project first."
 
@@ -1308,7 +1308,7 @@ msgstr "No assets available. Add assets to the project first."
 msgid "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 msgstr "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/asset/control.tsx
 msgid "No assets of an allowed type available. This Field accepts {allowedMimeTypes}."
 msgstr "No assets of an allowed type available. This Field accepts {allowedMimeTypes}."
 
@@ -1328,8 +1328,8 @@ msgstr "No Changes found"
 msgid "No Collection uses this Component yet, so saving changes nothing but the Component itself."
 msgstr "No Collection uses this Component yet, so saving changes nothing but the Component itself."
 
-#: src/renderer/components/forms/entry-field-definition.tsx
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/entry/definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "No Collections available in this project."
 msgstr "No Collections available in this project."
 
@@ -1341,7 +1341,7 @@ msgstr "No Collections found"
 msgid "No Components yet"
 msgstr "No Components yet"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/entry/control.tsx
 msgid "No entries available. Create entries in the allowed collections first."
 msgstr "No entries available. Create entries in the allowed collections first."
 
@@ -1369,17 +1369,17 @@ msgstr "No Releases yet"
 msgid "No results."
 msgstr "No results."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "No sections yet. Add one to start building this page."
 msgstr "No sections yet. Add one to start building this page."
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "No text based Fields to generate from yet. Add one first or leave this empty."
 msgstr "No text based Fields to generate from yet. Add one first or leave this empty."
 
-#: src/renderer/components/forms/select-field-definition.tsx
-#: src/renderer/components/forms/slug-field-definition.tsx
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/select/control.tsx
+#: src/renderer/components/fields/select/definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "None"
 msgstr "None"
 
@@ -1427,15 +1427,17 @@ msgstr "Nothing was saved, and this Collection is exactly as it was. Either anot
 msgid "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
 msgstr "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Number"
 msgstr "Number"
 
-#: src/renderer/components/forms/default-field-definition-form.tsx
+#: src/renderer/components/fields/number/index.tsx
+#: src/renderer/components/fields/range/index.tsx
 msgid "Number fields cannot be unique."
 msgstr "Number fields cannot be unique."
 
-#: src/renderer/components/forms/field-definition-registry.tsx
+#: src/renderer/components/fields/text/index.tsx
+#: src/renderer/components/fields/textarea/index.tsx
 msgid "number of characters the user can enter"
 msgstr "number of characters the user can enter"
 
@@ -1452,13 +1454,13 @@ msgstr "Ok"
 msgid "One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again."
 msgstr "One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again."
 
-#: src/renderer/components/forms/asset-field-definition.tsx
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/asset/definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Only Assets of the selected file types can be referenced. If none are selected, Assets of any type are available."
 msgstr "Only Assets of the selected file types can be referenced. If none are selected, Assets of any type are available."
 
-#: src/renderer/components/forms/entry-field-definition.tsx
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/entry/definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Only Entries from the selected Collections can be referenced. If none are selected, Entries from all Collections are available."
 msgstr "Only Entries from the selected Collections can be referenced. If none are selected, Entries from all Collections are available."
 
@@ -1466,7 +1468,7 @@ msgstr "Only Entries from the selected Collections can be referenced. If none ar
 msgid "Only so we can come back to you about this {purpose}. Both are yours to change. Leave them empty to send this anonymously."
 msgstr "Only so we can come back to you about this {purpose}. Both are yours to change. Leave them empty to send this anonymously."
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Only the selected Components can be added as a section. If none are selected, every Component of this Project can be."
 msgstr "Only the selected Components can be added as a section. If none are selected, every Component of this Project can be."
 
@@ -1478,15 +1480,15 @@ msgstr "Open"
 msgid "Open an issue on GitHub"
 msgstr "Open an issue on GitHub"
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Option {position}"
 msgstr "Option {position}"
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Option {position} label"
 msgstr "Option {position} label"
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Option {position} value"
 msgstr "Option {position} value"
 
@@ -1498,7 +1500,7 @@ msgstr "Optional. Describe what to input into this field. This text is displayed
 msgid "Optional. What this Component is used for. Leave every language empty for no description, or fill them all."
 msgstr "Optional. What this Component is used for. Leave every language empty for no description, or fill them all."
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Options"
 msgstr "Options"
 
@@ -1594,19 +1596,19 @@ msgstr "Provide a name and description for this Asset."
 msgid "Published {published}"
 msgstr "Published {published}"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Quoted text blocks."
 msgstr "Quoted text blocks."
 
-#: src/renderer/components/forms/default-field-definition-form.tsx
+#: src/renderer/components/fields/range/index.tsx
 msgid "Ranges are always required, since the slider always returns a number."
 msgstr "Ranges are always required, since the slider always returns a number."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Raw HTML"
 msgstr "Raw HTML"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it."
 msgstr "Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it."
 
@@ -1619,10 +1621,6 @@ msgstr "Reference an Asset"
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Reference an Entry"
 msgstr "Reference an Entry"
-
-#: src/renderer/components/forms/default-field-definition-form.tsx
-msgid "Reference fields cannot be unique."
-msgstr "Reference fields cannot be unique."
 
 #: src/renderer/components/project-sidebar.tsx
 msgid "Refresh changes"
@@ -1673,15 +1671,15 @@ msgstr "Remove {languagePendingRemoval} from this Project?"
 msgid "Remove language"
 msgstr "Remove language"
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Remove option {position}"
 msgstr "Remove option {position}"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/field-from-definition.tsx
 msgid "Remove the {label} field"
 msgstr "Remove the {label} field"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "Remove the {name} section"
 msgstr "Remove the {name} section"
 
@@ -1717,19 +1715,19 @@ msgstr "Required"
 msgid "Required fields need to be filled before an Item of the Collection can be created or updated."
 msgstr "Required fields need to be filled before an Item of the Collection can be created or updated."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Restrict Asset references to file types"
 msgstr "Restrict Asset references to file types"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Restrict Entry references to Collections"
 msgstr "Restrict Entry references to Collections"
 
-#: src/renderer/components/forms/entry-field-definition.tsx
+#: src/renderer/components/fields/entry/definition.tsx
 msgid "Restrict to Collections"
 msgstr "Restrict to Collections"
 
-#: src/renderer/components/forms/asset-field-definition.tsx
+#: src/renderer/components/fields/asset/definition.tsx
 msgid "Restrict to file types"
 msgstr "Restrict to file types"
 
@@ -1764,11 +1762,11 @@ msgstr "Saving reaches {collectionCount, plural, one {# Collection} other {# Col
 msgid "Search languages"
 msgstr "Search languages"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "Section"
 msgstr "Section"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "Section {position} of {total}"
 msgstr "Section {position} of {total}"
 
@@ -1776,7 +1774,7 @@ msgstr "Section {position} of {total}"
 msgid "Select a replacement file"
 msgstr "Select a replacement file"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/select/control.tsx
 msgid "Select an option"
 msgstr "Select an option"
 
@@ -1784,7 +1782,7 @@ msgstr "Select an option"
 msgid "Select Asset to add"
 msgstr "Select Asset to add"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/asset/control.tsx
 msgid "Select Assets"
 msgstr "Select Assets"
 
@@ -1792,27 +1790,27 @@ msgstr "Select Assets"
 msgid "Select date"
 msgstr "Select date"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/entry/control.tsx
 msgid "Select Entries"
 msgstr "Select Entries"
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/asset/control.tsx
 msgid "Select one or more assets."
 msgstr "Select one or more assets."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/entry/control.tsx
 msgid "Select one or more entries."
 msgstr "Select one or more entries."
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet."
 msgstr "Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/asset/control.tsx
 msgid "Select up to {assetMaximum, plural, one {# asset} other {# assets}}."
 msgstr "Select up to {assetMaximum, plural, one {# asset} other {# assets}}."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/entry/control.tsx
 msgid "Select up to {entryMaximum, plural, one {# entry} other {# entries}}."
 msgstr "Select up to {entryMaximum, plural, one {# entry} other {# entries}}."
 
@@ -1832,7 +1830,7 @@ msgstr "Send report"
 msgid "Sends what elek.io Desktop recorded on this machine in the last 24 hours. That includes the ids of your Projects, Collections and Entries, the files they live in and the actions you took, but never the content you wrote or the names you gave them. It is the single most useful thing for finding a bug."
 msgstr "Sends what elek.io Desktop recorded on this machine in the last 24 hours. That includes the ids of your Projects, Collections and Entries, the files they live in and the actions you took, but never the content you wrote or the names you gave them. It is the single most useful thing for finding a bug."
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Separator"
 msgstr "Separator"
 
@@ -1861,10 +1859,6 @@ msgstr "Size"
 msgid "Slug"
 msgstr "Slug"
 
-#: src/renderer/components/forms/default-field-definition-form.tsx
-msgid "Slugs are always unique, so a single Entry can be identified by it."
-msgstr "Slugs are always unique, so a single Entry can be identified by it."
-
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Some debug Project output"
 msgstr "Some debug Project output"
@@ -1881,20 +1875,20 @@ msgstr "Something went wrong and this screen is all we can show you. Nothing abo
 msgid "Something went wrong. Please try again."
 msgstr "Something went wrong. Please try again."
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Split camelCase words, so \"myWord\" becomes \"my-word\"."
 msgstr "Split camelCase words, so \"myWord\" becomes \"my-word\"."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Strikethrough"
 msgstr "Strikethrough"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Strong"
 msgstr "Strong"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Struck through text."
 msgstr "Struck through text."
 
@@ -1922,15 +1916,15 @@ msgstr "System"
 msgid "Table"
 msgstr "Table"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Tables"
 msgstr "Tables"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Tables with aligned columns."
 msgstr "Tables with aligned columns."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Task list items"
 msgstr "Task list items"
 
@@ -1946,7 +1940,7 @@ msgstr "Tell us what happened, in a sentence or two."
 msgid "Tell us what you think of elek.io Desktop. We read every one of these."
 msgstr "Tell us what you think of elek.io Desktop. We read every one of these."
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Text"
 msgstr "Text"
 
@@ -1968,7 +1962,7 @@ msgstr "The Asset is inserted at the cursor position."
 msgid "the changes of this Project"
 msgstr "the changes of this Project"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "The character placed between words of the slug."
 msgstr "The character placed between words of the slug."
 
@@ -2080,16 +2074,19 @@ msgstr "The Git repository could not be reached, so check your connection and tr
 msgid "The Git repository refused access, so ask whoever set up this Project."
 msgstr "The Git repository refused access, so ask whoever set up this Project."
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "The initial option for the field."
 msgstr "The initial option for the field."
 
+#: src/renderer/components/fields/date/index.tsx
+#: src/renderer/components/fields/number/index.tsx
+#: src/renderer/components/fields/textarea/index.tsx
+#: src/renderer/components/fields/toggle/index.tsx
 #: src/renderer/components/forms/field-definition-draft.tsx
-#: src/renderer/components/forms/field-definition-registry.tsx
 msgid "The initial value for the field."
 msgstr "The initial value for the field."
 
-#: src/renderer/components/forms/field-definition-registry.tsx
+#: src/renderer/components/fields/datetime/index.tsx
 msgid "The initial value for the field. It is shown in your local time and stored as UTC."
 msgstr "The initial value for the field. It is shown in your local time and stored as UTC."
 
@@ -2097,7 +2094,7 @@ msgstr "The initial value for the field. It is shown in your local time and stor
 msgid "The label is displayed above the input Field and should indicate what the user is supposed to enter. For example \"Title\", \"Date of birth\" or \"Summary\"."
 msgstr "The label is displayed above the input Field and should indicate what the user is supposed to enter. For example \"Title\", \"Date of birth\" or \"Summary\"."
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "The label users see for this option."
 msgstr "The label users see for this option."
 
@@ -2109,19 +2106,19 @@ msgstr "The link applies to the text selected in the editor. Core accepts http(s
 msgid "The maximum {unit}."
 msgstr "The maximum {unit}."
 
-#: src/renderer/components/forms/asset-field-definition.tsx
+#: src/renderer/components/fields/asset/definition.tsx
 msgid "The maximum number of Assets the user is able to select."
 msgstr "The maximum number of Assets the user is able to select."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "The maximum number of blocks the content can hold."
 msgstr "The maximum number of blocks the content can hold."
 
-#: src/renderer/components/forms/entry-field-definition.tsx
+#: src/renderer/components/fields/entry/definition.tsx
 msgid "The maximum number of Entries the user is able to select."
 msgstr "The maximum number of Entries the user is able to select."
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "The maximum number of sections the user is able to add."
 msgstr "The maximum number of sections the user is able to add."
 
@@ -2129,19 +2126,19 @@ msgstr "The maximum number of sections the user is able to add."
 msgid "The minimum {unit}."
 msgstr "The minimum {unit}."
 
-#: src/renderer/components/forms/asset-field-definition.tsx
+#: src/renderer/components/fields/asset/definition.tsx
 msgid "The minimum number of Assets the user needs to select."
 msgstr "The minimum number of Assets the user needs to select."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "The minimum number of blocks (paragraphs, headings, lists) the content needs."
 msgstr "The minimum number of blocks (paragraphs, headings, lists) the content needs."
 
-#: src/renderer/components/forms/entry-field-definition.tsx
+#: src/renderer/components/fields/entry/definition.tsx
 msgid "The minimum number of Entries the user needs to select."
 msgstr "The minimum number of Entries the user needs to select."
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "The minimum number of sections the user needs to add."
 msgstr "The minimum number of sections the user needs to add."
 
@@ -2153,7 +2150,7 @@ msgstr "The name of each Entry inside your new Collection. Choose a short name i
 msgid "The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. \"Blogposts\"."
 msgstr "The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. \"Blogposts\"."
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "The options a user can choose between. The label is what users see, the value is what gets stored."
 msgstr "The options a user can choose between. The label is what users see, the value is what gets stored."
 
@@ -2181,7 +2178,7 @@ msgstr "The report could not be sent. Your text is still here, so you can try ag
 msgid "the Settings of this Project"
 msgstr "the Settings of this Project"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "The slug is generated from the selected Fields while creating an Entry, in the order the Fields appear in the Collection. If none are selected, users enter the slug manually."
 msgstr "The slug is generated from the selected Fields while creating an Entry, in the order the Fields appear in the Collection. If none are selected, users enter the slug manually."
 
@@ -2201,7 +2198,7 @@ msgstr "The type of input the user is able to enter for this Field."
 msgid "Thematic break"
 msgstr "Thematic break"
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Thematic breaks"
 msgstr "Thematic breaks"
 
@@ -2257,7 +2254,7 @@ msgstr "This Component could not be deleted. Please review and try again."
 msgid "This Component could not be saved. Please review your changes and try again."
 msgstr "This Component could not be saved. Please review your changes and try again."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 
@@ -2266,11 +2263,11 @@ msgstr "This Component has no fields yet, so this section holds nothing. Add fie
 msgid "This Entry could not be saved. Please review your values and try again."
 msgstr "This Entry could not be saved. Please review your values and try again."
 
-#: src/renderer/components/forms/allow-components-sheet.tsx
+#: src/renderer/components/fields/dynamic/allow-components-sheet.tsx
 msgid "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
 msgstr "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "This field holds at most {sectionMaximum} sections. Remove one to add another."
 msgstr "This field holds at most {sectionMaximum} sections. Remove one to add another."
 
@@ -2314,11 +2311,11 @@ msgstr "This port is already in use by another application. Choose a different o
 msgid "This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently."
 msgstr "This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently."
 
-#: src/renderer/components/ui/form.tsx
+#: src/renderer/components/fields/dynamic/control.tsx
 msgid "This Project has no Component this field allows, so no section can be added. Create one, or allow another one on this field."
 msgstr "This Project has no Component this field allows, so no section can be added. Create one, or allow another one on this field."
 
-#: src/renderer/components/forms/dynamic-field-definition.tsx
+#: src/renderer/components/fields/dynamic/definition.tsx
 msgid "This Project has no Components yet. Create one first, then come back to choose it here."
 msgstr "This Project has no Components yet. Create one first, then come back to choose it here."
 
@@ -2338,7 +2335,7 @@ msgstr "This repository holds no Project, or one made with an older version of e
 msgid "This was written by a newer version of elek.io. Update to open it."
 msgstr "This was written by a newer version of elek.io. Update to open it."
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Tilde (~)"
 msgstr "Tilde (~)"
 
@@ -2346,11 +2343,11 @@ msgstr "Tilde (~)"
 msgid "Toggle Sidebar"
 msgstr "Toggle Sidebar"
 
-#: src/renderer/components/forms/default-field-definition-form.tsx
+#: src/renderer/components/fields/toggle/index.tsx
 msgid "Toggles are always required, since they can only be checked or unchecked."
 msgstr "Toggles are always required, since they can only be checked or unchecked."
 
-#: src/renderer/components/forms/default-field-definition-form.tsx
+#: src/renderer/components/fields/toggle/index.tsx
 msgid "Toggles cannot be unique, since they can only be checked or unchecked."
 msgstr "Toggles cannot be unique, since they can only be checked or unchecked."
 
@@ -2371,11 +2368,11 @@ msgstr "Try again"
 msgid "Type"
 msgstr "Type"
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Type of options"
 msgstr "Type of options"
 
-#: src/renderer/components/forms/slug-field-definition.tsx
+#: src/renderer/components/fields/slug/definition.tsx
 msgid "Underscore (_)"
 msgstr "Underscore (_)"
 
@@ -2426,11 +2423,11 @@ msgstr "User"
 msgid "User profile"
 msgstr "User profile"
 
-#: src/renderer/components/forms/field-definition-registry.tsx
+#: src/renderer/components/fields/number/index.tsx
 msgid "value the user can enter"
 msgstr "value the user can enter"
 
-#: src/renderer/components/forms/field-definition-registry.tsx
+#: src/renderer/components/fields/range/index.tsx
 msgid "Value the user is able to enter"
 msgstr "Value the user is able to enter"
 
@@ -2518,11 +2515,11 @@ msgstr "What you did just before it happened, roughly when, and what you expecte
 msgid "What you were looking for could not be found."
 msgstr "What you were looking for could not be found."
 
-#: src/renderer/components/forms/select-field-definition.tsx
+#: src/renderer/components/fields/select/definition.tsx
 msgid "Whether the options of this Field hold text or number values."
 msgstr "Whether the options of this Field hold text or number values."
 
-#: src/renderer/components/forms/markdown-field-definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
 msgid "Which heading levels can be used. None disables headings."
 msgstr "Which heading levels can be used. None disables headings."
 

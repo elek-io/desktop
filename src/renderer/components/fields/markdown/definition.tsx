@@ -13,16 +13,9 @@ import {
   type DefinitionExtrasProps,
   type DefinitionSpec,
 } from '@renderer/components/forms/field-definition-draft';
+import { AppField } from '@renderer/components/ui/app-form';
 import { FieldLegend, FieldSet } from '@renderer/components/ui/field';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import { useProject } from '@renderer/hooks/useProject';
@@ -176,87 +169,73 @@ function MarkdownExtras({
   }
 
   const featureRow = (feature: MarkdownFeatureRow): ReactElement => (
-    <FormField
+    <AppField
       key={feature.key}
-      control={form.control}
+      form={form}
       name={`features.${feature.key}`}
-      render={({ field }) => (
-        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
-          <div className="mr-4">
-            <FormLabel isRequired>{i18n._(feature.label)}</FormLabel>
-            <FormDescription>{i18n._(feature.hint)}</FormDescription>
-            <FormMessage />
-          </div>
-          <Switch
-            aria-label={i18n._(feature.label)}
-            checked={field.value}
-            disabled={feature.key === 'taskListItems' && listsEnabled === false}
-            onCheckedChange={(checked) => {
-              field.onChange(checked);
-              // Core rejects task list items without lists
-              if (feature.key === 'lists' && checked === false) {
-                form.setValue('features.taskListItems', false);
-              }
-              // Turning a reference feature off hides its restriction picker,
-              // so clear the restriction with it rather than storing a list
-              // that nothing reads.
-              if (feature.key === 'entryReferences' && checked === false) {
-                form.setValue('ofCollections', []);
-              }
-              if (feature.key === 'assetReferences' && checked === false) {
-                form.setValue('ofAssetMimeTypes', []);
-              }
-            }}
-          />
-        </FormItem>
+      label={i18n._(feature.label)}
+      required
+      description={i18n._(feature.hint)}
+      orientation="horizontal"
+      className="gap-4 rounded-lg border border-border p-3 shadow-xs"
+    >
+      {({ field, controlProps }) => (
+        <Switch
+          {...controlProps}
+          aria-label={i18n._(feature.label)}
+          checked={field.value}
+          disabled={feature.key === 'taskListItems' && listsEnabled === false}
+          onCheckedChange={(checked) => {
+            field.onChange(checked);
+            // Core rejects task list items without lists
+            if (feature.key === 'lists' && checked === false) {
+              form.setValue('features.taskListItems', false);
+            }
+            // Turning a reference feature off hides its restriction picker,
+            // so clear the restriction with it rather than storing a list
+            // that nothing reads.
+            if (feature.key === 'entryReferences' && checked === false) {
+              form.setValue('ofCollections', []);
+            }
+            if (feature.key === 'assetReferences' && checked === false) {
+              form.setValue('ofAssetMimeTypes', []);
+            }
+          }}
+        />
       )}
-    />
+    </AppField>
   );
 
   return (
     <>
       <div className="flex flex-row items-center justify-between space-x-2">
-        <FormField
-          control={form.control}
+        <AppField
+          form={form}
           name="min"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel isRequired={false}>
-                <Trans>Minimum</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormInputField field={field} type="number" />
-              </FormControl>
-              <FormDescription>
-                <Trans>
-                  The minimum number of blocks (paragraphs, headings, lists) the
-                  content needs.
-                </Trans>
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Minimum</Trans>}
+          description={
+            <Trans>
+              The minimum number of blocks (paragraphs, headings, lists) the
+              content needs.
+            </Trans>
+          }
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="number" {...controlProps} />
           )}
-        />
-        <FormField
-          control={form.control}
+        </AppField>
+        <AppField
+          form={form}
           name="max"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel isRequired={false}>
-                <Trans>Maximum</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormInputField field={field} type="number" />
-              </FormControl>
-              <FormDescription>
-                <Trans>
-                  The maximum number of blocks the content can hold.
-                </Trans>
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Maximum</Trans>}
+          description={
+            <Trans>The maximum number of blocks the content can hold.</Trans>
+          }
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="number" {...controlProps} />
           )}
-        />
+        </AppField>
       </div>
 
       <FieldSet>
@@ -264,41 +243,39 @@ function MarkdownExtras({
           <Trans>Block features</Trans>
         </FieldLegend>
         <div className="space-y-2">
-          <FormField
-            control={form.control}
+          <AppField
+            form={form}
             name="features.headings"
-            render={() => (
-              <FormItem className="rounded-lg border border-border p-3 shadow-xs">
-                <FormLabel isRequired>
-                  <Trans>Headings</Trans>
-                </FormLabel>
-                <FormDescription>
-                  <Trans>
-                    Which heading levels can be used. None disables headings.
-                  </Trans>
-                </FormDescription>
-                <div className="flex flex-row gap-4">
-                  {markdownHeadingDepthSchema.options.map((option) => {
-                    const depth = option.value;
-                    return (
-                      <label
-                        key={depth}
-                        className="flex flex-col items-center gap-1 text-sm"
-                      >
-                        <Trans>H{depth}</Trans>
-                        <Switch
-                          aria-label={t`Heading level ${depth}`}
-                          checked={enabledHeadings.includes(depth)}
-                          onCheckedChange={() => toggleHeadingDepth(depth)}
-                        />
-                      </label>
-                    );
-                  })}
-                </div>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Headings</Trans>}
+            required
+            description={
+              <Trans>
+                Which heading levels can be used. None disables headings.
+              </Trans>
+            }
+            className="rounded-lg border border-border p-3 shadow-xs"
+          >
+            {({ controlProps }) => (
+              <div className="flex flex-row gap-4" {...controlProps}>
+                {markdownHeadingDepthSchema.options.map((option) => {
+                  const depth = option.value;
+                  return (
+                    <label
+                      key={depth}
+                      className="flex flex-col items-center gap-1 text-sm"
+                    >
+                      <Trans>H{depth}</Trans>
+                      <Switch
+                        aria-label={t`Heading level ${depth}`}
+                        checked={enabledHeadings.includes(depth)}
+                        onCheckedChange={() => toggleHeadingDepth(depth)}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
             )}
-          />
+          </AppField>
           {blockFeatures.map((feature) => featureRow(feature))}
         </div>
       </FieldSet>
@@ -313,96 +290,82 @@ function MarkdownExtras({
       </FieldSet>
 
       {entryReferencesEnabled === true ? (
-        <FormField
-          control={form.control}
+        <AppField
+          form={form}
           name="ofCollections"
-          render={() => (
-            <FormItem>
-              <FieldSet className="gap-2">
-                <FieldLegend variant="label" className="mb-0">
-                  <Trans>Restrict Entry references to Collections</Trans>
-                </FieldLegend>
-                <FormDescription>
-                  <Trans>
-                    Only Entries from the selected Collections can be
-                    referenced. If none are selected, Entries from all
-                    Collections are available.
-                  </Trans>
-                </FormDescription>
-                <div className="space-y-2">
-                  {isReadingCollections === true ? (
-                    <Skeleton className="h-10" />
-                  ) : collectionList.list.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      <Trans>No Collections available in this project.</Trans>
-                    </p>
-                  ) : (
-                    collectionList.list.map((collection) => {
-                      const name = translateContent({
-                        key: 'collection.name.plural',
-                        record: collection.name.plural,
-                      });
-                      return (
-                        <div
-                          key={collection.id}
-                          className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
-                        >
-                          <div className="mr-4">
-                            <span className="text-sm font-medium">{name}</span>
-                          </div>
-                          <Switch
-                            aria-label={name}
-                            checked={selectedCollectionIds.includes(
-                              collection.id
-                            )}
-                            onCheckedChange={() =>
-                              toggleCollection(collection.id)
-                            }
-                          />
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                <FormMessage />
-              </FieldSet>
-            </FormItem>
+          label={<Trans>Restrict Entry references to Collections</Trans>}
+          required
+          description={
+            <Trans>
+              Only Entries from the selected Collections can be referenced. If
+              none are selected, Entries from all Collections are available.
+            </Trans>
+          }
+        >
+          {({ controlProps }) => (
+            <div className="space-y-2" {...controlProps}>
+              {isReadingCollections === true ? (
+                <Skeleton className="h-10" />
+              ) : collectionList.list.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  <Trans>No Collections available in this project.</Trans>
+                </p>
+              ) : (
+                collectionList.list.map((collection) => {
+                  const name = translateContent({
+                    key: 'collection.name.plural',
+                    record: collection.name.plural,
+                  });
+                  return (
+                    <div
+                      key={collection.id}
+                      className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
+                    >
+                      <div className="mr-4">
+                        <span className="text-sm font-medium">{name}</span>
+                      </div>
+                      <Switch
+                        aria-label={name}
+                        checked={selectedCollectionIds.includes(collection.id)}
+                        onCheckedChange={() => toggleCollection(collection.id)}
+                      />
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
-        />
+        </AppField>
       ) : null}
 
       {assetReferencesEnabled === true ? (
-        <FormField
-          control={form.control}
+        <AppField
+          form={form}
           name="ofAssetMimeTypes"
-          render={({ field }) => (
-            <FormItem>
-              <FieldSet className="gap-2">
-                <FieldLegend variant="label" className="mb-0">
-                  <Trans>Restrict Asset references to file types</Trans>
-                </FieldLegend>
-                <FormDescription>
-                  <Trans>
-                    Only Assets of the selected file types can be referenced. If
-                    none are selected, Assets of any type are available.
-                  </Trans>
-                </FormDescription>
-                <AssetMimeTypePicker
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-                <FormMessage />
-              </FieldSet>
-            </FormItem>
+          label={<Trans>Restrict Asset references to file types</Trans>}
+          required
+          description={
+            <Trans>
+              Only Assets of the selected file types can be referenced. If none
+              are selected, Assets of any type are available.
+            </Trans>
+          }
+        >
+          {({ field, controlProps }) => (
+            <div {...controlProps}>
+              <AssetMimeTypePicker
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </div>
           )}
-        />
+        </AppField>
       ) : null}
     </>
   );
 }
 
 const markdownSpec: DefinitionSpec<MarkdownFieldDefinitionFormValues> = {
-  authorableFieldType: 'markdown',
   // The resolver is typed over the schema input, whose recursive defaultValue
   // tree the form values pin to null (see MarkdownFieldDefinitionFormValues).
   // Every value the form holds is valid schema input, the Resolver generics just

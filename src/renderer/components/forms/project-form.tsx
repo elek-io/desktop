@@ -1,11 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { Plus, XIcon } from 'lucide-react';
 import { useState } from 'react';
-import {
-  type FieldValues,
-  type SubmitHandler,
-  type UseFormReturn,
-} from 'react-hook-form';
+import { type SubmitHandler, type UseFormReturn } from 'react-hook-form';
 
 import { PageSection } from '@renderer/components/page-section';
 import {
@@ -18,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@renderer/components/ui/alert-dialog';
-import { AppForm } from '@renderer/components/ui/app-form';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import { Chip } from '@renderer/components/ui/chip';
 import {
@@ -40,15 +36,9 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormTextareaField,
-} from '@renderer/components/ui/form';
+  TextControl,
+  TextareaControl,
+} from '@renderer/components/ui/field-controls';
 import {
   Select,
   SelectContent,
@@ -59,18 +49,22 @@ import {
 
 import {
   supportedLanguageSchema,
+  type CreateProjectProps,
   type SupportedLanguage,
-  type UpdateProjectProps,
 } from '@elek-io/core';
 
-interface ProjectFormProps<
-  TFieldValues extends FieldValues,
-  TTransformedValues extends FieldValues,
-> {
-  projectForm: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+/**
+ * What a Project form edits, which is every key of a Project a person can
+ * change. An update carries the Project's id beside it, which the route holds
+ * and no field writes, so both the create and the update form are this shape.
+ */
+export type ProjectFormValues = CreateProjectProps;
+
+interface ProjectFormProps {
+  projectForm: UseFormReturn<ProjectFormValues>;
   children?: React.ReactNode;
   isViewOnly?: boolean;
-  onFormSubmit?: SubmitHandler<TTransformedValues>;
+  onFormSubmit?: SubmitHandler<ProjectFormValues>;
   /**
    * Associates the form with a submit button rendered outside it (in the page
    * header via `Page`'s `actions`). That button carries `type="submit"` and the
@@ -79,26 +73,15 @@ interface ProjectFormProps<
   id?: string;
 }
 
-export function ProjectForm<
-  TFieldValues extends FieldValues,
-  TTransformedValues extends FieldValues,
->({
-  projectForm: genericForm,
+export function ProjectForm({
+  projectForm,
   onFormSubmit = () => {},
   children,
   isViewOnly = false,
   id,
-}: ProjectFormProps<TFieldValues, TTransformedValues>): React.JSX.Element {
+}: ProjectFormProps): React.JSX.Element {
   const { t } = useLingui();
 
-  // The concrete fields use literal paths RHF cannot resolve for a generic T, so
-  // view the form as UpdateProjectProps for those. This is the documented
-  // exception to the form-cast guardrail, scoped to the cast line below so the
-  // ban stays global for the rest of the file.
-  // @todo Retire it (e.g. a per-mode non-generic component) and drop the suppression.
-  const projectForm =
-    // eslint-disable-next-line no-restricted-syntax -- documented whole-form cast
-    genericForm as unknown as UseFormReturn<UpdateProjectProps>;
   const [
     isDeleteDefaultLanguageDialogOpen,
     setIsDeleteDefaultLanguageDialogOpen,
@@ -129,46 +112,36 @@ export function ProjectForm<
   return (
     <>
       <AppForm
-        form={genericForm}
+        form={projectForm}
         onSubmit={onFormSubmit}
         id={id}
         mode={isViewOnly ? 'view' : 'edit'}
       >
         <div className="space-y-4 p-6">
           <div className="grid grid-cols-12 gap-6">
-            <FormField
-              control={projectForm.control}
+            <AppField
+              form={projectForm}
               name="name"
-              render={({ field }) => (
-                <FormItem className="col-span-12">
-                  <FormLabel isRequired>
-                    <Trans>Project name</Trans>
-                  </FormLabel>
-                  <FormControl>
-                    <FormInputField field={field} type="text" />
-                  </FormControl>
-                  <FormDescription />
-                  <FormMessage />
-                </FormItem>
+              label={<Trans>Project name</Trans>}
+              required
+              className="col-span-12"
+            >
+              {({ field, controlProps }) => (
+                <TextControl field={field} type="text" {...controlProps} />
               )}
-            />
+            </AppField>
 
-            <FormField
-              control={projectForm.control}
+            <AppField
+              form={projectForm}
               name="description"
-              render={({ field }) => (
-                <FormItem className="col-span-12">
-                  <FormLabel isRequired>
-                    <Trans>Project description</Trans>
-                  </FormLabel>
-                  <FormControl>
-                    <FormTextareaField field={field} />
-                  </FormControl>
-                  <FormDescription />
-                  <FormMessage />
-                </FormItem>
+              label={<Trans>Project description</Trans>}
+              required
+              className="col-span-12"
+            >
+              {({ field, controlProps }) => (
+                <TextareaControl field={field} {...controlProps} />
               )}
-            />
+            </AppField>
           </div>
         </div>
 
@@ -177,173 +150,156 @@ export function ProjectForm<
           description={t`Settings related to the languages used in this Project`}
         >
           <div className="grid grid-cols-12 gap-6">
-            <FormField
-              control={projectForm.control}
+            <AppField
+              form={projectForm}
               name="settings.language.supported"
-              render={({ field }) => (
-                <>
-                  <FormItem className="col-span-6">
-                    <FormLabel isRequired>
-                      <Trans>Supported</Trans>
-                    </FormLabel>
-                    <FormControl>
-                      <div>
-                        <ul className="flex flex-wrap">
-                          {field.value.map((language) => {
-                            return (
-                              <li key={language} className="mr-2 mb-2">
-                                <Chip className="py-0 pr-0">
-                                  {language}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="ml-4 rounded-full"
-                                    onClick={() => {
-                                      if (
-                                        language ===
-                                        projectForm.watch(
-                                          'settings.language.default'
-                                        )
-                                      ) {
-                                        setIsDeleteDefaultLanguageDialogOpen(
-                                          true
-                                        );
-                                      } else {
-                                        setLanguagePendingRemoval(language);
-                                      }
-                                    }}
-                                  >
-                                    <XIcon className="size-4" />
-                                    <span className="sr-only">
-                                      <Trans>Remove {language}</Trans>
-                                    </span>
-                                  </Button>
-                                </Chip>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        {isViewOnly ? null : (
-                          <Combobox<SupportedLanguage>
-                            items={supportedLanguageSchema.options.filter(
-                              (language) =>
-                                field.value.includes(language) === false
-                            )}
-                            // The picker adds to the list above rather than
-                            // holding a selection of its own, so its value
-                            // stays empty and the chosen language leaves the
-                            // items.
-                            value={null}
-                            onValueChange={(language) => {
-                              if (language === null) {
-                                return;
-                              }
-                              projectForm.setValue(
-                                'settings.language.supported',
-                                [...field.value, language],
-                                { shouldValidate: true, shouldDirty: true }
-                              );
-                            }}
-                          >
-                            <ComboboxTrigger
-                              // The trigger carries the combobox role, whose
-                              // name is never its own text, so it says what it
-                              // shows.
-                              aria-label={t`Add language`}
-                              render={<Button variant="outline" Icon={Plus} />}
+              label={<Trans>Supported</Trans>}
+              required
+              description={
+                <Trans>
+                  Select which languages this Projects content has to be
+                  translated into. Adding one means every existing Collection
+                  and Entry needs a translation for it before it can be saved
+                  again, and removing one orphans the content already translated
+                  into it.
+                </Trans>
+              }
+              className="col-span-6"
+            >
+              {({ field, controlProps }) => (
+                <div {...controlProps}>
+                  <ul className="flex flex-wrap">
+                    {field.value.map((language) => {
+                      return (
+                        <li key={language} className="mr-2 mb-2">
+                          <Chip className="py-0 pr-0">
+                            {language}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="ml-4 rounded-full"
+                              onClick={() => {
+                                if (
+                                  language ===
+                                  projectForm.watch('settings.language.default')
+                                ) {
+                                  setIsDeleteDefaultLanguageDialogOpen(true);
+                                } else {
+                                  setLanguagePendingRemoval(language);
+                                }
+                              }}
                             >
-                              <Trans>Add language</Trans>
-                            </ComboboxTrigger>
-                            <ComboboxContent>
-                              <ComboboxInput
-                                placeholder={t`Search languages`}
-                                showTrigger={false}
-                              />
-                              <ComboboxEmpty>
-                                <Trans>No languages found.</Trans>
-                              </ComboboxEmpty>
-                              <ComboboxList>
-                                {(language: SupportedLanguage) => (
-                                  <ComboboxItem key={language} value={language}>
-                                    {language}
-                                  </ComboboxItem>
-                                )}
-                              </ComboboxList>
-                            </ComboboxContent>
-                          </Combobox>
-                        )}
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      <Trans>
-                        Select which languages this Projects content has to be
-                        translated into. Adding one means every existing
-                        Collection and Entry needs a translation for it before
-                        it can be saved again, and removing one orphans the
-                        content already translated into it.
-                      </Trans>
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                </>
+                              <XIcon className="size-4" />
+                              <span className="sr-only">
+                                <Trans>Remove {language}</Trans>
+                              </span>
+                            </Button>
+                          </Chip>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {isViewOnly ? null : (
+                    <Combobox<SupportedLanguage>
+                      items={supportedLanguageSchema.options.filter(
+                        (language) => field.value.includes(language) === false
+                      )}
+                      // The picker adds to the list above rather than holding a
+                      // selection of its own, so its value stays empty and the
+                      // chosen language leaves the items.
+                      value={null}
+                      onValueChange={(language) => {
+                        if (language === null) {
+                          return;
+                        }
+                        projectForm.setValue(
+                          'settings.language.supported',
+                          [...field.value, language],
+                          { shouldValidate: true, shouldDirty: true }
+                        );
+                      }}
+                    >
+                      <ComboboxTrigger
+                        // The trigger carries the combobox role, whose name is
+                        // never its own text, so it says what it shows.
+                        aria-label={t`Add language`}
+                        render={<Button variant="outline" Icon={Plus} />}
+                      >
+                        <Trans>Add language</Trans>
+                      </ComboboxTrigger>
+                      <ComboboxContent>
+                        <ComboboxInput
+                          placeholder={t`Search languages`}
+                          showTrigger={false}
+                        />
+                        <ComboboxEmpty>
+                          <Trans>No languages found.</Trans>
+                        </ComboboxEmpty>
+                        <ComboboxList>
+                          {(language: SupportedLanguage) => (
+                            <ComboboxItem key={language} value={language}>
+                              {language}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
+                  )}
+                </div>
               )}
-            />
+            </AppField>
 
-            <FormField
-              // Setting the key to force React to completely unmount and remount the entire field whenever the supported languages array changes
-              // The select seems to clear its internal state when its options change
+            <AppField
+              // Keyed on the supported languages, so the select unmounts and
+              // remounts whenever they change: it clears its own state when its
+              // options do.
               key={projectForm.watch('settings.language.supported').join(',')}
-              control={projectForm.control}
+              form={projectForm}
               name="settings.language.default"
-              render={({ field }) => {
-                const supported = projectForm.watch(
-                  'settings.language.supported'
-                );
+              label={<Trans>Default</Trans>}
+              required
+              description={
+                <Trans>
+                  The default language of this Project. Needs to be one of the
+                  supported languages.
+                </Trans>
+              }
+              className="col-span-6"
+            >
+              {({ field, controlProps }) => {
                 const availableOptions = supportedLanguages.filter((language) =>
-                  supported.includes(language.value)
+                  projectForm
+                    .watch('settings.language.supported')
+                    .includes(language.value)
                 );
 
                 return (
-                  <FormItem className="col-span-6">
-                    <FormLabel isRequired>
-                      <Trans>Default</Trans>
-                    </FormLabel>
-                    <Select
-                      items={Object.fromEntries(
-                        availableOptions.map((option) => [
-                          option.value,
-                          option.label,
-                        ])
-                      )}
-                      value={field.value}
-                      onValueChange={(value) => field.onChange(value)}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableOptions.map((option) => {
-                          return (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      <Trans>
-                        The default language of this Project. Needs to be one of
-                        the supported languages.
-                      </Trans>
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <Select
+                    items={Object.fromEntries(
+                      availableOptions.map((option) => [
+                        option.value,
+                        option.label,
+                      ])
+                    )}
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger {...controlProps}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableOptions.map((option) => {
+                        return (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 );
               }}
-            />
+            </AppField>
           </div>
 
           <AlertDialog

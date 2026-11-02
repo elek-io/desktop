@@ -1,0 +1,74 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+
+import {
+  contentAsStored,
+  emptyPreview,
+  textTitle,
+  translatableContent,
+} from '@renderer/components/fields/value-contracts';
+import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
+import {
+  DefinitionDraft,
+  MinMaxRow,
+  type DefinitionSpec,
+} from '@renderer/components/forms/field-definition-draft';
+import { AppField } from '@renderer/components/ui/app-form';
+import { TextareaControl } from '@renderer/components/ui/field-controls';
+
+import {
+  textareaFieldDefinitionSchema,
+  uuid,
+  type TextareaFieldDefinition,
+} from '@elek-io/core';
+
+import { type FieldTypeModule } from '../module';
+
+const spec: DefinitionSpec<TextareaFieldDefinition> = {
+  resolver: zodResolver(textareaFieldDefinitionSchema),
+  makeDefaults: (langs) => ({
+    ...baseDefaults(langs),
+    id: uuid(),
+    valueType: 'string',
+    fieldType: 'textarea',
+    defaultValue: null,
+    min: null,
+    max: null,
+  }),
+  Extras: ({ form }) => (
+    <>
+      <AppField
+        form={form}
+        name="defaultValue"
+        label={<Trans>Default value</Trans>}
+        description={<Trans>The initial value for the field.</Trans>}
+      >
+        {({ field, controlProps }) => (
+          <TextareaControl field={field} {...controlProps} />
+        )}
+      </AppField>
+      <MinMaxRow
+        form={form}
+        minName="min"
+        maxName="max"
+        unit={t`number of characters the user can enter`}
+      />
+    </>
+  ),
+};
+
+/** Several lines of text. */
+export const textareaField: FieldTypeModule<'textarea'> = {
+  translatable: true,
+  acceptsAriaRequired: true,
+  Control: ({ field, disabled, controlProps }) => (
+    <TextareaControl field={field} disabled={disabled} {...controlProps} />
+  ),
+  defaultContent: (fieldDefinition, supportedLanguages) =>
+    translatableContent(fieldDefinition.defaultValue, supportedLanguages),
+  previewContent: emptyPreview,
+  listCell: contentAsStored,
+  titleText: textTitle,
+  DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
+};

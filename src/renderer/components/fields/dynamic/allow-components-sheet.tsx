@@ -3,7 +3,7 @@ import { Trans } from '@lingui/react/macro';
 import { useId, type ReactElement } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 
-import { OfComponentsPicker } from '@renderer/components/forms/dynamic-field-definition';
+import { OfComponentsPicker } from '@renderer/components/fields/dynamic/definition';
 import {
   AppForm,
   FormActions,

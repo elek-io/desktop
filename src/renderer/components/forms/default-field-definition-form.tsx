@@ -16,17 +16,11 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
+import { AppField } from '@renderer/components/ui/app-form';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  TranslatableFormInputField,
-  TranslatableFormTextareaField,
-} from '@renderer/components/ui/form';
-import { Input } from '@renderer/components/ui/input';
+  SwitchControl,
+  TextControl,
+} from '@renderer/components/ui/field-controls';
 import {
   Select,
   SelectContent,
@@ -35,28 +29,25 @@ import {
   SelectValue,
 } from '@renderer/components/ui/select';
 import { Separator } from '@renderer/components/ui/separator';
-import { Switch } from '@renderer/components/ui/switch';
+import {
+  TranslatableFormInputField,
+  TranslatableFormTextareaField,
+} from '@renderer/components/ui/translatable-field';
+import { rawTextFromInput } from '@renderer/lib/fieldValues';
 
 import {
   fieldWidthSchema,
   slug,
   type FieldDefinitionBase,
-  type FieldType,
   type SupportedLanguage,
 } from '@elek-io/core';
-
-// The definition-form flavor being authored. Core's 'select' fieldType is backed
-// by two schemas (string and number), so the select definition form resolves the
-// ambiguous 'select' to the active variant before it reaches this shared base.
-export type AuthorableFieldType =
-  Exclude<FieldType, 'select'> | 'stringSelect' | 'numberSelect';
 
 /**
  * Which object holds the field definitions being authored. A Collection and a
  * Component share this whole authoring layer, and the owner is what decides the
- * two restrictions Core puts on a Component's fields: no `slug` field type and
- * no uniqueness. Declared here, the lowest file of the layer, so every file
- * above it imports downward.
+ * two restrictions Core puts on a Component's fields: which field types it may
+ * hold at all, and that none of its fields can be unique. Declared here, the
+ * lowest file of the layer, so every file above it imports downward.
  */
 export type FieldDefinitionsOwner = 'collection' | 'component';
 
@@ -66,79 +57,12 @@ const fieldWidthItems: Record<string, string> = Object.fromEntries(
 );
 
 /**
- * Field types where Core pins `isRequired` to a literal, so the switch shows a
- * fixed fact instead of offering a choice. Both always carry a value.
+ * Why a field of a Component can never be unique, which is Core's rule rather
+ * than the field type's: uniqueness is enforced over a Collection's top level
+ * fields only. It is the same answer for every type, so it is given here rather
+ * than in each type's own folder.
  */
-const alwaysRequiredFieldTypes: readonly AuthorableFieldType[] = [
-  'toggle',
-  'range',
-];
-
-/**
- * Field types where Core pins `isUnique` to a literal. `slug` is forced true,
- * every other entry is forced false: uniqueness is only meaningful for string
- * values, and Core rejects it on number, reference, component and mdast types.
- */
-const fixedUniquenessFieldTypes: readonly AuthorableFieldType[] = [
-  'slug',
-  'toggle',
-  'number',
-  'range',
-  'numberSelect',
-  'asset',
-  'entry',
-  'dynamic',
-  'markdown',
-];
-
-/**
- * The reason a type's uniqueness is fixed, shown under the locked switch so the
- * disabled control explains itself rather than looking broken.
- *
- * Inside a Component the answer is the same for every type, because Core
- * enforces uniqueness over a Collection's top level fields only, so that case
- * is answered before the type is even read.
- */
-function uniquenessNote(
-  fieldType: AuthorableFieldType,
-  owner: FieldDefinitionsOwner
-): MessageDescriptor | null {
-  if (owner === 'component') {
-    return msg`Fields of a Component cannot be unique, since the same Component is used in more than one place.`;
-  }
-
-  switch (fieldType) {
-    case 'slug':
-      return msg`Slugs are always unique, so a single Entry can be identified by it.`;
-    case 'toggle':
-      return msg`Toggles cannot be unique, since they can only be checked or unchecked.`;
-    case 'number':
-    case 'range':
-    case 'numberSelect':
-      return msg`Number fields cannot be unique.`;
-    case 'asset':
-    case 'entry':
-      return msg`Reference fields cannot be unique.`;
-    case 'dynamic':
-      return msg`Dynamic fields cannot be unique.`;
-    case 'markdown':
-      return msg`Markdown fields cannot be unique.`;
-    // String types where uniqueness is a real choice, so there is nothing to
-    // explain. Listed rather than defaulted so a new Core field type is a lint
-    // error here until it is classified.
-    case 'text':
-    case 'textarea':
-    case 'email':
-    case 'url':
-    case 'ipv4':
-    case 'date':
-    case 'time':
-    case 'datetime':
-    case 'telephone':
-    case 'stringSelect':
-      return null;
-  }
-}
+const componentUniquenessNote = msg`Fields of a Component cannot be unique, since the same Component is used in more than one place.`;
 
 interface DefaultFieldDefinitionFormProps<
   T extends FieldValues,
@@ -146,7 +70,13 @@ interface DefaultFieldDefinitionFormProps<
   form: UseFormReturn<T>;
   supportedLanguages: SupportedLanguage[];
   currentLanguage: SupportedLanguage;
-  fieldType: AuthorableFieldType;
+  /**
+   * Why Required is fixed for this field type, if it is. Present means the
+   * switch shows a fact rather than offering a choice, and says why.
+   */
+  requiredNote?: MessageDescriptor | undefined;
+  /** Why Unique is fixed for this field type, if it is. */
+  typeUniquenessNote?: MessageDescriptor | undefined;
   owner: FieldDefinitionsOwner;
 }
 
@@ -157,11 +87,17 @@ function DefaultFieldDefinitionForm<
   currentLanguage,
   supportedLanguages,
   children,
-  fieldType,
+  requiredNote,
+  typeUniquenessNote,
   owner,
 }: DefaultFieldDefinitionFormProps<T>): ReactElement {
   const { t } = useLingui();
-  const note = uniquenessNote(fieldType, owner);
+  // A Component answers uniqueness for every type at once, so it is read before
+  // the type's own reason.
+  const uniqueNote =
+    owner === 'component'
+      ? componentUniquenessNote
+      : (typeUniquenessNote ?? null);
   // Every FieldDefinition shares the base fields this component edits, but RHF's
   // FieldPath cannot reduce those literal paths for an unresolved generic T, so
   // assert them once through this helper.
@@ -185,231 +121,194 @@ function DefaultFieldDefinitionForm<
 
   return (
     <Fragment>
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={base(`label.${currentLanguage}`)}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired>
-              <Trans>Label</Trans>
-            </FormLabel>
-            <TranslatableFormInputField
-              title={t`Label`}
-              description={t`The label is displayed above the input Field and should indicate what the user is supposed to enter. For example "Title", "Date of birth" or "Summary".`}
-              type="text"
-              field={field}
-              errors={form.formState.errors}
-              supportedLanguages={supportedLanguages}
-            />
-            <FormDescription>
-              <Trans>
-                The label is displayed above the input Field and should indicate
-                what the user is supposed to enter. For example
-                &quot;Title&quot;, &quot;Date of birth&quot; or
-                &quot;Summary&quot;.
-              </Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Label</Trans>}
+        required
+        description={
+          <Trans>
+            The label is displayed above the input Field and should indicate
+            what the user is supposed to enter. For example &quot;Title&quot;,
+            &quot;Date of birth&quot; or &quot;Summary&quot;.
+          </Trans>
+        }
+      >
+        {({ field, controlProps }) => (
+          <TranslatableFormInputField
+            form={form}
+            title={t`Label`}
+            description={t`The label is displayed above the input Field and should indicate what the user is supposed to enter. For example "Title", "Date of birth" or "Summary".`}
+            type="text"
+            field={field}
+            controlProps={controlProps}
+            errors={form.formState.errors}
+            supportedLanguages={supportedLanguages}
+          />
         )}
-      />
+      </AppField>
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={base('slug')}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired>
-              <Trans>Slug</Trans>
-            </FormLabel>
-            <FormControl>
-              <Input type="text" {...field} />
-            </FormControl>
-            <FormDescription>
-              <Trans>
-                The technical key this Field&apos;s Values are stored under. It
-                is generated from the label until edited manually.
-              </Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Slug</Trans>}
+        required
+        description={
+          <Trans>
+            The technical key this Field&apos;s Values are stored under. It is
+            generated from the label until edited manually.
+          </Trans>
+        }
+      >
+        {({ field, controlProps }) => (
+          <TextControl
+            field={field}
+            {...controlProps}
+            type="text"
+            transform={rawTextFromInput}
+            {...controlProps}
+          />
         )}
-      />
+      </AppField>
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={base(`description.${currentLanguage}`)}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired={false}>
-              <Trans>Description</Trans>
-            </FormLabel>
-            <TranslatableFormTextareaField
-              title={t`Description`}
-              description={t`Describe what to input into this field. This text will be displayed under the field to guide users.`}
-              field={field}
-              errors={form.formState.errors}
-              supportedLanguages={supportedLanguages}
-            />
-            <FormDescription>
-              <Trans>
-                Optional. Describe what to input into this field. This text is
-                displayed under the field to guide users. Leave every language
-                empty for no description, or fill them all.
-              </Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Description</Trans>}
+        description={
+          <Trans>
+            Optional. Describe what to input into this field. This text is
+            displayed under the field to guide users. Leave every language empty
+            for no description, or fill them all.
+          </Trans>
+        }
+      >
+        {({ field, controlProps }) => (
+          <TranslatableFormTextareaField
+            form={form}
+            title={t`Description`}
+            description={t`Describe what to input into this field. This text will be displayed under the field to guide users.`}
+            field={field}
+            controlProps={controlProps}
+            errors={form.formState.errors}
+            supportedLanguages={supportedLanguages}
+          />
         )}
-      />
+      </AppField>
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={base('inputWidth')}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired>
-              <Trans>Width</Trans>
-            </FormLabel>
-            <FormControl>
-              <Select
-                items={fieldWidthItems}
-                onValueChange={field.onChange}
-                value={field.value}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {fieldWidthSchema.options.map((option) => {
-                    return (
-                      <SelectItem key={option} value={option}>
-                        {option} / 12
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </FormControl>
-            <FormDescription>
-              <Trans>Defines how wide the input field will be.</Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Width</Trans>}
+        required
+        description={<Trans>Defines how wide the input field will be.</Trans>}
+      >
+        {({ field, controlProps }) => (
+          <Select
+            items={fieldWidthItems}
+            onValueChange={field.onChange}
+            value={field.value}
+            {...controlProps}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {fieldWidthSchema.options.map((option) => {
+                return (
+                  <SelectItem key={option} value={option}>
+                    {option} / 12
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         )}
-      />
+      </AppField>
 
       {children}
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={base('isRequired')}
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
-            <div className="mr-4">
-              <FormLabel isRequired>
-                <Trans>Required</Trans>
-              </FormLabel>
-              <FormDescription>
-                <Trans>
-                  Required fields need to be filled before an Item of the
-                  Collection can be created or updated.
-                </Trans>{' '}
-                {fieldType === 'toggle' && (
-                  <>
-                    <Separator className="my-2" />
-                    <i>
-                      <Trans>
-                        Toggles are always required, since they can only be
-                        checked or unchecked.
-                      </Trans>
-                    </i>
-                  </>
-                )}
-                {fieldType === 'range' && (
-                  <>
-                    <Separator className="my-2" />
-                    <i>
-                      <Trans>
-                        Ranges are always required, since the slider always
-                        returns a number.
-                      </Trans>
-                    </i>
-                  </>
-                )}
-              </FormDescription>
-              <FormMessage />
-            </div>
-            <FormControl>
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={alwaysRequiredFieldTypes.includes(fieldType)}
-              />
-            </FormControl>
-          </FormItem>
+        label={<Trans>Required</Trans>}
+        required
+        orientation="horizontal"
+        description={
+          <>
+            <Trans>
+              Required fields need to be filled before an Item of the Collection
+              can be created or updated.
+            </Trans>
+            {requiredNote === undefined ? null : (
+              <>
+                <Separator className="my-2" />
+                <i>{i18n._(requiredNote)}</i>
+              </>
+            )}
+          </>
+        }
+        className="gap-4 rounded-lg border border-border p-3 shadow-xs"
+      >
+        {({ field, controlProps }) => (
+          <SwitchControl
+            field={field}
+            {...controlProps}
+            disabled={requiredNote !== undefined}
+            {...controlProps}
+          />
         )}
-      />
+      </AppField>
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={base('isUnique')}
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
-            <div className="mr-4">
-              <FormLabel isRequired>
-                <Trans>Unique</Trans>
-              </FormLabel>
-              <FormDescription>
-                <Trans>
-                  You won&apos;t be able to create an Entry if there is an
-                  existing Entry with identical content.
-                </Trans>
-                {note !== null && (
-                  <>
-                    <Separator className="my-2" />
-                    <i>{i18n._(note)}</i>
-                  </>
-                )}
-              </FormDescription>
-              <FormMessage />
-            </div>
-            <FormControl>
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={
-                  owner === 'component' ||
-                  fixedUniquenessFieldTypes.includes(fieldType)
-                }
-              />
-            </FormControl>
-          </FormItem>
+        label={<Trans>Unique</Trans>}
+        required
+        orientation="horizontal"
+        description={
+          <>
+            <Trans>
+              You won&apos;t be able to create an Entry if there is an existing
+              Entry with identical content.
+            </Trans>
+            {uniqueNote === null ? null : (
+              <>
+                <Separator className="my-2" />
+                <i>{i18n._(uniqueNote)}</i>
+              </>
+            )}
+          </>
+        }
+        className="gap-4 rounded-lg border border-border p-3 shadow-xs"
+      >
+        {({ field, controlProps }) => (
+          <SwitchControl
+            field={field}
+            {...controlProps}
+            disabled={uniqueNote !== null}
+            {...controlProps}
+          />
         )}
-      />
+      </AppField>
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={base('isDisabled')}
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
-            <div className="mr-4">
-              <FormLabel isRequired>
-                <Trans>Disabled</Trans>
-              </FormLabel>
-              <FormDescription>
-                <Trans>
-                  You won&apos;t be able to change the Value if this is active.
-                </Trans>
-              </FormDescription>
-              <FormMessage />
-            </div>
-            <FormControl>
-              <Switch checked={field.value} onCheckedChange={field.onChange} />
-            </FormControl>
-          </FormItem>
+        label={<Trans>Disabled</Trans>}
+        required
+        orientation="horizontal"
+        description={
+          <Trans>
+            You won&apos;t be able to change the Value if this is active.
+          </Trans>
+        }
+        className="gap-4 rounded-lg border border-border p-3 shadow-xs"
+      >
+        {({ field, controlProps }) => (
+          <SwitchControl field={field} {...controlProps} />
         )}
-      />
+      </AppField>
     </Fragment>
   );
 }

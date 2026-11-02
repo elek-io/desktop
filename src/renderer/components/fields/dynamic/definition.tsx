@@ -10,16 +10,8 @@ import {
   type DefinitionExtrasProps,
   type DefinitionSpec,
 } from '@renderer/components/forms/field-definition-draft';
-import { FieldLegend, FieldSet } from '@renderer/components/ui/field';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+import { AppField } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import { useProject } from '@renderer/hooks/useProject';
@@ -102,89 +94,84 @@ export function OfComponentsPicker({
   );
 
   return (
-    <FormField
-      control={form.control}
+    <AppField
+      form={form}
       name="ofComponents"
-      render={() => (
-        <FormItem>
-          <FieldSet className="gap-2">
-            <FieldLegend variant="label" className="mb-0">
-              <Trans>Allowed Components</Trans>
-            </FieldLegend>
-            <FormDescription>
+      label={<Trans>Allowed Components</Trans>}
+      required
+      description={
+        lockedComponentIds.length === 0 ? (
+          <Trans>
+            Only the selected Components can be added as a section. If none are
+            selected, every Component of this Project can be.
+          </Trans>
+        ) : (
+          <Trans>
+            Select the Components to allow as well. The ones allowed already are
+            listed rather than offered, since taking one away is not possible
+            yet.
+          </Trans>
+        )
+      }
+    >
+      {({ controlProps }) => (
+        <div className="space-y-2" {...controlProps}>
+          {allowedAlready.length > 0 ? (
+            <>
+              <p className="text-sm">
+                <Trans>Allowed already:</Trans>
+              </p>
+              <ul className="list-inside list-disc text-sm text-muted-foreground">
+                {allowedAlready.map((component) => (
+                  <li key={component.id}>{componentName(component)}</li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {isReadingComponents === true ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => {
+                const key = `skeleton-${String(i)}`;
+                return <Skeleton key={key} className="h-10 rounded-md" />;
+              })}
+            </div>
+          ) : offered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
               {lockedComponentIds.length === 0 ? (
                 <Trans>
-                  Only the selected Components can be added as a section. If
-                  none are selected, every Component of this Project can be.
+                  This Project has no Components yet. Create one first, then
+                  come back to choose it here.
                 </Trans>
               ) : (
                 <Trans>
-                  Select the Components to allow as well. The ones allowed
-                  already are listed rather than offered, since taking one away
-                  is not possible yet.
+                  Every Component of this Project is allowed already, so there
+                  is nothing to add.
                 </Trans>
               )}
-            </FormDescription>
-            {allowedAlready.length > 0 ? (
-              <>
-                <p className="text-sm">
-                  <Trans>Allowed already:</Trans>
-                </p>
-                <ul className="list-inside list-disc text-sm text-muted-foreground">
-                  {allowedAlready.map((component) => (
-                    <li key={component.id}>{componentName(component)}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-            <div className="space-y-2">
-              {isReadingComponents === true ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, i) => {
-                    const key = `skeleton-${String(i)}`;
-                    return <Skeleton key={key} className="h-10 rounded-md" />;
-                  })}
+            </p>
+          ) : (
+            offered.map((component) => {
+              const name = componentName(component);
+              return (
+                <div
+                  key={component.id}
+                  className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
+                >
+                  <div className="mr-4">
+                    <span className="text-sm font-medium">{name}</span>
+                  </div>
+                  <Switch
+                    aria-label={name}
+                    checked={selectedComponentIds.includes(component.id)}
+                    onCheckedChange={() => toggleComponent(component.id)}
+                  />
                 </div>
-              ) : offered.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {lockedComponentIds.length === 0 ? (
-                    <Trans>
-                      This Project has no Components yet. Create one first, then
-                      come back to choose it here.
-                    </Trans>
-                  ) : (
-                    <Trans>
-                      Every Component of this Project is allowed already, so
-                      there is nothing to add.
-                    </Trans>
-                  )}
-                </p>
-              ) : (
-                offered.map((component) => {
-                  const name = componentName(component);
-                  return (
-                    <div
-                      key={component.id}
-                      className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
-                    >
-                      <div className="mr-4">
-                        <span className="text-sm font-medium">{name}</span>
-                      </div>
-                      <Switch
-                        aria-label={name}
-                        checked={selectedComponentIds.includes(component.id)}
-                        onCheckedChange={() => toggleComponent(component.id)}
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <FormMessage />
-          </FieldSet>
-        </FormItem>
+              );
+            })
+          )}
+        </div>
       )}
-    />
+    </AppField>
   );
 }
 
@@ -196,53 +183,38 @@ function DynamicExtras({
       <OfComponentsPicker form={form} />
 
       <div className="flex flex-row items-center justify-between space-x-2">
-        <FormField
-          control={form.control}
+        <AppField
+          form={form}
           name="min"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel isRequired={false}>
-                <Trans>Minimum</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormInputField field={field} type="number" />
-              </FormControl>
-              <FormDescription>
-                <Trans>
-                  The minimum number of sections the user needs to add.
-                </Trans>
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Minimum</Trans>}
+          description={
+            <Trans>The minimum number of sections the user needs to add.</Trans>
+          }
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="number" {...controlProps} />
           )}
-        />
-        <FormField
-          control={form.control}
+        </AppField>
+        <AppField
+          form={form}
           name="max"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel isRequired={false}>
-                <Trans>Maximum</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormInputField field={field} type="number" />
-              </FormControl>
-              <FormDescription>
-                <Trans>
-                  The maximum number of sections the user is able to add.
-                </Trans>
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Maximum</Trans>}
+          description={
+            <Trans>
+              The maximum number of sections the user is able to add.
+            </Trans>
+          }
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="number" {...controlProps} />
           )}
-        />
+        </AppField>
       </div>
     </>
   );
 }
 
 const dynamicSpec: DefinitionSpec<DynamicFieldDefinition> = {
-  authorableFieldType: 'dynamic',
   resolver: zodResolver(dynamicFieldDefinitionSchema),
   // Core pins isUnique to false for a dynamic field, so it is re-narrowed here
   // to that literal. An empty ofComponents means every Component is allowed.

@@ -12,6 +12,7 @@ import {
   ProjectCardSkeleton,
 } from '@renderer/components/project-card';
 import {
+  AppField,
   AppForm,
   FormActions,
   SubmitButton,
@@ -33,15 +34,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import queryOptions from '@renderer/queries/options';
@@ -212,22 +205,16 @@ function ListProjectsPage(): ReactElement {
               onSubmit={onCloneProject}
               id={cloneFormId}
             >
-              <FormField
-                control={cloneProjectForm.control}
+              <AppField
+                form={cloneProjectForm}
                 name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel isRequired>
-                      <Trans>URL</Trans>
-                    </FormLabel>
-                    <FormControl>
-                      <FormInputField field={field} type="text" />
-                    </FormControl>
-                    <FormDescription />
-                    <FormMessage />
-                  </FormItem>
+                label={<Trans>URL</Trans>}
+                required
+              >
+                {({ field, controlProps }) => (
+                  <TextControl field={field} type="text" {...controlProps} />
                 )}
-              />
+              </AppField>
               {isCloneRefused ? (
                 <p role="alert" className="mt-4 text-sm text-error">
                   <Trans>

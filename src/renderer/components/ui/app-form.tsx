@@ -11,7 +11,12 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  Controller,
+  FormProvider,
   useFormState,
+  type ControllerRenderProps,
+  type FieldError as RhfFieldError,
+  type FieldPath,
   type FieldValues,
   type SubmitErrorHandler,
   type SubmitHandler,
@@ -19,10 +24,18 @@ import {
 } from 'react-hook-form';
 
 import { Button } from '@renderer/components/ui/button';
-import { Form } from '@renderer/components/ui/form';
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from '@renderer/components/ui/field';
+import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import {
   AppFormContext,
   useAppFormId,
+  useErrorTarget,
   type AppFormContextValue,
 } from '@renderer/hooks/useAppFormContext';
 import {
@@ -30,9 +43,211 @@ import {
   isAtOrBelow,
   type FieldErrorMessage,
 } from '@renderer/lib/formErrors';
+import { cn } from '@renderer/lib/utils';
 
-// The form primitives every form in the app is built from.
+// The form layer: the one <form>, the one submit control, the one field shell
+// and the hook every form is built with. What Desktop knows about a single
+// field type lives in components/fields/ instead.
+//
 // See contributing/renderer/forms.md.
+
+/**
+ * The error a field's message renders: the one at its own path, or the one
+ * react-hook-form nested under `root`.
+ *
+ * `@hookform/resolvers` nests an error reported on an array itself under `root`
+ * as soon as any path inside that array is a registered field name, which a
+ * dynamic field's sections are the moment one has been mounted. Without this
+ * the message on the array (a required field whose last section was just
+ * removed, say) would sit at a path nothing reads, so the submit would say
+ * nothing at all. A nested error object without a `root` is returned unchanged,
+ * so a field holding only errors below it still renders no message of its own.
+ */
+function messageError(
+  error: RhfFieldError | undefined
+): RhfFieldError | undefined {
+  if (error === undefined || typeof error.message === 'string') {
+    return error;
+  }
+  return error.root ?? error;
+}
+
+export interface FieldShellProps {
+  label: ReactNode;
+  /**
+   * Whether the field has to be filled. It only marks the label today, since
+   * the label is where every form says so.
+   */
+  required: boolean;
+  description?: ReactNode;
+  /** The message of the one error this field shows, if any. */
+  error?: string | undefined;
+  /** A field whose label, description and control sit side by side. */
+  orientation?: 'vertical' | 'horizontal';
+  className?: string;
+  /** Renders the control, given the props that tie it to the parts above. */
+  children: (controlProps: FieldControlProps) => ReactNode;
+}
+
+/**
+ * The one field shell: shadcn's `Field` holding the label, the control, the
+ * description and the error, in that order.
+ *
+ * It mints the ids itself and names only the parts it shows in
+ * `aria-describedby`, so a label, a description and an error always point at
+ * the real focusable control and never at an element that is not there. It
+ * holds no form state, which is what lets the Collection's preview draw a field
+ * with the same shell and no form.
+ *
+ * See contributing/renderer/forms.md.
+ */
+export function FieldShell({
+  label,
+  required,
+  description,
+  error,
+  orientation = 'vertical',
+  className,
+  children,
+}: FieldShellProps): ReactNode {
+  const id = useId();
+  const controlId = `${id}-control`;
+  const descriptionId = `${id}-description`;
+  const errorId = `${id}-error`;
+  const describedBy = [
+    description === undefined || description === null ? null : descriptionId,
+    error === undefined ? null : errorId,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' ');
+
+  const control = children({
+    id: controlId,
+    ...(describedBy === '' ? {} : { 'aria-describedby': describedBy }),
+    ...(error === undefined ? {} : { 'aria-invalid': true }),
+  });
+  const labelPart = (
+    <FieldLabel htmlFor={controlId} isRequired={required}>
+      {label}
+    </FieldLabel>
+  );
+  const descriptionPart =
+    description === undefined || description === null ? null : (
+      <FieldDescription id={descriptionId}>{description}</FieldDescription>
+    );
+  const errorPart =
+    error === undefined ? null : (
+      <FieldError id={errorId}>
+        {/* The words sit in a paragraph inside the alert, so one message and a
+        list of them read the same, and the color a person reads the error in
+        is measured on this slot. */}
+        <p data-slot="form-message">{error}</p>
+      </FieldError>
+    );
+
+  // A horizontal field keeps its words together on one side of the control,
+  // which is what the switches of the field definition forms are.
+  if (orientation === 'horizontal') {
+    return (
+      <Field orientation="horizontal" className={className}>
+        <FieldContent>
+          {labelPart}
+          {descriptionPart}
+          {errorPart}
+        </FieldContent>
+        {control}
+      </Field>
+    );
+  }
+
+  return (
+    <Field className={cn('gap-2', className)}>
+      {labelPart}
+      {control}
+      {descriptionPart}
+      {errorPart}
+    </Field>
+  );
+}
+
+export interface AppFieldRenderProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+> {
+  field: ControllerRenderProps<TFieldValues, TName>;
+  /** The id and `aria-*` to place on the real focusable control. */
+  controlProps: FieldControlProps;
+  /** Whether the whole form or this one field is disabled. */
+  disabled: boolean;
+}
+
+// TTransformedValues is defaulted and never read here: only `control` is used,
+// which is typed by TFieldValues alone. Carrying it lets a caller pass its form
+// as it is, instead of erasing the generic through a cast.
+// See contributing/renderer/forms.md#form-typing.
+export interface AppFieldProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+  TTransformedValues extends FieldValues = TFieldValues,
+> extends Omit<FieldShellProps, 'error' | 'children' | 'required'> {
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  name: TName;
+  required?: boolean;
+  children: (props: AppFieldRenderProps<TFieldValues, TName>) => ReactNode;
+}
+
+/**
+ * One field of a form: react-hook-form's `Controller` drawn in the field shell.
+ *
+ * Nothing else in the app draws a label, a description or an error. `name` is
+ * typed against the form that is passed in, so a path that does not exist on it
+ * is a compile error at the call site.
+ *
+ * See contributing/renderer/forms.md.
+ */
+export function AppField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
+  form,
+  name,
+  required = false,
+  children,
+  ...shell
+}: AppFieldProps<TFieldValues, TName, TTransformedValues>): ReactNode {
+  // Claimed whether or not a message is on screen right now, so AppForm's
+  // backstop never reports an error this field would show.
+  useErrorTarget(name);
+
+  return (
+    <Controller
+      control={form.control}
+      name={name}
+      render={({ field, fieldState }) => {
+        const error = messageError(fieldState.error);
+
+        return (
+          <FieldShell
+            {...shell}
+            required={required}
+            {...(error?.message === undefined
+              ? {}
+              : { error: String(error.message) })}
+          >
+            {(controlProps): ReactNode =>
+              children({
+                field,
+                controlProps,
+                disabled: field.disabled === true,
+              })
+            }
+          </FieldShell>
+        );
+      }}
+    />
+  );
+}
 
 // The gating a detached SubmitButton reads, since a button outside the form's
 // FormProvider subtree cannot read formState from context.
@@ -40,6 +255,7 @@ interface FormActionsContextValue {
   formId: string | undefined;
   isDirty: boolean;
   isSubmitting: boolean;
+  isDisabled: boolean;
 }
 
 const FormActionsContext = createContext<FormActionsContextValue | null>(null);
@@ -177,7 +393,7 @@ export function AppForm<
 
   return (
     <AppFormContext value={context}>
-      <Form {...form}>
+      <FormProvider {...form}>
         {/* noValidate is deliberately not a prop, so it cannot be forgotten. */}
         <form
           id={formId}
@@ -211,8 +427,73 @@ export function AppForm<
             {children}
           </fieldset>
         </form>
-      </Form>
+      </FormProvider>
     </AppFormContext>
+  );
+}
+
+// TTransformedValues is defaulted and never read: only `form.control` is used
+// here, which is typed by TFieldValues alone. Carrying the generic lets a caller
+// pass its form as it is, instead of erasing the third generic through a cast.
+// See contributing/renderer/forms.md#form-typing.
+export interface FieldSubtreeErrorProps<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+> {
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  name: FieldPath<TFieldValues>;
+  className?: string;
+}
+
+/**
+ * Renders every validation message at or below `name`. Use it where a value is
+ * bound as a single Controller but rendered as something other than a field (the
+ * Collection editor's `fieldDefinitions` array), so a refinement landing on the
+ * value itself or on a path inside it still has a surface. An `AppField` cannot
+ * serve here, because it only shows the message sitting at its own exact path.
+ *
+ * It claims the whole subtree as an error target, which is also what keeps
+ * AppForm from reporting the same errors a second time.
+ * See contributing/renderer/forms.md.
+ */
+export function FieldSubtreeError<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
+  form,
+  name,
+  className,
+}: FieldSubtreeErrorProps<TFieldValues, TTransformedValues>): ReactNode {
+  useErrorTarget(name);
+  const { errors } = useFormState({ control: form.control, name });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const messages = collectFieldErrorMessages(errors).filter((error) =>
+    isAtOrBelow(error.path, name)
+  );
+  // A primitive key, so the effect refocuses when the set of messages changes but
+  // not on every re-render (the array is rebuilt each time).
+  const messageKey = messages.map((error) => error.path).join(',');
+
+  useEffect(() => {
+    if (messageKey !== '') {
+      containerRef.current?.focus();
+    }
+  }, [messageKey]);
+
+  if (messages.length === 0) {
+    return null;
+  }
+
+  return (
+    <FieldError ref={containerRef} tabIndex={-1} className={className}>
+      <ul className="list-inside list-disc">
+        {messages.map((error) => (
+          <li key={error.path} data-slot="form-message">
+            {error.message} ({error.path})
+          </li>
+        ))}
+      </ul>
+    </FieldError>
   );
 }
 
@@ -244,12 +525,16 @@ export function FormActions<
   id,
   children,
 }: FormActionsProps<TFieldValues, TTransformedValues>): ReactNode {
-  const { isDirty, isSubmitting } = useFormState({ control: form.control });
+  const {
+    isDirty,
+    isSubmitting,
+    disabled: isDisabled,
+  } = useFormState({ control: form.control });
   const appFormId = useAppFormId();
   const formId = id ?? appFormId ?? undefined;
 
   return (
-    <FormActionsContext value={{ formId, isDirty, isSubmitting }}>
+    <FormActionsContext value={{ formId, isDirty, isSubmitting, isDisabled }}>
       {children}
     </FormActionsContext>
   );
@@ -280,9 +565,10 @@ export interface SubmitButtonProps extends Omit<
 }
 
 /**
- * The only submit control. It always disables while the form is submitting, and
- * additionally on a pristine form when `requireDirty` is set. Both read the
- * enclosing FormActions. See contributing/renderer/forms.md.
+ * The only submit control. It always disables while the form is submitting or
+ * still filling from its query, and additionally on a pristine form when
+ * `requireDirty` is set. All three read the enclosing FormActions.
+ * See contributing/renderer/forms.md.
  */
 export function SubmitButton({
   form,
@@ -298,8 +584,15 @@ export function SubmitButton({
 
   const isSubmitting = actions?.isSubmitting ?? false;
   const isDirty = actions?.isDirty ?? true;
+  // A form still waiting for its data cannot be saved: it would write the
+  // defaults over what is stored. Its fields are disabled, so this is the same
+  // fact said once more for the control that sits outside them.
+  const isDisabled = actions?.isDisabled ?? false;
   const gatedDisabled =
-    disabled === true || isSubmitting || (requireDirty && isDirty === false);
+    disabled === true ||
+    isSubmitting ||
+    isDisabled ||
+    (requireDirty && isDirty === false);
 
   return (
     // The spread comes first on purpose, so the structural props below it cannot

@@ -8,18 +8,12 @@ import {
 } from 'react-hook-form';
 
 import { FieldDefinitionsEditor } from '@renderer/components/forms/field-definitions-editor';
-import { AppForm } from '@renderer/components/ui/app-form';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
   TranslatableFormInputField,
   TranslatableFormTextareaField,
-} from '@renderer/components/ui/form';
+} from '@renderer/components/ui/translatable-field';
 
 import { type Project } from '@elek-io/core';
 
@@ -77,81 +71,75 @@ export function ComponentForm<
     >
       <div className="space-y-6 p-6">
         <div className="grid grid-cols-12 items-start gap-6">
-          <FormField
-            control={componentForm.control}
+          <AppField
+            form={componentForm}
             name={path(`name.${defaultLanguage}`)}
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-6">
-                <FormLabel isRequired>
-                  <Trans>Component name</Trans>
-                </FormLabel>
-                <TranslatableFormInputField
-                  title={t`Component name`}
-                  description={t`What this group of fields is, in singular, such as "Teaser".`}
-                  type="text"
-                  field={field}
-                  errors={componentForm.formState.errors}
-                  supportedLanguages={project.settings.language.supported}
-                />
-                <FormDescription>
-                  <Trans>
-                    What this group of fields is, in singular, such as
-                    &quot;Teaser&quot;.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Component name</Trans>}
+            required
+            description={
+              <Trans>
+                What this group of fields is, in singular, such as
+                &quot;Teaser&quot;.
+              </Trans>
+            }
+            className="col-span-12 sm:col-span-6"
+          >
+            {({ field, controlProps }) => (
+              <TranslatableFormInputField
+                form={componentForm}
+                title={t`Component name`}
+                description={t`What this group of fields is, in singular, such as "Teaser".`}
+                type="text"
+                field={field}
+                controlProps={controlProps}
+                errors={componentForm.formState.errors}
+                supportedLanguages={project.settings.language.supported}
+              />
             )}
-          />
+          </AppField>
 
-          <FormField
-            control={componentForm.control}
+          <AppField
+            form={componentForm}
             name={path('slug')}
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-6">
-                <FormLabel isRequired>
-                  <Trans>Component slug</Trans>
-                </FormLabel>
-                <FormControl>
-                  <FormInputField field={field} type="text" />
-                </FormControl>
-                <FormDescription>
-                  <Trans>
-                    A lowercase version of the name without special characters.
-                    It identifies this Component and has to be unique in this
-                    Project.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Component slug</Trans>}
+            required
+            description={
+              <Trans>
+                A lowercase version of the name without special characters. It
+                identifies this Component and has to be unique in this Project.
+              </Trans>
+            }
+            className="col-span-12 sm:col-span-6"
+          >
+            {({ field, controlProps }) => (
+              <TextControl field={field} type="text" {...controlProps} />
             )}
-          />
+          </AppField>
 
-          <FormField
-            control={componentForm.control}
+          <AppField
+            form={componentForm}
             name={path(`description.${defaultLanguage}`)}
-            render={({ field }) => (
-              <FormItem className="col-span-12">
-                <FormLabel isRequired={false}>
-                  <Trans>Description</Trans>
-                </FormLabel>
-                <TranslatableFormTextareaField
-                  title={t`Description`}
-                  description={t`What this Component is used for. Leave every language empty for no description, or fill them all.`}
-                  field={field}
-                  errors={componentForm.formState.errors}
-                  supportedLanguages={project.settings.language.supported}
-                />
-                <FormDescription>
-                  <Trans>
-                    Optional. What this Component is used for. Leave every
-                    language empty for no description, or fill them all.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Description</Trans>}
+            description={
+              <Trans>
+                Optional. What this Component is used for. Leave every language
+                empty for no description, or fill them all.
+              </Trans>
+            }
+            className="col-span-12"
+          >
+            {({ field, controlProps }) => (
+              <TranslatableFormTextareaField
+                form={componentForm}
+                title={t`Description`}
+                description={t`What this Component is used for. Leave every language empty for no description, or fill them all.`}
+                field={field}
+                controlProps={controlProps}
+                errors={componentForm.formState.errors}
+                supportedLanguages={project.settings.language.supported}
+              />
             )}
-          />
+          </AppField>
         </div>
       </div>
 

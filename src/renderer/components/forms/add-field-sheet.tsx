@@ -2,13 +2,13 @@ import { Trans } from '@lingui/react/macro';
 import { Plus } from 'lucide-react';
 import { useId, useState, type ReactElement } from 'react';
 
+import {
+  authorableFieldTypes,
+  fieldModule,
+  fieldTypesForbiddenInComponents,
+} from '@renderer/components/fields';
 import { type FieldDefinitionsOwner } from '@renderer/components/forms/default-field-definition-form';
 import { type DefinitionDraftProps } from '@renderer/components/forms/field-definition-draft';
-import {
-  FIELD_DEFINITION_REGISTRY,
-  fieldTypesForbiddenInComponents,
-  unauthorableFieldTypes,
-} from '@renderer/components/forms/field-definition-registry';
 import { SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import { Label } from '@renderer/components/ui/label';
@@ -105,7 +105,7 @@ export function AddFieldSheet({
   // A type is offered unless the client cannot author it at all, or the object
   // it would be added to cannot hold it.
   const isUnavailable = (fieldType: FieldType): boolean =>
-    unauthorableFieldTypes.has(fieldType) ||
+    authorableFieldTypes.has(fieldType) === false ||
     (owner === 'component' && fieldTypesForbiddenInComponents.has(fieldType));
 
   return (
@@ -188,7 +188,9 @@ export function AddFieldSheet({
         {/* Keyed by type so switching the picker remounts the body with the
         right schema and defaults. One live form, not 18. */}
         <SheetBody key={selectedFieldType}>
-          {FIELD_DEFINITION_REGISTRY[selectedFieldType](draftProps)}
+          {fieldModule({ fieldType: selectedFieldType }).DefinitionDraft?.(
+            draftProps
+          )}
         </SheetBody>
 
         <SheetFooter>

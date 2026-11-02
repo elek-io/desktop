@@ -9,19 +9,12 @@ import { type SubmitHandler, useForm } from 'react-hook-form';
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
 import {
+  AppField,
   AppForm,
   FormActions,
   SubmitButton,
 } from '@renderer/components/ui/app-form';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { queryOptions } from '@renderer/queries';
@@ -98,22 +91,17 @@ function ProjectSettingsVersionControlPage(): ReactElement {
           }
         >
           <div className="grid grid-cols-12 gap-6">
-            <FormField
-              control={remoteOriginUrlForm.control}
+            <AppField
+              form={remoteOriginUrlForm}
               name="url"
-              render={({ field }) => (
-                <FormItem className="col-span-12">
-                  <FormLabel isRequired>
-                    <Trans>Remote URL</Trans>
-                  </FormLabel>
-                  <FormControl>
-                    <FormInputField field={field} type="url" />
-                  </FormControl>
-                  <FormDescription />
-                  <FormMessage />
-                </FormItem>
+              label={<Trans>Remote URL</Trans>}
+              required
+              className="col-span-12"
+            >
+              {({ field, controlProps }) => (
+                <TextControl field={field} type="url" {...controlProps} />
               )}
-            />
+            </AppField>
           </div>
         </PageSection>
       </AppForm>

@@ -7,18 +7,8 @@ import {
 } from 'react-hook-form';
 
 import { FieldDefinitionsEditor } from '@renderer/components/forms/field-definitions-editor';
-import { AppForm } from '@renderer/components/ui/app-form';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  TranslatableFormInputField,
-  TranslatableFormTextareaField,
-} from '@renderer/components/ui/form';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import {
   Select,
   SelectContent,
@@ -26,6 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
+import {
+  TranslatableFormInputField,
+  TranslatableFormTextareaField,
+} from '@renderer/components/ui/translatable-field';
 
 import {
   type Project,
@@ -88,164 +82,152 @@ export function CollectionForm<
     >
       <div className="space-y-6 p-6">
         <div className="grid grid-cols-12 items-start gap-6">
-          <FormField
-            control={collectionForm.control}
+          <AppField
+            form={collectionForm}
             name="icon"
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-2">
-                <FormLabel isRequired>
-                  <Trans>Icon</Trans>
-                </FormLabel>
-                <FormControl>
-                  <Select
-                    items={iconItems}
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {supportedIconSchema.options.map((option) => {
-                        return (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-              </FormItem>
+            label={<Trans>Icon</Trans>}
+            required
+            className="col-span-12 sm:col-span-2"
+          >
+            {({ field, controlProps }) => (
+              <Select
+                items={iconItems}
+                onValueChange={field.onChange}
+                value={field.value}
+                {...controlProps}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {supportedIconSchema.options.map((option) => {
+                    return (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             )}
-          />
+          </AppField>
 
-          <FormField
-            control={collectionForm.control}
+          <AppField
+            form={collectionForm}
             name={`name.plural.${project.settings.language.default}`}
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-5">
-                <FormLabel isRequired>
-                  <Trans>Collection name (Plural)</Trans>
-                </FormLabel>
-                <TranslatableFormInputField
-                  title={t`Collection name (Plural)`}
-                  description={t`The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. "Blogposts".`}
-                  type="text"
-                  field={field}
-                  errors={collectionForm.formState.errors}
-                  supportedLanguages={project.settings.language.supported}
-                />
-                <FormDescription>
-                  <Trans>
-                    The name of your new collection. Choose a short name in
-                    plural that explains the content of the collection - e.g.
-                    &quot;Blogposts&quot;.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Collection name (Plural)</Trans>}
+            required
+            description={
+              <Trans>
+                The name of your new collection. Choose a short name in plural
+                that explains the content of the collection - e.g.
+                &quot;Blogposts&quot;.
+              </Trans>
+            }
+            className="col-span-12 sm:col-span-5"
+          >
+            {({ field, controlProps }) => (
+              <TranslatableFormInputField
+                form={collectionForm}
+                title={t`Collection name (Plural)`}
+                description={t`The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. "Blogposts".`}
+                type="text"
+                field={field}
+                controlProps={controlProps}
+                errors={collectionForm.formState.errors}
+                supportedLanguages={project.settings.language.supported}
+              />
             )}
-          />
+          </AppField>
 
-          <FormField
-            control={collectionForm.control}
+          <AppField
+            form={collectionForm}
             name={`name.singular.${project.settings.language.default}`}
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-5">
-                <FormLabel isRequired>
-                  <Trans>Entry name (Singular)</Trans>
-                </FormLabel>
-                <TranslatableFormInputField
-                  title={t`Entry name (Singular)`}
-                  description={t`The name of each Entry inside your new Collection. Choose a short name in singular - e.g. "Blogpost".`}
-                  type="text"
-                  field={field}
-                  errors={collectionForm.formState.errors}
-                  supportedLanguages={project.settings.language.supported}
-                />
-                <FormDescription>
-                  <Trans>
-                    The name of each Entry inside your new Collection. Choose a
-                    short name in singular - e.g. &quot;Blogpost&quot;.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Entry name (Singular)</Trans>}
+            required
+            description={
+              <Trans>
+                The name of each Entry inside your new Collection. Choose a
+                short name in singular - e.g. &quot;Blogpost&quot;.
+              </Trans>
+            }
+            className="col-span-12 sm:col-span-5"
+          >
+            {({ field, controlProps }) => (
+              <TranslatableFormInputField
+                form={collectionForm}
+                title={t`Entry name (Singular)`}
+                description={t`The name of each Entry inside your new Collection. Choose a short name in singular - e.g. "Blogpost".`}
+                type="text"
+                field={field}
+                controlProps={controlProps}
+                errors={collectionForm.formState.errors}
+                supportedLanguages={project.settings.language.supported}
+              />
             )}
-          />
+          </AppField>
 
-          <FormField
-            control={collectionForm.control}
+          <AppField
+            form={collectionForm}
             name={`description.${project.settings.language.default}`}
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-12">
-                <FormLabel isRequired>
-                  <Trans>Description</Trans>
-                </FormLabel>
-                <TranslatableFormTextareaField
-                  title={t`Description`}
-                  description={t`A description of what this new Collection is used for.`}
-                  field={field}
-                  errors={collectionForm.formState.errors}
-                  supportedLanguages={project.settings.language.supported}
-                />
-                <FormDescription>
-                  <Trans>
-                    A description of what this new Collection is used for.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Description</Trans>}
+            required
+            description={
+              <Trans>
+                A description of what this new Collection is used for.
+              </Trans>
+            }
+            className="col-span-12 sm:col-span-12"
+          >
+            {({ field, controlProps }) => (
+              <TranslatableFormTextareaField
+                form={collectionForm}
+                title={t`Description`}
+                description={t`A description of what this new Collection is used for.`}
+                field={field}
+                controlProps={controlProps}
+                errors={collectionForm.formState.errors}
+                supportedLanguages={project.settings.language.supported}
+              />
             )}
-          />
+          </AppField>
         </div>
 
-        <FormField
-          control={collectionForm.control}
+        <AppField
+          form={collectionForm}
           name="slug.plural"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel isRequired>
-                <Trans>Collection-Slug</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormInputField field={field} type="text" />
-              </FormControl>
-              <FormDescription>
-                <Trans>
-                  A lowercase version without any special characters of the
-                  Collection name. It's used to identify this Collection and
-                  needs to be unique.
-                </Trans>
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Collection-Slug</Trans>}
+          required
+          description={
+            <Trans>
+              A lowercase version without any special characters of the
+              Collection name. It's used to identify this Collection and needs
+              to be unique.
+            </Trans>
+          }
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="text" {...controlProps} />
           )}
-        />
+        </AppField>
 
-        <FormField
-          control={collectionForm.control}
+        <AppField
+          form={collectionForm}
           name="slug.singular"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel isRequired>
-                <Trans>Entry-Slug</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormInputField field={field} type="text" />
-              </FormControl>
-              <FormDescription>
-                <Trans>
-                  A lowercase version without any special characters of the
-                  Entry's name. It's used to identify this Collection's Entries
-                  and needs to be unique.
-                </Trans>
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Entry-Slug</Trans>}
+          required
+          description={
+            <Trans>
+              A lowercase version without any special characters of the Entry's
+              name. It's used to identify this Collection's Entries and needs to
+              be unique.
+            </Trans>
+          }
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="text" {...controlProps} />
           )}
-        />
+        </AppField>
       </div>
 
       <FieldDefinitionsEditor

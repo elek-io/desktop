@@ -11,18 +11,12 @@ import {
   type DefinitionExtrasProps,
   type DefinitionSpec,
 } from '@renderer/components/forms/field-definition-draft';
+import { AppField } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  TranslatableFormInputField,
-} from '@renderer/components/ui/form';
-import { Input } from '@renderer/components/ui/input';
+  TextControl,
+  type FieldControlProps,
+} from '@renderer/components/ui/field-controls';
 import { Label } from '@renderer/components/ui/label';
 import {
   Select,
@@ -31,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
+import { TranslatableFormInputField } from '@renderer/components/ui/translatable-field';
+import { rawTextFromInput } from '@renderer/lib/fieldValues';
 import { translatableDefault } from '@renderer/lib/utils';
 
 import {
@@ -109,52 +105,44 @@ function DefaultOptionSelect({
   items,
   selectedIndex,
   onSelectIndex,
+  controlProps,
 }: {
   items: { itemValue: string; display: string }[];
   selectedIndex: number;
   onSelectIndex: (index: number | null) => void;
+  controlProps: FieldControlProps;
 }): ReactElement {
   const { t } = useLingui();
   return (
-    <FormItem>
-      <FormLabel isRequired={false}>
-        <Trans>Default value</Trans>
-      </FormLabel>
-      <FormControl>
-        <Select
-          items={{
-            none: t`None`,
-            ...Object.fromEntries(
-              items.map((item) => [item.itemValue, item.display])
-            ),
-          }}
-          value={selectedIndex === -1 ? 'none' : String(selectedIndex)}
-          onValueChange={(selected) =>
-            onSelectIndex(
-              selected === null || selected === 'none' ? null : Number(selected)
-            )
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">
-              <Trans>None</Trans>
-            </SelectItem>
-            {items.map((item) => (
-              <SelectItem key={item.itemValue} value={item.itemValue}>
-                {item.display}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FormControl>
-      <FormDescription>
-        <Trans>The initial option for the field.</Trans>
-      </FormDescription>
-      <FormMessage />
-    </FormItem>
+    <Select
+      items={{
+        none: t`None`,
+        ...Object.fromEntries(
+          items.map((item) => [item.itemValue, item.display])
+        ),
+      }}
+      value={selectedIndex === -1 ? 'none' : String(selectedIndex)}
+      onValueChange={(selected) =>
+        onSelectIndex(
+          selected === null || selected === 'none' ? null : Number(selected)
+        )
+      }
+      {...controlProps}
+    >
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">
+          <Trans>None</Trans>
+        </SelectItem>
+        {items.map((item) => (
+          <SelectItem key={item.itemValue} value={item.itemValue}>
+            {item.display}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -187,41 +175,46 @@ function StringSelectOptionRow({
 
   return (
     <div className="flex items-start gap-2">
-      <FormField
-        control={form.control}
+      {/* sr-only labels name the option inputs for screen readers and for
+      role and label based E2E, which the old option rows lacked. */}
+      <AppField
+        form={form}
         name={`options.${index}.label.${currentLanguage}`}
-        render={({ field }) => (
-          <FormItem className="flex-1">
-            {/* sr-only labels name the option inputs for screen readers and for
-            role/label based E2E, which the old option rows lacked. */}
-            <FormLabel className="sr-only">{t`Option ${position} label`}</FormLabel>
-            <TranslatableFormInputField
-              title={t`Label`}
-              description={t`The label users see for this option.`}
-              type="text"
-              field={field}
-              errors={form.formState.errors}
-              supportedLanguages={supportedLanguages}
-            />
-            <FormMessage />
-          </FormItem>
+        label={<span className="sr-only">{t`Option ${position} label`}</span>}
+        required
+        className="flex-1"
+      >
+        {({ field, controlProps }) => (
+          <TranslatableFormInputField
+            form={form}
+            title={t`Label`}
+            description={t`The label users see for this option.`}
+            type="text"
+            field={field}
+            controlProps={controlProps}
+            errors={form.formState.errors}
+            supportedLanguages={supportedLanguages}
+          />
         )}
-      />
-      <FormField
-        control={form.control}
+      </AppField>
+      <AppField
+        form={form}
         name={`options.${index}.value`}
-        render={({ field }) => (
-          <FormItem className="flex-1">
-            <FormLabel className="sr-only">{t`Option ${position} value`}</FormLabel>
-            <FormControl>
-              {/* Option values are plain strings, not nullable Values, so the
-                  null-for-empty transform of FormInputField does not apply */}
-              <Input type="text" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+        label={<span className="sr-only">{t`Option ${position} value`}</span>}
+        required
+        className="flex-1"
+      >
+        {({ field, controlProps }) => (
+          // Option values are plain strings, not nullable Values, so the
+          // null-for-empty transform of a text control does not apply
+          <TextControl
+            field={field}
+            type="text"
+            transform={rawTextFromInput}
+            {...controlProps}
+          />
         )}
-      />
+      </AppField>
       <Button
         type="button"
         variant="destructive"
@@ -266,14 +259,20 @@ function StringSelectExtras({
 
   return (
     <>
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name="options"
-        render={() => (
-          <FormItem>
-            <FormLabel isRequired>
-              <Trans>Options</Trans>
-            </FormLabel>
+        label={<Trans>Options</Trans>}
+        required
+        description={
+          <Trans>
+            The options a user can choose between. The label is what users see,
+            the value is what gets stored.
+          </Trans>
+        }
+      >
+        {({ controlProps }) => (
+          <div {...controlProps}>
             <div className="space-y-2">
               {options.fields.map((option, index) => (
                 <StringSelectOptionRow
@@ -306,21 +305,19 @@ function StringSelectExtras({
             >
               <Trans>Add option</Trans>
             </Button>
-            <FormDescription>
-              <Trans>
-                The options a user can choose between. The label is what users
-                see, the value is what gets stored.
-              </Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+          </div>
         )}
-      />
-      <FormField
-        control={form.control}
+      </AppField>
+      <AppField
+        form={form}
         name="defaultValue"
-        render={({ field }) => (
+        label={<Trans>Default value</Trans>}
+        required={false}
+        description={<Trans>The initial option for the field.</Trans>}
+      >
+        {({ field, controlProps }) => (
           <DefaultOptionSelect
+            controlProps={controlProps}
             items={items}
             selectedIndex={
               field.value === null
@@ -336,7 +333,7 @@ function StringSelectExtras({
             }
           />
         )}
-      />
+      </AppField>
     </>
   );
 }
@@ -360,37 +357,37 @@ function NumberSelectOptionRow({
 
   return (
     <div className="flex items-start gap-2">
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={`options.${index}.label.${currentLanguage}`}
-        render={({ field }) => (
-          <FormItem className="flex-1">
-            <FormLabel className="sr-only">{t`Option ${position} label`}</FormLabel>
-            <TranslatableFormInputField
-              title={t`Label`}
-              description={t`The label users see for this option.`}
-              type="text"
-              field={field}
-              errors={form.formState.errors}
-              supportedLanguages={supportedLanguages}
-            />
-            <FormMessage />
-          </FormItem>
+        label={<span className="sr-only">{t`Option ${position} label`}</span>}
+        required
+        className="flex-1"
+      >
+        {({ field, controlProps }) => (
+          <TranslatableFormInputField
+            form={form}
+            title={t`Label`}
+            description={t`The label users see for this option.`}
+            type="text"
+            field={field}
+            controlProps={controlProps}
+            errors={form.formState.errors}
+            supportedLanguages={supportedLanguages}
+          />
         )}
-      />
-      <FormField
-        control={form.control}
+      </AppField>
+      <AppField
+        form={form}
         name={`options.${index}.value`}
-        render={({ field }) => (
-          <FormItem className="flex-1">
-            <FormLabel className="sr-only">{t`Option ${position} value`}</FormLabel>
-            <FormControl>
-              <FormInputField type="number" field={field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+        label={<span className="sr-only">{t`Option ${position} value`}</span>}
+        required
+        className="flex-1"
+      >
+        {({ field, controlProps }) => (
+          <TextControl type="number" field={field} {...controlProps} />
         )}
-      />
+      </AppField>
       <Button
         type="button"
         variant="destructive"
@@ -429,14 +426,20 @@ function NumberSelectExtras({
 
   return (
     <>
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name="options"
-        render={() => (
-          <FormItem>
-            <FormLabel isRequired>
-              <Trans>Options</Trans>
-            </FormLabel>
+        label={<Trans>Options</Trans>}
+        required
+        description={
+          <Trans>
+            The options a user can choose between. The label is what users see,
+            the value is what gets stored.
+          </Trans>
+        }
+      >
+        {({ controlProps }) => (
+          <div {...controlProps}>
             <div className="space-y-2">
               {options.fields.map((option, index) => (
                 <NumberSelectOptionRow
@@ -469,21 +472,19 @@ function NumberSelectExtras({
             >
               <Trans>Add option</Trans>
             </Button>
-            <FormDescription>
-              <Trans>
-                The options a user can choose between. The label is what users
-                see, the value is what gets stored.
-              </Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+          </div>
         )}
-      />
-      <FormField
-        control={form.control}
+      </AppField>
+      <AppField
+        form={form}
         name="defaultValue"
-        render={({ field }) => (
+        label={<Trans>Default value</Trans>}
+        required={false}
+        description={<Trans>The initial option for the field.</Trans>}
+      >
+        {({ field, controlProps }) => (
           <DefaultOptionSelect
+            controlProps={controlProps}
             items={items}
             selectedIndex={
               field.value === null
@@ -499,13 +500,12 @@ function NumberSelectExtras({
             }
           />
         )}
-      />
+      </AppField>
     </>
   );
 }
 
 const stringSelectSpec: DefinitionSpec<StringSelectFieldDefinition> = {
-  authorableFieldType: 'stringSelect',
   resolver: zodResolver(stringSelectFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -527,7 +527,6 @@ const stringSelectSpec: DefinitionSpec<StringSelectFieldDefinition> = {
 };
 
 const numberSelectSpec: DefinitionSpec<NumberSelectFieldDefinition> = {
-  authorableFieldType: 'numberSelect',
   resolver: zodResolver(numberSelectFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),

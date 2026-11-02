@@ -6,17 +6,11 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
-import { AppForm } from '@renderer/components/ui/app-form';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormTextareaField,
-} from '@renderer/components/ui/form';
+  TextControl,
+  TextareaControl,
+} from '@renderer/components/ui/field-controls';
 
 interface AssetFormProps<TFieldValues extends FieldValues> {
   assetForm: UseFormReturn<TFieldValues>;
@@ -48,39 +42,29 @@ export function AssetForm<TFieldValues extends FieldValues>({
   return (
     <AppForm form={assetForm} onSubmit={onFormSubmit} id={id}>
       <div className="grid grid-cols-12 gap-6">
-        <FormField
-          control={assetForm.control}
+        <AppField
+          form={assetForm}
           name={'name' as FieldPath<TFieldValues>}
-          render={({ field }) => (
-            <FormItem className="col-span-12">
-              <FormLabel isRequired>
-                <Trans>Asset name</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormInputField field={field} type="text" />
-              </FormControl>
-              <FormDescription />
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Asset name</Trans>}
+          required
+          className="col-span-12"
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="text" {...controlProps} />
           )}
-        />
+        </AppField>
 
-        <FormField
-          control={assetForm.control}
+        <AppField
+          form={assetForm}
           name={'description' as FieldPath<TFieldValues>}
-          render={({ field }) => (
-            <FormItem className="col-span-12">
-              <FormLabel isRequired>
-                <Trans>Asset description</Trans>
-              </FormLabel>
-              <FormControl>
-                <FormTextareaField field={field} />
-              </FormControl>
-              <FormDescription />
-              <FormMessage />
-            </FormItem>
+          label={<Trans>Asset description</Trans>}
+          required
+          className="col-span-12"
+        >
+          {({ field, controlProps }) => (
+            <TextareaControl field={field} {...controlProps} />
           )}
-        />
+        </AppField>
       </div>
     </AppForm>
   );

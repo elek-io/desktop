@@ -22,6 +22,7 @@ import {
   AlertTitle,
 } from '@renderer/components/ui/alert';
 import {
+  AppField,
   AppForm,
   FormActions,
   SubmitButton,
@@ -39,16 +40,10 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormTextareaField,
-  FormToggleField,
-} from '@renderer/components/ui/form';
+  SwitchControl,
+  TextControl,
+  TextareaControl,
+} from '@renderer/components/ui/field-controls';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { queryOptions } from '@renderer/queries';
@@ -348,46 +343,32 @@ function ContactFields<
 }): ReactElement {
   return (
     <>
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={nameField}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              <Trans>Name</Trans>
-            </FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="text" />
-            </FormControl>
-            <FormDescription>
-              <Trans>Who this {purpose} is from.</Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Name</Trans>}
+        description={<Trans>Who this {purpose} is from.</Trans>}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="text" {...controlProps} />
         )}
-      />
+      </AppField>
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={emailField}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              <Trans>Email</Trans>
-            </FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="email" />
-            </FormControl>
-            <FormDescription>
-              <Trans>
-                Only so we can come back to you about this {purpose}. Both are
-                yours to change. Leave them empty to send this anonymously.
-              </Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Email</Trans>}
+        description={
+          <Trans>
+            Only so we can come back to you about this {purpose}. Both are yours
+            to change. Leave them empty to send this anonymously.
+          </Trans>
+        }
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="email" {...controlProps} />
         )}
-      />
+      </AppField>
     </>
   );
 }
@@ -456,28 +437,23 @@ function BugReportForm({
         <DialogBody>
           <ReportError error={sendError} descriptions={bugErrorDescriptions} />
 
-          <FormField
-            control={form.control}
+          <AppField
+            form={form}
             name="message"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel isRequired>
-                  <Trans>What went wrong?</Trans>
-                </FormLabel>
-                <FormControl>
-                  <FormTextareaField field={field} rows={8} />
-                </FormControl>
-                <FormDescription>
-                  <Trans>
-                    What you did just before it happened, roughly when, and what
-                    you expected instead. That is usually what lets us find it
-                    in the logs and reproduce it.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>What went wrong?</Trans>}
+            required
+            description={
+              <Trans>
+                What you did just before it happened, roughly when, and what you
+                expected instead. That is usually what lets us find it in the
+                logs and reproduce it.
+              </Trans>
+            }
+          >
+            {({ field, controlProps }) => (
+              <TextareaControl field={field} rows={8} {...controlProps} />
             )}
-          />
+          </AppField>
 
           <ContactFields
             form={form}
@@ -486,41 +462,33 @@ function BugReportForm({
             purpose="report"
           />
 
-          <FormField
-            control={form.control}
+          {/*
+            `required` only suppresses the label's " - optional" suffix. On a
+            switch that suffix means nothing, since it always has a value, and
+            it would land in the control's accessible name ("Also send my logs
+            - optional, switch"). This is the one label carrying the user's
+            consent to send data, so it has to read exactly as written.
+          */}
+          <AppField
+            form={form}
             name="hasLogConsent"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex items-center gap-3">
-                  <FormControl>
-                    <FormToggleField field={field} />
-                  </FormControl>
-                  {/*
-                    isRequired only suppresses FormLabel's " - optional" suffix.
-                    On a switch that suffix means nothing, since it always has a
-                    value, and it would land in the control's accessible name
-                    ("Also send my logs - optional, switch"). This is the one
-                    label carrying the user's consent to send data, so it has to
-                    read exactly as written.
-                  */}
-                  <FormLabel isRequired>
-                    <Trans>Also send my logs</Trans>
-                  </FormLabel>
-                </div>
-                <FormDescription>
-                  <Trans>
-                    Sends what elek.io Desktop recorded on this machine in the
-                    last 24 hours. That includes the ids of your Projects,
-                    Collections and Entries, the files they live in and the
-                    actions you took, but never the content you wrote or the
-                    names you gave them. It is the single most useful thing for
-                    finding a bug.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Also send my logs</Trans>}
+            required
+            orientation="horizontal"
+            description={
+              <Trans>
+                Sends what elek.io Desktop recorded on this machine in the last
+                24 hours. That includes the ids of your Projects, Collections
+                and Entries, the files they live in and the actions you took,
+                but never the content you wrote or the names you gave them. It
+                is the single most useful thing for finding a bug.
+              </Trans>
+            }
+          >
+            {({ field, controlProps }) => (
+              <SwitchControl field={field} {...controlProps} />
             )}
-          />
+          </AppField>
 
           <p className="text-sm text-muted-foreground">
             <Trans>Prefer to report this in the open?</Trans>{' '}
@@ -573,27 +541,22 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
             descriptions={feedbackErrorDescriptions}
           />
 
-          <FormField
-            control={form.control}
+          <AppField
+            form={form}
             name="message"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel isRequired>
-                  <Trans>What would you like to tell us?</Trans>
-                </FormLabel>
-                <FormControl>
-                  <FormTextareaField field={field} rows={8} />
-                </FormControl>
-                <FormDescription>
-                  <Trans>
-                    What is missing, what got in your way, or what you would
-                    like to see next.
-                  </Trans>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>What would you like to tell us?</Trans>}
+            required
+            description={
+              <Trans>
+                What is missing, what got in your way, or what you would like to
+                see next.
+              </Trans>
+            }
+          >
+            {({ field, controlProps }) => (
+              <TextareaControl field={field} rows={8} {...controlProps} />
             )}
-          />
+          </AppField>
 
           <ContactFields
             form={form}

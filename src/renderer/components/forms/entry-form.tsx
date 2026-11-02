@@ -5,13 +5,13 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
+import { FieldFromDefinition } from '@renderer/components/fields/field-from-definition';
 import { AppForm } from '@renderer/components/ui/app-form';
 import {
   FieldGroup,
   FieldLegend,
   FieldSet,
 } from '@renderer/components/ui/field';
-import { FormFieldFromDefinition } from '@renderer/components/ui/form';
 import { useProject } from '@renderer/hooks/useProject';
 import { FieldDefinitionsProvider } from '@renderer/providers/FieldDefinitionsProvider';
 
@@ -60,7 +60,7 @@ export function EntryForm<
   // The path is provably a key of `values` (a Record), but react-hook-form's
   // FieldPath cannot reduce that for an unresolved generic, so assert it once
   // here. It stops at `content`: whether the Value is per-language is the render
-  // registry's to know, so FormFieldFromDefinition appends the language itself.
+  // registry's to know, so FieldFromDefinition appends the language itself.
   const valuePath = (slug: string): FieldPath<TFieldValues> =>
     // A form field's path, which react-hook-form reads.
     // eslint-disable-next-line lingui/no-unlocalized-strings
@@ -89,7 +89,7 @@ export function EntryForm<
                   </FieldLegend>
                   <FieldGroup className="grid grid-cols-12 gap-x-4 gap-y-8 sm:gap-x-6 xl:gap-x-8">
                     {fieldDefinition.fieldDefinitions.map((member) => (
-                      <FormFieldFromDefinition
+                      <FieldFromDefinition
                         key={member.id}
                         fieldDefinition={member}
                         form={entryForm}
@@ -104,7 +104,7 @@ export function EntryForm<
             }
 
             return (
-              <FormFieldFromDefinition
+              <FieldFromDefinition
                 key={fieldDefinition.id}
                 fieldDefinition={fieldDefinition}
                 form={entryForm}

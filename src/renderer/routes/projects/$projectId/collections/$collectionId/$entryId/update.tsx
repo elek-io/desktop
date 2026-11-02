@@ -8,6 +8,7 @@ import { Check } from 'lucide-react';
 import { useEffect, useId, useState, type ReactElement } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 
+import { defaultEntryValue } from '@renderer/components/fields';
 import { EntryForm } from '@renderer/components/forms/entry-form';
 import { Page } from '@renderer/components/page';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
@@ -27,7 +28,6 @@ import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
-import { defaultEntryValue } from '@renderer/lib/entry';
 import { queryOptions } from '@renderer/queries';
 
 import {

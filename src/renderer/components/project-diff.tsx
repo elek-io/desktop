@@ -1,20 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
 
 import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
-import { ProjectForm } from '@renderer/components/forms/project-form';
+import {
+  ProjectForm,
+  type ProjectFormValues,
+} from '@renderer/components/forms/project-form';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
 
 import {
-  updateProjectSchema,
+  createProjectSchema,
   type GitCommit,
   type Project,
-  type UpdateProjectProps,
 } from '@elek-io/core';
 
 export function ProjectDiff({
@@ -77,10 +79,9 @@ export function ProjectDiff({
       enabled: commitBefore !== undefined,
     });
 
-  const projectFormBefore = useForm<UpdateProjectProps>({
-    resolver: zodResolver(updateProjectSchema),
+  const projectFormBefore = useAppForm<ProjectFormValues>({
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
-      id: project.id,
       name: '',
       description: '',
       settings: {
@@ -93,13 +94,18 @@ export function ProjectDiff({
         /* eslint-enable lingui/no-unlocalized-strings */
       },
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingProjectBefore
+      ? {}
+      : {
+          values: {
+            name: projectBefore.name,
+            description: projectBefore.description,
+            settings: projectBefore.settings,
+          },
+        }),
+    disabled: isReadingProjectBefore,
   });
-
-  useEffect(() => {
-    if (isReadingProjectBefore === false) {
-      projectFormBefore.reset(projectBefore);
-    }
-  }, [isReadingProjectBefore, projectFormBefore, projectBefore]);
 
   const { data: projectAfter, isPending: isReadingProjectAfter } =
     useQueryNoError({
@@ -110,10 +116,9 @@ export function ProjectDiff({
       enabled: commitAfter !== undefined,
     });
 
-  const projectFormAfter = useForm<UpdateProjectProps>({
-    resolver: zodResolver(updateProjectSchema),
+  const projectFormAfter = useAppForm<ProjectFormValues>({
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
-      id: project.id,
       name: '',
       description: '',
       settings: {
@@ -125,13 +130,18 @@ export function ProjectDiff({
         /* eslint-enable lingui/no-unlocalized-strings */
       },
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingProjectAfter
+      ? {}
+      : {
+          values: {
+            name: projectAfter.name,
+            description: projectAfter.description,
+            settings: projectAfter.settings,
+          },
+        }),
+    disabled: isReadingProjectAfter,
   });
-
-  useEffect(() => {
-    if (isReadingProjectAfter === false) {
-      projectFormAfter.reset(projectAfter);
-    }
-  }, [isReadingProjectAfter, projectFormAfter, projectAfter]);
 
   // Show loading skeleton while queries are pending
   if (

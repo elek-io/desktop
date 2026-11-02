@@ -3,27 +3,23 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { type ReactElement, useEffect, useId } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { type ReactElement, useId } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { CommitHistory } from '@renderer/components/commit-history';
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
 import {
+  AppField,
   AppForm,
   FormActions,
   SubmitButton,
 } from '@renderer/components/ui/app-form';
 import { Card } from '@renderer/components/ui/card';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+  SwitchControl,
+  TextControl,
+} from '@renderer/components/ui/field-controls';
 import {
   Select,
   SelectContent,
@@ -31,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
-import { Switch } from '@renderer/components/ui/switch';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -68,7 +64,7 @@ function UserProfilePage(): ReactElement {
   const { mutateAsync: stopApi } = useMutation(queryOptions.api.stop);
   const { mutateAsync: setUser } = useMutation(queryOptions.user.set);
   const formId = useId();
-  const setUserForm = useForm<SetUserProps>({
+  const setUserForm = useAppForm<SetUserProps>({
     resolver: zodResolver(setUserSchema),
     defaultValues: {
       userType: 'local',
@@ -84,6 +80,10 @@ function UserProfilePage(): ReactElement {
         isEnabled: false,
       },
     },
+    // Filled from the query, so a refetch never overwrites what is being typed
+    // and the form needs no reset of its own.
+    ...(user === null || user === undefined ? {} : { values: user }),
+    disabled: isGettingUser,
   });
 
   const { mutateAsync: startApi, handleError: handleStartApiError } =
@@ -101,13 +101,6 @@ function UserProfilePage(): ReactElement {
           ),
       },
     });
-
-  // Reset form with user data when it loads
-  useEffect(() => {
-    if (user) {
-      setUserForm.reset(user);
-    }
-  }, [user, setUserForm]);
 
   const exampleCommit: GitCommit = {
     hash: '1234567890',
@@ -212,96 +205,81 @@ function UserProfilePage(): ReactElement {
               className="rounded-t-xl border-t-0"
             >
               <div className="grid gap-6">
-                <FormField
-                  control={setUserForm.control}
+                <AppField
+                  form={setUserForm}
                   name="language"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel isRequired>
-                        <Trans>Preferred language</Trans>
-                      </FormLabel>
-                      <FormControl>
-                        <Select
-                          items={languageItems}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {supportedLanguageSchema.options.map((option) => {
-                              return (
-                                <SelectItem key={option} value={option}>
-                                  {option}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormDescription>
-                        <Trans>
-                          Changing your preferred language will attempt to
-                          translate everything you see in elek.io Desktop. You
-                          can help translate elek.io Desktop by contributing to
-                          our{' '}
-                          <a
-                            href="https://github.com/elek-io/desktop"
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            GitHub repository
-                          </a>
-                          .
-                        </Trans>
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                  label={<Trans>Preferred language</Trans>}
+                  required
+                  description={
+                    <Trans>
+                      Changing your preferred language will attempt to translate
+                      everything you see in elek.io Desktop. You can help
+                      translate elek.io Desktop by contributing to our{' '}
+                      <a
+                        href="https://github.com/elek-io/desktop"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        GitHub repository
+                      </a>
+                      .
+                    </Trans>
+                  }
+                >
+                  {({ field, controlProps }) => (
+                    <Select
+                      items={languageItems}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      {...controlProps}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {supportedLanguageSchema.options.map((option) => {
+                          return (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                   )}
-                />
-                <FormField
-                  control={setUserForm.control}
+                </AppField>
+                <AppField
+                  form={setUserForm}
                   name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel isRequired>
-                        <Trans>Full name</Trans>
-                      </FormLabel>
-                      <FormControl>
-                        <FormInputField field={field} type="text" />
-                      </FormControl>
-                      <FormDescription>
-                        <Trans>
-                          Your name will be used by others to identify changes
-                          made by you.
-                        </Trans>
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                  label={<Trans>Full name</Trans>}
+                  required
+                  description={
+                    <Trans>
+                      Your name will be used by others to identify changes made
+                      by you.
+                    </Trans>
+                  }
+                >
+                  {({ field, controlProps }) => (
+                    <TextControl field={field} type="text" {...controlProps} />
                   )}
-                />
-                <FormField
-                  control={setUserForm.control}
+                </AppField>
+                <AppField
+                  form={setUserForm}
                   name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel isRequired>
-                        <Trans>Email</Trans>
-                      </FormLabel>
-                      <FormControl>
-                        <FormInputField field={field} type="email" />
-                      </FormControl>
-                      <FormDescription>
-                        <Trans>
-                          Your email allows other members of Projects to contact
-                          you.
-                        </Trans>
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                  label={<Trans>Email</Trans>}
+                  required
+                  description={
+                    <Trans>
+                      Your email allows other members of Projects to contact
+                      you.
+                    </Trans>
+                  }
+                >
+                  {({ field, controlProps }) => (
+                    <TextControl field={field} type="email" {...controlProps} />
                   )}
-                />
+                </AppField>
               </div>
             </PageSection>
             <PageSection
@@ -309,54 +287,45 @@ function UserProfilePage(): ReactElement {
               description={<LocalApiDescription />}
             >
               <div className="grid gap-6">
-                <FormField
-                  control={setUserForm.control}
+                <AppField
+                  form={setUserForm}
                   name="localApi.port"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel isRequired>
-                        <Trans>Port</Trans>
-                      </FormLabel>
-                      <FormControl>
-                        <FormInputField field={field} type="number" />
-                      </FormControl>
-                      <FormDescription>
-                        <Trans>
-                          The port used to access the local API. Make sure it is
-                          not in use by another application.
-                        </Trans>
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                  label={<Trans>Port</Trans>}
+                  required
+                  description={
+                    <Trans>
+                      The port used to access the local API. Make sure it is not
+                      in use by another application.
+                    </Trans>
+                  }
+                >
+                  {({ field, controlProps }) => (
+                    <TextControl
+                      field={field}
+                      type="number"
+                      {...controlProps}
+                    />
                   )}
-                />
-                <FormField
-                  control={setUserForm.control}
+                </AppField>
+                <AppField
+                  form={setUserForm}
                   name="localApi.isEnabled"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs">
-                      <div className="mr-4">
-                        <FormLabel isRequired>
-                          <Trans>Enabled</Trans>
-                        </FormLabel>
-                        <FormDescription>
-                          <Trans>
-                            By enabling the local API it will start whenever
-                            elek.io Desktop is opened. This allows you to read
-                            local Project data from other applications.
-                          </Trans>
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  label={<Trans>Enabled</Trans>}
+                  required
+                  orientation="horizontal"
+                  description={
+                    <Trans>
+                      By enabling the local API it will start whenever elek.io
+                      Desktop is opened. This allows you to read local Project
+                      data from other applications.
+                    </Trans>
+                  }
+                  className="gap-4 rounded-lg border border-border p-3 shadow-xs"
+                >
+                  {({ field, controlProps }) => (
+                    <SwitchControl field={field} {...controlProps} />
                   )}
-                />
+                </AppField>
               </div>
             </PageSection>
           </AppForm>

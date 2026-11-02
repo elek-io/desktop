@@ -6,10 +6,13 @@ import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
-import { type ReactElement, useEffect, useId, useState } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { type ReactElement, useId, useState } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
-import { ProjectForm } from '@renderer/components/forms/project-form';
+import {
+  ProjectForm,
+  type ProjectFormValues,
+} from '@renderer/components/forms/project-form';
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
@@ -24,17 +27,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { queryOptions } from '@renderer/queries';
 
-import {
-  type CoreErrorType,
-  type UpdateProjectProps,
-  updateProjectSchema,
-} from '@elek-io/core';
+import { createProjectSchema, type CoreErrorType } from '@elek-io/core';
 
 export const Route = createFileRoute('/projects/$projectId/settings/general')({
   component: ProjectSettingsGeneralPage,
@@ -60,10 +60,12 @@ function ProjectSettingsGeneralPage(): ReactElement {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
   const formId = useId();
-  const updateProjectForm = useForm<UpdateProjectProps>({
-    resolver: zodResolver(updateProjectSchema),
+  // The form holds what a person edits. The Project's id goes with the save,
+  // not into a field, so the create and the update form are the same shape and
+  // check against the same Core schema.
+  const updateProjectForm = useAppForm<ProjectFormValues>({
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
-      id: projectId,
       name: '',
       description: '',
       settings: {
@@ -76,19 +78,19 @@ function ProjectSettingsGeneralPage(): ReactElement {
         /* eslint-enable lingui/no-unlocalized-strings */
       },
     },
+    // Filled from the query, so a refetch never overwrites what is being typed
+    // and the form needs no reset of its own.
+    ...(isReadingProject
+      ? {}
+      : {
+          values: {
+            name: project.name,
+            description: project.description,
+            settings: project.settings,
+          },
+        }),
+    disabled: isReadingProject,
   });
-
-  // Reset form with Project data when it loads
-  useEffect(() => {
-    if (isReadingProject === false) {
-      updateProjectForm.reset({
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        settings: project.settings,
-      });
-    }
-  }, [project, isReadingProject, updateProjectForm]);
 
   const { mutateAsync: updateProject, isPending: isUpdatingProject } =
     useMutation(queryOptions.projects.update);
@@ -137,8 +139,8 @@ function ProjectSettingsGeneralPage(): ReactElement {
     );
   }
 
-  const onUpdate: SubmitHandler<UpdateProjectProps> = async (project) => {
-    await updateProject(project);
+  const onUpdate: SubmitHandler<ProjectFormValues> = async (values) => {
+    await updateProject({ ...values, id: projectId });
   };
 
   const onDelete = async (): Promise<void> => {

@@ -1,7 +1,7 @@
+import { type MessageDescriptor } from '@lingui/core';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
-  useForm,
   type DefaultValues,
   type FieldPath,
   type FieldValues,
@@ -9,28 +9,16 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
-import {
-  DefaultFieldDefinitionForm,
-  type AuthorableFieldType,
-  type FieldDefinitionsOwner,
-} from '@renderer/components/forms/default-field-definition-form';
-import { AppForm } from '@renderer/components/ui/app-form';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+import { type FieldTypeDefinitionDraftProps } from '@renderer/components/fields/module';
+import { DefaultFieldDefinitionForm } from '@renderer/components/forms/default-field-definition-form';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
 
 import {
   type FieldDefinition,
   type FieldDefinitionBase,
-  type FieldDefinitionOrGroup,
-  type FieldType,
   type SupportedLanguage,
 } from '@elek-io/core';
 
@@ -44,8 +32,11 @@ import {
 // the field name as an already-typed FieldPath, so a spec passes a real key with
 // no cast.
 
-/** A "Default value" control backed by FormInputField. Pass the Core field type,
- * not an HTML one: FormInputField does that mapping internally. */
+/**
+ * A "Default value" control backed by a text input. Pass the HTML input type
+ * the field type's own control uses, which is what makes a numeric default
+ * yield a number.
+ */
 export function DefaultValueInputField<Def extends FieldValues>({
   form,
   name,
@@ -56,7 +47,7 @@ export function DefaultValueInputField<Def extends FieldValues>({
 }: {
   form: UseFormReturn<Def>;
   name: FieldPath<Def>;
-  type: FieldType;
+  type: React.ComponentProps<'input'>['type'];
   isRequired?: boolean;
   description?: string;
   placeholder?: string;
@@ -65,26 +56,22 @@ export function DefaultValueInputField<Def extends FieldValues>({
   const shown = description ?? t`The initial value for the field.`;
 
   return (
-    <FormField
-      control={form.control}
+    <AppField
+      form={form}
       name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel isRequired={isRequired}>
-            <Trans>Default value</Trans>
-          </FormLabel>
-          <FormControl>
-            <FormInputField
-              field={field}
-              type={type}
-              placeholder={placeholder}
-            />
-          </FormControl>
-          <FormDescription>{shown}</FormDescription>
-          <FormMessage />
-        </FormItem>
+      label={<Trans>Default value</Trans>}
+      required={isRequired}
+      description={shown}
+    >
+      {({ field, controlProps }) => (
+        <TextControl
+          field={field}
+          type={type}
+          placeholder={placeholder}
+          {...controlProps}
+        />
       )}
-    />
+    </AppField>
   );
 }
 
@@ -106,42 +93,28 @@ export function MinMaxRow<Def extends FieldValues>({
 }): ReactElement {
   return (
     <div className="flex flex-row items-center justify-between space-x-2">
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={minName}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired={isRequired}>
-              <Trans>Minimum</Trans>
-            </FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="number" />
-            </FormControl>
-            <FormDescription>
-              <Trans>The minimum {unit}.</Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Minimum</Trans>}
+        required={isRequired}
+        description={<Trans>The minimum {unit}.</Trans>}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="number" {...controlProps} />
         )}
-      />
-      <FormField
-        control={form.control}
+      </AppField>
+      <AppField
+        form={form}
         name={maxName}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired={isRequired}>
-              <Trans>Maximum</Trans>
-            </FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="number" />
-            </FormControl>
-            <FormDescription>
-              <Trans>The maximum {unit}.</Trans>
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Maximum</Trans>}
+        required={isRequired}
+        description={<Trans>The maximum {unit}.</Trans>}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="number" {...controlProps} />
         )}
-      />
+      </AppField>
     </div>
   );
 }
@@ -156,7 +129,7 @@ export interface DefinitionExtrasProps<Def extends FieldValues> {
   supportedLanguages: SupportedLanguage[];
   // The definitions already added to the Collection, with their real ids. Only
   // slug reads these, to build its source list.
-  fieldDefinitions: FieldDefinitionOrGroup[];
+  fieldDefinitions: FieldTypeDefinitionDraftProps['fieldDefinitions'];
 }
 
 /**
@@ -165,26 +138,21 @@ export interface DefinitionExtrasProps<Def extends FieldValues> {
  * contributing/renderer/dynamic-form-field-generation.md.
  */
 export interface DefinitionSpec<Def extends FieldDefinitionBase> {
-  authorableFieldType: AuthorableFieldType;
   // Built with zodResolver where Def is concrete, so DefinitionDraft needs no cast.
   resolver: Resolver<Def>;
   makeDefaults: (supportedLanguages: SupportedLanguage[]) => Def;
   Extras?: (props: DefinitionExtrasProps<Def>) => ReactElement;
+  /**
+   * Why Required is fixed for this field type, where Core pins it to a literal.
+   * Present means the switch shows a fact and says why, rather than offering a
+   * choice nobody has.
+   */
+  requiredNote?: MessageDescriptor;
+  /** Why Unique is fixed for this field type, the same way. */
+  uniquenessNote?: MessageDescriptor;
 }
 
-export interface DefinitionDraftProps {
-  id: string;
-  existingSlugs: string[];
-  // The Collection's or Component's current definitions, threaded to the spec's
-  // Extras.
-  fieldDefinitions: FieldDefinitionOrGroup[];
-  supportedLanguages: SupportedLanguage[];
-  defaultLanguage: SupportedLanguage;
-  // Which object the definition is being added to. The shared base form reads
-  // it for the restrictions Core puts on a Component's fields.
-  owner: FieldDefinitionsOwner;
-  onAdd: (definition: FieldDefinition) => void;
-}
+export type DefinitionDraftProps = FieldTypeDefinitionDraftProps;
 
 /**
  * One authoring form, driven by a single spec. The Add Field sheet remounts it
@@ -203,7 +171,7 @@ export function DefinitionDraft<
   fieldDefinitions,
 }: DefinitionDraftProps & { spec: DefinitionSpec<Def> }): ReactElement {
   const { t } = useLingui();
-  const form = useForm<Def, unknown, Def>({
+  const form = useAppForm<Def, Def>({
     resolver: withEmptyDescriptionAsNull(spec.resolver),
     // makeDefaults returns a full Def and DefaultValues<Def> is its DeepPartial,
     // but RHF cannot prove the subtype for an unresolved generic Def.
@@ -230,9 +198,14 @@ export function DefinitionDraft<
     <AppForm id={id} form={form} onSubmit={onSubmit}>
       <DefaultFieldDefinitionForm
         form={form}
-        fieldType={spec.authorableFieldType}
         currentLanguage={defaultLanguage}
         supportedLanguages={supportedLanguages}
+        {...(spec.requiredNote === undefined
+          ? {}
+          : { requiredNote: spec.requiredNote })}
+        {...(spec.uniquenessNote === undefined
+          ? {}
+          : { typeUniquenessNote: spec.uniquenessNote })}
         owner={owner}
       >
         {Extras ? (

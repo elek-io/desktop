@@ -12,23 +12,20 @@ import {
   DraggableComponent,
   SortableFieldArray,
 } from '@renderer/components/drag-and-drop';
+import { fieldModule } from '@renderer/components/fields';
+import { FieldDefinitionPreview } from '@renderer/components/fields/field-from-definition';
 import { AddFieldSheet } from '@renderer/components/forms/add-field-sheet';
-import { AllowComponentsSheet } from '@renderer/components/forms/allow-components-sheet';
 import { type FieldDefinitionsOwner } from '@renderer/components/forms/default-field-definition-form';
 import { PageSection } from '@renderer/components/page-section';
+import { FieldSubtreeError } from '@renderer/components/ui/app-form';
 import {
   FieldGroup,
   FieldLegend,
   FieldSet,
 } from '@renderer/components/ui/field';
-import {
-  FormFieldDefinitionPreview,
-  FormSubtreeMessage,
-} from '@renderer/components/ui/form';
 import { useProject } from '@renderer/hooks/useProject';
 
 import {
-  type DynamicFieldDefinition,
   type FieldDefinition,
   type FieldDefinitionOrGroup,
   type Project,
@@ -116,23 +113,12 @@ export function FieldDefinitionsEditor<
       )
     );
   };
-  // Removing a definition also scrubs it from every slug field's
-  // ofFieldDefinitions. Core's slugSourceReferencesSuperRefinement rejects a
-  // source id that no longer exists in the Collection, and a fieldDefinitions[i]
-  // error has no control to land on here, so a stale id would silently block
-  // every later save with no visible reason. A Component holds no slug field at
-  // all (Core forbids one), so there it finds nothing to scrub.
+  // Removing a definition also asks every other definition to forget it, which
+  // only a slug field has to do. Each type's folder answers that, so this never
+  // reads a field type.
   const removeDefinition = (id: string): void => {
     const withoutSource = (definition: FieldDefinition): FieldDefinition =>
-      definition.fieldType === 'slug' &&
-      definition.ofFieldDefinitions.includes(id)
-        ? {
-            ...definition,
-            ofFieldDefinitions: definition.ofFieldDefinitions.filter(
-              (sourceId) => sourceId !== id
-            ),
-          }
-        : definition;
+      fieldModule(definition).withoutDefinition?.(definition, id) ?? definition;
 
     fieldDefinitionsField.onChange(
       definitions
@@ -170,11 +156,32 @@ export function FieldDefinitionsEditor<
   // The definition the sheet is open on. Read out of the array each render, so
   // the sheet sees the ids and the allowed Components the array holds now.
   const growing = definitions.find(
-    (definition): definition is DynamicFieldDefinition =>
-      'isGroup' in definition === false &&
-      definition.fieldType === 'dynamic' &&
-      definition.id === growingDefinitionId
+    (definition): definition is FieldDefinition =>
+      'isGroup' in definition === false && definition.id === growingDefinitionId
   );
+  // Which definitions can be edited after they exist is each type's own answer:
+  // a type whose folder carries a sheet is offered the control, every other one
+  // is offered none rather than a disabled one.
+  const editSheetOf = (
+    definition: FieldDefinition
+  ):
+    | ((props: {
+        onChange: (changed: FieldDefinition) => void;
+        onClose: () => void;
+      }) => ReactElement)
+    | undefined => {
+    const EditSheet = fieldModule(definition).EditSheet;
+    if (EditSheet === undefined) {
+      return undefined;
+    }
+    return ({ onChange, onClose }) => (
+      <EditSheet
+        fieldDefinition={definition}
+        onChange={onChange}
+        onClose={onClose}
+      />
+    );
+  };
 
   return (
     <PageSection
@@ -208,7 +215,7 @@ export function FieldDefinitionsEditor<
       duplicate slug, a stale slug source, a language a field is missing) has no
       FormMessage to land on. Without this, such an error would make Save a
       silent no-op. See contributing/renderer/forms.md. */}
-      <FormSubtreeMessage form={form} name={name} className="mt-6" />
+      <FieldSubtreeError form={form} name={name} className="mt-6" />
 
       <div className="mt-6 grid grid-cols-12 gap-6">
         <SortableFieldArray items={definitions} onReorder={moveDefinition}>
@@ -230,7 +237,7 @@ export function FieldDefinitionsEditor<
                     </FieldLegend>
                     <FieldGroup className="grid grid-cols-12 gap-6">
                       {fieldDefinition.fieldDefinitions.map((member) => (
-                        <FormFieldDefinitionPreview
+                        <FieldDefinitionPreview
                           key={member.id}
                           fieldDefinition={member}
                         />
@@ -246,15 +253,14 @@ export function FieldDefinitionsEditor<
                 key={fieldDefinition.id}
                 id={fieldDefinition.id}
               >
-                <FormFieldDefinitionPreview
+                <FieldDefinitionPreview
                   fieldDefinition={fieldDefinition}
                   isDraggable={isViewOnly === false}
-                  // The only editable part of a definition is which Components
-                  // a dynamic Field allows, so every other type is offered no
-                  // edit control rather than a disabled one.
+                  // A type whose folder carries an edit sheet is the only one
+                  // offered an edit control at all.
                   onEdit={
                     isViewOnly === false &&
-                    fieldDefinition.fieldType === 'dynamic'
+                    editSheetOf(fieldDefinition) !== undefined
                       ? () => setGrowingDefinitionId(fieldDefinition.id)
                       : undefined
                   }
@@ -282,17 +288,15 @@ export function FieldDefinitionsEditor<
 
       {/* Keyed by the definition, so the sheet's form is seeded from the one it
       was opened on rather than from whichever was opened first. */}
-      {growing === undefined ? null : (
-        <AllowComponentsSheet
-          key={growing.id}
-          fieldDefinition={growing}
-          onAllow={(definition) => {
-            replaceDefinition(definition);
-            setGrowingDefinitionId(null);
-          }}
-          onClose={() => setGrowingDefinitionId(null)}
-        />
-      )}
+      {growing === undefined
+        ? null
+        : editSheetOf(growing)?.({
+            onChange: (definition) => {
+              replaceDefinition(definition);
+              setGrowingDefinitionId(null);
+            },
+            onClose: () => setGrowingDefinitionId(null),
+          })}
     </PageSection>
   );
 }
