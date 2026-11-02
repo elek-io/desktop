@@ -8,11 +8,13 @@ import {
   emailFieldDefinition,
   markdownFieldDefinition,
   navigateToCollection,
+  navigateToCollectionCreate,
   navigateToCollectionSettings,
   referenceFieldDefinition,
   textFieldDefinition,
   toggleFieldDefinition,
 } from '../helpers/collection.js';
+import { navigateToComponentCreate } from '../helpers/component.js';
 import {
   createEntryViaIpc,
   navigateToEntryCreate,
@@ -21,8 +23,11 @@ import {
   updateEntryViaIpc,
 } from '../helpers/entry.js';
 import { stubCoreHang } from '../helpers/ipc.js';
+import { navigate } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
+  navigateToProjectSettings,
+  navigateToVersionControl,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
 import { setupRemote } from '../helpers/remote.js';
@@ -119,6 +124,41 @@ async function describedPartsOf(
 }
 
 /**
+ * What every field of a screen says it needs: the rules beside its label and
+ * whether the control carries the state.
+ *
+ * Read for every field at once rather than one by one, so a form that lost its
+ * schema shows up as the whole screen falling silent.
+ */
+async function statedFieldsOf(page: Page): Promise<
+  {
+    label: string;
+    rules: string | null;
+    ariaRequired: string | null;
+  }[]
+> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('label[data-slot="field-label"]')).map(
+      (label) => {
+        const head = label.closest('[data-slot="field-header"]');
+        const rules = head?.querySelector('[data-slot="field-rules"]');
+        const control = document.getElementById(
+          label.getAttribute('for') ?? ''
+        );
+        return {
+          label: (label.textContent ?? '').trim(),
+          rules:
+            rules === null || rules === undefined
+              ? null
+              : (rules.textContent ?? '').trim(),
+          ariaRequired: control?.getAttribute('aria-required') ?? null,
+        };
+      }
+    )
+  );
+}
+
+/**
  * The rules one field shows beside its label, or `null` where it shows none.
  *
  * Read off the field's own head rather than off the control, so what is
@@ -137,6 +177,50 @@ async function rulesOf(page: Page, labelText: string): Promise<string | null> {
     return rules === null || rules === undefined
       ? null
       : (rules.textContent ?? '').trim();
+  }, labelText);
+}
+
+/** One box of the page, in the window's own pixels. */
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The boxes of one field's head: the head itself, its label and its rules.
+ *
+ * Measured rather than read, because where the rules stand is the whole of
+ * what ci asks for: at the top right of the label, and below it where they do
+ * not fit beside it.
+ */
+async function headBoxesOf(
+  page: Page,
+  labelText: string
+): Promise<{ head: Box; label: Box; rules: Box }> {
+  return page.evaluate((text) => {
+    const label = Array.from(
+      document.querySelectorAll('label[data-slot="field-label"]')
+    ).find((candidate) => (candidate.textContent ?? '').trim() === text);
+    const head = label?.closest('[data-slot="field-header"]');
+    const rules = head?.querySelector('[data-slot="field-rules"]');
+    if (
+      label === undefined ||
+      head === null ||
+      head === undefined ||
+      rules === null ||
+      rules === undefined
+    ) {
+      throw new Error(`No field labelled "${text}" shows rules in its head`);
+    }
+    const box = (
+      node: ProbedElement
+    ): { x: number; y: number; width: number; height: number } => {
+      const { x, y, width, height } = node.getBoundingClientRect();
+      return { x, y, width, height };
+    };
+    return { head: box(head), label: box(label), rules: box(rules) };
   }, labelText);
 }
 
@@ -520,6 +604,20 @@ test.describe('A form filled from its query', () => {
     expect(described.parts[0]?.slot).toBe('field-rules');
     expect(described.parts[0]?.text).toBe('Required, 2 to 80 characters');
     expect(described.parts[0]?.followsControl).toBe(false);
+
+    // A field whose role takes no `aria-required`, the Asset field's picker
+    // button here, says the word in the rules its control names instead.
+    const cover = await describedPartsOf(mainWindow, 'Cover');
+    expect(cover.parts[0]?.slot).toBe('field-rules');
+    expect(cover.parts[0]?.text).toBe('Required, images only');
+    await expect(
+      mainWindow.getByRole('button', { name: 'Cover' })
+    ).not.toHaveAttribute('aria-required');
+    // A field that always holds a Value says nothing either way: no rule
+    // beside the label, and no state on the control.
+    await expect(
+      mainWindow.getByRole('switch', { name: 'Featured' })
+    ).not.toHaveAttribute('aria-required');
   });
 
   test('shows what Core asks of a hand-written field, without repeating it', async ({
@@ -553,6 +651,202 @@ test.describe('A form filled from its query', () => {
     await expect(
       mainWindow.getByLabel('Email', { exact: true })
     ).toHaveAttribute('aria-required', 'true');
+  });
+
+  test('says what it needs on every hand-written form, not only the Profile', async ({
+    mainWindow,
+  }) => {
+    // Every route whose fields are written by hand rather than generated from
+    // field definitions. `schema` is a prop of `AppForm`, so a form that
+    // forgets it loses every rule and every state at once, which this walk is
+    // what catches.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    await navigate(mainWindow, '#/projects/create');
+    await expect(
+      mainWindow.getByLabel('Project name', { exact: true })
+    ).toBeVisible();
+    // The supported languages are a list of chips with a picker, so what the
+    // label points at is their container rather than one control, and the
+    // state is dropped there. Core takes no empty list and zod carries no
+    // minimum for an array, so the field says Required through the prop.
+    expect(await statedFieldsOf(mainWindow)).toEqual([
+      { label: 'Project name', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Project description', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Supported', rules: 'Required', ariaRequired: null },
+      { label: 'Default', rules: 'Required', ariaRequired: 'true' },
+    ]);
+
+    await navigateToProjectSettings(mainWindow, project.id);
+    await expect(
+      mainWindow.getByLabel('Project name', { exact: true })
+    ).toBeVisible();
+    expect(await statedFieldsOf(mainWindow)).toEqual([
+      { label: 'Project name', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Project description', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Supported', rules: 'Required', ariaRequired: null },
+      { label: 'Default', rules: 'Required', ariaRequired: 'true' },
+    ]);
+
+    await navigateToVersionControl(mainWindow, project.id);
+    await expect(
+      mainWindow.getByLabel('Remote URL', { exact: true })
+    ).toBeVisible();
+    expect(await statedFieldsOf(mainWindow)).toEqual([
+      { label: 'Remote URL', rules: 'Required', ariaRequired: 'true' },
+    ]);
+
+    // The two slug fields carry the 128 characters Core caps a slug at, which
+    // is written nowhere in this app.
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await expect(
+      mainWindow.getByLabel('Collection-Slug', { exact: true })
+    ).toBeVisible();
+    expect(await statedFieldsOf(mainWindow)).toEqual([
+      { label: 'Icon', rules: 'Required', ariaRequired: 'true' },
+      {
+        label: 'Collection name (Plural)',
+        rules: 'Required',
+        ariaRequired: 'true',
+      },
+      {
+        label: 'Entry name (Singular)',
+        rules: 'Required',
+        ariaRequired: 'true',
+      },
+      { label: 'Description', rules: 'Required', ariaRequired: 'true' },
+      {
+        label: 'Collection-Slug',
+        rules: 'Required, up to 128 characters',
+        ariaRequired: 'true',
+      },
+      {
+        label: 'Entry-Slug',
+        rules: 'Required, up to 128 characters',
+        ariaRequired: 'true',
+      },
+    ]);
+
+    // A Component's description may be left empty, which is the one field of
+    // these five forms that says no rule because Core asks for none.
+    await navigateToComponentCreate(mainWindow, project.id);
+    await expect(
+      mainWindow.getByLabel('Component slug', { exact: true })
+    ).toBeVisible();
+    expect(await statedFieldsOf(mainWindow)).toEqual([
+      { label: 'Component name', rules: 'Required', ariaRequired: 'true' },
+      {
+        label: 'Component slug',
+        rules: 'Required, up to 128 characters',
+        ariaRequired: 'true',
+      },
+      { label: 'Description', rules: null, ariaRequired: null },
+    ]);
+  });
+
+  test('says in the markdown link dialog that its URL is needed', async ({
+    mainWindow,
+  }) => {
+    // The one field in the app with no form and no Core schema behind it. Its
+    // Apply link button is held until the field holds something, so Required
+    // is a rule somebody can break and the field has to say it.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const markdownDefaults = markdownFieldDefinition();
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        markdownFieldDefinition({
+          features: { ...markdownDefaults.features, externalLinks: true },
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await mainWindow.getByRole('button', { name: 'Link' }).click();
+    const dialog = mainWindow.getByRole('dialog', {
+      name: 'Link the selected text',
+    });
+    await expect(dialog).toBeVisible();
+
+    expect(await rulesOf(mainWindow, 'URL')).toBe('Required');
+    // Drawn in the one shell like every other field, so its label points at
+    // the input and the rules are read out with it.
+    const url = await describedPartsOf(mainWindow, 'URL');
+    expect(url.labelLeadsControl).toBe(true);
+    expect(url.parts[0]?.slot).toBe('field-rules');
+    expect(url.parts[0]?.text).toBe('Required');
+    await expect(dialog.getByLabel('URL', { exact: true })).toHaveAttribute(
+      'aria-required',
+      'true'
+    );
+    await expect(
+      dialog.getByRole('button', { name: 'Apply link' })
+    ).toBeDisabled();
+  });
+
+  test("puts a field's rules at the top right of its label, and below it where they do not fit", async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // A label long enough that it and its rules need the whole head, so
+    // narrowing the area the field sits in is what makes them wrap.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({
+          label: { en: 'Where the vehicle was photographed and by whom' },
+          min: 2,
+          max: 80,
+        }),
+      ],
+    });
+
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const label = 'Where the vehicle was photographed and by whom';
+    await expect(mainWindow.getByLabel(label, { exact: true })).toBeVisible();
+
+    // Beside the label and flush with the head's right edge, which is the top
+    // right of the field, and on the label's own line rather than under it.
+    const wide = await headBoxesOf(mainWindow, label);
+    expect(wide.rules.x).toBeGreaterThanOrEqual(
+      wide.label.x + wide.label.width
+    );
+    expect(Math.round(wide.rules.x + wide.rules.width)).toBe(
+      Math.round(wide.head.x + wide.head.width)
+    );
+    expect(wide.rules.y).toBeLessThan(wide.label.y + wide.label.height);
+    expect(wide.rules.y + wide.rules.height).toBeGreaterThan(wide.label.y);
+
+    // The editor narrowed to what it gets beside two other panes, with the
+    // window left at its minimum, as the stacking test narrows it.
+    await mainWindow.evaluate(() => {
+      const grid = document.querySelector('[data-slot="field"]')?.parentElement;
+      if (grid === null || grid === undefined) {
+        throw new Error('The Entry form draws no grid of fields');
+      }
+      grid.style.width = '292px';
+    });
+
+    // Below the label now, and at the head's left edge rather than its right,
+    // since they are the only thing on their line.
+    const narrow = await headBoxesOf(mainWindow, label);
+    expect(narrow.rules.y).toBeGreaterThanOrEqual(
+      narrow.label.y + narrow.label.height
+    );
+    expect(Math.round(narrow.rules.x)).toBe(Math.round(narrow.head.x));
+    expect(await windowSize(electronApp)).toEqual(MINIMUM_WINDOW_SIZE);
   });
 
   test('stacks a field the area it sits in is too narrow for', async ({

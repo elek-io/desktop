@@ -69,6 +69,22 @@ async function errorOf(page: Page, labelText: string): Promise<string | null> {
 }
 
 /**
+ * The same message, asserted while the save is still in flight.
+ *
+ * `errorOf` is one read of the DOM, so asserting it straight after the click
+ * races the round trip through Core. Every assertion of a message that is on
+ * its way goes through this, which re-reads until it matches. A message that
+ * should not be there is read once instead, after a sibling field's message
+ * has settled the submit.
+ */
+function expectErrorOf(
+  page: Page,
+  labelText: string
+): ReturnType<typeof expect.poll<string | null>> {
+  return expect.poll(async () => errorOf(page, labelText));
+}
+
+/**
  * Create a Collection whose translatable name, description and Title field carry
  * both 'en' and 'de'. Core requires every project-supported language to be
  * present at create time, so a Collection for a two-language Project cannot use
@@ -733,7 +749,7 @@ test.describe('Entries', () => {
     // log and fail the run).
     const title = mainWindow.getByLabel('Title', { exact: true });
     await expect(title).toHaveAttribute('aria-invalid', 'true');
-    expect(await errorOf(mainWindow, 'Title')).toBe(
+    await expectErrorOf(mainWindow, 'Title').toBe(
       'Another Entry already uses this Value. Change it to save.'
     );
     expect(await errorOf(mainWindow, 'Note')).toBeNull();
@@ -833,7 +849,7 @@ test.describe('Entries', () => {
     });
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
-    expect(await errorOf(mainWindow, 'Cover')).toBe(
+    await expectErrorOf(mainWindow, 'Cover').toBe(
       'An Asset this field points at no longer exists. Choose another one.'
     );
     await expect(
@@ -925,7 +941,7 @@ test.describe('Entries', () => {
 
     // The section's own field carries the message, and the dynamic field it
     // sits in is not marked at all.
-    expect(await errorOf(mainWindow, 'Cover')).toBe(
+    await expectErrorOf(mainWindow, 'Cover').toBe(
       'This field does not take an Asset of that type. Choose another one.'
     );
     expect(await errorOf(mainWindow, 'Sections')).toBeNull();
@@ -1028,7 +1044,7 @@ test.describe('Entries', () => {
     // The inner field says what is wrong and is marked invalid, while the
     // field holding the sections says nothing and is not.
     await expect(headline).toHaveAttribute('aria-invalid', 'true');
-    expect(await errorOf(mainWindow, 'Headline')).not.toBeNull();
+    await expectErrorOf(mainWindow, 'Headline').not.toBeNull();
     expect(await errorOf(mainWindow, 'Sections')).toBeNull();
     await expect(
       mainWindow.getByRole('button', { name: 'Add section' })
