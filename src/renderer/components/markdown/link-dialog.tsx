@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro';
 import { useState, type ReactElement } from 'react';
 
+import { FieldShell } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -13,7 +14,7 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog';
 import { Input } from '@renderer/components/ui/input';
-import { Label } from '@renderer/components/ui/label';
+import { fieldRules } from '@renderer/lib/fieldRules';
 
 export interface LinkDialogProps {
   open: boolean;
@@ -56,23 +57,30 @@ export const LinkDialog = ({
         </DialogHeader>
 
         <DialogBody>
-          <Label htmlFor="markdown-link-href">
-            <Trans>URL</Trans>
-          </Label>
-          <Input
-            id="markdown-link-href"
-            type="url"
-            value={href}
-            onChange={(event) => {
-              setHref(event.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                confirm();
-              }
-            }}
-          />
+          {/* The one field with no form behind it, so it draws the same shell
+          through FieldShell. Apply link is held until it holds something, and
+          Required is that rule said before anybody presses it. */}
+          <FieldShell
+            label={<Trans>URL</Trans>}
+            rules={fieldRules({ required: true })}
+          >
+            {(controlProps) => (
+              <Input
+                type="url"
+                value={href}
+                onChange={(event) => {
+                  setHref(event.target.value);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    confirm();
+                  }
+                }}
+                {...controlProps}
+              />
+            )}
+          </FieldShell>
         </DialogBody>
 
         <DialogFooter>
