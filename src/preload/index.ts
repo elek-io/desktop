@@ -32,6 +32,10 @@ const ipc: ContextBridgeApi = {
           options
         ),
     },
+    window: {
+      setTheme: async (...args) =>
+        ipcRenderer.invoke('electron:window:setTheme', ...args),
+    },
   },
   core: {
     api: {

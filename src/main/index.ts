@@ -4,6 +4,7 @@ import {
   type BrowserWindowConstructorOptions,
   dialog,
   ipcMain,
+  nativeTheme,
   net,
   protocol,
   screen,
@@ -13,13 +14,35 @@ import { realpath } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import Path from 'path';
 
+import { colors } from '@elek-io/branding';
 import ElekIoCore, { CoreError } from '@elek-io/core';
 
 import icon from '../../resources/icon.png?asset';
 import { serializeCoreError } from '../shared/ipcError.js';
 import { errorLogAttributes } from '../shared/logError.js';
+import { windowThemeSchema, type WindowTheme } from '../shared/windowTheme.js';
 
 // import { updateElectronApp } from 'update-electron-app';
+
+/**
+ * The smallest window elek.io Desktop supports, in CSS pixels at 100% zoom.
+ * Below it a screen starts to collide or clip.
+ */
+const minimumWindowSize = { width: 1168, height: 560 } as const;
+
+/**
+ * The height of the bar the window controls get to themselves, the first of the
+ * header's two bars. The same on every system, so the header does not change
+ * with it.
+ */
+const windowControlsBarHeight = 32;
+
+/**
+ * Where macOS puts the traffic lights. They are drawn by the system rather than
+ * by the renderer, so their place is set here: 16 px from the left edge, and
+ * 10 px down, which centers the 12 px buttons in the 32 px bar.
+ */
+const trafficLightPosition = { x: 16, y: 10 } as const;
 
 class Main {
   public readonly customFileProtocol: string = 'elek-io-local-file';
@@ -257,6 +280,11 @@ class Main {
     const options: BrowserWindowConstructorOptions = {
       width: initialWindowSize.width,
       height: initialWindowSize.height,
+      // Electron enforces the smallest window the app supports, so no screen
+      // can be dragged into collapsing. The zoom levels the app offers have to
+      // stay above it too, since the minimum is in CSS pixels.
+      minWidth: minimumWindowSize.width,
+      minHeight: minimumWindowSize.height,
     };
 
     // Overwrite webPreferences to always load the correct preload script
@@ -273,7 +301,16 @@ class Main {
     }
     options.frame = false;
     options.titleBarStyle = 'hidden';
-    options.titleBarOverlay = true;
+    // The window controls keep the header's first bar to themselves, as high as
+    // that bar on every system. Which theme the renderer resolved to is only
+    // known once it mounts and calls `electron:window:setTheme`, so the overlay
+    // starts on the system's preference.
+    options.titleBarOverlay = this.titleBarOverlayFor(
+      nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+    );
+    if (process.platform === 'darwin') {
+      options.trafficLightPosition = trafficLightPosition;
+    }
 
     const window = new BrowserWindow(options);
 
@@ -334,6 +371,26 @@ class Main {
   }
 
   /**
+   * The style of the window controls overlay for one theme.
+   *
+   * Both colors come from the brand package, the ground the header sits on and
+   * the text color on it, so the overlay carries no color of its own. Electron
+   * ignores them on macOS, where the traffic lights are drawn in the system's
+   * colors, and takes the height everywhere.
+   */
+  private titleBarOverlayFor(theme: WindowTheme): {
+    color: string;
+    symbolColor: string;
+    height: number;
+  } {
+    return {
+      color: colors[theme].sidebar.hex,
+      symbolColor: colors[theme].foreground.hex,
+      height: windowControlsBarHeight,
+    };
+  }
+
+  /**
    * Returns the initial window size based on the primary display
    */
   private getInitialWindowSize(): {
@@ -359,7 +416,19 @@ class Main {
       windowProps.height = Math.round(windowProps.width * aspectRatioFactor);
     }
 
-    return windowProps;
+    // The window opens at least at the smallest size the app supports and at
+    // most at the size of the screen, so a small display gets its whole work
+    // area instead of a window hanging off it.
+    return {
+      width: Math.min(
+        Math.max(windowProps.width, minimumWindowSize.width),
+        displaySize.width
+      ),
+      height: Math.min(
+        Math.max(windowProps.height, minimumWindowSize.height),
+        displaySize.height
+      ),
+    };
   }
 
   /**
@@ -494,6 +563,33 @@ class Main {
     window: Electron.BrowserWindow,
     core: ElekIoCore
   ): void {
+    // The one thing the renderer may change about its window, and the only
+    // channel outside the map below, because it drives the window rather than
+    // Core. It takes a theme name, which is parsed here, so neither a color nor
+    // any other window option crosses from the renderer. Anything else rejects
+    // the call and is logged like the other refusals in this process.
+    ipcMain.handle('electron:window:setTheme', (_event, theme: unknown) => {
+      const parsed = windowThemeSchema.safeParse(theme);
+
+      if (parsed.success === false) {
+        const errorMessage = `Refused to set a title bar theme that is neither "light" nor "dark": ${JSON.stringify(theme)}`;
+        core.logger.error({
+          source: 'desktop',
+          message: errorMessage,
+        });
+        throw new Error(errorMessage);
+      }
+
+      // Only Windows and Linux draw a Window Controls Overlay this can restyle.
+      // macOS draws its traffic lights in the system's own colors and has no
+      // `setTitleBarOverlay`.
+      if (process.platform === 'darwin') {
+        return;
+      }
+
+      window.setTitleBarOverlay(this.titleBarOverlayFor(parsed.data));
+    });
+
     const channelToHandlerMap = {
       'electron:dialog:showOpenDialog': dialog.showOpenDialog,
       'electron:dialog:showSaveDialog': dialog.showSaveDialog,

@@ -3,6 +3,8 @@ import type { Dialog } from 'electron';
 
 import type ElekIoCore from '@elek-io/core';
 
+import type { WindowTheme } from './shared/windowTheme.js';
+
 /**
  * Utility type that transforms all methods in an object to return Promises.
  * This reflects the async nature of IPC communication - even if the underlying
@@ -25,6 +27,14 @@ declare global {
       dialog: {
         showOpenDialog: Dialog['showOpenDialog'];
         showSaveDialog: Dialog['showSaveDialog'];
+      };
+      window: {
+        /**
+         * Tells the main process which theme the renderer resolved to, so the
+         * window controls overlay follows it. See `shared/windowTheme.ts` for
+         * why this is a theme name and nothing else.
+         */
+        setTheme: (theme: WindowTheme) => Promise<void>;
       };
     };
     core: AsyncifyMethods<{

@@ -25,6 +25,11 @@ export function ThemeProvider({
     const applyTheme = (resolved: 'light' | 'dark'): void => {
       root.classList.remove('light', 'dark');
       root.classList.add(resolved);
+      // The window controls sit in an overlay the system draws, outside the
+      // document, so the class above cannot reach them. The main process is
+      // told which theme the app resolved to and colors the overlay itself,
+      // see shared/windowTheme.ts.
+      void window.ipc.electron.window.setTheme(resolved);
     };
 
     if (theme !== 'system') {
