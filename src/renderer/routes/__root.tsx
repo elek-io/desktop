@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { errorLogAttributes } from '@root/src/shared/logError';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -38,6 +39,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       {
+        // The product's name, which is never translated, see ci's naming rules.
+        // eslint-disable-next-line lingui/no-unlocalized-strings
         title: 'elek.io Desktop',
       },
     ],
@@ -45,6 +48,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
+  const { t } = useLingui();
   const router = useRouter();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
@@ -68,12 +72,12 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         Something went wrong and this screen is all we can show you. Nothing
         about it was sent to us automatically, so we only find out if you tell
         us. Reporting it takes a moment: tell us what you were doing, and the
         logs it sends along show us the error.
-      </>
+      </Trans>
     );
   }
 
@@ -85,15 +89,15 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
           onClick={async () => router.navigate({ to: '/projects' })}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
+          <Trans>Back to Projects</Trans>
         </Button>
         <Button variant="outline" onClick={() => location.reload()}>
           <RefreshCw className="mr-2 h-4 w-4" />
-          Reload
+          <Trans>Reload</Trans>
         </Button>
         <Button variant="default" onClick={() => setIsReportDialogOpen(true)}>
           <MessageSquare className="mr-2 h-4 w-4" />
-          Report this problem
+          <Trans>Report this problem</Trans>
         </Button>
       </>
     );
@@ -105,9 +109,9 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
       <AppGround>
         <Panel>
           {/* Nothing in here is read, so the name is never shown. */}
-          <Pane name="what this screen shows">
+          <Pane name={t`what this screen shows`}>
             <Page
-              title="Error"
+              title={t`Error`}
               description={<Description />}
               actions={<Actions />}
             >
@@ -151,10 +155,15 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
 }
 
 function NotFoundComponent(): ReactElement {
+  const { t } = useLingui();
   const router = useRouter();
 
   function Description(): ReactElement {
-    return <>You&apos;ve tried accessing a route that could not be found.</>;
+    return (
+      <Trans>
+        You&apos;ve tried accessing a route that could not be found.
+      </Trans>
+    );
   }
 
   function Actions(): ReactElement {
@@ -165,31 +174,35 @@ function NotFoundComponent(): ReactElement {
           onClick={async () => router.navigate({ to: '/projects' })}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
+          <Trans>Back to Projects</Trans>
         </Button>
         <Button variant="default" onClick={() => location.reload()}>
           <RefreshCw className="mr-2 h-4 w-4" />
-          Reload
+          <Trans>Reload</Trans>
         </Button>
       </>
     );
   }
+
+  const { href } = location;
 
   return (
     <>
       <AppHeader />
       <AppGround>
         <Panel>
-          <Pane name="what this screen shows">
+          <Pane name={t`what this screen shows`}>
             <Page
-              title="Not Found"
+              title={t`Not Found`}
               description={<Description />}
               actions={<Actions />}
             >
               <p>
-                You&apos;ve tried to access &quot;{location.href}&quot; but it
-                does not exist. Use the buttons above to navigate back or try to
-                reload the page.
+                <Trans>
+                  You&apos;ve tried to access &quot;{href}&quot; but it does not
+                  exist. Use the buttons above to navigate back or try to reload
+                  the page.
+                </Trans>
               </p>
             </Page>
           </Pane>

@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
@@ -42,13 +44,12 @@ export const Route = createFileRoute('/projects/$projectId/components/create')({
 // BadRequest for a Component whose dynamic field reaches back into itself,
 // which is the one an editor meets here: every other reason a BadRequest could
 // carry is already checked by the same schema this form resolves against.
-const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  BadRequest:
-    'A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.',
-};
+const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
+  };
 
-const saveErrorFallback =
-  'This Component could not be created. Please review your changes and try again.';
+const saveErrorFallback = msg`This Component could not be created. Please review your changes and try again.`;
 
 function ProjectComponentCreate(): ReactElement {
   const router = useRouter();

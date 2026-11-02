@@ -1,4 +1,5 @@
-import { Trans } from '@lingui/react/macro';
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
 import { PageSection } from '@renderer/components/page-section';
@@ -153,6 +154,7 @@ export function ComponentImpact({
 }: {
   componentId: string;
 }): ReactElement {
+  const { t } = useLingui();
   const { projectId, translateContent } = useProject();
   const { data: componentList, isPending: isReadingComponents } =
     useQueryNoError(queryOptions.components.list({ projectId, limit: 0 }));
@@ -186,7 +188,7 @@ export function ComponentImpact({
 
   if (isReadingComponents || isReadingCollections || isReadingEntries) {
     return (
-      <PageSection title="What saving changes">
+      <PageSection title={t`What saving changes`}>
         <Skeleton className="h-5 w-2/3 rounded" />
       </PageSection>
     );
@@ -203,7 +205,7 @@ export function ComponentImpact({
 
   if (collectionCount === 0) {
     return (
-      <PageSection title="What saving changes">
+      <PageSection title={t`What saving changes`}>
         <p className="text-sm">
           <Trans>
             No Collection uses this Component yet, so saving changes nothing but
@@ -215,23 +217,29 @@ export function ComponentImpact({
   }
 
   return (
-    <PageSection title="What saving changes">
+    <PageSection title={t`What saving changes`}>
       <p className="text-sm">
-        Saving reaches {collectionCount}{' '}
-        {collectionCount === 1 ? 'Collection' : 'Collections'} and {entryTotal}{' '}
-        {entryTotal === 1 ? 'Entry' : 'Entries'}. Every Entry that holds a
-        section built from this Component is rewritten in the same change.
+        {t`Saving reaches ${plural(collectionCount, {
+          one: '# Collection',
+          other: '# Collections',
+        })} and ${plural(entryTotal, {
+          one: '# Entry',
+          other: '# Entries',
+        })}. Every Entry that holds a section built from this Component is rewritten in the same change.`}
       </p>
       <ul className="mt-2 list-inside list-disc text-sm text-muted-foreground">
         {affectedCollections.map((collection, index) => {
           const total = entryCounts[index] ?? 0;
+          const name = translateContent({
+            key: 'collection.name.plural',
+            record: collection.name.plural,
+          });
           return (
             <li key={collection.id}>
-              {translateContent({
-                key: 'collection.name.plural',
-                record: collection.name.plural,
-              })}
-              , {total} {total === 1 ? 'Entry' : 'Entries'}
+              {t`${name}, ${plural(total, {
+                one: '# Entry',
+                other: '# Entries',
+              })}`}
             </li>
           );
         })}

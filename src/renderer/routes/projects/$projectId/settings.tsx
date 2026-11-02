@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import {
   Link,
   Outlet,
@@ -27,6 +27,8 @@ export const Route = createFileRoute('/projects/$projectId/settings')({
 });
 
 function ProjectSettingsLayout(): ReactElement {
+  const { t } = useLingui();
+
   const { projectId } = Route.useParams();
   useBreadcrumb(Route, 'Settings');
   const settingsNavigation: {
@@ -48,7 +50,7 @@ function ProjectSettingsLayout(): ReactElement {
 
   return (
     <Panes>
-      <Pane width="list" name="the Settings of this Project">
+      <Pane width="list" name={t`the Settings of this Project`}>
         <ScrollArea>
           <SidebarHeader />
           <SidebarContent>
@@ -82,7 +84,7 @@ function ProjectSettingsLayout(): ReactElement {
           </SidebarContent>
         </ScrollArea>
       </Pane>
-      <Pane name="these Settings">
+      <Pane name={t`these Settings`}>
         <Outlet />
       </Pane>
     </Panes>

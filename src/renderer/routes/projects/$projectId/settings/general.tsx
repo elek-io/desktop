@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
@@ -39,15 +41,14 @@ export const Route = createFileRoute('/projects/$projectId/settings/general')({
 });
 
 // Copy for a blocked delete, keyed by CoreError type.
-const forceDeleteDescriptions: Partial<Record<CoreErrorType, string>> = {
-  PreconditionFailed:
-    'This Project only exists on this device (no remote copy). Force delete removes it permanently.',
-  Conflict:
-    'This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently.',
+const forceDeleteDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  PreconditionFailed: msg`This Project only exists on this device (no remote copy). Force delete removes it permanently.`,
+  Conflict: msg`This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently.`,
 };
 
-const forceDeleteFallback =
-  'This Project is not synchronized to a remote, or it has changes that were never pushed. Deleting it now removes those changes permanently, with no way to recover them.';
+const forceDeleteFallback = msg`This Project is not synchronized to a remote, or it has changes that were never pushed. Deleting it now removes those changes permanently, with no way to recover them.`;
 
 function ProjectSettingsGeneralPage(): ReactElement {
   const router = useRouter();

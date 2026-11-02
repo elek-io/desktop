@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
@@ -14,6 +15,8 @@ export const Route = createFileRoute('/projects/$projectId/history')({
 });
 
 function ProjectHistoryLayout(): ReactElement {
+  const { t } = useLingui();
+
   useBreadcrumb(Route, 'History');
   const {
     projectQuery: { data: project, isPending: isReadingProject },
@@ -21,14 +24,14 @@ function ProjectHistoryLayout(): ReactElement {
 
   return (
     <Panes>
-      <Pane width="list" name="the changes of this Project">
+      <Pane width="list" name={t`the changes of this Project`}>
         {isReadingProject ? (
           <HistorySidebarSkeleton />
         ) : (
           <HistorySidebar project={project} />
         )}
       </Pane>
-      <Pane name="this change">
+      <Pane name={t`this change`}>
         <Outlet />
       </Pane>
     </Panes>

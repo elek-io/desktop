@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { version as desktopVersion, dependencies } from '@root/package.json';
 import { Link, useRouter } from '@tanstack/react-router';
 import {
@@ -51,6 +51,15 @@ import lockupLight from '@elek-io/branding/logo/lockup-desktop-16-light.svg';
 const DOCS_URL = 'https://elek.io/en/documentation';
 
 /**
+ * A version as Help shows it. The `v` is a marker rather than a word, so it
+ * stays out of the catalog.
+ */
+function asVersion(value: string | undefined): string {
+  // eslint-disable-next-line lingui/no-unlocalized-strings
+  return `v${value ?? ''}`;
+}
+
+/**
  * The window's header, in two bars on the ground.
  *
  * The first bar is 32 px and holds only what the system draws there: the
@@ -75,6 +84,7 @@ export function AppHeader({
   trail?: ReactNode;
   user?: ReactNode;
 }): ReactElement {
+  const { t } = useLingui();
   return (
     <header className="grid flex-none grid-cols-[248px_minmax(0,1fr)_auto] grid-rows-[32px_48px]">
       <div
@@ -84,7 +94,7 @@ export function AppHeader({
 
       <Link
         to="/projects"
-        aria-label="elek.io Desktop, Projects"
+        aria-label={t`elek.io Desktop, Projects`}
         className="col-start-1 row-start-2 ml-[23px] self-center justify-self-start no-underline"
       >
         {/*
@@ -140,47 +150,52 @@ function HelpMenu(): ReactElement {
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => window.open(DOCS_URL, '_blank')}>
               <BookOpen />
-              Docs
+              <Trans>Docs</Trans>
               <DropdownMenuAddOn>
                 <ExternalLinkIcon />
               </DropdownMenuAddOn>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setIsReportDialogOpen(true)}>
               <Bug />
-              Report an issue
+              <Trans>Report an issue</Trans>
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
+          {/* Each row names a product or a runtime, and neither elek.io's own
+              names nor a third party's are ever translated, see ci's naming
+              rules. */}
+          {/* eslint-disable lingui/no-unlocalized-strings */}
           <DropdownMenuGroup>
             <DropdownMenuItem>
               elek.io Desktop
-              <DropdownMenuAddOn>v{desktopVersion}</DropdownMenuAddOn>
+              <DropdownMenuAddOn>{asVersion(desktopVersion)}</DropdownMenuAddOn>
             </DropdownMenuItem>
             <DropdownMenuItem>
               elek.io Core
               <DropdownMenuAddOn>
-                v{dependencies['@elek-io/core']}
+                {asVersion(dependencies['@elek-io/core'])}
               </DropdownMenuAddOn>
             </DropdownMenuItem>
             <DropdownMenuItem>
               Electron
               <DropdownMenuAddOn>
-                v{window.ipc.electron.process.versions['electron']}
+                {asVersion(window.ipc.electron.process.versions['electron'])}
               </DropdownMenuAddOn>
             </DropdownMenuItem>
             <DropdownMenuItem>
               Chromium
               <DropdownMenuAddOn>
-                v{window.ipc.electron.process.versions['chrome']}
+                {asVersion(window.ipc.electron.process.versions['chrome'])}
               </DropdownMenuAddOn>
             </DropdownMenuItem>
             <DropdownMenuItem>
               Node
               <DropdownMenuAddOn>
-                v{window.ipc.electron.process.versions['node']}
+                {asVersion(window.ipc.electron.process.versions['node'])}
               </DropdownMenuAddOn>
             </DropdownMenuItem>
           </DropdownMenuGroup>
+          {/* eslint-enable lingui/no-unlocalized-strings */}
         </DropdownMenuContent>
       </DropdownMenu>
 

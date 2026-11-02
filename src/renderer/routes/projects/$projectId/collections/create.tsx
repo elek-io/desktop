@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
@@ -40,13 +42,12 @@ export const Route = createFileRoute('/projects/$projectId/collections/create')(
 
 // Copy for a blocked create, keyed by CoreError type. Slug uniqueness is only
 // checked by Core, so a collision arrives as a Conflict rather than a zod error.
-const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again.',
-};
+const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    Conflict: msg`Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again.`,
+  };
 
-const saveErrorFallback =
-  'This Collection could not be created. Please review your changes and try again.';
+const saveErrorFallback = msg`This Collection could not be created. Please review your changes and try again.`;
 
 function ProjectCollectionCreate(): ReactElement {
   const router = useRouter();

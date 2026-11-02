@@ -1,5 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -71,17 +73,18 @@ import {
 } from '@elek-io/core';
 
 // Copy for a blocked delete, keyed by CoreError type.
-const deleteErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again.',
+const deleteErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  Conflict: msg`This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again.`,
 };
 
-const deleteErrorFallback =
-  'This Asset could not be deleted. Please review and try again.';
+const deleteErrorFallback = msg`This Asset could not be deleted. Please review and try again.`;
 
 export function AssetTeaser(
   props: Asset & { projectId: string; className?: string }
 ): React.JSX.Element {
+  const { t } = useLingui();
   const { formatDatetime } = useProject();
   const { mutateAsync: saveAsset } = useMutation(queryOptions.assets.save);
   const { mutateAsync: updateAsset } = useMutation(queryOptions.assets.update);
@@ -113,6 +116,9 @@ export function AssetTeaser(
   });
   const updateAssetFormId = useId();
   const newFilePath = updateAssetForm.watch('newFilePath');
+  // The file's own name, so the sentence below takes one placeholder rather
+  // than being assembled around a path.
+  const newFileName = newFilePath?.split(/[/\\]/).pop();
   const createdTime = formatDatetime({ datetime: props.created });
   const updatedTime = formatDatetime({ datetime: props.updated });
   const information = [
@@ -138,9 +144,10 @@ export function AssetTeaser(
   ];
 
   async function onAssetSave(): Promise<void> {
+    const fileName = `${props.name}.${props.extension}`;
     const result = await window.ipc.electron.dialog.showSaveDialog({
-      title: `Save Asset ${props.name}.${props.extension} to disk`,
-      buttonLabel: 'Save Asset',
+      title: t`Save Asset ${fileName} to disk`,
+      buttonLabel: t`Save Asset`,
       defaultPath: `${props.name}.${props.extension}`,
       // properties: ['createDirectory', 'showOverwriteConfirmation'],
       // filters: [
@@ -164,8 +171,8 @@ export function AssetTeaser(
 
   async function onReplaceFile(): Promise<void> {
     const result = await window.ipc.electron.dialog.showOpenDialog({
-      title: 'Select a replacement file',
-      buttonLabel: 'Replace file',
+      title: t`Select a replacement file`,
+      buttonLabel: t`Replace file`,
       properties: ['openFile'],
     });
 
@@ -316,10 +323,10 @@ export function AssetTeaser(
                     >
                       <Trans>Replace file</Trans>
                     </Button>
-                    {newFilePath !== undefined ? (
+                    {newFileName !== undefined ? (
                       <div className="flex max-w-full items-center gap-1 text-sm text-muted-foreground">
                         <span className="line-clamp-1 break-all">
-                          New file: {newFilePath.split(/[/\\]/).pop()}
+                          <Trans>New file: {newFileName}</Trans>
                         </span>
                         <Button
                           type="button"

@@ -91,9 +91,13 @@ export async function loadLocale(language: SupportedLanguage): Promise<Locale> {
  * @param bytes Number of bytes
  */
 export function formatBytes(bytes: number): string {
+  // The unit symbols are the same in every language, so they stay out of the
+  // catalog. "Bytes" reads the same in English and German too.
+  // eslint-disable-next-line lingui/no-unlocalized-strings
   if (bytes === 0) return '0 Bytes';
   const k = 1024,
     decimals = 2,
+    // eslint-disable-next-line lingui/no-unlocalized-strings
     sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
     i = Math.floor(Math.log(bytes) / Math.log(k));
   return (

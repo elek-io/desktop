@@ -1,3 +1,5 @@
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Link, type ToPathOption } from '@tanstack/react-router';
@@ -130,15 +132,13 @@ function ProjectNavigation(): React.JSX.Element {
 // Git LFS endpoint that will not take the Assets and a textual rebase
 // conflict. An unreachable repository is neither type and reaches the root
 // error boundary. See contributing/error-handling.md.
-const syncErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again.',
-  PreconditionFailed:
-    'No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project.',
-};
+const syncErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    Conflict: msg`An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again.`,
+    PreconditionFailed: msg`No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project.`,
+  };
 
-const syncErrorFallback =
-  'The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again.';
+const syncErrorFallback = msg`The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again.`;
 
 export function ProjectSidebar(): React.JSX.Element {
   const {

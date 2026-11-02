@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
@@ -42,13 +44,12 @@ export const Route = createFileRoute(
 });
 
 // Copy for a blocked create, keyed by CoreError type.
-const conflictDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again.',
-};
+const conflictDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    Conflict: msg`One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again.`,
+  };
 
-const conflictFallback =
-  'This Entry could not be saved. Please review your values and try again.';
+const conflictFallback = msg`This Entry could not be saved. Please review your values and try again.`;
 
 function CreateEntryPage(): React.JSX.Element {
   const router = useRouter();

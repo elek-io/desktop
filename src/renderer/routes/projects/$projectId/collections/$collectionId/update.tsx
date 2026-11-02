@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
@@ -52,13 +54,13 @@ export const Route = createFileRoute(
 });
 
 // Copy for a blocked delete, keyed by CoreError type.
-const deleteErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again.',
+const deleteErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  Conflict: msg`Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again.`,
 };
 
-const deleteErrorFallback =
-  'This Collection could not be deleted. Please review and try again.';
+const deleteErrorFallback = msg`This Collection could not be deleted. Please review and try again.`;
 
 // Copy for a blocked save, keyed by CoreError type.
 //
@@ -71,13 +73,12 @@ const deleteErrorFallback =
 // shared/ipcError.ts), so this copy has to cover them all rather than assert the
 // wrong one. Narrow it once `cause` is forwarded and `handled` can discriminate
 // below `type`.
-const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now.',
-};
+const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    Conflict: msg`Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now.`,
+  };
 
-const saveErrorFallback =
-  'This Collection could not be saved. Please review your changes and try again.';
+const saveErrorFallback = msg`This Collection could not be saved. Please review your changes and try again.`;
 
 function ProjectCollectionUpdate(): ReactElement {
   const router = useRouter();

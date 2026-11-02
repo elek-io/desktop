@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
@@ -58,27 +60,25 @@ export const Route = createFileRoute(
 });
 
 // Copy for a blocked delete, keyed by CoreError type.
-const deleteErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again.',
+const deleteErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  Conflict: msg`A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again.`,
 };
 
-const deleteErrorFallback =
-  'This Component could not be deleted. Please review and try again.';
+const deleteErrorFallback = msg`This Component could not be deleted. Please review and try again.`;
 
 // Copy for a blocked save, keyed by CoreError type. A slug another Component
 // holds is said below the Slug field instead, and the Entries a Field change
 // cannot reach on its own are listed under this description, so what is left
 // here is a Conflict with neither, and the circular reference BadRequest.
-const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.',
-  BadRequest:
-    'A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.',
-};
+const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    Conflict: msg`Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.`,
+    BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
+  };
 
-const saveErrorFallback =
-  'This Component could not be saved. Please review your changes and try again.';
+const saveErrorFallback = msg`This Component could not be saved. Please review your changes and try again.`;
 
 function ProjectComponentUpdate(): ReactElement {
   const router = useRouter();

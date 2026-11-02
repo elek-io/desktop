@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { version as desktopVersion } from '@root/package.json';
 import { parseIpcError } from '@root/src/shared/ipcError';
@@ -186,24 +188,22 @@ function useCachedContact(): ReportContact {
 }
 
 /** Copy for a failed feedback send, keyed by CoreError type. */
-const feedbackErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  PreconditionFailed:
-    'We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment.',
-  RateLimited:
-    'Too many reports were sent from here recently. Your text is still here, so you can try again in a few minutes.',
-  BadRequest:
-    'elek.io Cloud rejected this report. Shortening it usually helps.',
+const feedbackErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  PreconditionFailed: msg`We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment.`,
+  RateLimited: msg`Too many reports were sent from here recently. Your text is still here, so you can try again in a few minutes.`,
+  BadRequest: msg`elek.io Cloud rejected this report. Shortening it usually helps.`,
 };
 
 /** The bug form's copy, which differs only where the logs can be left out. */
-const bugErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  ...feedbackErrorDescriptions,
-  BadRequest:
-    'elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps.',
-};
+const bugErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    ...feedbackErrorDescriptions,
+    BadRequest: msg`elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps.`,
+  };
 
-const reportErrorFallback =
-  'The report could not be sent. Your text is still here, so you can try again.';
+const reportErrorFallback = msg`The report could not be sent. Your text is still here, so you can try again.`;
 
 /**
  * Sending a report handles **every** `CoreError` type in place, which is the one
@@ -294,7 +294,7 @@ function ReportError({
   descriptions,
 }: {
   error: unknown;
-  descriptions: Partial<Record<CoreErrorType, string>>;
+  descriptions: Partial<Record<CoreErrorType, MessageDescriptor>>;
 }): ReactElement | null {
   if (error === null) {
     return null;

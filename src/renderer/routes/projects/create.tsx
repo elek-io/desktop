@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
@@ -20,6 +20,8 @@ export const Route = createFileRoute('/projects/create')({
 });
 
 function CreateProjectPage(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   useBreadcrumb(Route, 'Create');
   const createProjectForm = useForm<CreateProjectProps>({
@@ -73,7 +75,7 @@ function CreateProjectPage(): ReactElement {
 
   return (
     <Panel>
-      <Pane name="what this screen shows">
+      <Pane name={t`what this screen shows`}>
         <Page
           title="Create a new Project"
           description={<Description />}

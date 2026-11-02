@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { DownloadCloud, Plus } from 'lucide-react';
 import { type ReactElement, useId, useState } from 'react';
@@ -108,6 +108,8 @@ function ProjectList(): ReactElement {
 }
 
 function ListProjectsPage(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const cloneProjectForm = useForm<CloneProjectProps>({
     resolver: zodResolver(cloneProjectSchema),
@@ -177,7 +179,7 @@ function ListProjectsPage(): ReactElement {
   return (
     <>
       <Panel>
-        <Pane name="your Projects">
+        <Pane name={t`your Projects`}>
           <Page
             title="Projects"
             description={<Description />}

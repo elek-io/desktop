@@ -47,6 +47,15 @@ const noControlLaunderingCast = {
 // The main process's only user-facing text is what a native dialog shows, so
 // that is where the catalog is enforced there. Lingui's own rule covers the
 // renderer; see the i18n block below.
+// A pane's name is read by a screen reader and shown when a read inside it
+// fails, so it is text. Lingui's rule cannot see that, because it arrives under
+// the prop name react-hook-form uses for a field's path, which is ignored.
+const noUnlocalizedPaneName = {
+  selector:
+    "JSXOpeningElement[name.name='Pane'] > JSXAttribute[name.name='name'] > :matches(Literal,TemplateLiteral)",
+  message:
+    "A pane's name comes from the message catalog. Wrap it with t`` from useLingui() (contributing/renderer/internationalization.md).",
+};
 const noUnlocalizedDialogText = {
   selector:
     "CallExpression[callee.object.name='dialog'] > :matches(Literal,TemplateLiteral)",
@@ -220,6 +229,7 @@ export default [
         noLiteralSubmitType,
         noFormReturnLaunderingCast,
         noControlLaunderingCast,
+        noUnlocalizedPaneName,
       ],
     },
   },
@@ -297,6 +307,10 @@ export default [
             'id',
             'htmlFor',
             'key',
+            // A form field's path, which react-hook-form reads, and which the
+            // definition forms build from a language or an index. A pane's
+            // name is user-facing and carries the same prop name, so it has a
+            // selector of its own, see `noUnlocalizedPaneName`.
             'name',
             'slot',
             'accessorKey',

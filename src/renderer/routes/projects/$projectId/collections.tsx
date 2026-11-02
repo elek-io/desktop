@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Outlet, createFileRoute } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
@@ -39,15 +40,17 @@ function CollectionList({ projectId }: { projectId: string }): ReactElement {
 }
 
 function ProjectCollectionsLayout(): ReactElement {
+  const { t } = useLingui();
+
   const { projectId } = Route.useParams();
   useBreadcrumb(Route, 'Collections');
 
   return (
     <Panes>
-      <Pane width="list" name="the Collections of this Project">
+      <Pane width="list" name={t`the Collections of this Project`}>
         <CollectionList projectId={projectId} />
       </Pane>
-      <Pane name="what this screen shows">
+      <Pane name={t`what this screen shows`}>
         <Outlet />
       </Pane>
     </Panes>

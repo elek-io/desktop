@@ -1,4 +1,5 @@
-import { Trans } from '@lingui/react/macro';
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useRouter } from '@tanstack/react-router';
 import {
   flexRender,
@@ -64,9 +65,14 @@ export function EntryTable({
   collection: Collection;
   entries: PaginatedList<Entry>;
 }): React.JSX.Element {
+  const { t } = useLingui();
   const router = useRouter();
   const { formatDatetime, translateContent, formatTemporalFieldValue } =
     useProject();
+  const collectionName = translateContent({
+    key: 'currentCollection.name.plural',
+    record: collection.name.plural,
+  });
   const [filter, setFilter] = useState('');
   const [pagination, setPagination] = useState({
     pageIndex: 0, // initial page index
@@ -89,11 +95,11 @@ export function EntryTable({
     columns.push(
       {
         accessorKey: 'created',
-        header: 'Created',
+        header: t`Created`,
       },
       {
         accessorKey: 'updated',
-        header: 'Updated',
+        header: t`Updated`,
       }
       // {
       //   id: 'actions',
@@ -127,22 +133,19 @@ export function EntryTable({
           const references =
             value.content[project.settings.language.default] ?? [];
           const fieldType = fieldTypeBySlug.get(slug);
-          const noun =
+          const count = references.length;
+          // One sentence per kind of reference rather than a count joined to a
+          // noun, so a language that inflects the noun with the count can.
+          const counted =
             fieldType === 'asset'
-              ? references.length === 1
-                ? 'Asset'
-                : 'Assets'
+              ? t`${plural(count, { one: '# Asset', other: '# Assets' })}`
               : fieldType === 'entry'
-                ? references.length === 1
-                  ? 'Entry'
-                  : 'Entries'
-                : references.length === 1
-                  ? 'Reference'
-                  : 'References';
-          row[slug] =
-            references.length === 0
-              ? undefined
-              : `${String(references.length)} ${noun}`;
+                ? t`${plural(count, { one: '# Entry', other: '# Entries' })}`
+                : t`${plural(count, {
+                    one: '# Reference',
+                    other: '# References',
+                  })}`;
+          row[slug] = count === 0 ? undefined : counted;
         } else if (value.valueType === 'mdast') {
           // Structured markdown content - show its plain text
           const tree = value.content[project.settings.language.default];
@@ -201,6 +204,11 @@ export function EntryTable({
     }
   }, [pageCount, pagination.pageIndex, table]);
 
+  const shownCount = table.getFilteredRowModel().rows.length;
+  const totalCount = entries.total;
+  const selectedCount = table.getFilteredSelectedRowModel().rows.length;
+  const countsShown = t`Showing ${shownCount} of ${totalCount} total ${collectionName} (${selectedCount} selected)`;
+
   async function onRowClicked(id: string): Promise<void> {
     await router.navigate({
       to: '/projects/$projectId/collections/$collectionId/$entryId/update',
@@ -216,10 +224,7 @@ export function EntryTable({
     <>
       <div className="flex items-center justify-end p-6">
         <Input
-          placeholder={`Filter ${translateContent({
-            key: 'currentCollection.name.plural',
-            record: collection.name.plural,
-          })}...`}
+          placeholder={t`Filter ${collectionName}...`}
           value={filter}
           onChange={(event) => {
             setFilter(event.target.value);
@@ -232,7 +237,7 @@ export function EntryTable({
           <DropdownMenuTrigger
             render={<Button variant="outline" className="ml-auto" />}
           >
-            Visible Values
+            <Trans>Visible Values</Trans>
             <ChevronDown className="ml-2 h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -308,13 +313,7 @@ export function EntryTable({
 
       <div className="flex items-center justify-end p-6">
         <div className="flex-1 text-sm text-muted-foreground">
-          Showing {table.getFilteredRowModel().rows.length} of {entries.total}{' '}
-          total{' '}
-          {translateContent({
-            key: 'currentCollection.name.plural',
-            record: collection.name.plural,
-          })}{' '}
-          ({table.getFilteredSelectedRowModel().rows.length} selected)
+          {countsShown}
         </div>
         <Pagination>
           <PaginationContent>
@@ -356,5 +355,7 @@ export function EntryTable({
 }
 
 export function EntryTableSkeleton(): React.JSX.Element {
-  return <SkeletonRows label="Loading Entries" />;
+  const { t } = useLingui();
+
+  return <SkeletonRows label={t`Loading Entries`} />;
 }

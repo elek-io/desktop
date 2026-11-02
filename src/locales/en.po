@@ -6,13 +6,37 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
-#: src/renderer/components/user-dropdown.tsx
-msgid "⇧⌘P"
-msgstr "⇧⌘P"
+#: src/renderer/components/component-impact.tsx
+msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
+msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
+
+#: src/renderer/lib/release.ts
+msgid "A Collection was added"
+msgstr "A Collection was added"
+
+#: src/renderer/lib/release.ts
+msgid "A Collection was removed"
+msgstr "A Collection was removed"
+
+#: src/renderer/lib/release.ts
+msgid "A Collection was renamed"
+msgstr "A Collection was renamed"
 
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "A Component a Collection or another Component still uses cannot be deleted. This cannot be undone."
 msgstr "A Component a Collection or another Component still uses cannot be deleted. This cannot be undone."
+
+#: src/renderer/lib/release.ts
+msgid "A Component was added"
+msgstr "A Component was added"
+
+#: src/renderer/lib/release.ts
+msgid "A Component was removed"
+msgstr "A Component was removed"
+
+#: src/renderer/lib/release.ts
+msgid "A Component was renamed"
+msgstr "A Component was renamed"
 
 #: src/renderer/components/forms/collection-form.tsx
 msgid "A description of what this new Collection is used for."
@@ -21,6 +45,18 @@ msgstr "A description of what this new Collection is used for."
 #: src/renderer/components/forms/allow-components-sheet.tsx
 msgid "A dynamic Field can allow more Components after it was added. Nothing else about a Field can be changed yet, and a Component it allows cannot be taken away, since that would delete the sections built from it."
 msgstr "A dynamic Field can allow more Components after it was added. Nothing else about a Field can be changed yet, and a Component it allows cannot be taken away, since that would delete the sections built from it."
+
+#: src/renderer/lib/release.ts
+msgid "A Field was renamed to {slug}"
+msgstr "A Field was renamed to {slug}"
+
+#: src/renderer/lib/release.ts
+msgid "A language was added"
+msgstr "A language was added"
+
+#: src/renderer/lib/release.ts
+msgid "A language was removed"
+msgstr "A language was removed"
 
 #: src/renderer/components/forms/component-form.tsx
 msgid "A lowercase version of the name without special characters. It identifies this Component and has to be unique in this Project."
@@ -37,6 +73,10 @@ msgstr "A lowercase version without any special characters of the Entry's name. 
 #: src/renderer/components/release-dialog.tsx
 msgid "A Release publishes everything saved in this Project, so a website can build from it. It cannot be undone."
 msgstr "A Release publishes everything saved in this Project, so a website can build from it. It cannot be undone."
+
+#: src/renderer/lib/coreErrorText.ts
+msgid "A required condition was not met, so the action was stopped."
+msgstr "A required condition was not met, so the action was stopped."
 
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "Add Asset"
@@ -77,6 +117,34 @@ msgstr "Allowed Components"
 #: src/renderer/components/report-dialog.tsx
 msgid "Also send my logs"
 msgstr "Also send my logs"
+
+#: src/renderer/lib/release.ts
+msgid "An Asset was added"
+msgstr "An Asset was added"
+
+#: src/renderer/lib/release.ts
+msgid "An Asset was removed"
+msgstr "An Asset was removed"
+
+#: src/renderer/lib/release.ts
+msgid "An Asset's file was replaced"
+msgstr "An Asset's file was replaced"
+
+#: src/renderer/lib/release.ts
+msgid "An Asset's name or description changed"
+msgstr "An Asset's name or description changed"
+
+#: src/renderer/lib/release.ts
+msgid "An Entry was added"
+msgstr "An Entry was added"
+
+#: src/renderer/lib/release.ts
+msgid "An Entry was changed"
+msgstr "An Entry was changed"
+
+#: src/renderer/lib/release.ts
+msgid "An Entry was removed"
+msgstr "An Entry was removed"
 
 #: src/renderer/components/markdown/link-dialog.tsx
 msgid "Apply link"
@@ -138,6 +206,10 @@ msgstr "Changes"
 #: src/renderer/queries/options/projectOptions.ts
 msgid "Changes synced"
 msgstr "Changes synced"
+
+#: src/renderer/lib/release.ts
+msgid "Changes were saved or a Release was made on another computer, so synchronize this Project first."
+msgstr "Changes were saved or a Release was made on another computer, so synchronize this Project first."
 
 #: src/renderer/components/user-dropdown.tsx
 msgid "Choose a different port on your profile to start the local API."
@@ -442,6 +514,10 @@ msgstr "Description"
 msgid "Disabled"
 msgstr "Disabled"
 
+#: src/renderer/components/app-header.tsx
+msgid "Docs"
+msgstr "Docs"
+
 #: src/renderer/components/ui/form.tsx
 msgid "Done"
 msgstr "Done"
@@ -453,6 +529,10 @@ msgstr "Drag to reorder"
 #: src/main/index.ts
 msgid "elek.io Desktop could not start"
 msgstr "elek.io Desktop could not start"
+
+#: src/renderer/components/app-header.tsx
+msgid "elek.io Desktop, Projects"
+msgstr "elek.io Desktop, Projects"
 
 #: src/renderer/components/report-dialog.tsx
 #: src/renderer/routes/user/profile.tsx
@@ -531,6 +611,18 @@ msgstr "Headings"
 msgid "Help"
 msgstr "Help"
 
+#: src/renderer/lib/schemaChange.ts
+msgid "holds a Value another Entry already holds, and this Field is now unique"
+msgstr "holds a Value another Entry already holds, and this Field is now unique"
+
+#: src/renderer/lib/schemaChange.ts
+msgid "holds a Value that does not fit this Field anymore"
+msgstr "holds a Value that does not fit this Field anymore"
+
+#: src/renderer/lib/schemaChange.ts
+msgid "holds a Value this Field no longer allows"
+msgstr "holds a Value this Field no longer allows"
+
 #: src/renderer/components/forms/collection-form.tsx
 msgid "Icon"
 msgstr "Icon"
@@ -583,6 +675,10 @@ msgstr "local Users in our documentation"
 msgid "Lowercase"
 msgstr "Lowercase"
 
+#: src/renderer/lib/release.ts
+msgid "Major"
+msgstr "Major"
+
 #: src/renderer/components/forms/asset-field-definition.tsx
 #: src/renderer/components/forms/dynamic-field-definition.tsx
 #: src/renderer/components/forms/entry-field-definition.tsx
@@ -598,6 +694,10 @@ msgstr "Maximum"
 #: src/renderer/components/forms/markdown-field-definition.tsx
 msgid "Minimum"
 msgstr "Minimum"
+
+#: src/renderer/lib/release.ts
+msgid "Minor"
+msgstr "Minor"
 
 #: src/renderer/components/ui/breadcrumb.tsx
 msgid "More"
@@ -618,6 +718,14 @@ msgstr "Name"
 #: src/renderer/components/project-sidebar.tsx
 msgid "Navigation"
 msgstr "Navigation"
+
+#: src/renderer/lib/schemaChange.ts
+msgid "needs a Value for this Field, which is now required and has no default"
+msgstr "needs a Value for this Field, which is now required and has no default"
+
+#: src/renderer/components/asset-teaser.tsx
+msgid "New file: {newFileName}"
+msgstr "New file: {newFileName}"
 
 #: src/renderer/components/forms/asset-mime-type-picker.tsx
 msgid "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
@@ -693,9 +801,29 @@ msgstr "None"
 msgid "Nothing has been published from this Project yet. A Release takes everything saved here and gives it a version."
 msgstr "Nothing has been published from this Project yet. A Release takes everything saved here and gives it a version."
 
+#: src/renderer/lib/release.ts
+msgid "Nothing has changed since version {currentVersion}, so there is nothing to release."
+msgstr "Nothing has changed since version {currentVersion}, so there is nothing to release."
+
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "Nothing in this Project is built from Components yet. Create one to give a Collection a field whose sections an editor fills in."
 msgstr "Nothing in this Project is built from Components yet. Create one to give a Collection a field whose sections an editor fills in."
+
+#: src/renderer/lib/release.ts
+msgid "Nothing was released, and this Project is exactly as it was. Changes were saved or a Release was made on another computer, so synchronize this Project first."
+msgstr "Nothing was released, and this Project is exactly as it was. Changes were saved or a Release was made on another computer, so synchronize this Project first."
+
+#: src/renderer/lib/release.ts
+msgid "Nothing was released, and this Project is exactly as it was. Please try again."
+msgstr "Nothing was released, and this Project is exactly as it was. Please try again."
+
+#: src/renderer/lib/release.ts
+msgid "Nothing was released, and this Project is exactly as it was. The Git repository could not be reached, so check your connection and try again."
+msgstr "Nothing was released, and this Project is exactly as it was. The Git repository could not be reached, so check your connection and try again."
+
+#: src/renderer/lib/release.ts
+msgid "Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project."
+msgstr "Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project."
 
 #: src/renderer/components/forms/select-field-definition.tsx
 msgid "Number"
@@ -726,6 +854,10 @@ msgstr "Optional. What this Component is used for. Leave every language empty fo
 #: src/renderer/components/forms/select-field-definition.tsx
 msgid "Options"
 msgstr "Options"
+
+#: src/renderer/lib/release.ts
+msgid "Patch"
+msgstr "Patch"
 
 #: src/renderer/routes/user/profile.tsx
 msgid "Port"
@@ -836,6 +968,10 @@ msgstr "Replace file"
 msgid "Report a bug"
 msgstr "Report a bug"
 
+#: src/renderer/components/app-header.tsx
+msgid "Report an issue"
+msgstr "Report an issue"
+
 #: src/renderer/queries/options/cloudOptions.ts
 msgid "Report sent"
 msgstr "Report sent"
@@ -864,6 +1000,14 @@ msgstr "Restrict to file types"
 msgid "Save as"
 msgstr "Save as"
 
+#: src/renderer/components/asset-teaser.tsx
+msgid "Save Asset"
+msgstr "Save Asset"
+
+#: src/renderer/components/asset-teaser.tsx
+msgid "Save Asset {fileName} to disk"
+msgstr "Save Asset {fileName} to disk"
+
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
@@ -874,6 +1018,14 @@ msgstr "Save changes"
 #: src/renderer/routes/user/profile.tsx
 msgid "Save local User"
 msgstr "Save local User"
+
+#: src/renderer/components/component-impact.tsx
+msgid "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
+msgstr "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
+
+#: src/renderer/components/asset-teaser.tsx
+msgid "Select a replacement file"
+msgstr "Select a replacement file"
 
 #: src/renderer/components/ui/form.tsx
 msgid "Select Assets"
@@ -910,6 +1062,14 @@ msgstr "Share feedback"
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Slug"
 msgstr "Slug"
+
+#: src/renderer/lib/coreErrorText.ts
+msgid "Some of the information provided was not valid."
+msgstr "Some of the information provided was not valid."
+
+#: src/renderer/lib/coreErrorText.ts
+msgid "Something went wrong. Please try again."
+msgstr "Something went wrong. Please try again."
 
 #: src/renderer/components/forms/slug-field-definition.tsx
 msgid "Split camelCase words, so \"myWord\" becomes \"my-word\"."
@@ -955,9 +1115,97 @@ msgstr "The character placed between words of the slug."
 msgid "The default language can't be deleted. Please select another language as the default and then delete this language."
 msgstr "The default language can't be deleted. Please select another language as the default and then delete this language."
 
+#: src/renderer/lib/release.ts
+msgid "The default language changed"
+msgstr "The default language changed"
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "The default language of this Project. Needs to be one of the supported languages."
 msgstr "The default language of this Project. Needs to be one of the supported languages."
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} allows less than before"
+msgstr "The Field {slug} allows less than before"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} allows more than before"
+msgstr "The Field {slug} allows more than before"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} allows other Components"
+msgstr "The Field {slug} allows other Components"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} has another default Value"
+msgstr "The Field {slug} has another default Value"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} has another description"
+msgstr "The Field {slug} has another description"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} has another label"
+msgstr "The Field {slug} has another label"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} has another type"
+msgstr "The Field {slug} has another type"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} holds another kind of Value"
+msgstr "The Field {slug} holds another kind of Value"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} is built from other Fields"
+msgstr "The Field {slug} is built from other Fields"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} is no longer required"
+msgstr "The Field {slug} is no longer required"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} is now required"
+msgstr "The Field {slug} is now required"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} is shown at another width"
+msgstr "The Field {slug} is shown at another width"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} may no longer repeat a Value"
+msgstr "The Field {slug} may no longer repeat a Value"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} may repeat a Value now"
+msgstr "The Field {slug} may repeat a Value now"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} points at other Collections"
+msgstr "The Field {slug} points at other Collections"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} was added"
+msgstr "The Field {slug} was added"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} was removed"
+msgstr "The Field {slug} was removed"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} was turned on or off"
+msgstr "The Field {slug} was turned on or off"
+
+#: src/renderer/lib/release.ts
+msgid "The Field {slug} writes its Values differently"
+msgstr "The Field {slug} writes its Values differently"
+
+#: src/renderer/lib/release.ts
+msgid "The Git repository could not be reached, so check your connection and try again."
+msgstr "The Git repository could not be reached, so check your connection and try again."
+
+#: src/renderer/lib/release.ts
+msgid "The Git repository refused access, so ask whoever set up this Project."
+msgstr "The Git repository refused access, so ask whoever set up this Project."
 
 #: src/renderer/components/forms/select-field-definition.tsx
 msgid "The initial option for the field."
@@ -1027,6 +1275,14 @@ msgstr "The options a user can choose between. The label is what users see, the 
 msgid "The port used to access the local API. Make sure it is not in use by another application."
 msgstr "The port used to access the local API. Make sure it is not in use by another application."
 
+#: src/renderer/lib/release.ts
+msgid "The Project was renamed"
+msgstr "The Project was renamed"
+
+#: src/renderer/lib/release.ts
+msgid "The Project's description changed"
+msgstr "The Project's description changed"
+
 #: src/renderer/components/markdown/entry-reference-picker.tsx
 msgid "The reference is inserted at the cursor position."
 msgstr "The reference is inserted at the cursor position."
@@ -1051,6 +1307,18 @@ msgstr "Theme"
 msgid "This action can be undone later by restoring the Asset via it's history."
 msgstr "This action can be undone later by restoring the Asset via it's history."
 
+#: src/renderer/components/asset-teaser.tsx
+msgid "This Asset could not be deleted. Please review and try again."
+msgstr "This Asset could not be deleted. Please review and try again."
+
+#: src/renderer/components/asset-teaser.tsx
+msgid "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
+msgstr "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
+
+#: src/renderer/lib/coreErrorText.ts
+msgid "This change conflicts with the current state. Please review and try again."
+msgstr "This change conflicts with the current state. Please review and try again."
+
 #: src/renderer/components/ui/form.tsx
 msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
@@ -1063,6 +1331,30 @@ msgstr "This Field allows every Component of this Project, the ones added later 
 msgid "This form could not be saved, because of a problem that is not shown on any of its fields:"
 msgstr "This form could not be saved, because of a problem that is not shown on any of its fields:"
 
+#: src/renderer/lib/release.ts
+msgid "This is a major Release, because {change}."
+msgstr "This is a major Release, because {change}."
+
+#: src/renderer/lib/release.ts
+msgid "This is a major Release, because what a site reads is unchanged."
+msgstr "This is a major Release, because what a site reads is unchanged."
+
+#: src/renderer/lib/release.ts
+msgid "This is a minor Release, because {change}."
+msgstr "This is a minor Release, because {change}."
+
+#: src/renderer/lib/release.ts
+msgid "This is a minor Release, because what a site reads is unchanged."
+msgstr "This is a minor Release, because what a site reads is unchanged."
+
+#: src/renderer/lib/release.ts
+msgid "This is a patch Release, because {change}."
+msgstr "This is a patch Release, because {change}."
+
+#: src/renderer/lib/release.ts
+msgid "This is a patch Release, because what a site reads is unchanged."
+msgstr "This is a patch Release, because what a site reads is unchanged."
+
 #: src/renderer/components/ui/form.tsx
 msgid "This Project has no Component this field allows, so no section can be added. Create one, or allow another one on this field."
 msgstr "This Project has no Component this field allows, so no section can be added. Create one, or allow another one on this field."
@@ -1071,6 +1363,10 @@ msgstr "This Project has no Component this field allows, so no section can be ad
 msgid "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
 msgstr "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
 
+#: src/renderer/lib/coreErrorText.ts
+msgid "This was written by a newer version of elek.io. Update to open it."
+msgstr "This was written by a newer version of elek.io. Update to open it."
+
 #: src/renderer/components/ui/sidebar.tsx
 msgid "Toggle Sidebar"
 msgstr "Toggle Sidebar"
@@ -1078,6 +1374,10 @@ msgstr "Toggle Sidebar"
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Toggles are always required, since they can only be checked or unchecked."
 msgstr "Toggles are always required, since they can only be checked or unchecked."
+
+#: src/renderer/lib/coreErrorText.ts
+msgid "Too much was sent from here recently. Please try again shortly."
+msgstr "Too much was sent from here recently. Please try again shortly."
 
 #: src/renderer/components/pane.tsx
 #: src/renderer/components/release-dialog.tsx
@@ -1100,6 +1400,10 @@ msgstr "Unique"
 msgid "Update"
 msgstr "Update"
 
+#: src/renderer/lib/coreErrorText.ts
+msgid "Upgrading this Project did not work."
+msgstr "Upgrading this Project did not work."
+
 #: src/renderer/components/markdown/link-dialog.tsx
 #: src/renderer/routes/projects/index.tsx
 msgid "URL"
@@ -1113,6 +1417,10 @@ msgstr "View"
 msgid "View all Projects"
 msgstr "View all Projects"
 
+#: src/renderer/lib/release.ts
+msgid "What a Release would publish could not be read. Your changes on this computer are safe. Please try again."
+msgstr "What a Release would publish could not be read. Your changes on this computer are safe. Please try again."
+
 #: src/renderer/components/release-dialog.tsx
 msgid "What changed"
 msgstr "What changed"
@@ -1120,6 +1428,10 @@ msgstr "What changed"
 #: src/renderer/components/report-dialog.tsx
 msgid "What is missing, what got in your way, or what you would like to see next."
 msgstr "What is missing, what got in your way, or what you would like to see next."
+
+#: src/renderer/components/component-impact.tsx
+msgid "What saving changes"
+msgstr "What saving changes"
 
 #: src/renderer/components/forms/component-form.tsx
 msgid "What this group of fields is, in singular, such as \"Teaser\"."
@@ -1137,6 +1449,10 @@ msgstr "What would you like to tell us?"
 msgid "What you did just before it happened, roughly when, and what you expected instead. That is usually what lets us find it in the logs and reproduce it."
 msgstr "What you did just before it happened, roughly when, and what you expected instead. That is usually what lets us find it in the logs and reproduce it."
 
+#: src/renderer/lib/coreErrorText.ts
+msgid "What you were looking for could not be found."
+msgstr "What you were looking for could not be found."
+
 #: src/renderer/components/forms/select-field-definition.tsx
 msgid "Whether the options of this Field hold text or number values."
 msgstr "Whether the options of this Field hold text or number values."
@@ -1148,6 +1464,10 @@ msgstr "Which heading levels can be used. None disables headings."
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Width"
 msgstr "Width"
+
+#: src/renderer/lib/schemaChange.ts
+msgid "would lose what it holds in this Field, so the change is refused"
+msgstr "would lose what it holds in this Field, so the change is refused"
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Yes, delete"
@@ -1180,6 +1500,10 @@ msgstr "You haven't added any Assets yet. Get started by adding an Asset by clic
 #: src/renderer/routes/projects/index.tsx
 msgid "You haven't created any Projects yet. Get started by creating a new or cloning an existing Project."
 msgstr "You haven't created any Projects yet. Get started by creating a new or cloning an existing Project."
+
+#: src/renderer/lib/coreErrorText.ts
+msgid "You need to set up a user before doing this."
+msgstr "You need to set up a user before doing this."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "You won't be able to change the Value if this is active."

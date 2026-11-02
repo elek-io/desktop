@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Outlet, createFileRoute } from '@tanstack/react-router';
 
 import { Pane, Panel } from '@renderer/components/pane';
@@ -11,6 +12,8 @@ export const Route = createFileRoute('/projects/$projectId')({
 });
 
 function ProjectLayoutContent(): React.JSX.Element {
+  const { t } = useLingui();
+
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
@@ -29,7 +32,7 @@ function ProjectLayoutContent(): React.JSX.Element {
           is the broadest of them. A screen that splits the panel into panes of
           its own names each of them.
         */}
-        <Pane name="what this screen shows">
+        <Pane name={t`what this screen shows`}>
           <Outlet />
         </Pane>
       </Panel>
