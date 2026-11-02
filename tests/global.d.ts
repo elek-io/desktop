@@ -1,8 +1,8 @@
 // Inside `page.evaluate` the callback runs in the renderer, where `window`, the
 // `window.ipc` bridge and the document exist. Specs type-check under the Node
-// tsconfig, which has no DOM lib, so what they read is declared here. The `ipc`
+// tsconfig, which has no DOM lib, so what they touch is declared here. The `ipc`
 // shape comes from the global Window augmentation in src/index.d.ts, and the
-// geometry below is what the window-size spec measures. Only what is read is
+// geometry below is what the window-size spec measures. Only what a spec uses is
 // declared, so no unused DOM API quietly becomes available.
 declare const window: Window & {
   innerWidth: number;
@@ -19,6 +19,7 @@ interface ProbedElement {
   readonly scrollWidth: number;
   closest(selectors: string): ProbedElement | null;
   getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
   getBoundingClientRect(): {
     readonly x: number;
     readonly y: number;

@@ -5,6 +5,7 @@ import {
   createCollectionViaIpc,
   navigateToCollectionSettings,
 } from '../helpers/collection.js';
+import { stubCoreReject } from '../helpers/ipc.js';
 import { navigate } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
@@ -14,7 +15,8 @@ import { setUserViaIpc, waitForUserLoaded } from '../helpers/user.js';
 
 /**
  * How the words of the app behave once they come from the catalog: which
- * language the document declares, and what a toast says after a change.
+ * language the document declares, and what a toast says after a change went
+ * through and after one did not.
  */
 
 test.describe('The app in one language', () => {
@@ -28,15 +30,25 @@ test.describe('The app in one language', () => {
 
     // A User whose language Desktop carries a catalog for.
     await setUserViaIpc(mainWindow, { language: 'en' });
-    await navigate(mainWindow, '#/projects');
+    await navigate(mainWindow, '#/user/profile');
     await waitForUserLoaded(mainWindow);
     await expect(mainWindow.locator('html')).toHaveAttribute('lang', 'en');
 
-    // A User whose language Desktop has no catalog for still reads English, so
-    // that is what the document declares rather than the language asked for.
-    await setUserViaIpc(mainWindow, { language: 'de' });
-    await navigate(mainWindow, '#/user/profile');
-    await navigate(mainWindow, '#/projects');
+    // What index.html declares is overwritten here, so what the assertion
+    // below reads can only be what the renderer wrote. Every navigation of
+    // this suite boots the window fresh, which would put the declaration back,
+    // so the language is changed from here on through the app itself.
+    await mainWindow.evaluate(() => {
+      document.documentElement.setAttribute('lang', 'zz');
+    });
+    await expect(mainWindow.locator('html')).toHaveAttribute('lang', 'zz');
+
+    // A language Desktop has no catalog for, picked the way a User picks one.
+    // Its words stay English, so that is what the document has to declare
+    // rather than the language asked for.
+    await mainWindow.getByLabel('Preferred language').click();
+    await mainWindow.getByRole('option', { name: 'de', exact: true }).click();
+    await mainWindow.getByRole('button', { name: 'Save local User' }).click();
     await expect(mainWindow.locator('html')).toHaveAttribute('lang', 'en');
   });
 
@@ -113,5 +125,35 @@ test.describe('The app in one language', () => {
     for (const text of shown) {
       expect(text).not.toMatch(asCall);
     }
+  });
+
+  test('a failure toast says what did not happen, and nothing of what failed', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
+
+    await navigateToProjectSettings(mainWindow, project.id);
+    await expect(mainWindow.getByLabel('Project name')).toHaveValue(
+      'Autohaus Ebersfelde'
+    );
+    await mainWindow.getByLabel('Project name').fill('Autohaus Thamm');
+
+    // A failure the save has no handling of its own for, which reaches the
+    // error screen while the mutation's own toast still shows. What it throws
+    // carries a message no editor could read, which is what the toast's own
+    // sentence replaces.
+    await stubCoreReject(electronApp, 'core:projects:update');
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    const toast = mainWindow.getByText('Could not save the Project');
+    await expect(toast).toBeVisible();
+
+    // The whole sentence, so nothing of the call, the error's type, an id or
+    // what was thrown rode along with it.
+    expect((await toast.innerText()).trim()).toBe('Could not save the Project');
   });
 });
