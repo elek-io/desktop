@@ -329,9 +329,14 @@ test.describe('Branding', () => {
 
       /**
        * One pixel column above the middle of the button, from 4 px above its
-       * box down to its top edge. The window's own pixels are read rather than
-       * a computed style, because Chromium reports its own focus ring for a
-       * focused element whatever the page asks for.
+       * box down to its top edge, as one entry per row. The window's own pixels
+       * are read rather than a computed style, because Chromium reports its own
+       * focus ring for a focused element whatever the page asks for.
+       *
+       * The capture rect is in device-independent pixels while the bitmap is in
+       * physical ones, so on a display scaled above 1x the column comes back
+       * `scaleFactor` pixels wide and as many rows tall. Taking the first pixel
+       * of each row makes the result the same shape at any scale.
        */
       const column = async (): Promise<[number, number, number][]> => {
         const captured = await electronApp.evaluate(
@@ -346,18 +351,29 @@ test.describe('Branding', () => {
               width: 1,
               height: 4,
             });
-            return Array.from(image.toBitmap());
+            return {
+              bitmap: Array.from(image.toBitmap()),
+              size: image.getSize(),
+            };
           },
           { x: box.x, y: box.y, width: box.width }
         );
 
+        // The size is the capture's own, in the same physical pixels as the
+        // bitmap, which is what makes the row stride right at any scale. Say so
+        // here rather than read the wrong pixels if it ever stops holding.
+        expect(captured.size.width * captured.size.height).toBe(
+          captured.bitmap.length / 4
+        );
+
         // The bitmap is BGRA, so each pixel is read back to front.
         const pixels: [number, number, number][] = [];
-        for (let index = 0; index + 3 < captured.length; index += 4) {
+        for (let row = 0; row < captured.size.height; row++) {
+          const index = row * captured.size.width * 4;
           pixels.push([
-            captured[index + 2] ?? 0,
-            captured[index + 1] ?? 0,
-            captured[index] ?? 0,
+            captured.bitmap[index + 2] ?? 0,
+            captured.bitmap[index + 1] ?? 0,
+            captured.bitmap[index] ?? 0,
           ]);
         }
         return pixels;
@@ -373,21 +389,22 @@ test.describe('Branding', () => {
         );
 
       // ci's ring is 2 px wide and sits 2 px outside the element, so of the
-      // four rows above the button's edge the outer two are the ring and the
-      // two below them are the gap. The ring fades in, so poll until it has
-      // settled rather than reading the first frame.
+      // four device-independent pixels above the button's edge the outer half
+      // of the rows is the ring and the inner half is the gap. The ring fades
+      // in, so poll until it has settled rather than reading the first frame.
       await expect
-        .poll(async () =>
-          (await column()).slice(0, 2).every((p) => near(p, ring))
-        )
+        .poll(async () => {
+          const above = await column();
+          return above.slice(0, above.length / 2).every((p) => near(p, ring));
+        })
         .toBe(true);
 
       const settled = await column();
       // The gap carries no ring, which is what "2 px away" means. A ring drawn
       // at half opacity would blend with the surface and miss the color above.
-      expect(settled.slice(2, 4).some((pixel) => near(pixel, ring))).toBe(
-        false
-      );
+      expect(
+        settled.slice(settled.length / 2).some((pixel) => near(pixel, ring))
+      ).toBe(false);
     }
   });
 
