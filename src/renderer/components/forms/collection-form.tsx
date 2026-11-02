@@ -35,6 +35,11 @@ interface CollectionFormProps<
 > {
   collectionForm: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   project: Project;
+  /**
+   * The Core schema this form checks against, which its fields read their own
+   * rules off, so no limit Core sets is written out here.
+   */
+  schema: unknown;
   children?: React.ReactNode;
   isViewOnly?: boolean;
   onFormSubmit?: SubmitHandler<TTransformedValues>;
@@ -52,6 +57,7 @@ export function CollectionForm<
 >({
   collectionForm: genericForm,
   project,
+  schema,
   children,
   isViewOnly = false,
   onFormSubmit = () => {},
@@ -69,6 +75,7 @@ export function CollectionForm<
   return (
     <AppForm
       form={genericForm}
+      schema={schema}
       onSubmit={onFormSubmit}
       id={id}
       mode={isViewOnly ? 'view' : 'edit'}
@@ -79,7 +86,6 @@ export function CollectionForm<
             form={genericForm}
             name={path('icon')}
             label={<Trans>Icon</Trans>}
-            required
             className="col-span-12 sm:col-span-2"
           >
             {({ field, controlProps, disabled }) => (
@@ -112,7 +118,6 @@ export function CollectionForm<
             form={genericForm}
             name={path(`name.plural.${project.settings.language.default}`)}
             label={<Trans>Collection name (Plural)</Trans>}
-            required
             description={
               <Trans>
                 The name of your new collection. Choose a short name in plural
@@ -140,7 +145,6 @@ export function CollectionForm<
             form={genericForm}
             name={path(`name.singular.${project.settings.language.default}`)}
             label={<Trans>Entry name (Singular)</Trans>}
-            required
             description={
               <Trans>
                 The name of each Entry inside your new Collection. Choose a
@@ -167,7 +171,6 @@ export function CollectionForm<
             form={genericForm}
             name={path(`description.${project.settings.language.default}`)}
             label={<Trans>Description</Trans>}
-            required
             description={
               <Trans>
                 A description of what this new Collection is used for.
@@ -193,7 +196,6 @@ export function CollectionForm<
           form={genericForm}
           name={path('slug.plural')}
           label={<Trans>Collection-Slug</Trans>}
-          required
           description={
             <Trans>
               A lowercase version without any special characters of the
@@ -211,7 +213,6 @@ export function CollectionForm<
           form={genericForm}
           name={path('slug.singular')}
           label={<Trans>Entry-Slug</Trans>}
-          required
           description={
             <Trans>
               A lowercase version without any special characters of the Entry's

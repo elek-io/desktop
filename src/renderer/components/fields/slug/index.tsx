@@ -1,3 +1,4 @@
+import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentAsStored,
   emptyPreview,
@@ -18,6 +19,7 @@ import { SlugDefinitionDraft } from './definition';
 export const slugField: FieldTypeModule<'slug'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: scalarRules,
   forbiddenInComponent: true,
   Control: ({ field, fieldDefinition, disabled, controlProps }) => (
     <SlugControl

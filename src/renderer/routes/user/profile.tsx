@@ -193,7 +193,12 @@ function UserProfilePage(): ReactElement {
     >
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
         <Card className="py-0 lg:col-span-2">
-          <AppForm form={setUserForm} onSubmit={onSetUser} id={formId}>
+          <AppForm
+            form={setUserForm}
+            schema={setUserSchema}
+            onSubmit={onSetUser}
+            id={formId}
+          >
             <PageSection
               title={t`Local User`}
               description={t`Fill out your information below and watch it influence how your future changes will look like on the right.`}
@@ -204,7 +209,6 @@ function UserProfilePage(): ReactElement {
                   form={setUserForm}
                   name="language"
                   label={<Trans>Preferred language</Trans>}
-                  required
                   description={
                     <Trans>
                       Changing your preferred language will attempt to translate
@@ -250,7 +254,6 @@ function UserProfilePage(): ReactElement {
                   form={setUserForm}
                   name="name"
                   label={<Trans>Full name</Trans>}
-                  required
                   description={
                     <Trans>
                       Your name will be used by others to identify changes made
@@ -266,7 +269,6 @@ function UserProfilePage(): ReactElement {
                   form={setUserForm}
                   name="email"
                   label={<Trans>Email</Trans>}
-                  required
                   description={
                     <Trans>
                       Your email allows other members of Projects to contact
@@ -289,7 +291,6 @@ function UserProfilePage(): ReactElement {
                   form={setUserForm}
                   name="localApi.port"
                   label={<Trans>Port</Trans>}
-                  required
                   description={
                     <Trans>
                       The port used to access the local API. Make sure it is not
@@ -309,7 +310,6 @@ function UserProfilePage(): ReactElement {
                   form={setUserForm}
                   name="localApi.isEnabled"
                   label={<Trans>Enabled</Trans>}
-                  required
                   orientation="horizontal"
                   description={
                     <Trans>

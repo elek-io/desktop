@@ -59,7 +59,6 @@ function EntryExtras({
         form={form}
         name="ofCollections"
         label={<Trans>Restrict to Collections</Trans>}
-        required
         description={
           <Trans>
             Only Entries from the selected Collections can be referenced. If
@@ -143,6 +142,8 @@ function EntryExtras({
 
 const entrySpec: DefinitionSpec<EntryFieldDefinition> = {
   uniquenessNote: msg`Reference fields cannot be unique.`,
+  schema: entryFieldDefinitionSchema,
+
   resolver: zodResolver(entryFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),

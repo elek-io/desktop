@@ -1,3 +1,4 @@
+import { countRules } from '@renderer/components/fields/rules';
 import { noTitle } from '@renderer/components/fields/value-contracts';
 
 import { resolveOfComponents } from '@elek-io/core';
@@ -16,8 +17,10 @@ import { DynamicDefinitionDraft } from './definition';
  */
 export const dynamicField: FieldTypeModule<'dynamic'> = {
   translatable: false,
-  // A list of sections is not one control, so required is said in its label.
+  // A list of sections is not one control, so the rules beside its label
+  // carry required.
   acceptsAriaRequired: false,
+  rules: countRules,
   Control: ({ field, fieldDefinition, disabled, controlProps }) => (
     <DynamicControl
       field={field}

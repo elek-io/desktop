@@ -38,30 +38,24 @@ import type { FieldDefinition, SupportedLanguage } from '@elek-io/core';
 // See contributing/renderer/dynamic-form-field-generation.md.
 
 /**
- * Whether a field's required state is exposed as `aria-required`, which stands
- * in for the native `required` no field emits. Which roles accept it is the
- * field type's own answer, so its folder says so.
+ * The control-association props the shell minted, with `aria-required` kept
+ * only where the control's role allows it.
+ *
+ * The shell offers it to every required field, since required is one fact
+ * about a field. Which roles accept it is the field type's own answer, so its
+ * folder says so, and the attribute is dropped rather than set to false, so it
+ * never lands on a role that does not allow it at all.
  */
-function ariaRequired(fieldDefinition: FieldDefinition): true | undefined {
-  return fieldModule(fieldDefinition).acceptsAriaRequired &&
-    fieldDefinition.isRequired
-    ? true
-    : undefined;
-}
-
-/** The control-association props plus the required state of this definition. */
 function controlPropsFor(
   fieldDefinition: FieldDefinition,
   controlProps: FieldControlProps
 ): FieldControlProps {
-  return {
-    ...controlProps,
-    // Omitted (not set to false) where it must not be emitted, so the attribute
-    // never lands on a control whose role does not allow it.
-    ...(ariaRequired(fieldDefinition) === true
-      ? { 'aria-required': true }
-      : {}),
-  };
+  if (fieldModule(fieldDefinition).acceptsAriaRequired) {
+    return controlProps;
+  }
+
+  const { 'aria-required': _dropped, ...allowed } = controlProps;
+  return allowed;
 }
 
 // TTransformedValues is defaulted and never read: only `control` and
@@ -156,7 +150,7 @@ export function FieldFromDefinition<
       form={form}
       name={leafName}
       label={label}
-      required={fieldDefinition.isRequired}
+      rules={module.rules(fieldDefinition)}
       {...(description === null ? {} : { description })}
       className={cn(
         `col-span-12 ${fieldWidth(fieldDefinition.inputWidth)}`,
@@ -316,7 +310,7 @@ export function FieldDefinitionPreview({
       <div className="flex w-full flex-col">
         <FieldShell
           label={label}
-          required={fieldDefinition.isRequired}
+          rules={module.rules(fieldDefinition)}
           {...(description === null ? {} : { description })}
         >
           {(controlProps): ReactNode =>

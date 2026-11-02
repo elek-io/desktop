@@ -115,7 +115,7 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
           label is hidden from assistive technology, which would take the
           switch with it. */}
           <div className="flex place-content-between px-2 py-1.5">
-            <Label htmlFor={localApiSwitchId} isRequired>
+            <Label htmlFor={localApiSwitchId}>
               <Trans>Local API</Trans>
             </Label>
             <Switch

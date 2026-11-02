@@ -125,7 +125,6 @@ function DefaultFieldDefinitionForm<
         form={form}
         name={base(`label.${currentLanguage}`)}
         label={<Trans>Label</Trans>}
-        required
         description={
           <Trans>
             The label is displayed above the input Field and should indicate
@@ -152,7 +151,6 @@ function DefaultFieldDefinitionForm<
         form={form}
         name={base('slug')}
         label={<Trans>Slug</Trans>}
-        required
         description={
           <Trans>
             The technical key this Field&apos;s Values are stored under. It is
@@ -199,7 +197,6 @@ function DefaultFieldDefinitionForm<
         form={form}
         name={base('inputWidth')}
         label={<Trans>Width</Trans>}
-        required
         description={<Trans>Defines how wide the input field will be.</Trans>}
       >
         {({ field, controlProps, disabled }) => (
@@ -234,7 +231,6 @@ function DefaultFieldDefinitionForm<
         form={form}
         name={base('isRequired')}
         label={<Trans>Required</Trans>}
-        required
         orientation="horizontal"
         description={
           <>
@@ -265,7 +261,6 @@ function DefaultFieldDefinitionForm<
         form={form}
         name={base('isUnique')}
         label={<Trans>Unique</Trans>}
-        required
         orientation="horizontal"
         description={
           <>
@@ -296,7 +291,6 @@ function DefaultFieldDefinitionForm<
         form={form}
         name={base('isDisabled')}
         label={<Trans>Disabled</Trans>}
-        required
         orientation="horizontal"
         description={
           <Trans>

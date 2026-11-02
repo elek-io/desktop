@@ -1,4 +1,5 @@
 import { type VariantProps } from 'class-variance-authority';
+import { CircleAlertIcon, TriangleAlertIcon } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Label } from '@renderer/components/ui/label';
@@ -105,6 +106,73 @@ function FieldLabel({
       )}
       {...props}
     />
+  );
+}
+
+/**
+ * The head of a field: its label, with the field's rules at the top right.
+ *
+ * The rules wrap below the label when they do not fit beside it, which is what
+ * ci asks for and what a narrow editor does to a long label.
+ */
+function FieldHeader({
+  className,
+  rules,
+  rulesId,
+  children,
+  ...props
+}: React.ComponentProps<'div'> & {
+  /** The field's rules as one line, or nothing where it has none. */
+  rules?: string | undefined;
+  /** The id the control names the rules by, so they are read out with it. */
+  rulesId?: string | undefined;
+}): React.JSX.Element {
+  return (
+    <div
+      data-slot="field-header"
+      className={cn('flex flex-wrap justify-between gap-x-2', className)}
+      {...props}
+    >
+      {children}
+      {rules === undefined ? null : (
+        <span
+          data-slot="field-rules"
+          id={rulesId}
+          className="text-small text-muted-foreground"
+        >
+          {rules}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Something about the field's Value that keeps nobody from saving, such as a
+ * translation it is still missing.
+ *
+ * It sits between the control and the description, in the warning color with
+ * the warning icon, which is where ci draws it. An error is not this: it says
+ * what was refused, see `FieldError`.
+ */
+function FieldWarning({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<'p'>): React.JSX.Element {
+  return (
+    <p
+      data-slot="field-warning"
+      className={cn(
+        'flex items-center gap-1.5 text-small text-warning',
+        className
+      )}
+      {...props}
+    >
+      {/* The color alone would carry it, so the icon says it again. */}
+      <TriangleAlertIcon aria-hidden className="size-3 shrink-0" />
+      {children}
+    </p>
   );
 }
 
@@ -216,10 +284,15 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn('text-sm font-normal text-error', className)}
+      className={cn('flex gap-1.5 text-sm font-normal text-error', className)}
       {...props}
     >
-      {content}
+      {/* ci's Messages table draws the error icon beside the words, so the
+      color is not the only thing that says it is one. Nudged down to sit on
+      the first line rather than on the box's center, which a message of
+      several lines would move. */}
+      <CircleAlertIcon aria-hidden className="mt-1 size-3 shrink-0" />
+      <div className="flex-1">{content}</div>
     </div>
   );
 }
@@ -230,9 +303,11 @@ export {
   FieldDescription,
   FieldError,
   FieldGroup,
+  FieldHeader,
   FieldLegend,
   FieldSeparator,
   FieldSet,
   FieldContent,
   FieldTitle,
+  FieldWarning,
 };

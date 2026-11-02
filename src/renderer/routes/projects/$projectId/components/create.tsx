@@ -180,6 +180,7 @@ function ProjectComponentCreate(): ReactElement {
       actions={<Actions />}
     >
       <ComponentForm
+        schema={generatedCreateComponentSchema}
         id={formId}
         componentForm={createComponentForm}
         project={project}

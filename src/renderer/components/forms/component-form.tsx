@@ -25,6 +25,11 @@ interface ComponentFormProps<
 > {
   componentForm: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   project: Project;
+  /**
+   * The Core schema this form checks against, which its fields read their own
+   * rules off, so no limit Core sets is written out here.
+   */
+  schema: unknown;
   children?: React.ReactNode;
   isViewOnly?: boolean;
   onFormSubmit?: SubmitHandler<TTransformedValues>;
@@ -51,6 +56,7 @@ export function ComponentForm<
 >({
   componentForm,
   project,
+  schema,
   children,
   isViewOnly = false,
   onFormSubmit = () => {},
@@ -65,6 +71,7 @@ export function ComponentForm<
   return (
     <AppForm
       form={componentForm}
+      schema={schema}
       onSubmit={onFormSubmit}
       id={id}
       mode={isViewOnly ? 'view' : 'edit'}
@@ -75,7 +82,6 @@ export function ComponentForm<
             form={componentForm}
             name={path(`name.${defaultLanguage}`)}
             label={<Trans>Component name</Trans>}
-            required
             description={
               <Trans>
                 What this group of fields is, in singular, such as
@@ -102,7 +108,6 @@ export function ComponentForm<
             form={componentForm}
             name={path('slug')}
             label={<Trans>Component slug</Trans>}
-            required
             description={
               <Trans>
                 A lowercase version of the name without special characters. It

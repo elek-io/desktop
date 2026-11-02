@@ -1,3 +1,4 @@
+import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentAsStored,
   textTitle,
@@ -12,6 +13,7 @@ import { SelectDefinitionDraft } from './definition';
 export const selectField: FieldTypeModule<'select'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: scalarRules,
   Control: ({ field, fieldDefinition, disabled, controlProps }) => (
     <SelectControl
       field={field}

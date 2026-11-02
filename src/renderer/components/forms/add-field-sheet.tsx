@@ -147,7 +147,7 @@ export function AddFieldSheet({
             )}
           </SheetDescription>
           <div className="grid gap-2">
-            <Label htmlFor={inputTypeId} isRequired>
+            <Label htmlFor={inputTypeId}>
               <Trans>Input type</Trans>
             </Label>
             <Select

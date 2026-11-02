@@ -99,7 +99,6 @@ export function OfComponentsPicker({
       form={form}
       name="ofComponents"
       label={<Trans>Allowed Components</Trans>}
-      required
       description={
         lockedComponentIds.length === 0 ? (
           <Trans>
@@ -217,6 +216,8 @@ function DynamicExtras({
 
 const dynamicSpec: DefinitionSpec<DynamicFieldDefinition> = {
   uniquenessNote: msg`Dynamic fields cannot be unique.`,
+  schema: dynamicFieldDefinitionSchema,
+
   resolver: zodResolver(dynamicFieldDefinitionSchema),
   // Core pins isUnique to false for a dynamic field, so it is re-narrowed here
   // to that literal. An empty ofComponents means every Component is allowed.

@@ -62,7 +62,6 @@ export const LinkDialog = ({
           <Input
             id="markdown-link-href"
             type="url"
-            placeholder="https://example.com"
             value={href}
             onChange={(event) => {
               setHref(event.target.value);

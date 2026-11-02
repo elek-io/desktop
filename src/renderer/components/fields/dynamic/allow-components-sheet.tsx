@@ -114,7 +114,12 @@ export function AllowComponentsSheet({
         ) : (
           <>
             <SheetBody>
-              <AppForm id={formId} form={form} onSubmit={onSubmit}>
+              <AppForm
+                id={formId}
+                form={form}
+                schema={dynamicFieldDefinitionSchema}
+                onSubmit={onSubmit}
+              >
                 <OfComponentsPicker
                   form={form}
                   lockedComponentIds={fieldDefinition.ofComponents}

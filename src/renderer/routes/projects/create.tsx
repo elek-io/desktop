@@ -82,6 +82,7 @@ function CreateProjectPage(): ReactElement {
           actions={<Actions />}
         >
           <ProjectForm
+            schema={createProjectSchema}
             id={formId}
             projectForm={createProjectForm}
             isViewOnly={isCreatingProject}

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { t } from '@lingui/core/macro';
 
+import { textRules } from '@renderer/components/fields/rules';
 import {
   contentAsStored,
   emptyPreview,
@@ -25,6 +26,8 @@ import {
 import { type FieldTypeModule } from '../module';
 
 const spec: DefinitionSpec<TextFieldDefinition> = {
+  schema: textFieldDefinitionSchema,
+
   resolver: zodResolver(textFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -52,6 +55,7 @@ const spec: DefinitionSpec<TextFieldDefinition> = {
 export const textField: FieldTypeModule<'text'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: textRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextControl
       field={field}

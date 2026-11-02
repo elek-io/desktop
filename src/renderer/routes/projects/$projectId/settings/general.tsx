@@ -173,6 +173,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
       actions={<Actions />}
     >
       <ProjectForm
+        schema={createProjectSchema}
         id={formId}
         projectForm={updateProjectForm}
         isViewOnly={isUpdatingProject}

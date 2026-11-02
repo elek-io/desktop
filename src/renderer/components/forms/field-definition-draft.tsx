@@ -41,16 +41,12 @@ export function DefaultValueInputField<Def extends FieldValues>({
   form,
   name,
   type,
-  isRequired = false,
   description,
-  placeholder,
 }: {
   form: UseFormReturn<Def>;
   name: FieldPath<Def>;
   type: React.ComponentProps<'input'>['type'];
-  isRequired?: boolean;
   description?: string;
-  placeholder?: string;
 }): ReactElement {
   const { t } = useLingui();
   const shown = description ?? t`The initial value for the field.`;
@@ -60,44 +56,39 @@ export function DefaultValueInputField<Def extends FieldValues>({
       form={form}
       name={name}
       label={<Trans>Default value</Trans>}
-      required={isRequired}
       description={shown}
     >
       {({ field, controlProps }) => (
-        <TextControl
-          field={field}
-          type={type}
-          placeholder={placeholder}
-          {...controlProps}
-        />
+        <TextControl field={field} type={type} {...controlProps} />
       )}
     </AppField>
   );
 }
 
-/** A "Minimum" / "Maximum" pair bound to numeric inputs. `isRequired` flips the
- * labels between the optional bounds (text, number) and the mandatory ones
- * (range). */
+/**
+ * A "Minimum" / "Maximum" pair bound to numeric inputs.
+ *
+ * Whether each bound has to be filled is the type's own schema's answer, which
+ * the fields read themselves: a text field's bounds are optional and a range's
+ * are not.
+ */
 export function MinMaxRow<Def extends FieldValues>({
   form,
   minName,
   maxName,
   unit,
-  isRequired = false,
 }: {
   form: UseFormReturn<Def>;
   minName: FieldPath<Def>;
   maxName: FieldPath<Def>;
   unit: string;
-  isRequired?: boolean;
 }): ReactElement {
   return (
-    <div className="flex flex-row items-center justify-between space-x-2">
+    <div className="flex flex-row items-start justify-between space-x-2">
       <AppField
         form={form}
         name={minName}
         label={<Trans>Minimum</Trans>}
-        required={isRequired}
         description={<Trans>The minimum {unit}.</Trans>}
       >
         {({ field, controlProps }) => (
@@ -108,7 +99,6 @@ export function MinMaxRow<Def extends FieldValues>({
         form={form}
         name={maxName}
         label={<Trans>Maximum</Trans>}
-        required={isRequired}
         description={<Trans>The maximum {unit}.</Trans>}
       >
         {({ field, controlProps }) => (
@@ -138,6 +128,16 @@ export interface DefinitionExtrasProps<Def extends FieldValues> {
  * contributing/renderer/dynamic-form-field-generation.md.
  */
 export interface DefinitionSpec<Def extends FieldDefinitionBase> {
+  /**
+   * The Core schema one definition of this type is checked against. Every
+   * field of the draft reads its own rules off it, so no limit Core keeps on a
+   * field definition is written out again here.
+   *
+   * It stands beside the resolver rather than replacing it, because one field
+   * type's form values and its schema's output diverge (see the markdown
+   * definition), which a single member could not type for every type at once.
+   */
+  schema: unknown;
   // Built with zodResolver where Def is concrete, so DefinitionDraft needs no cast.
   resolver: Resolver<Def>;
   makeDefaults: (supportedLanguages: SupportedLanguage[]) => Def;
@@ -195,7 +195,7 @@ export function DefinitionDraft<
   const Extras = spec.Extras;
 
   return (
-    <AppForm id={id} form={form} onSubmit={onSubmit}>
+    <AppForm id={id} form={form} schema={spec.schema} onSubmit={onSubmit}>
       <DefaultFieldDefinitionForm
         form={form}
         currentLanguage={defaultLanguage}

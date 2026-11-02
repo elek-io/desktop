@@ -6,10 +6,6 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
-#: src/renderer/components/ui/label.tsx
-msgid " - optional"
-msgstr " - optional"
-
 #: src/renderer/components/fields/asset/index.tsx
 msgid "{count, plural, one {# Asset} other {# Assets}}"
 msgstr "{count, plural, one {# Asset} other {# Assets}}"
@@ -21,6 +17,22 @@ msgstr "{count, plural, one {# Entry} other {# Entries}}"
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "{fieldCount, plural, one {# field} other {# fields}}"
 msgstr "{fieldCount, plural, one {# field} other {# fields}}"
+
+#: src/renderer/lib/fieldRules.ts
+msgid "{max, plural, one {up to # character} other {up to # characters}}"
+msgstr "{max, plural, one {up to # character} other {up to # characters}}"
+
+#: src/renderer/lib/fieldRules.ts
+msgid "{min, plural, one {at least # character} other {at least # characters}}"
+msgstr "{min, plural, one {at least # character} other {at least # characters}}"
+
+#: src/renderer/lib/fieldRules.ts
+msgid "{min} to {max}"
+msgstr "{min} to {max}"
+
+#: src/renderer/lib/fieldRules.ts
+msgid "{min} to {max} characters"
+msgstr "{min} to {max} characters"
 
 #: src/renderer/components/component-impact.tsx
 msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
@@ -331,6 +343,14 @@ msgstr "At least {assetMinimum} required."
 msgid "At least {entryMinimum} required."
 msgstr "At least {entryMinimum} required."
 
+#: src/renderer/lib/fieldRules.ts
+msgid "at least {min}"
+msgstr "at least {min}"
+
+#: src/renderer/components/fields/asset/index.tsx
+msgid "audio only"
+msgstr "audio only"
+
 #: src/renderer/routes/__root.tsx
 msgid "Back to Projects"
 msgstr "Back to Projects"
@@ -403,6 +423,10 @@ msgstr "Bytes"
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Cancel"
 msgstr "Cancel"
+
+#: src/renderer/components/fields/asset/index.tsx
+msgid "certain file types only"
+msgstr "certain file types only"
 
 #: src/renderer/components/history-sidebar.tsx
 msgid "Changes"
@@ -993,8 +1017,8 @@ msgid "Fill out your information below and watch it influence how your future ch
 msgstr "Fill out your information below and watch it influence how your future changes will look like on the right."
 
 #: src/renderer/components/entry-table.tsx
-msgid "Filter {collectionName}..."
-msgstr "Filter {collectionName}..."
+msgid "Filter {collectionName}"
+msgstr "Filter {collectionName}"
 
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Footnote references and definitions."
@@ -1125,6 +1149,10 @@ msgstr "Images and files from this Project's Assets."
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Images from external URLs."
 msgstr "Images from external URLs."
+
+#: src/renderer/components/fields/asset/index.tsx
+msgid "images only"
+msgstr "images only"
 
 #: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
@@ -1744,6 +1772,7 @@ msgid "Report this problem"
 msgstr "Report this problem"
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
+#: src/renderer/lib/fieldRules.ts
 msgid "Required"
 msgstr "Required"
 
@@ -1809,10 +1838,6 @@ msgstr "Section {position} of {total}"
 #: src/renderer/components/asset-teaser.tsx
 msgid "Select a replacement file"
 msgstr "Select a replacement file"
-
-#: src/renderer/components/fields/select/control.tsx
-msgid "Select an option"
-msgstr "Select an option"
 
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "Select Asset to add"
@@ -2312,8 +2337,8 @@ msgid "This field holds at most {sectionMaximum} sections. Remove one to add ano
 msgstr "This field holds at most {sectionMaximum} sections. Remove one to add another."
 
 #: src/renderer/components/ui/app-form.tsx
-msgid "This form could not be saved, because of a problem that is not shown on any of its fields:"
-msgstr "This form could not be saved, because of a problem that is not shown on any of its fields:"
+msgid "This form can't be saved, and none of its fields says why. Please report it, so we can fix it."
+msgstr "This form can't be saved, and none of its fields says why. Please report it, so we can fix it."
 
 #: src/renderer/lib/release.ts
 msgid "This is a major Release, because {change}."
@@ -2420,6 +2445,10 @@ msgstr "Underscore (_)"
 msgid "Undo file replacement"
 msgstr "Undo file replacement"
 
+#: src/renderer/lib/fieldRules.ts
+msgid "unique"
+msgstr "unique"
+
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Unique"
 msgstr "Unique"
@@ -2427,6 +2456,10 @@ msgstr "Unique"
 #: src/renderer/components/remote-origin-badge.tsx
 msgid "unknown"
 msgstr "unknown"
+
+#: src/renderer/lib/fieldRules.ts
+msgid "up to {max}"
+msgstr "up to {max}"
 
 #: src/renderer/components/asset-teaser.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
@@ -2483,6 +2516,10 @@ msgstr "Version Control"
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Version Control Settings"
 msgstr "Version Control Settings"
+
+#: src/renderer/components/fields/asset/index.tsx
+msgid "videos only"
+msgstr "videos only"
 
 #: src/renderer/components/asset-teaser.tsx
 msgid "View"

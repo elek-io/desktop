@@ -29,15 +29,24 @@ import {
   FieldContent,
   FieldDescription,
   FieldError,
+  FieldHeader,
   FieldLabel,
+  FieldWarning,
 } from '@renderer/components/ui/field';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import {
   AppFormContext,
   useAppFormId,
+  useAppFormSchema,
   useErrorTarget,
   type AppFormContextValue,
 } from '@renderer/hooks/useAppFormContext';
+import {
+  fieldRules,
+  fieldRulesFromSchema,
+  fieldRulesLine,
+  type FieldRules,
+} from '@renderer/lib/fieldRules';
 import {
   collectFieldErrorMessages,
   isAtOrBelow,
@@ -75,11 +84,18 @@ function messageError(
 export interface FieldShellProps {
   label: ReactNode;
   /**
-   * Whether the field has to be filled. It only marks the label today, since
-   * the label is where every form says so.
+   * What the field says about itself at the top right of its label, such as
+   * "Required, up to 200 characters". A field type's folder builds its own and
+   * a hand-written field reads them off its Core schema, see
+   * `lib/fieldRules.ts`.
    */
-  required: boolean;
+  rules: FieldRules;
   description?: ReactNode;
+  /**
+   * Something about the Value that keeps nobody from saving, such as a
+   * translation it is still missing.
+   */
+  warning?: ReactNode;
   /** The message of the one error this field shows, if any. */
   error?: string | undefined;
   /** A field whose label, description and control sit side by side. */
@@ -90,8 +106,9 @@ export interface FieldShellProps {
 }
 
 /**
- * The one field shell: shadcn's `Field` holding the label, the control, the
- * description and the error, in that order.
+ * The one field shell: shadcn's `Field` holding the label with the field's
+ * rules, the control, the warning, the description and the error, in that
+ * order, which is the order ci draws a field in.
  *
  * It mints the ids itself and names only the parts it shows in
  * `aria-describedby`, so a label, a description and an error always point at
@@ -103,8 +120,9 @@ export interface FieldShellProps {
  */
 export function FieldShell({
   label,
-  required,
+  rules,
   description,
+  warning,
   error,
   orientation = 'vertical',
   className,
@@ -112,9 +130,16 @@ export function FieldShell({
 }: FieldShellProps): ReactNode {
   const id = useId();
   const controlId = `${id}-control`;
+  const rulesId = `${id}-rules`;
+  const warningId = `${id}-warning`;
   const descriptionId = `${id}-description`;
   const errorId = `${id}-error`;
+  const rulesLine = fieldRulesLine(rules);
+  // In the order they stand on screen, so what a screen reader reads after the
+  // control follows what somebody sees around it.
   const describedBy = [
+    rulesLine === null ? null : rulesId,
+    warning === undefined || warning === null ? null : warningId,
     description === undefined || description === null ? null : descriptionId,
     error === undefined ? null : errorId,
   ]
@@ -129,12 +154,19 @@ export function FieldShell({
     // Said either way, since a control that was valid and then is not has to
     // change rather than gain the state.
     'aria-invalid': error !== undefined,
+    // Offered to every control. One whose role does not take it drops it
+    // again, which is what a field type's `acceptsAriaRequired` answers.
+    ...(rules.required ? { 'aria-required': true } : {}),
   });
-  const labelPart = (
-    <FieldLabel htmlFor={controlId} isRequired={required}>
-      {label}
-    </FieldLabel>
+  const headerPart = (
+    <FieldHeader {...(rulesLine === null ? {} : { rules: rulesLine, rulesId })}>
+      <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+    </FieldHeader>
   );
+  const warningPart =
+    warning === undefined || warning === null ? null : (
+      <FieldWarning id={warningId}>{warning}</FieldWarning>
+    );
   const descriptionPart =
     description === undefined || description === null ? null : (
       <FieldDescription id={descriptionId}>{description}</FieldDescription>
@@ -155,7 +187,8 @@ export function FieldShell({
     return (
       <Field orientation="horizontal" className={className}>
         <FieldContent>
-          {labelPart}
+          {headerPart}
+          {warningPart}
           {descriptionPart}
           {errorPart}
         </FieldContent>
@@ -165,9 +198,10 @@ export function FieldShell({
   }
 
   return (
-    <Field className={cn('gap-2', className)}>
-      {labelPart}
+    <Field className={cn('gap-1.5', className)}>
+      {headerPart}
       {control}
+      {warningPart}
       {descriptionPart}
       {errorPart}
     </Field>
@@ -193,9 +227,19 @@ export interface AppFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
   TTransformedValues extends FieldValues = TFieldValues,
-> extends Omit<FieldShellProps, 'error' | 'children' | 'required'> {
+> extends Omit<FieldShellProps, 'error' | 'children' | 'rules'> {
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   name: TName;
+  /**
+   * The field's rules, where its field definition says them. A generated field
+   * passes its type's, see `FieldFromDefinition`.
+   */
+  rules?: FieldRules;
+  /**
+   * Whether the field has to be filled, for a field no field definition and no
+   * Core schema can answer for. It carries no default, so a field says nothing
+   * about itself rather than claiming it is optional.
+   */
   required?: boolean;
   children: (props: AppFieldRenderProps<TFieldValues, TName>) => ReactNode;
 }
@@ -203,9 +247,9 @@ export interface AppFieldProps<
 /**
  * One field of a form: react-hook-form's `Controller` drawn in the field shell.
  *
- * Nothing else in the app draws a label, a description or an error. `name` is
- * typed against the form that is passed in, so a path that does not exist on it
- * is a compile error at the call site.
+ * Nothing else in the app draws a label, a rule, a warning or an error. `name`
+ * is typed against the form that is passed in, so a path that does not exist on
+ * it is a compile error at the call site.
  *
  * See contributing/renderer/forms.md.
  */
@@ -216,13 +260,23 @@ export function AppField<
 >({
   form,
   name,
-  required = false,
+  rules,
+  required,
   children,
   ...shell
 }: AppFieldProps<TFieldValues, TName, TTransformedValues>): ReactNode {
   // Claimed whether or not a message is on screen right now, so AppForm's
   // backstop never reports an error this field would show.
   useErrorTarget(name);
+  // The Core schema this form checks against, so a hand-written field never
+  // repeats a limit Core sets. A field definition's own rules win over it,
+  // because the schema a generated field is checked by is built from that
+  // definition in the first place.
+  const schema = useAppFormSchema();
+  const shownRules =
+    rules ??
+    fieldRulesFromSchema(schema, name) ??
+    fieldRules({ required: required ?? false });
 
   return (
     <Controller
@@ -234,7 +288,7 @@ export function AppField<
         return (
           <FieldShell
             {...shell}
-            required={required}
+            rules={shownRules}
             {...(error?.message === undefined
               ? {}
               : { error: String(error.message) })}
@@ -271,6 +325,14 @@ export interface AppFormProps<
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   onSubmit: SubmitHandler<TTransformedValues>;
   /**
+   * The Core schema this form checks against, the same one its resolver was
+   * built from. Every field inside reads its own rules off it, so a limit Core
+   * sets is never written out again in a form. A form whose fields are
+   * generated from field definitions passes none, since each of those fields
+   * takes its rules from its definition.
+   */
+  schema?: unknown;
+  /**
    * The form's id. A detached submit button (page header, dialog or sheet
    * footer) associates with it via the HTML form attribute. Defaults to a
    * generated id when omitted, which is enough for a form whose submit button is
@@ -306,6 +368,7 @@ export function AppForm<
 >({
   form,
   onSubmit,
+  schema,
   id,
   mode = 'edit',
   className,
@@ -346,8 +409,11 @@ export function AppForm<
   }, [unsurfacedErrors]);
 
   const context = useMemo<AppFormContextValue>(
-    () => ({ id: formId, mode, registerErrorTarget }),
-    [formId, mode, registerErrorTarget]
+    // The schema is rebuilt each render where it is built from the Project's
+    // languages, so this memo only holds while that form is not rendering
+    // anyway.
+    () => ({ id: formId, mode, schema, registerErrorTarget }),
+    [formId, mode, schema, registerErrorTarget]
   );
 
   // A validation error nothing renders would make the submit a silent no-op, so
@@ -407,25 +473,20 @@ export function AppForm<
         >
           <fieldset disabled={mode === 'view'} className={fieldsetClassName}>
             {unsurfacedErrors.length > 0 ? (
+              // One sentence, and nothing of the path it happened at: an
+              // internal path says nothing to the person reading it, and the
+              // log is where it is of use. See
+              // contributing/renderer/forms.md#when-an-error-has-no-field-to-land-on.
               <div
                 ref={unsurfacedRef}
                 tabIndex={-1}
                 role="alert"
                 className="m-6 rounded-md border border-destructive p-4 text-sm text-error"
               >
-                <p className="font-medium">
-                  <Trans>
-                    This form could not be saved, because of a problem that is
-                    not shown on any of its fields:
-                  </Trans>
-                </p>
-                <ul className="mt-2 list-inside list-disc">
-                  {unsurfacedErrors.map((error) => (
-                    <li key={error.path}>
-                      {error.message} ({error.path})
-                    </li>
-                  ))}
-                </ul>
+                <Trans>
+                  This form can&apos;t be saved, and none of its fields says
+                  why. Please report it, so we can fix it.
+                </Trans>
               </div>
             ) : null}
             {children}
@@ -490,10 +551,12 @@ export function FieldSubtreeError<
 
   return (
     <FieldError ref={containerRef} tabIndex={-1} className={className}>
+      {/* The message only. The path it sits at is internal, so it belongs in
+      the log rather than on screen. */}
       <ul className="list-inside list-disc">
         {messages.map((error) => (
           <li key={error.path} data-slot="form-message">
-            {error.message} ({error.path})
+            {error.message}
           </li>
         ))}
       </ul>

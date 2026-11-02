@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { msg, t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
+import { numberRules } from '@renderer/components/fields/rules';
 import {
   contentAsStored,
   noTitle,
@@ -26,6 +27,8 @@ import { type FieldTypeModule } from '../module';
 
 const spec: DefinitionSpec<NumberFieldDefinition> = {
   uniquenessNote: msg`Number fields cannot be unique.`,
+  schema: numberFieldDefinitionSchema,
+
   resolver: zodResolver(numberFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -63,6 +66,7 @@ const spec: DefinitionSpec<NumberFieldDefinition> = {
 export const numberField: FieldTypeModule<'number'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: numberRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextControl
       field={field}

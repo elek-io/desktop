@@ -197,6 +197,7 @@ export function CollectionDiff({
     return (
       <DiffContainer type="create" commit={commitAfter}>
         <CollectionForm
+          schema={updateCollectionSchema}
           project={project}
           collectionForm={collectionFormAfter}
           isViewOnly
@@ -210,6 +211,7 @@ export function CollectionDiff({
     return (
       <DiffContainer type="delete" commit={commitBefore}>
         <CollectionForm
+          schema={updateCollectionSchema}
           project={project}
           collectionForm={collectionFormBefore}
           isViewOnly
@@ -224,6 +226,7 @@ export function CollectionDiff({
       <>
         <DiffContainer type="before" commit={commitBefore}>
           <CollectionForm
+            schema={updateCollectionSchema}
             project={project}
             collectionForm={collectionFormBefore}
             isViewOnly
@@ -232,6 +235,7 @@ export function CollectionDiff({
 
         <DiffContainer type="after" commit={commitAfter}>
           <CollectionForm
+            schema={updateCollectionSchema}
             project={project}
             collectionForm={collectionFormAfter}
             isViewOnly

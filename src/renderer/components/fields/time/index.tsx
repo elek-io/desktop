@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import { scalarRules } from '@renderer/components/fields/rules';
 import {
   emptyPreview,
   temporalCell,
@@ -23,6 +24,8 @@ import {
 import { type FieldTypeModule } from '../module';
 
 const spec: DefinitionSpec<TimeFieldDefinition> = {
+  schema: timeFieldDefinitionSchema,
+
   resolver: zodResolver(timeFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -40,6 +43,7 @@ const spec: DefinitionSpec<TimeFieldDefinition> = {
 export const timeField: FieldTypeModule<'time'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: scalarRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextControl
       field={field}

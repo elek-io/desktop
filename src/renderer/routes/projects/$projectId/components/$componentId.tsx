@@ -283,6 +283,7 @@ function ProjectComponentUpdate(): ReactElement {
   return (
     <Page title={name} description={<Description />} actions={<Actions />}>
       <ComponentForm
+        schema={generatedUpdateComponentSchema}
         id={formId}
         componentForm={updateComponentForm}
         project={project}

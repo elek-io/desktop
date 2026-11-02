@@ -218,6 +218,18 @@ const noResetInEffect = {
     'Fill a form from its query with `values` on `useAppForm`, not by resetting it in an effect (contributing/renderer/loading-and-updating-data.md).',
 };
 
+// ci rules out placeholder text in every input: it makes an empty field look
+// filled and rarely adds anything, while the label already says what the field
+// is. The one exception is a filter, which keeps its name inside its field, and
+// which goes through `ui/filter-input.tsx` so this rule holds everywhere else.
+// Both spellings are covered, the plain string and the braces a `t` template
+// needs, which is the shape a translated placeholder takes.
+const noPlaceholderText = {
+  selector: "JSXAttribute[name.name='placeholder']",
+  message:
+    'No input carries placeholder text. A filter keeps its name inside its field through <FilterInput> (contributing/renderer/forms.md#placeholder-text).',
+};
+
 // Everything `no-restricted-syntax` bans in the renderer, declared once. Each
 // blessed file below subtracts the bans it legitimately needs dropped, with
 // `exceptFor`, rather than repeating the list: a rule added here has to reach
@@ -225,6 +237,7 @@ const noResetInEffect = {
 // one carries miss app-form.tsx altogether.
 const rendererRestrictedSyntax = [
   noEnumDeclaration,
+  noPlaceholderText,
   noRawForm,
   noLiteralSubmitType,
   noFormReturnLaunderingCast,
@@ -443,6 +456,15 @@ export default [
         'error',
         ...exceptFor(noFieldTypeComparison, noFieldTypeSwitch),
       ],
+    },
+  },
+
+  // The filter of a list is the one field that keeps its name inside itself, so
+  // the placeholder ban is dropped in that one component and nowhere else.
+  {
+    files: ['src/renderer/components/ui/filter-input.tsx'],
+    rules: {
+      'no-restricted-syntax': ['error', ...exceptFor(noPlaceholderText)],
     },
   },
 

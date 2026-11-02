@@ -356,6 +356,7 @@ export function AssetTeaser(
                     <AssetForm
                       id={updateAssetFormId}
                       assetForm={updateAssetForm}
+                      schema={updateAssetSchema}
                       nameField="name"
                       descriptionField="description"
                       onFormSubmit={onAssetUpdate}

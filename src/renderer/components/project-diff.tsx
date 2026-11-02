@@ -167,7 +167,11 @@ export function ProjectDiff({
   if (!commitBefore && commitAfter) {
     return (
       <DiffContainer type="create" commit={commitAfter}>
-        <ProjectForm projectForm={projectFormAfter} isViewOnly />
+        <ProjectForm
+          schema={createProjectSchema}
+          projectForm={projectFormAfter}
+          isViewOnly
+        />
       </DiffContainer>
     );
   }
@@ -176,7 +180,11 @@ export function ProjectDiff({
   if (!commitAfter && commitBefore) {
     return (
       <DiffContainer type="delete" commit={commitBefore}>
-        <ProjectForm projectForm={projectFormBefore} isViewOnly />
+        <ProjectForm
+          schema={createProjectSchema}
+          projectForm={projectFormBefore}
+          isViewOnly
+        />
       </DiffContainer>
     );
   }
@@ -186,11 +194,19 @@ export function ProjectDiff({
     return (
       <>
         <DiffContainer type="before" commit={commitBefore}>
-          <ProjectForm projectForm={projectFormBefore} isViewOnly />
+          <ProjectForm
+            schema={createProjectSchema}
+            projectForm={projectFormBefore}
+            isViewOnly
+          />
         </DiffContainer>
 
         <DiffContainer type="after" commit={commitAfter}>
-          <ProjectForm projectForm={projectFormAfter} isViewOnly />
+          <ProjectForm
+            schema={createProjectSchema}
+            projectForm={projectFormAfter}
+            isViewOnly
+          />
         </DiffContainer>
       </>
     );

@@ -243,6 +243,7 @@ function ProjectCollectionUpdate(): ReactElement {
   return (
     <Page title={title} description={<Description />} actions={<Actions />}>
       <CollectionForm
+        schema={generatedUpdateCollectionSchema}
         id={formId}
         collectionForm={updateCollectionForm}
         project={project}

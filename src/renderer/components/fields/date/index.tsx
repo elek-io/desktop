@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans } from '@lingui/react/macro';
 
+import { scalarRules } from '@renderer/components/fields/rules';
 import {
   emptyPreview,
   temporalCell,
@@ -24,6 +25,8 @@ import { type FieldTypeModule } from '../module';
 import { DateControl } from './control';
 
 const spec: DefinitionSpec<DateFieldDefinition> = {
+  schema: dateFieldDefinitionSchema,
+
   resolver: zodResolver(dateFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -52,6 +55,7 @@ const spec: DefinitionSpec<DateFieldDefinition> = {
 export const dateField: FieldTypeModule<'date'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: scalarRules,
   Control: ({ field, disabled, controlProps }) => (
     <DateControl field={field} disabled={disabled} {...controlProps} />
   ),

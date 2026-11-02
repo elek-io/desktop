@@ -179,6 +179,7 @@ export function ComponentDiff({
     return (
       <DiffContainer type="create" commit={commitAfter}>
         <ComponentForm
+          schema={updateComponentSchema}
           project={project}
           componentForm={componentFormAfter}
           isViewOnly
@@ -191,6 +192,7 @@ export function ComponentDiff({
     return (
       <DiffContainer type="delete" commit={commitBefore}>
         <ComponentForm
+          schema={updateComponentSchema}
           project={project}
           componentForm={componentFormBefore}
           isViewOnly
@@ -204,6 +206,7 @@ export function ComponentDiff({
       <>
         <DiffContainer type="before" commit={commitBefore}>
           <ComponentForm
+            schema={updateComponentSchema}
             project={project}
             componentForm={componentFormBefore}
             isViewOnly
@@ -212,6 +215,7 @@ export function ComponentDiff({
 
         <DiffContainer type="after" commit={commitAfter}>
           <ComponentForm
+            schema={updateComponentSchema}
             project={project}
             componentForm={componentFormAfter}
             isViewOnly

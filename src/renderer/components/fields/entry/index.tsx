@@ -1,5 +1,6 @@
 import { plural, t } from '@lingui/core/macro';
 
+import { countRules } from '@renderer/components/fields/rules';
 import {
   noTitle,
   referenceCount,
@@ -14,8 +15,10 @@ import { EntryDefinitionDraft } from './definition';
 export const entryField: FieldTypeModule<'entry'> = {
   translatable: true,
   // The control is the dialog's trigger, a button, whose role does not take
-  // `aria-required`, so it says it in its label.
+  // `aria-required`, so the rules beside the label carry it, which the
+  // trigger's `aria-describedby` names.
   acceptsAriaRequired: false,
+  rules: countRules,
   Control: ({ field, fieldDefinition, disabled, controlProps }) => (
     <EntryControl
       field={field}

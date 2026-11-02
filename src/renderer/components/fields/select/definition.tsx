@@ -67,7 +67,7 @@ function ValueTypeSelect({
   const descriptionId = useId();
   return (
     <div className="grid gap-2">
-      <Label htmlFor={selectId} isRequired>
+      <Label htmlFor={selectId}>
         <Trans>Type of options</Trans>
       </Label>
       <Select
@@ -187,7 +187,6 @@ function StringSelectOptionRow({
         form={form}
         name={`options.${index}.label.${currentLanguage}`}
         label={<span className="sr-only">{t`Option ${position} label`}</span>}
-        required
         className="flex-1"
       >
         {({ field, controlProps }) => (
@@ -207,7 +206,6 @@ function StringSelectOptionRow({
         form={form}
         name={`options.${index}.value`}
         label={<span className="sr-only">{t`Option ${position} value`}</span>}
-        required
         className="flex-1"
       >
         {({ field, controlProps }) => (
@@ -269,7 +267,6 @@ function StringSelectExtras({
         form={form}
         name="options"
         label={<Trans>Options</Trans>}
-        required
         description={
           <Trans>
             The options a user can choose between. The label is what users see,
@@ -318,7 +315,6 @@ function StringSelectExtras({
         form={form}
         name="defaultValue"
         label={<Trans>Default value</Trans>}
-        required={false}
         description={<Trans>The initial option for the field.</Trans>}
       >
         {({ field, controlProps, disabled }) => (
@@ -368,7 +364,6 @@ function NumberSelectOptionRow({
         form={form}
         name={`options.${index}.label.${currentLanguage}`}
         label={<span className="sr-only">{t`Option ${position} label`}</span>}
-        required
         className="flex-1"
       >
         {({ field, controlProps }) => (
@@ -388,7 +383,6 @@ function NumberSelectOptionRow({
         form={form}
         name={`options.${index}.value`}
         label={<span className="sr-only">{t`Option ${position} value`}</span>}
-        required
         className="flex-1"
       >
         {({ field, controlProps }) => (
@@ -437,7 +431,6 @@ function NumberSelectExtras({
         form={form}
         name="options"
         label={<Trans>Options</Trans>}
-        required
         description={
           <Trans>
             The options a user can choose between. The label is what users see,
@@ -486,7 +479,6 @@ function NumberSelectExtras({
         form={form}
         name="defaultValue"
         label={<Trans>Default value</Trans>}
-        required={false}
         description={<Trans>The initial option for the field.</Trans>}
       >
         {({ field, controlProps, disabled }) => (
@@ -514,6 +506,8 @@ function NumberSelectExtras({
 }
 
 const stringSelectSpec: DefinitionSpec<StringSelectFieldDefinition> = {
+  schema: stringSelectFieldDefinitionSchema,
+
   resolver: zodResolver(stringSelectFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -538,6 +532,8 @@ const numberSelectSpec: DefinitionSpec<NumberSelectFieldDefinition> = {
   // Only a number select's options are numbers, so a string select is left
   // without a note and its uniqueness stays a real choice.
   uniquenessNote: msg`Number fields cannot be unique.`,
+  schema: numberSelectFieldDefinitionSchema,
+
   resolver: zodResolver(numberSelectFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),

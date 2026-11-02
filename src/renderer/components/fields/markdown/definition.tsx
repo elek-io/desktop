@@ -174,7 +174,6 @@ function MarkdownExtras({
       form={form}
       name={`features.${feature.key}`}
       label={i18n._(feature.label)}
-      required
       description={i18n._(feature.hint)}
       orientation="horizontal"
       className="gap-4 rounded-lg border border-border p-3 shadow-xs"
@@ -247,7 +246,6 @@ function MarkdownExtras({
             form={form}
             name="features.headings"
             label={<Trans>Headings</Trans>}
-            required
             description={
               <Trans>
                 Which heading levels can be used. None disables headings.
@@ -294,7 +292,6 @@ function MarkdownExtras({
           form={form}
           name="ofCollections"
           label={<Trans>Restrict Entry references to Collections</Trans>}
-          required
           description={
             <Trans>
               Only Entries from the selected Collections can be referenced. If
@@ -343,7 +340,6 @@ function MarkdownExtras({
           form={form}
           name="ofAssetMimeTypes"
           label={<Trans>Restrict Asset references to file types</Trans>}
-          required
           description={
             <Trans>
               Only Assets of the selected file types can be referenced. If none
@@ -371,6 +367,7 @@ const markdownSpec: DefinitionSpec<MarkdownFieldDefinitionFormValues> = {
   // tree the form values pin to null (see MarkdownFieldDefinitionFormValues).
   // Every value the form holds is valid schema input, the Resolver generics just
   // cannot express that. This is the one cast this migration step adds.
+  schema: markdownFieldDefinitionSchema,
   resolver: zodResolver(
     markdownFieldDefinitionSchema
   ) as unknown as Resolver<MarkdownFieldDefinitionFormValues>,

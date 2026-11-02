@@ -13,6 +13,12 @@ export interface AppFormContextValue {
    */
   mode: 'edit' | 'view';
   /**
+   * The Core schema the form checks against, which every field inside reads
+   * its own rules off. `undefined` where the form passes none, as a form of
+   * generated fields does.
+   */
+  schema?: unknown;
+  /**
    * Registers a path whose validation errors are visible on screen and returns
    * the matching unregister. AppForm uses it to tell an error that has a message
    * from one that would otherwise make Save a silent no-op.
@@ -33,6 +39,17 @@ export function useAppFormId(): string | null {
  */
 export function useAppFormMode(): 'edit' | 'view' {
   return useContext(AppFormContext)?.mode ?? 'edit';
+}
+
+/**
+ * The Core schema the enclosing AppForm checks against, or `undefined` outside
+ * one and where the form passes none.
+ *
+ * A field reads the rules it shows off it, so Desktop never writes out a limit
+ * Core already sets, see `lib/fieldRules.ts`.
+ */
+export function useAppFormSchema(): unknown {
+  return useContext(AppFormContext)?.schema;
 }
 
 /**

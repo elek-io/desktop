@@ -179,6 +179,7 @@ function ProjectAssetsPage(): React.JSX.Element {
             <AssetForm
               id={addAssetFormId}
               assetForm={createAssetForm}
+              schema={createAssetSchema}
               nameField="name"
               descriptionField="description"
               onFormSubmit={onCreateAsset}

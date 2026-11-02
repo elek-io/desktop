@@ -75,6 +75,10 @@ export function SelectControl<TFieldValues extends FieldValues>({
       name={field.name}
       disabled={disabled}
       items={{
+        // What the trigger shows while nothing is chosen, rather than
+        // placeholder text, which ci rules out in every field: the Value is
+        // none.
+        '': t`None`,
         none: t`None`,
         ...Object.fromEntries(
           items.map((item) => [item.itemValue, item.display])
@@ -95,7 +99,7 @@ export function SelectControl<TFieldValues extends FieldValues>({
         ref={field.ref}
         onBlur={field.onBlur}
       >
-        <SelectValue placeholder={t`Select an option`} />
+        <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {fieldDefinition.isRequired === false ? (

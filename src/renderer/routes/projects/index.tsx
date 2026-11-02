@@ -203,6 +203,7 @@ function ListProjectsPage(): ReactElement {
           <DialogBody>
             <AppForm
               form={cloneProjectForm}
+              schema={cloneProjectSchema}
               onSubmit={onCloneProject}
               id={cloneFormId}
             >
@@ -210,7 +211,6 @@ function ListProjectsPage(): ReactElement {
                 form={cloneProjectForm}
                 name="url"
                 label={<Trans>URL</Trans>}
-                required
               >
                 {({ field, controlProps }) => (
                   <TextControl field={field} type="text" {...controlProps} />

@@ -20,7 +20,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu';
-import { Input } from '@renderer/components/ui/input';
+import { FilterInput } from '@renderer/components/ui/filter-input';
 import {
   Pagination,
   PaginationContent,
@@ -198,8 +198,8 @@ export function EntryTable({
   return (
     <>
       <div className="flex items-center justify-end p-6">
-        <Input
-          placeholder={t`Filter ${collectionName}...`}
+        <FilterInput
+          name={t`Filter ${collectionName}`}
           value={filter}
           onChange={(event) => {
             setFilter(event.target.value);

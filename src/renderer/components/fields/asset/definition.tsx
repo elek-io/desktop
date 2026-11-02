@@ -65,7 +65,6 @@ function AssetExtras({
         form={form}
         name="ofAssetMimeTypes"
         label={<Trans>Restrict to file types</Trans>}
-        required
         description={
           <Trans>
             Only Assets of the selected file types can be referenced. If none
@@ -88,6 +87,8 @@ function AssetExtras({
 
 const assetSpec: DefinitionSpec<AssetFieldDefinition> = {
   uniquenessNote: msg`Reference fields cannot be unique.`,
+  schema: assetFieldDefinitionSchema,
+
   resolver: zodResolver(assetFieldDefinitionSchema),
   // Reference fields are never unique. An empty ofAssetMimeTypes means any type.
   makeDefaults: (langs) => ({

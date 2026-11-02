@@ -15,6 +15,8 @@ import {
 interface AssetFormProps<TFieldValues extends FieldValues> {
   assetForm: UseFormReturn<TFieldValues>;
   onFormSubmit: SubmitHandler<TFieldValues>;
+  /** The Core schema the caller's form checks against, which its fields read their rules off. */
+  schema: unknown;
   /** The path holding the Asset's name on the form that is passed in. */
   nameField: NoInfer<FieldPath<TFieldValues>>;
   /** The path holding the Asset's description on the form that is passed in. */
@@ -43,18 +45,18 @@ interface AssetFormProps<TFieldValues extends FieldValues> {
 export function AssetForm<TFieldValues extends FieldValues>({
   assetForm,
   onFormSubmit,
+  schema,
   nameField,
   descriptionField,
   id,
 }: AssetFormProps<TFieldValues>): React.JSX.Element {
   return (
-    <AppForm form={assetForm} onSubmit={onFormSubmit} id={id}>
+    <AppForm form={assetForm} onSubmit={onFormSubmit} schema={schema} id={id}>
       <div className="grid grid-cols-12 gap-6">
         <AppField
           form={assetForm}
           name={nameField}
           label={<Trans>Asset name</Trans>}
-          required
           className="col-span-12"
         >
           {({ field, controlProps }) => (
@@ -66,7 +68,6 @@ export function AssetForm<TFieldValues extends FieldValues>({
           form={assetForm}
           name={descriptionField}
           label={<Trans>Asset description</Trans>}
-          required
           className="col-span-12"
         >
           {({ field, controlProps }) => (

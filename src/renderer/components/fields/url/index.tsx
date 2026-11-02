@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentAsStored,
   emptyPreview,
@@ -23,6 +24,8 @@ import {
 import { type FieldTypeModule } from '../module';
 
 const spec: DefinitionSpec<UrlFieldDefinition> = {
+  schema: urlFieldDefinitionSchema,
+
   resolver: zodResolver(urlFieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -40,6 +43,7 @@ const spec: DefinitionSpec<UrlFieldDefinition> = {
 export const urlField: FieldTypeModule<'url'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: scalarRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextControl
       field={field}

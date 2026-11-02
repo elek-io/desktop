@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentAsStored,
   emptyPreview,
@@ -23,6 +24,7 @@ import {
 import { type FieldTypeModule } from '../module';
 
 const spec: DefinitionSpec<Ipv4FieldDefinition> = {
+  schema: ipv4FieldDefinitionSchema,
   resolver: zodResolver(ipv4FieldDefinitionSchema),
   makeDefaults: (langs) => ({
     ...baseDefaults(langs),
@@ -32,12 +34,7 @@ const spec: DefinitionSpec<Ipv4FieldDefinition> = {
     defaultValue: null,
   }),
   Extras: ({ form }) => (
-    <DefaultValueInputField
-      form={form}
-      name="defaultValue"
-      type="text"
-      placeholder="192.168.1.1"
-    />
+    <DefaultValueInputField form={form} name="defaultValue" type="text" />
   ),
 };
 
@@ -45,6 +42,7 @@ const spec: DefinitionSpec<Ipv4FieldDefinition> = {
 export const ipv4Field: FieldTypeModule<'ipv4'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  rules: scalarRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextControl
       field={field}

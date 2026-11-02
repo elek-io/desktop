@@ -186,6 +186,7 @@ function ProjectCollectionCreate(): ReactElement {
       actions={<Actions />}
     >
       <CollectionForm
+        schema={generatedCreateCollectionSchema}
         id={formId}
         collectionForm={createCollectionForm}
         project={project}

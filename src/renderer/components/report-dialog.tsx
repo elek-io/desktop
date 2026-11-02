@@ -436,6 +436,7 @@ function BugReportForm({
     <>
       <AppForm
         form={form}
+        schema={bugReportFormSchema}
         onSubmit={send}
         id={formId}
         className="flex min-h-0 flex-col"
@@ -448,7 +449,6 @@ function BugReportForm({
             form={form}
             name="message"
             label={<Trans>What went wrong?</Trans>}
-            required
             description={
               <Trans>
                 What you did just before it happened, roughly when, and what you
@@ -475,18 +475,10 @@ function BugReportForm({
             }
           />
 
-          {/*
-            `required` only suppresses the label's " - optional" suffix. On a
-            switch that suffix means nothing, since it always has a value, and
-            it would land in the control's accessible name ("Also send my logs
-            - optional, switch"). This is the one label carrying the user's
-            consent to send data, so it has to read exactly as written.
-          */}
           <AppField
             form={form}
             name="hasLogConsent"
             label={<Trans>Also send my logs</Trans>}
-            required
             orientation="horizontal"
             description={
               <Trans>
@@ -543,6 +535,7 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
     <>
       <AppForm
         form={form}
+        schema={feedbackReportFormSchema}
         onSubmit={send}
         id={formId}
         className="flex min-h-0 flex-col"
@@ -558,7 +551,6 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
             form={form}
             name="message"
             label={<Trans>What would you like to tell us?</Trans>}
-            required
             description={
               <Trans>
                 What is missing, what got in your way, or what you would like to

@@ -146,7 +146,6 @@ function SlugExtras({
         form={form}
         name="separator"
         label={<Trans>Separator</Trans>}
-        required
         description={
           <Trans>The character placed between words of the slug.</Trans>
         }
@@ -181,7 +180,6 @@ function SlugExtras({
         form={form}
         name="lowercase"
         label={<Trans>Lowercase</Trans>}
-        required
         description={<Trans>Convert the slug to lowercase.</Trans>}
         orientation="horizontal"
         className="gap-4 rounded-lg border border-border p-3 shadow-xs"
@@ -195,7 +193,6 @@ function SlugExtras({
         form={form}
         name="decamelize"
         label={<Trans>Decamelize</Trans>}
-        required
         description={
           <Trans>
             Split camelCase words, so &quot;myWord&quot; becomes
@@ -215,6 +212,8 @@ function SlugExtras({
 
 const slugSpec: DefinitionSpec<SlugFieldDefinition> = {
   uniquenessNote: msg`Slugs are always unique, so a single Entry can be identified by it.`,
+  schema: slugFieldDefinitionSchema,
+
   resolver: zodResolver(slugFieldDefinitionSchema),
   // Slugs are always unique and have no default value; the separator/lowercase/
   // decamelize deltas and the (initially empty) source list round out the type.

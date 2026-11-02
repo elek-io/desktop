@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 import type { ControllerRenderProps, FieldValues } from 'react-hook-form';
 
 import type { FieldControlProps } from '@renderer/components/ui/field-controls';
+import type { FieldRules } from '@renderer/lib/fieldRules';
 
 import type {
   FieldDefinition,
@@ -90,9 +91,18 @@ export interface FieldTypeModule<T extends FieldType> {
   /**
    * Whether the control's role accepts `aria-required`, which stands in for
    * the native `required` no field emits. Where it does not, the field conveys
-   * required through its label.
+   * required through the accessible name of the control that takes focus.
    */
   acceptsAriaRequired: boolean;
+  /**
+   * What a field of this type says about itself at the top right of its label,
+   * such as "Required, up to 200 characters".
+   *
+   * Every rule comes off the field definition, so a limit Core keeps there is
+   * never written out a second time. A type that can never be empty says
+   * nothing, see `alwaysFilledFieldRules`.
+   */
+  rules: (fieldDefinition: DefinitionOf<T>) => FieldRules;
   /** The control, with this type's Value contract. */
   Control: <TFieldValues extends FieldValues>(
     props: FieldTypeControlProps<T, TFieldValues>

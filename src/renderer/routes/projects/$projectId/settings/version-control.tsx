@@ -80,7 +80,11 @@ function ProjectSettingsVersionControlPage(): ReactElement {
       description={<Description />}
       actions={<Actions />}
     >
-      <AppForm form={remoteOriginUrlForm} onSubmit={onSetRemoteOriginUrl}>
+      <AppForm
+        form={remoteOriginUrlForm}
+        schema={setRemoteOriginUrlProjectSchema}
+        onSubmit={onSetRemoteOriginUrl}
+      >
         <PageSection
           title={t`Remote`}
           description={t`A Projects remote is a place that makes it accessible for other users. By adding a remote you are able to work with multiple others together on the same Project.`}
@@ -97,7 +101,6 @@ function ProjectSettingsVersionControlPage(): ReactElement {
               form={remoteOriginUrlForm}
               name="url"
               label={<Trans>Remote URL</Trans>}
-              required
               className="col-span-12"
             >
               {({ field, controlProps }) => (

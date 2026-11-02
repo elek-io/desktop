@@ -1,3 +1,4 @@
+import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentInLanguage,
   emptyPreview,
@@ -18,9 +19,10 @@ import { MarkdownDefinitionDraft } from './definition';
 export const markdownField: FieldTypeModule<'markdown'> = {
   translatable: true,
   // The editor is a contenteditable the control must not reach into, so the
-  // control-association props land on its wrapper and required is said in the
-  // label.
+  // control-association props land on its wrapper and the rules beside the
+  // label carry required.
   acceptsAriaRequired: false,
+  rules: scalarRules,
   Control: ({ field, fieldDefinition, disabled, controlProps }) => (
     <MarkdownControl
       field={field}
