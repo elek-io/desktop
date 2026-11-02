@@ -354,11 +354,12 @@ Prefer that shape for a shared form body.
 
 A body that genuinely has to stay generic over its caller's values, because the
 create and the update shapes diverge in a key it edits, asserts only the field
-name (`as FieldPath<T>`), never the whole form. `AssetForm`, `ComponentForm`,
-`CollectionForm` and `FieldDefinitionsEditor` do that, each at the one line that
-names the path. The report dialog's `ContactFields` needs no assertion at all:
-its callers pass the field paths in, where the form type is concrete, so a wrong
-path is a compile error at the call site.
+name (`as FieldPath<T>`), never the whole form. `CollectionForm`,
+`ComponentForm`, `EntryForm` and `FieldDefinitionsEditor` do that, each at the
+one line that names the path. An assertion there still compiles for a path the
+form does not hold, so prefer taking the path in from the caller, where the form
+type is concrete: the report dialog's `ContactFields` and `AssetForm` do that,
+and a wrong path is a compile error at their call sites.
 
 `FieldDefinitionsEditor` does not constrain its `TFieldValues` to a shape holding
 `fieldDefinitions` either, although it reads exactly that key. A generated Core
@@ -485,7 +486,11 @@ fire on an intentional violation.
   [`tests/specs/field-registry.spec.ts`](../../tests/specs/field-registry.spec.ts)
   drives each shape.
 - **The registry is exhaustive over Core's `FieldType`**, so a field type Core
-  adds fails to compile until it has a folder. The same spec drives that.
+  adds fails to compile until it has a folder. The same spec drives that, with a
+  probe annotated `FieldTypeRegistry`, which
+  [`fields/index.ts`](../../src/renderer/components/fields/index.ts) exports for
+  it, so what refuses an incomplete registry is this registry's own type rather
+  than a mapped type written out again in the test.
 - **react-hook-form's own `useForm` may only be imported by
   [`hooks/useAppForm.ts`](../../src/renderer/hooks/useAppForm.ts), and a
   `reset()` inside an effect is a lint error.** Both are how a form used to lose
@@ -507,11 +512,24 @@ fire on an intentional violation.
   and previews, and checks that each sits in a `Field`, names a control that
   exists, points at no part that is not shown, and that the slots the old form
   primitives drew appear nowhere.
+- **A test asserts the shell's order, after a refused submit.** The same spec
+  reads a described required field's `aria-describedby` once before a submit and
+  once after one the resolver refused, and checks that the label leads the
+  control, that the ids name the description and then the error, and that both
+  of those sit after the control. The order is only observable with an error on
+  screen, which is why a refused submit is what drives it.
+- **A test asserts a loading form is disabled.** The same spec hangs the Entry's
+  own read, so the window a form fills in is stable, and checks that the field
+  is on screen, cannot be written into, and that Save is held with it.
 
-Every lint rule lives in [`eslint.config.mjs`](../../eslint.config.mjs). Note
-that a rule's options replace rather than merge with an earlier config block's, so
-every renderer block that touches `no-restricted-syntax` re-lists the shared enum
-ban, and the block that exempts a field type's folder re-lists everything else.
+Every lint rule lives in [`eslint.config.mjs`](../../eslint.config.mjs). A
+rule's options replace rather than merge with an earlier config block's, so the
+renderer's whole `no-restricted-syntax` list is declared once as
+`rendererRestrictedSyntax` and each blessed file reads it back through
+`exceptFor`, naming only what it drops: `app-form.tsx` drops the raw `<form>`
+and the literal `type="submit"`, a field type's folder drops the two field-type
+bans, and `useAppForm.ts` drops the raw-`useForm` ban. Add a new ban to that one
+list, so it reaches those files too.
 
 One rule was deliberately **not** written: "forbid `useAppForm` outside
 `components/forms`". It is self-contradictory, because `AppForm` takes the form
