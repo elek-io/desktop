@@ -18,6 +18,11 @@ route, except the two in
 reached from the header and from the root error boundary rather than from a route.
 To find every form in the app, `grep -rn "<AppForm" src/renderer`.
 
+Everything the app knows about a single field type lives in that type's own
+folder under [`components/fields/`](../../src/renderer/components/fields/),
+never here, see
+[dynamic-form-field-generation.md](./dynamic-form-field-generation.md).
+
 ## Form invariants
 
 Read these before touching any form. Each is enforced (a compile error, a lint
@@ -38,11 +43,21 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   `onInvalid` that reports any validation error no mounted message covers, and
   routes a rejection thrown after the awaited `onSubmit` to the root error
   boundary. See [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
-- **Every field type has a `DefinitionSpec` and a `RenderSpec`.** Both
-  `FIELD_DEFINITION_REGISTRY` (authoring) and `RENDER_REGISTRY` (rendering) are
-  exhaustive `Record<FieldType, ...>`, so adding a Core field type is a compile
-  error until both have an entry. No hand-synced "which types are supported" set
-  exists. See [dynamic-form-field-generation.md](./dynamic-form-field-generation.md).
+- **Every field is an `AppField`.** It is the only thing that draws a label, a
+  description and an error, and it draws them in shadcn's `Field`. A field with
+  no form behind it, the Collection editor's previews, uses the same shell
+  through `FieldShell`. `name` is typed against the form passed in, so a path
+  that form does not hold is a compile error at the call site. See
+  [The field shell](#the-field-shell).
+- **Every field type has a folder, and the registry is exhaustive over Core's
+  `FieldType`.** A field type Core adds fails to compile until it has one, and
+  nothing outside a type's folder branches on a field type or a value type,
+  which a lint rule holds. See
+  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md).
+- **Every form is built with `useAppForm` and filled through `values`.** A lint
+  rule keeps react-hook-form's own `useForm` to that one wrapper and refuses a
+  `reset()` inside an effect. See
+  [loading-and-updating-data.md](./loading-and-updating-data.md#filling-a-form-from-its-query).
 - **The registry emits no native constraint attributes.** No `required` / `min` /
   `max` / `minLength` / `maxLength` reaches an input, and zod through
   react-hook-form is the sole validator. The one exception is the range `Slider`'s
@@ -57,12 +72,14 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
 ## Writing a form
 
 Form state lives in the route or component that owns the mutation, not inside
-`AppForm`. `AppForm` takes the form object as a prop, so calling `useForm` at the
-call site is correct and expected.
+`AppForm`. `AppForm` takes the form object as a prop, so calling `useAppForm` at
+the call site is correct and expected.
 
 A form has four parts:
 
-1. A `useForm` with a zod resolver built from a Core schema.
+1. A `useAppForm` with a zod resolver built from a Core schema, and `values` and
+   `disabled` where it is filled from a query, see
+   [loading-and-updating-data.md](./loading-and-updating-data.md#filling-a-form-from-its-query).
 2. A mutation, usually `useMutation` with the matching
    [`queryOptions`](../../src/renderer/queries/options/), or `useAppMutation` when
    a specific `CoreError` should be handled on the page.
@@ -73,7 +90,7 @@ A form has four parts:
 the smallest complete example:
 
 ```tsx
-const createProjectForm = useForm<CreateProjectProps>({
+const createProjectForm = useAppForm<CreateProjectProps>({
   resolver: zodResolver(createProjectSchema),
   defaultValues: { name: '', description: '', ... },
 });
@@ -111,8 +128,10 @@ which owns the policies that used to be pasted at each call site:
   still bubbles the synthetic submit event up the React tree, so the Add Field
   sheet used to create the whole Collection when you added a field to it.
 - **`mode="view"`** renders the form read-only through a disabled `<fieldset>` and
-  makes submit a no-op. It also reaches the render registry through the
+  makes submit a no-op. It also reaches the generated fields through the
   `AppFormContext`, see [View-only forms and diffs](#view-only-forms-and-diffs).
+  A form that is only still loading is not this: it carries `disabled` instead,
+  see [loading-and-updating-data.md](./loading-and-updating-data.md#filling-a-form-from-its-query).
 - **`fieldsetClassName`** styles that inner `<fieldset>`. It exists because the
   fieldset sits between the `<form>` and its content, so a caller laying the form
   out cannot reach it, and its default sizing breaks any containment the caller
@@ -145,7 +164,9 @@ form id plus reactive gating:
   do not, so the button is available immediately and validation happens on click.
 
 Do not disable a submit button to express "the form is invalid". Validation runs
-on submit and reports through `FormMessage` and `aria-invalid`.
+on submit and reports through the field's own error and `aria-invalid`. A form
+that is still filling from its query is the one other thing that disables Save,
+see [loading-and-updating-data.md](./loading-and-updating-data.md#filling-a-form-from-its-query).
 
 ## View-only forms and diffs
 
@@ -155,15 +176,15 @@ read-only rendering path. Pass `isViewOnly` (which the shared components map to
 `<fieldset>` with submit turned off.
 
 A disabled `<fieldset>` only turns off native form controls, so it does nothing
-for a leaf that is not one. The markdown field is the case: it is a Milkdown
+for a control that is not one. The markdown field is the case: it is a Milkdown
 `contenteditable`, which stayed typable in a diff. `AppForm` therefore publishes
 its `mode` on the `AppFormContext`
 ([`hooks/useAppFormContext.ts`](../../src/renderer/hooks/useAppFormContext.ts)),
-and `FormComponentFromFieldDefinition` reads it with `useAppFormMode()` and ORs it
-into the `disabled` it hands the registry leaf. Every leaf already takes
-`disabled`, so this is one fold at the dispatch rather than a per-type opt-in, and
-a new field type inherits it. That context is a separate module because
-`app-form.tsx` imports `form.tsx`, so the dependency has to run the other way.
+and `FieldFromDefinition` reads it with `useAppFormMode()` and ORs it into the
+`disabled` it hands the type's control. Every control already takes `disabled`,
+so this is one fold rather than a per-type opt-in, and a field type Core adds
+inherits it. [`tests/specs/history.spec.ts`](../../tests/specs/history.spec.ts)
+drives it on the markdown field.
 
 [`components/collection-diff.tsx`](../../src/renderer/components/collection-diff.tsx)
 does this: one view-mode form for a create or a delete, and a before/after pair
@@ -181,11 +202,11 @@ used to end nowhere, and `AppForm` closes both.
 value, so an error can land on a path that no field renders. The field
 definitions editor is the standing case: its `fieldDefinitions` array is one
 `Controller`-bound value drawn as previews, so a Core refinement reporting
-`fieldDefinitions.0.label.de` had no `FormMessage` to appear in and no input to
+`fieldDefinitions.0.label.de` had no field message to appear in and no input to
 focus. Save simply did nothing.
 
 `AppForm` now passes `handleSubmit` an `onInvalid`. Every component that renders
-messages claims the paths it covers through `useErrorTarget(name)` (`FormMessage`
+messages claims the paths it covers through `useErrorTarget(name)` (`AppField`
 claims its own path, `TranslatableField` claims its base path because the dialog
 trigger flags a hidden language). On a failed submit `AppForm` flattens
 `formState.errors`, subtracts everything a claimed path covers, and renders what
@@ -193,25 +214,25 @@ is left in a focused `role="alert"` at the top of the form, plus an error throug
 Core's logger so it is loud in a dev run. That surface is a backstop for a bug,
 not a design: an error that reaches it should get a real home.
 
-Giving one a real home is what `FormSubtreeMessage` is for. Point it at a value
+Giving one a real home is what `FieldSubtreeError` is for. Point it at a value
 that is bound as a single `Controller` but rendered as something else, and it
 renders every message at or below that path and claims the subtree:
 
 ```tsx
-<FormSubtreeMessage form={form} name="fieldDefinitions" />
+<FieldSubtreeError form={form} name="fieldDefinitions" />
 ```
 
-A plain `FormMessage` cannot serve there, because it only shows the message
-sitting at its own path, and a nested refinement never leaves one there.
+An `AppField` cannot serve there, because it only shows the message sitting at
+its own path, and a nested refinement never leaves one there.
 
 One case looks nested and is not. `@hookform/resolvers` moves an error reported
 on an array itself under `root` as soon as any path inside that array is a
 registered field name, which a dynamic field's sections are the moment one has
 been mounted. So a required dynamic field whose last section was just removed
-reported `values.sections.content.root`, which the field's own `FormMessage` did
-not show and `AppForm`'s backstop counted as covered, and the submit said
-nothing at all. `useFormField` reads that `root` error as the field's own, so
-the message lands on the field it belongs to. A nested error object without a
+reported `values.sections.content.root`, which the field's own message did not
+show and `AppForm`'s backstop counted as covered, and the submit said nothing at
+all. `AppField` reads that `root` error as the field's own, so the message lands
+on the field it belongs to. A nested error object without a
 `root` is left alone, so a field holding only errors below it still renders no
 message of its own.
 
@@ -276,14 +297,14 @@ strict `*Props` output (their `values` is a `z.pipe`, and Collections carry
 recursive mdast), so their `z.input` differs from their `z.output`. Two rules
 follow:
 
-- **Do not pass an explicit `useForm<...>()` generic** when the resolver comes
+- **Do not pass an explicit `useAppForm<...>()` generic** when the resolver comes
   from a generated or recursive Core schema. Let react-hook-form infer from
   `zodResolver(schema)`: the form values become the schema input and
   `handleSubmit` yields the typed output. What breaks is passing the `*Props`
   output type as the sole generic, which makes the resolver unassignable and, for
   the recursive Collection schema, produces a "two unrelated types" error. A
   static schema like `createProjectSchema` has no such divergence, so
-  `useForm<CreateProjectProps>` is fine there.
+  `useAppForm<CreateProjectProps>` is fine there.
 - **Shared form components are generic over the schema input shape**, not the
   `*Props` union, so a concrete caller (create, update, or a view-only diff) is
   assignable without variance errors. They take
@@ -316,98 +337,130 @@ const schema =
         project.settings.language.supported
       )
     : getUpdateCollectionSchemaFromLanguages([]);
-const form = useForm({ resolver: zodResolver(schema) /* ... */ });
+const form = useAppForm({ resolver: zodResolver(schema) /* ... */ });
 ```
 
 This keeps Core the single source of truth: the form needs no compensating
 pre-seed and no refinement of its own.
 
-`ProjectForm` and `CollectionForm` each view their generic form as a concrete
-`Update*Props` internally, because react-hook-form's `FieldPath` cannot resolve a
-literal path for an unresolved generic. Those two
-`as unknown as UseFormReturn<...>` casts are the one documented exception to the
-cast guardrail below, each carrying an inline comment and a `@todo`. `AssetForm`,
-`ComponentForm` and `FieldDefinitionsEditor` avoid even that by staying generic
-and casting only field names (`as FieldPath<T>`). The report dialog's
-`ContactFields` needs no cast at all: its callers pass the field paths in, where
-the form type is concrete, so a wrong path is a compile error at the call site.
+No form views its form as something else. The whole-form laundering cast is a
+lint error everywhere, with no exemption left.
+
+`ProjectForm` is concrete instead: it takes a `UseFormReturn<ProjectFormValues>`,
+where `ProjectFormValues` is every key of a Project a person edits. An update
+carries the Project's id beside the save rather than in a field, so the create
+and the update form are the same shape and check against the same Core schema.
+Prefer that shape for a shared form body.
+
+A body that genuinely has to stay generic over its caller's values, because the
+create and the update shapes diverge in a key it edits, asserts only the field
+name (`as FieldPath<T>`), never the whole form. `AssetForm`, `ComponentForm`,
+`CollectionForm` and `FieldDefinitionsEditor` do that, each at the one line that
+names the path. The report dialog's `ContactFields` needs no assertion at all:
+its callers pass the field paths in, where the form type is concrete, so a wrong
+path is a compile error at the call site.
 
 `FieldDefinitionsEditor` does not constrain its `TFieldValues` to a shape holding
 `fieldDefinitions` either, although it reads exactly that key. A generated Core
 schema's **input** type for the array is not `FieldDefinitionOrGroup[]` itself, so
 such a constraint rejects every real caller.
 
-`EntryForm` used to be a third. Its cast changed no field values at all: it only
-erased the third generic, because `FormFieldFromDefinition` declared its `form`
-as `UseFormReturn<TFieldValues>`. Carrying a defaulted
+A cast that only erases the third generic needs none either. `EntryForm` used to
+carry one, because `FieldFromDefinition` declared its `form` as
+`UseFormReturn<TFieldValues>`. Carrying a defaulted
 `TTransformedValues extends FieldValues = TFieldValues` through
-`FormFieldFromDefinition` and `FormField` removed the need for it, and the generic
-is never read, since only `control` and `formState.errors` are used and both are
-typed by `TFieldValues` alone. That is the shape of the fix for a cast that only
-erases a generic, as opposed to the two above, which genuinely re-view the value
-type.
+`FieldFromDefinition` and `AppField` removed the need for it, and the generic is
+never read, since only `control` and `formState.errors` are used and both are
+typed by `TFieldValues` alone.
 
-## The form primitives
+## The field shell
 
-[`components/ui/form.tsx`](../../src/renderer/components/ui/form.tsx) holds the
-primitives every form composes:
+Every field of every form is one `AppField`
+([`components/ui/app-form.tsx`](../../src/renderer/components/ui/app-form.tsx)):
+react-hook-form's `Controller` drawn in the one shell. Nothing else in the app
+draws a label, a description or an error.
 
-- **`FormField`** is the react-hook-form `Controller` plus the context the pieces
-  below read.
-- **`FormItem`** mints the ids that tie a label, description and error message to
-  the input.
-- **`FormLabel`**, **`FormDescription`** and **`FormMessage`** render those parts.
-  `FormLabel` takes `isRequired` and appends a " - optional" suffix when it is
-  false, so required fields are the unmarked default.
-- **`FormSubtreeMessage`** renders every message at or below one path, for a value
-  bound as a single `Controller` but drawn as something other than a field. See
+```tsx
+<AppField
+  form={assetForm}
+  name="name"
+  label={<Trans>Asset name</Trans>}
+  required
+  description={<Trans>What this Asset is called in your Project.</Trans>}
+>
+  {({ field, controlProps }) => (
+    <TextControl field={field} type="text" {...controlProps} />
+  )}
+</AppField>
+```
+
+- **The shell is shadcn's `Field`**, holding the label, the control, the
+  description and the error in that order, which is the order ci draws a field
+  in. `orientation="horizontal"` puts the words beside the control instead,
+  which is what the switches of the field definition forms are.
+- **It mints its own ids** with `useId` and hands them to the control through
+  `controlProps`, so the label's `htmlFor` names the real focusable element by
+  construction rather than by a caller remembering to wire it.
+- **`aria-describedby` names only the parts that are on screen.** A field with
+  no description and no error says nothing, instead of pointing at elements that
+  are not there. `aria-invalid` is always said, since a control that was valid
+  and then is not has to change rather than gain the state.
+- **`name` is typed against the form that is passed in.** A path the form does
+  not hold is a compile error at the call site. A shared form body that stays
+  generic over its caller's values asserts only the name (`as FieldPath<T>`),
+  never the whole form, see [Form typing](#form-typing).
+- **The error it shows is the one at its own path**, or the one react-hook-form
+  nested under `root`, see
   [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
-- **`FormControl`** lands `id` and the `aria-*` attributes on its single child
-  through Base UI's `useRender`, so it adds no element of its own. Use it in
-  hand-written forms whose leaf is a plain DOM input. The dynamic field path does
-  not use it, because it can only reach the leaf's outermost element, which is a
-  wrapper `div` or a non-DOM root for several field types. That path uses
-  `ControlledLeaf` instead, described in
-  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-render-registry).
+  It claims that path as an error target whether a message is on screen or not,
+  so `AppForm`'s backstop never reports an error this field would show.
+- **The words of the error sit in a paragraph inside the alert**, so one message
+  and a list of them read the same. That paragraph's slot is what
+  [`branding.spec.ts`](../../tests/specs/branding.spec.ts) measures the error
+  color on.
+- **`required` only marks the label.** It suppresses the " - optional" suffix
+  `Label` appends otherwise. A generated field's `aria-required` comes from its
+  field type's folder instead, see
+  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md).
 
-### Typed field wrappers and their value contracts
+**`FieldShell`** is the same shell without a form, for a field that has no form
+state behind it. The Collection editor's previews are the case: the control
+holds a static Value from its type's folder, so there are no phantom form paths
+and the label still names a real, disabled control.
 
-The wrappers below bind a base control to react-hook-form and own the value
-transformation Core expects. Do not hand-roll a raw `<Input>` in a form, because
-these contracts are easy to get subtly wrong and Core validates tightly:
+**`FieldSubtreeError`** renders every message at or below one path, for a value
+bound as a single `Controller` but drawn as something other than a field (the
+field definitions array). See
+[When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
 
-- They return `null` for an empty value instead of an empty string. Core schemas
-  use `.nullable()`, so `''` fails validation.
-- `FormInputField` with `type="number"` coerces the string input to a number.
-- `FormInputField` maps Core field types that have no HTML input type of the same
-  name: `telephone` to `tel`, `ipv4` and `slug` to `text`, `datetime` to
-  `datetime-local`. Pass the Core field type, not a hand-rolled HTML one.
-- `FormDateField` stores a `YYYY-MM-DD` string, not a `Date`.
-- `FormDatetimeField` converts between the ISO UTC datetime Core stores and the
-  local time a `datetime-local` input speaks.
-- `FormSelectField` keys its options by index, because a select item cannot hold
-  an empty value and an option's value may be an empty string. It maps back on
-  change, so the stored value keeps its string or number type. It also passes
-  `items` to the select, which is where the select reads the label of the chosen
-  value from.
-- `FormRangeField` bridges the `Slider`'s `number[]` and the single number the
-  Value holds.
-- `FormToggleField` binds a `Switch` to a boolean. It is exported for
-  hand-written forms too (the report dialog's "Also send my logs"), not only
-  reached through the render registry.
-- `FormAssetField` and `FormEntryField` hold an array of `{ id, objectType }`
-  references, fetch their selectable objects with TanStack Query from inside the
-  form, and enforce the definition's `max` in the UI.
-- `FormSlugField` derives the slug live from its source fields while the value is
-  empty or still equals the last derived value, so a stored slug is never
-  rewritten. Manual input is made canonical on blur.
-- `markdown` fields render the Milkdown based editor through a thin adapter, see
-  [markdown-editor.md](./markdown-editor.md).
+### The shared controls and their value contracts
 
-Each wrapper places the control props on its real focusable element (the `input`
-for the scalars, the `SelectTrigger` for select, the dialog trigger button for the
-reference fields), so a label, description and error always point at something a
-user can focus.
+A control is value-typed: it takes the already-bound `field` plus the
+`controlProps` to place on the real input, and owns no form path. That is what
+lets one control serve a hand-written form and a generated one alike.
+
+The controls more than one field type or more than one form shares live in
+[`components/ui/field-controls.tsx`](../../src/renderer/components/ui/field-controls.tsx),
+and everything a single field type owns lives in that type's folder, see
+[dynamic-form-field-generation.md](./dynamic-form-field-generation.md). Do not
+hand-roll a raw `<Input>` in a form, because these contracts are easy to get
+subtly wrong and Core validates tightly:
+
+- **`TextControl`** is a text input bound to one Value. An empty input is
+  `null`, never an empty string, because Core's schemas are `.nullable()` and
+  refuse `''`. Pass the HTML input type the field type uses, not Core's field
+  type: a numeric input yields a number, every other one text. Where Core
+  declares a plain, non-nullable string, such as a field definition's slug or a
+  select option's value, pass `transform={rawTextFromInput}`.
+- **`TextareaControl`** is the same contract over several lines.
+- **`SwitchControl`** binds a `Switch` to a boolean.
+- The transforms themselves are in
+  [`lib/fieldValues.ts`](../../src/renderer/lib/fieldValues.ts), so a form that
+  needs one does not reach into a control.
+
+Each control places the props on its real focusable element (the `input` for the
+scalars, the trigger for a select or a picker), so a label, a description and an
+error always point at something a user can focus.
 
 ## Guardrails
 
@@ -421,14 +474,23 @@ fire on an intentional violation.
   `type={variable}` slips through, which is acceptable. It is a backstop, and
   submit controls should be `SubmitButton` anyway.
 - **The whole-form laundering casts `as unknown as UseFormReturn` and
-  `as unknown as Control` are a lint error** across the whole renderer, so a new
-  one is caught anywhere and not only in the form files. `ProjectForm` and
-  `CollectionForm` are exempted by a file-scoped override as a documented, tracked
-  exception (see [Form typing](#form-typing)). Banning globally while those exist
-  would have left a red baseline, which is not a guardrail. It is a backstop, not
-  a proof, since an aliased or single-step cast still slips through.
-- **Both registries are exhaustive `Record<FieldType, ...>`**, so adding a Core
-  field type fails to compile until both have an entry.
+  `as unknown as Control` are a lint error** across the whole renderer, with no
+  exemption: no form views its form as something else, see
+  [Form typing](#form-typing). It is a backstop, not a proof, since an aliased or
+  single-step cast still slips through.
+- **A branch on a field type or a value type outside that type's folder is a
+  lint error**, in every shape the read takes: a member, an optional chain, a
+  computed key, a destructured name and a switch. A set of types built by hand
+  elsewhere still slips through, so it is a backstop.
+  [`tests/specs/field-registry.spec.ts`](../../tests/specs/field-registry.spec.ts)
+  drives each shape.
+- **The registry is exhaustive over Core's `FieldType`**, so a field type Core
+  adds fails to compile until it has a folder. The same spec drives that.
+- **react-hook-form's own `useForm` may only be imported by
+  [`hooks/useAppForm.ts`](../../src/renderer/hooks/useAppForm.ts), and a
+  `reset()` inside an effect is a lint error.** Both are how a form used to lose
+  what somebody was typing, see
+  [loading-and-updating-data.md](./loading-and-updating-data.md#filling-a-form-from-its-query).
 - **`SubmitButton` sets `type="submit"` structurally** and `AppForm` owns
   `noValidate`, the `id` and `stopPropagation`. None of these are props a caller
   can get wrong: `SubmitButtonProps` omits `type` and `render` outright, so
@@ -439,16 +501,23 @@ fire on an intentional violation.
   rendered required text and number field carry no `required` / `min` / `max` /
   `minLength` / `maxLength`, that they do carry `aria-required`, that an optional
   field does not, and that the range slider keeps its `aria-value*` domain.
+- **A test asserts every field sits in the shell.**
+  [`tests/specs/forms.spec.ts`](../../tests/specs/forms.spec.ts) reads every
+  label of an Entry's generated fields and of a Collection's hand-written ones
+  and previews, and checks that each sits in a `Field`, names a control that
+  exists, points at no part that is not shown, and that the slots the old form
+  primitives drew appear nowhere.
 
-All three lint rules live in [`eslint.config.mjs`](../../eslint.config.mjs). Note
+Every lint rule lives in [`eslint.config.mjs`](../../eslint.config.mjs). Note
 that a rule's options replace rather than merge with an earlier config block's, so
 every renderer block that touches `no-restricted-syntax` re-lists the shared enum
-ban.
+ban, and the block that exempts a field type's folder re-lists everything else.
 
-One rule was deliberately **not** written: "forbid `useForm` outside
+One rule was deliberately **not** written: "forbid `useAppForm` outside
 `components/forms`". It is self-contradictory, because `AppForm` takes the form
-object as a prop, so every route legitimately calls `useForm` and hands it in.
-Centralize the policies in `AppForm`, not the `useForm` call.
+object as a prop, so every route legitimately calls `useAppForm` and hands it in.
+Centralize the policies in `AppForm` and in `useAppForm`, not in where they are
+called.
 
 ## Why it is built this way
 

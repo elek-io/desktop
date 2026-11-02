@@ -273,13 +273,27 @@ const { mutateAsync: createProject, isPending: isCreatingProject } = useMutation
 
 ## Mutating Data
 
-### Form Mutations with Existing Data
+### Filling a form from its query
 
-When building forms to update existing data, we need to handle the loading state gracefully. Forms need to be populated with current values, but those values come from a query that may not be resolved yet.
+A form that edits something that was stored has to show what is stored, and that
+comes from a query which may not have answered yet. Every form does it the same
+way, through [`useAppForm`](../../src/renderer/hooks/useAppForm.ts):
 
-**Pattern:** Use `<fieldset disabled={isPending}>` to disable the entire form while data loads, instead of showing loading spinners or skeleton forms.
+- **`values`** holds the loaded object. react-hook-form fills the form from it
+  whenever it changes, deep-compared, so an answer equal to what the form
+  already holds does nothing at all.
+- **`resetOptions: { keepDirtyValues: true }`** is pinned by the hook. A field
+  somebody has touched keeps what they typed, and every field they have not
+  takes the new state. That is what makes a read that arrives beside an editor
+  harmless: a synchronize reads every query of a Project again, and before this
+  the open form replaced what was being written without a word.
+- **`disabled`** holds the query's pending state. The form shows at once with
+  its fields disabled, rather than appearing empty and filling in a moment
+  later, and `SubmitButton` disables with it, so a form cannot be saved before
+  it knows what it holds.
 
-**Example:** See [`routes/user/profile.tsx`](../../src/renderer/routes/user/profile.tsx)
+**Example:** see
+[`routes/user/profile.tsx`](../../src/renderer/routes/user/profile.tsx)
 
 ```typescript
 // Source the user from the useUser() hook (see "Using Context Providers" above)
@@ -287,43 +301,58 @@ const {
   userQuery: { data: user, isPending: isGettingUser },
 } = useUser();
 
-const setUserForm = useForm<SetUserProps>({
-  defaultValues: { /* ... */ }
+const setUserForm = useAppForm<SetUserProps>({
+  resolver: zodResolver(setUserSchema),
+  defaultValues: {
+    /* every bound key, so each control is controlled from the first render */
+  },
+  // exactOptionalPropertyTypes forbids passing `values: undefined`, so the key
+  // is left off entirely while the query is pending.
+  ...(user === null || user === undefined ? {} : { values: user }),
+  disabled: isGettingUser,
 });
-
-// Reset the form with user data once it loads
-useEffect(() => {
-  if (user) {
-    setUserForm.reset(user);
-  }
-}, [user, setUserForm]);
-
-return (
-  <Form {...setUserForm}>
-    <form>
-      <fieldset disabled={isGettingUser}>
-        {/* Form fields here - automatically disabled while loading */}
-        <FormField name="name" /* ... */ />
-        <FormField name="email" /* ... */ />
-      </fieldset>
-    </form>
-  </Form>
-);
 ```
 
-**Benefits:**
+Two rules follow:
 
-- No need for skeleton components in forms
-- Form structure renders immediately
-- Native browser styling for disabled state
-- Prevents user interaction during loading
-- Cleaner code with less conditional rendering
+- **Never call `reset()` in an effect**, which is a lint error. It is what
+  overwrote a Value somebody was writing: the effect re-ran on every answer,
+  equal or not, and replaced the whole form.
+- **Fill exactly the keys the form holds.** react-hook-form infers the form's
+  value type from its resolver, and a `values` carrying keys the schema does not
+  have takes part in that inference and makes the resolver unassignable. The
+  diff views are the case: they pass the handful of keys their form edits rather
+  than the whole stored object.
 
-### Gating Save on `formState.isDirty`
+`mode="view"` is a different thing and stays for the read-only diffs: it renders
+a form read-only through a disabled `<fieldset>` and makes submit a no-op, see
+[forms.md](./forms.md#view-only-forms-and-diffs). A form that is only still
+loading is not view-only, it is disabled.
 
-Every mutation Save/Update button is disabled until the form is dirty, with `disabled={<form>.formState.isDirty === false}`. An unchanged form has nothing to commit, so submitting it would make Core reject an empty change. The gate is app-wide and consistent across the project, collection, entry, user and version-control update forms, so a form that reset from loaded data starts with Save disabled and enables it the moment the user edits a field.
+A form that is not filled from a query at all, a create form, needs neither
+`values` nor `disabled`, unless its defaults depend on something loaded. The
+Collection, Component and Entry create forms do: a translatable key per Project
+language, and a default Value per field definition, both of which the Project and
+the Collection answer.
 
-This is distinct from validation. Validation is surfaced on click through `FormMessage`, not by keeping the button disabled, so an invalid but changed form still shows its Save button enabled and reports the errors when submitted. Only the "nothing changed yet" state disables Save.
+[`tests/specs/forms.spec.ts`](../../tests/specs/forms.spec.ts) drives it: an
+Entry is changed behind an open form, a synchronize reads it again, and the field
+being written keeps what was typed while the field nobody touched takes the new
+state.
+
+### Gating Save
+
+Every mutation Save/Update button is a `SubmitButton` inside a `FormActions`,
+which disables it while the form is submitting and while the form is still
+filling from its query. `requireDirty` adds the third gate per form: an update
+form uses it, so Save stays disabled until something changes, because an
+unchanged form has nothing to commit and Core would reject an empty change.
+Create forms do not, so the button is available immediately and validation
+happens on click.
+
+This is distinct from validation. Validation is surfaced on click through the
+field's own error, not by keeping the button disabled, so an invalid but changed
+form still shows its Save button enabled and reports the errors when submitted.
 
 ### Mutation Metadata
 

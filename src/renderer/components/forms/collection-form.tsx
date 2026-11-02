@@ -1,6 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
+  type FieldPath,
   type FieldValues,
   type SubmitHandler,
   type UseFormReturn,
@@ -21,11 +22,7 @@ import {
   TranslatableFormTextareaField,
 } from '@renderer/components/ui/translatable-field';
 
-import {
-  type Project,
-  type UpdateCollectionProps,
-  supportedIconSchema,
-} from '@elek-io/core';
+import { supportedIconSchema, type Project } from '@elek-io/core';
 
 /** Every icon Core offers, as the value-to-label map a select needs. */
 const iconItems: Record<string, string> = Object.fromEntries(
@@ -62,16 +59,12 @@ export function CollectionForm<
 }: CollectionFormProps<TFieldValues, TTransformedValues>): ReactElement {
   const { t } = useLingui();
 
-  // The concrete fields use literal paths RHF cannot resolve for a generic T, so
-  // view the form as the collection props for those. This is the documented
-  // exception to the form-cast guardrail, scoped to the cast line below so the
-  // ban stays global for the rest of the file. The field definitions editor
-  // needs no such view: it takes the form as it is and asserts only its own
-  // field name.
-  // @todo Retire it (e.g. a per-mode non-generic component) and drop the suppression.
-  const collectionForm =
-    // eslint-disable-next-line no-restricted-syntax -- documented whole-form cast
-    genericForm as unknown as UseFormReturn<UpdateCollectionProps>;
+  // Every form this serves holds these keys, but react-hook-form's FieldPath
+  // cannot resolve a literal path for an unresolved generic, so each name is
+  // asserted here. Asserting the name rather than the whole form is what keeps
+  // the form-cast guardrail intact, see contributing/renderer/forms.md#form-typing.
+  const path = (name: string): FieldPath<TFieldValues> =>
+    name as FieldPath<TFieldValues>;
 
   return (
     <AppForm
@@ -83,8 +76,8 @@ export function CollectionForm<
       <div className="space-y-6 p-6">
         <div className="grid grid-cols-12 items-start gap-6">
           <AppField
-            form={collectionForm}
-            name="icon"
+            form={genericForm}
+            name={path('icon')}
             label={<Trans>Icon</Trans>}
             required
             className="col-span-12 sm:col-span-2"
@@ -113,8 +106,8 @@ export function CollectionForm<
           </AppField>
 
           <AppField
-            form={collectionForm}
-            name={`name.plural.${project.settings.language.default}`}
+            form={genericForm}
+            name={path(`name.plural.${project.settings.language.default}`)}
             label={<Trans>Collection name (Plural)</Trans>}
             required
             description={
@@ -128,21 +121,21 @@ export function CollectionForm<
           >
             {({ field, controlProps }) => (
               <TranslatableFormInputField
-                form={collectionForm}
+                form={genericForm}
                 title={t`Collection name (Plural)`}
                 description={t`The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. "Blogposts".`}
                 type="text"
                 field={field}
                 controlProps={controlProps}
-                errors={collectionForm.formState.errors}
+                errors={genericForm.formState.errors}
                 supportedLanguages={project.settings.language.supported}
               />
             )}
           </AppField>
 
           <AppField
-            form={collectionForm}
-            name={`name.singular.${project.settings.language.default}`}
+            form={genericForm}
+            name={path(`name.singular.${project.settings.language.default}`)}
             label={<Trans>Entry name (Singular)</Trans>}
             required
             description={
@@ -155,21 +148,21 @@ export function CollectionForm<
           >
             {({ field, controlProps }) => (
               <TranslatableFormInputField
-                form={collectionForm}
+                form={genericForm}
                 title={t`Entry name (Singular)`}
                 description={t`The name of each Entry inside your new Collection. Choose a short name in singular - e.g. "Blogpost".`}
                 type="text"
                 field={field}
                 controlProps={controlProps}
-                errors={collectionForm.formState.errors}
+                errors={genericForm.formState.errors}
                 supportedLanguages={project.settings.language.supported}
               />
             )}
           </AppField>
 
           <AppField
-            form={collectionForm}
-            name={`description.${project.settings.language.default}`}
+            form={genericForm}
+            name={path(`description.${project.settings.language.default}`)}
             label={<Trans>Description</Trans>}
             required
             description={
@@ -181,12 +174,12 @@ export function CollectionForm<
           >
             {({ field, controlProps }) => (
               <TranslatableFormTextareaField
-                form={collectionForm}
+                form={genericForm}
                 title={t`Description`}
                 description={t`A description of what this new Collection is used for.`}
                 field={field}
                 controlProps={controlProps}
-                errors={collectionForm.formState.errors}
+                errors={genericForm.formState.errors}
                 supportedLanguages={project.settings.language.supported}
               />
             )}
@@ -194,8 +187,8 @@ export function CollectionForm<
         </div>
 
         <AppField
-          form={collectionForm}
-          name="slug.plural"
+          form={genericForm}
+          name={path('slug.plural')}
           label={<Trans>Collection-Slug</Trans>}
           required
           description={
@@ -212,8 +205,8 @@ export function CollectionForm<
         </AppField>
 
         <AppField
-          form={collectionForm}
-          name="slug.singular"
+          form={genericForm}
+          name={path('slug.singular')}
           label={<Trans>Entry-Slug</Trans>}
           required
           description={

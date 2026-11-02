@@ -46,13 +46,15 @@ Two rules follow:
 
 ## Form invariants
 
-Read these before touching any form. Each is enforced (a compile error, a lint error, or a test), so breaking one fails CI. Full detail, including the rationale, is in [`contributing/renderer/forms.md`](./contributing/renderer/forms.md). The registries and everything specific to user-defined fields are in [`contributing/renderer/dynamic-form-field-generation.md`](./contributing/renderer/dynamic-form-field-generation.md).
+Read these before touching any form. Each is enforced (a compile error, a lint error, or a test), so breaking one fails CI. Full detail, including the rationale, is in [`contributing/renderer/forms.md`](./contributing/renderer/forms.md). The registry and everything specific to user-defined fields are in [`contributing/renderer/dynamic-form-field-generation.md`](./contributing/renderer/dynamic-form-field-generation.md), and how a form is filled from its query is in [`contributing/renderer/loading-and-updating-data.md`](./contributing/renderer/loading-and-updating-data.md).
 
 - Every form is an `AppForm` (the only place a `<form>` element is written; it owns `noValidate`, submit wiring, `stopPropagation`, the detached-button `id`, and the view-only `mode`).
 - Every submit control is a `SubmitButton` (sets `type="submit"` and the form association structurally, and does not accept `type` or `render`).
 - A failed submit is never silent. `AppForm` surfaces a validation error no mounted message covers, and routes a post-await submit rejection to the root error boundary.
-- Every field type has a `DefinitionSpec` and a `RenderSpec`; both registries are exhaustive `Record<FieldType, ...>`, so a new Core type is a compile error until both have an entry.
-- The registry emits no native constraint attributes (`required`/`min`/`max`/`minLength`/`maxLength`); zod is the sole validator. The only exception is the range `Slider`'s value domain.
+- Every field is an `AppField`, the only thing that draws a label, a description and an error, in shadcn's `Field`. A field with no form behind it uses the same shell through `FieldShell`. A field's `name` is typed against the form passed in, and no form views its form as something else.
+- Every form is built with `useAppForm` and filled from its query through `values` and `disabled`, never by calling `reset()` in an effect. Both are lint errors otherwise.
+- Everything the app knows about one field type lives in that type's folder under `components/fields/`. The registry is a mapped type over Core's `FieldType`, so a new Core type is a compile error until it has a folder, and nothing outside a folder branches on a field type or a value type.
+- No control emits a native constraint attribute (`required`/`min`/`max`/`minLength`/`maxLength`); zod is the sole validator. The only exception is the range `Slider`'s value domain.
 - By-type `CoreError` handling goes through `useAppMutation`, never a blanket `throwOnError: false`. Its suppression of the wrapper's toast and log is per handled type, not per mutation.
 
 ## Testing notes

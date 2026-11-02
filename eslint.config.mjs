@@ -472,14 +472,10 @@ export default [
     },
   },
 
-  // The cast ban is global. The two remaining whole-form casts (project-form.tsx
-  // and collection-form.tsx, the RHF generic-component path tax) each carry a
-  // narrowly scoped `eslint-disable-next-line` at the cast site instead of a
-  // file-wide exemption, so any new whole-form launder in those files still
-  // fails. asset-form.tsx casts field names (`as FieldPath<T>`) rather than the
-  // whole form, and entry-form.tsx dropped its cast once FormFieldFromDefinition
-  // took a defaulted TTransformedValues.
-  // @todo Retire the two remaining casts (e.g. per-mode non-generic components).
+  // The cast ban is global, with no exemption: no form views its form as
+  // something else any more. ProjectForm is typed over the keys a person edits,
+  // and a body that has to stay generic over its caller's values asserts only
+  // the field name (`as FieldPath<T>`).
 
   // Every string a person reads comes from the message catalog, see
   // contributing/renderer/internationalization.md. Lingui's own rule flags a

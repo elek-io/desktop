@@ -30,20 +30,22 @@ const { formatDatetime } = useUser();
 const { relative, absolute } = formatDatetime({ datetime: entry.updated });
 ```
 
-## Formatting field values (`formatTemporalFieldValue`)
+## Formatting field values (`formatInUserLocale`)
 
-`formatTemporalFieldValue` is provided by the same `UserProvider` and read through `useUser()` or `useProject()`. It takes a raw field value and its `fieldType`, and for `date`, `datetime` and `time` fields returns the value formatted in the current user's locale (date-fns `P`, `Pp` and `p`). Every other field type, and any non-string value, is returned unchanged. Like `formatDatetime`, it falls back to date-fns's en-US default until the user's locale chunk loads. Unlike `formatDatetime` it never shows a `-` placeholder, because a stored field value always exists and should be displayed, not hidden while the user data loads.
+`formatInUserLocale` is provided by the same `UserProvider` and read through `useUser()` or `useProject()`. It takes a `Date` and a date-fns pattern and answers with the formatted string in the current user's locale. Like `formatDatetime`, it falls back to date-fns's en-US default until the user's locale chunk loads. Unlike `formatDatetime` it shows no `-` placeholder, because a stored field value always exists and should be displayed rather than hidden while the user data loads.
 
-Date values are stored as `YYYY-MM-DD` with no time or timezone, so they are anchored to local midnight before formatting, otherwise the shown day could shift by one in a negative UTC offset. The [entry table](../../src/renderer/components/entry-table.tsx) uses this so a stored `2026-07-09` renders as a localized date instead of the raw ISO string.
+Which pattern a Value takes, and how its stored string becomes a date at all, is the field type's own answer and lives in that type's folder, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md). A date Value is stored as `YYYY-MM-DD` with no time or zone, so the `date` folder anchors it to local midnight before formatting, otherwise the shown day could shift by one in a negative UTC offset. A time Value is anchored to an arbitrary day for the same reason, and a datetime carries its own zone. The [entry table](../../src/renderer/components/entry-table.tsx) hands each type's `listCell` this formatter, so a stored `2026-07-09` renders as a localized date rather than the raw ISO string.
 
 ```tsx
-const { formatTemporalFieldValue } = useProject();
-
-// "07/09/2026" for a date field in the en-US locale
-const shown = formatTemporalFieldValue({
-  value: entry.values.publishedAt,
-  fieldType: 'date',
-});
+// In a field type's folder, where the pattern belongs
+listCell: ({ content, language, formatInUserLocale }) =>
+  temporalCell({
+    content,
+    language,
+    pattern: 'P',
+    anchor: (value) => `${value}T00:00:00`,
+    formatInUserLocale,
+  });
 ```
 
 ## Translating content (`translateContent`)
