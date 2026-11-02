@@ -1,8 +1,10 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
+import { contrastRatio, parseColor } from '../helpers/color.js';
 import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import {
   HEADER_BAR_HEIGHT,
@@ -12,7 +14,6 @@ import {
   WINDOW_CONTROLS_BAR_HEIGHT,
   windowButtonPosition,
   windowMinimumSize,
-  windowSize,
 } from '../helpers/window.js';
 
 /**
@@ -30,9 +31,11 @@ test.describe('The window', () => {
     expect(await windowMinimumSize(electronApp)).toEqual(MINIMUM_WINDOW_SIZE);
 
     // Electron enforces it, so asking for less gives the minimum back rather
-    // than a window the layout cannot hold.
-    await resizeWindow(electronApp, mainWindow, { width: 800, height: 400 });
-    expect(await windowSize(electronApp)).toEqual(MINIMUM_WINDOW_SIZE);
+    // than a window the layout cannot hold. `resizeWindow` answers the size
+    // the window settled at.
+    expect(
+      await resizeWindow(electronApp, mainWindow, { width: 800, height: 400 })
+    ).toEqual(MINIMUM_WINDOW_SIZE);
   });
 
   test('keeps every screen of a Project inside it at the smallest size', async ({
@@ -171,9 +174,51 @@ test.describe('The window', () => {
     // the column the header lockup's ring sits on.
     expect(measured.sidebar.width).toBe(248);
 
-    // The panel is a surface on the ground, not the ground itself. ci asks for
-    // the lighter of the two in both themes, which only holds if they differ.
-    expect(measured.panelSurface).not.toBe(measured.ground);
+    // The panel is a surface on the ground, not the ground itself, and the
+    // lighter of the two in both themes. Measured as the contrast each reaches
+    // against black, which is higher the lighter a color is.
+    const black = { r: 0, g: 0, b: 0, a: 1 };
+    expect(
+      contrastRatio(parseColor(measured.panelSurface), black)
+    ).toBeGreaterThan(contrastRatio(parseColor(measured.ground), black));
+  });
+
+  test('keeps the panel the lighter surface in both themes', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigate(mainWindow, `#/projects/${project.id}/dashboard`);
+
+    const black = { r: 0, g: 0, b: 0, a: 1 };
+
+    for (const theme of ['light', 'dark'] as const) {
+      // setTheme reloads the renderer, so the route is set again after it.
+      await setTheme(mainWindow, theme);
+      await navigate(mainWindow, `#/projects/${project.id}/dashboard`);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+
+      const surfaces = await mainWindow.evaluate(() => {
+        const background = (selector: string): string => {
+          const element = document.querySelector(selector);
+          if (element === null) {
+            throw new Error(`Nothing matches ${selector}`);
+          }
+          return getComputedStyle(element).backgroundColor;
+        };
+
+        return {
+          ground: background('body'),
+          panel: background('[data-slot="panel"]'),
+        };
+      });
+
+      expect(
+        contrastRatio(parseColor(surfaces.panel), black),
+        `the panel is lighter than the ground in ${theme} mode`
+      ).toBeGreaterThan(contrastRatio(parseColor(surfaces.ground), black));
+    }
   });
 
   test('leaves the window controls bar to the system, as high as it draws it', async ({

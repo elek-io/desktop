@@ -189,8 +189,8 @@ test.describe("A Project's navigation", () => {
     });
 
     // Every row is the 32 px it is drawn at, at the smallest window the app
-    // supports. The design's own measurement found rows shrinking to 26 px
-    // instead of the list scrolling, which is what this holds.
+    // supports. A flex column squeezes its rows before it scrolls, which is
+    // what left them at 26 px, so what gives way has to be the list.
     expect(measured.rowHeights).toEqual([32]);
 
     // What gives way instead is the list: it scrolls, its scrollbar stays

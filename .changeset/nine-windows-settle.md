@@ -4,7 +4,7 @@
 
 Rebuild the window around one inset panel and a two bar header, and answer a part that cannot be read where it sits.
 
-The window is one ground with a panel on it. The header has two bars: the top one holds nothing but your system's own window controls, so it looks the same on Windows, macOS and Linux, and the one below it holds the elek.io Desktop mark, which opens your Projects, then back and forward with the trail of where you are, and Help and your account on the right. Your system draws its window controls in the colors of the theme you chose, light or dark.
+The window is one ground with a panel on it. The header has two bars: the top one holds nothing but your system's own window controls, so it looks the same on Windows, macOS and Linux, and the one below it holds the elek.io Desktop logo, which opens your Projects, then back and forward with the trail of where you are, and Help and your account on the right. On Windows and Linux the controls follow the theme you chose, light or dark. On macOS they stay your system's own, where they always sat.
 
 Help is new, and it holds the documentation, Report an issue and the versions of elek.io Desktop, elek.io Core and the runtime they run on. The versions used to be behind the name in the old title bar, and Report an issue used to be a Feedback button of its own.
 

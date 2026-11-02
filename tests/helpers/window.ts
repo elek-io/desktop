@@ -40,44 +40,58 @@ export async function windowSize(
 }
 
 /**
- * Ask the window for a size and wait until it has it and has been laid out at
- * it.
+ * Ask the window for a size, wait until it keeps it, and return the size it
+ * settled at.
  *
- * Asked repeatedly on purpose: a window manager can swallow a resize issued
+ * Asked repeatedly on purpose. A window manager can swallow a resize issued
  * while it is still mapping the window, which it does right after a launch, and
- * a swallowed one leaves a spec measuring the size the window opened at. What
- * counts as arrived is the asked size raised to the window's own minimum, which
- * Electron enforces, read off the window rather than written out here, so what
- * the minimum is stays the spec's own assertion.
+ * it can take one and hand the old size back a moment later. Either leaves a
+ * spec measuring the size the window opened at, so the size is read in a round
+ * trip of its own after the one that asks, and anything but the size it settled
+ * at means asking again.
+ *
+ * What counts as settled is the asked size raised to the window's own minimum,
+ * which Electron enforces. The minimum is read off the window rather than
+ * written out here, so what it should be stays the spec's own assertion.
  */
 export async function resizeWindow(
   app: ElectronApplication,
   page: Page,
   size: { width: number; height: number }
-): Promise<void> {
+): Promise<{ width: number; height: number }> {
   await expect
     .poll(
-      async () =>
-        app.evaluate(({ BrowserWindow }, target) => {
+      async () => {
+        const wanted = await app.evaluate(({ BrowserWindow }, target) => {
           const window = BrowserWindow.getAllWindows()[0];
           if (window === undefined) {
-            return false;
+            return null;
           }
 
           window.setSize(target.width, target.height);
 
           const [minimumWidth = 0, minimumHeight = 0] = window.getMinimumSize();
-          const [width = 0, height = 0] = window.getSize();
+          return {
+            width: Math.max(target.width, minimumWidth),
+            height: Math.max(target.height, minimumHeight),
+          };
+        }, size);
 
-          return (
-            width === Math.max(target.width, minimumWidth) &&
-            height === Math.max(target.height, minimumHeight)
-          );
-        }, size),
-      { message: `the window never reached ${size.width}x${size.height}` }
+        if (wanted === null) {
+          return false;
+        }
+
+        const settled = await windowSize(app);
+        return (
+          settled.width === wanted.width && settled.height === wanted.height
+        );
+      },
+      { message: `the window never kept ${size.width}x${size.height}` }
     )
     .toBe(true);
   await waitForLayout(page);
+
+  return windowSize(app);
 }
 
 /** Two frames, so a resize has been laid out before anything is read. */
