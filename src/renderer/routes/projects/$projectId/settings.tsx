@@ -7,9 +7,9 @@ import {
 import { GitBranch, type LucideIcon, Settings } from 'lucide-react';
 import type { ReactElement } from 'react';
 
+import { Pane, Panes } from '@renderer/components/pane';
 import { ScrollArea } from '@renderer/components/ui/scroll-area';
 import {
-  Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
@@ -46,8 +46,8 @@ function ProjectSettingsLayout(): ReactElement {
   ];
 
   return (
-    <div className="flex h-full">
-      <Sidebar>
+    <Panes>
+      <Pane width="list">
         <ScrollArea>
           <SidebarHeader />
           <SidebarContent>
@@ -78,10 +78,10 @@ function ProjectSettingsLayout(): ReactElement {
             </SidebarGroup>
           </SidebarContent>
         </ScrollArea>
-      </Sidebar>
-      <div className="flex flex-1 flex-col overflow-y-auto">
+      </Pane>
+      <Pane>
         <Outlet />
-      </div>
-    </div>
+      </Pane>
+    </Panes>
   );
 }

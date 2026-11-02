@@ -51,7 +51,7 @@ function ProjectDashboardPage(): React.JSX.Element {
   }
 
   return (
-    <Page title="Dashboard" layout="bare" description={<Description />}>
+    <Page title="Dashboard" description={<Description />}>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
         <PageSection
           title="Current Project"

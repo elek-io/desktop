@@ -73,7 +73,6 @@ function ProjectComponentsPage(): ReactElement {
       title="Components"
       description={<Description />}
       actions={<Actions />}
-      layout="bare"
     >
       {isListingComponents ? (
         <div className="grid gap-2">

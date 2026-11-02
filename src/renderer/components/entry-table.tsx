@@ -27,6 +27,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@renderer/components/ui/pagination';
+import { SkeletonRows } from '@renderer/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -354,14 +355,5 @@ export function EntryTable({
 }
 
 export function EntryTableSkeleton(): React.JSX.Element {
-  return (
-    <div className="animate-pulse">
-      <div className="h-8 w-1/4 rounded bg-muted" />
-      <div className="mt-4 space-y-2">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-10 w-full rounded bg-muted" />
-        ))}
-      </div>
-    </div>
-  );
+  return <SkeletonRows label="Loading Entries" />;
 }

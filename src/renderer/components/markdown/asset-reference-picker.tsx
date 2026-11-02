@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
@@ -65,12 +66,7 @@ export const AssetReferencePicker = ({
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => {
                 const key = `skeleton-${String(i)}`;
-                return (
-                  <div
-                    key={key}
-                    className="aspect-4/3 animate-pulse rounded-md bg-muted"
-                  />
-                );
+                return <Skeleton key={key} className="aspect-4/3" />;
               })}
             </div>
           ) : availableAssets.length === 0 ? (

@@ -19,6 +19,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@renderer/components/ui/form';
+import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -78,12 +79,7 @@ function EntryExtras({
                   <div className="space-y-2">
                     {Array.from({ length: 3 }).map((_, i) => {
                       const key = `skeleton-${String(i)}`;
-                      return (
-                        <div
-                          key={key}
-                          className="h-10 animate-pulse rounded-md bg-muted"
-                        />
-                      );
+                      return <Skeleton key={key} className="h-10" />;
                     })}
                   </div>
                 ) : collectionList.list.length === 0 ? (

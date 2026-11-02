@@ -126,9 +126,14 @@ function SidebarProvider({
   );
 }
 
-// Desktop's sidebar is a pane of the window, which never collapses and never
-// turns into a sheet, so this replaces the registry's off-canvas Sidebar. Every
-// other part below is the registry's.
+// Desktop's sidebar stands on the ground beside the main panel, never
+// collapses and never turns into a sheet, so this replaces the registry's
+// off-canvas Sidebar. Every other part below is the registry's.
+//
+// It is 248 px wide including its padding, which puts its icons, its group
+// labels and the Project card on one column 23 px from the window's edge, the
+// column the header lockup's ring sits on. Its own padding is the gap to the
+// panel, so the panel takes none on that side.
 function Sidebar({
   className,
   ...props
@@ -137,7 +142,7 @@ function Sidebar({
     <aside
       data-slot="sidebar"
       className={cn(
-        'flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground',
+        'flex min-h-0 w-62 shrink-0 flex-col pr-2 pb-2 pl-3 text-sidebar-foreground',
         className
       )}
       {...props}

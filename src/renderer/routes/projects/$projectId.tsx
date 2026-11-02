@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute } from '@tanstack/react-router';
 
+import { Pane, Panel } from '@renderer/components/pane';
 import { ProjectSidebar } from '@renderer/components/project-sidebar';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
@@ -16,12 +17,18 @@ function ProjectLayoutContent(): React.JSX.Element {
   useBreadcrumb(Route, isReadingProject === false ? project.name : undefined);
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <>
       <ProjectSidebar />
-      <div className="flex flex-1 flex-col">
-        <Outlet />
-      </div>
-    </div>
+      {/*
+        The sidebar's own padding is the gap to the panel, so the panel takes
+        none on that side.
+      */}
+      <Panel className="ml-0">
+        <Pane>
+          <Outlet />
+        </Pane>
+      </Panel>
+    </>
   );
 }
 

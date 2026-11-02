@@ -10,8 +10,14 @@
     @apply border-border;
   }
 
+  /*
+    The window is the ground the header and the sidebar sit on, and the main
+    panel is one surface on top of it. The ground is the sidebar token in both
+    themes, so the panel is the lighter of the two, see
+    contributing/renderer/theming-and-styling.md.
+  */
   body {
-    @apply bg-background font-sans text-ui text-foreground;
+    @apply overflow-hidden bg-sidebar font-sans text-ui text-foreground;
   }
 
   /*

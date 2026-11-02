@@ -120,12 +120,7 @@ function ProjectAssetsPage(): React.JSX.Element {
 
   return (
     <>
-      <Page
-        title="Assets"
-        description={<Description />}
-        actions={<Actions />}
-        layout="bare"
-      >
+      <Page title="Assets" description={<Description />} actions={<Actions />}>
         {isListingAssets ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
             {[1, 2, 3, 4, 5].map((i) => (

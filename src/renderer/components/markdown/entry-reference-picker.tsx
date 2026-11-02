@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -111,12 +112,7 @@ export const EntryReferencePicker = ({
             <div className="space-y-2">
               {Array.from({ length: 6 }).map((_, i) => {
                 const key = `skeleton-${String(i)}`;
-                return (
-                  <div
-                    key={key}
-                    className="h-10 animate-pulse rounded-md bg-muted"
-                  />
-                );
+                return <Skeleton key={key} className="h-10" />;
               })}
             </div>
           ) : hasEntries === false ? (

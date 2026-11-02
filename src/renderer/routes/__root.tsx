@@ -10,15 +10,19 @@ import {
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ArrowLeft, MessageSquare, RefreshCw } from 'lucide-react';
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 
-import { AppHeader } from '@renderer/components/app-header';
+import {
+  AppHeader,
+  HeaderTrail,
+  HeaderUser,
+} from '@renderer/components/app-header';
 import { Page } from '@renderer/components/page';
+import { Pane, Panel } from '@renderer/components/pane';
 import { ReportDialog } from '@renderer/components/report-dialog';
 import { Button } from '@renderer/components/ui/button';
 import { ScrollArea, ScrollBar } from '@renderer/components/ui/scroll-area';
 import { Toaster } from '@renderer/components/ui/sonner';
-import { UserHeader } from '@renderer/components/user-header';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
 
@@ -98,17 +102,27 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
   return (
     <>
       <AppHeader />
-      <Page title="Error" description={<Description />} actions={<Actions />}>
-        <div className="p-6">
-          <p>{message}</p>
-          <ScrollArea>
-            <div className="flex w-max py-6 text-xs">
-              <pre>{displayStack}</pre>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
-      </Page>
+      <AppGround>
+        <Panel>
+          <Pane>
+            <Page
+              title="Error"
+              description={<Description />}
+              actions={<Actions />}
+            >
+              <div data-slot="error-cause">
+                <p>{message}</p>
+                <ScrollArea>
+                  <div className="flex w-max py-6 text-xs">
+                    <pre>{displayStack}</pre>
+                  </div>
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </div>
+            </Page>
+          </Pane>
+        </Panel>
+      </AppGround>
 
       {/*
         The crash is the moment a report is worth most and the moment the user
@@ -163,19 +177,34 @@ function NotFoundComponent(): ReactElement {
   return (
     <>
       <AppHeader />
-      <Page
-        title="Not Found"
-        description={<Description />}
-        actions={<Actions />}
-      >
-        <p className="p-6">
-          You&apos;ve tried to access &quot;{location.href}&quot; but it does
-          not exist. Use the buttons above to navigate back or try to reload the
-          page.
-        </p>
-      </Page>
+      <AppGround>
+        <Panel>
+          <Pane>
+            <Page
+              title="Not Found"
+              description={<Description />}
+              actions={<Actions />}
+            >
+              <p>
+                You&apos;ve tried to access &quot;{location.href}&quot; but it
+                does not exist. Use the buttons above to navigate back or try to
+                reload the page.
+              </p>
+            </Page>
+          </Pane>
+        </Panel>
+      </AppGround>
     </>
   );
+}
+
+/**
+ * The ground the header sits on, below it, which holds the Project's sidebar
+ * and the main panel side by side. The window itself is the ground, so this
+ * only gives the row its height, see contributing/renderer/theming-and-styling.md.
+ */
+function AppGround({ children }: { children: ReactNode }): ReactElement {
+  return <div className="flex min-h-0 flex-1">{children}</div>;
 }
 
 function RootComponent(): ReactElement {
@@ -184,9 +213,10 @@ function RootComponent(): ReactElement {
       <HeadContent />
       <UserProvider>
         <BreadcrumbProvider>
-          <AppHeader />
-          <UserHeader />
-          <Outlet />
+          <AppHeader trail={<HeaderTrail />} user={<HeaderUser />} />
+          <AppGround>
+            <Outlet />
+          </AppGround>
           <Toaster />
           <TanStackRouterDevtools
             position="bottom-right"

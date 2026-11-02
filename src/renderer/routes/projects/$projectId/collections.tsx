@@ -5,6 +5,7 @@ import {
   CollectionsSidebar,
   CollectionsSidebarSkeleton,
 } from '@renderer/components/collections-sidebar';
+import { Pane, Panes } from '@renderer/components/pane';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
@@ -25,15 +26,17 @@ function ProjectCollectionsLayout(): ReactElement {
     );
 
   return (
-    <div className="flex h-full">
-      {isListingCollections ? (
-        <CollectionsSidebarSkeleton projectId={projectId} />
-      ) : (
-        <CollectionsSidebar projectId={projectId} collections={collections} />
-      )}
-      <div className="flex flex-1 flex-col overflow-y-auto">
+    <Panes>
+      <Pane width="list">
+        {isListingCollections ? (
+          <CollectionsSidebarSkeleton projectId={projectId} />
+        ) : (
+          <CollectionsSidebar projectId={projectId} collections={collections} />
+        )}
+      </Pane>
+      <Pane>
         <Outlet />
-      </div>
-    </div>
+      </Pane>
+    </Panes>
   );
 }

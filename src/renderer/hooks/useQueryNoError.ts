@@ -10,6 +10,8 @@ import {
   type UseQueryOptions,
 } from '@tanstack/react-query';
 
+import { markReadFailure } from '@renderer/lib/readFailure';
+
 export type UseQueryResultNoError<
   TQueryFnData = unknown,
   TError = DefaultError,
@@ -32,6 +34,10 @@ export type UseQueryResultNoError<
  *
  * This hook wraps useQuery and throws the error if it exists, so that the returned type
  * no longer includes the error state.
+ *
+ * The thrown error is marked as a failed read, so the pane it was read in
+ * answers it in its own place instead of the whole view going to the root error
+ * screen. See `lib/readFailure.ts` and `components/pane.tsx`.
  *
  * It also logs an error if `throwOnError` is not set to `true`.
  *
@@ -62,7 +68,9 @@ export function useQueryNoError<
   }
 
   if (query.isError) {
-    throw query.error;
+    // Marked, so the pane the read belongs to can answer it in its own place
+    // while a failed write or a render bug still reaches the root error screen.
+    throw markReadFailure(query.error);
   }
 
   return query;

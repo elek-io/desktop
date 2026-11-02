@@ -5,6 +5,7 @@ import {
   HistorySidebar,
   HistorySidebarSkeleton,
 } from '@renderer/components/history-sidebar';
+import { Pane, Panes } from '@renderer/components/pane';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 
@@ -19,15 +20,17 @@ function ProjectHistoryLayout(): ReactElement {
   } = useProject();
 
   return (
-    <div className="flex h-full">
-      {isReadingProject ? (
-        <HistorySidebarSkeleton />
-      ) : (
-        <HistorySidebar project={project} />
-      )}
-      <div className="flex flex-1 flex-col overflow-y-auto">
+    <Panes>
+      <Pane width="list" name="the changes of this Project">
+        {isReadingProject ? (
+          <HistorySidebarSkeleton />
+        ) : (
+          <HistorySidebar project={project} />
+        )}
+      </Pane>
+      <Pane>
         <Outlet />
-      </div>
-    </div>
+      </Pane>
+    </Panes>
   );
 }

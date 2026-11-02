@@ -259,3 +259,25 @@ export const sidebarMenuButtonVariants = cva(
 export const chipVariants = cva(
   'inline-flex items-center justify-center whitespace-nowrap px-4 py-1 rounded-full text-sm font-medium border border-border shadow-xs'
 );
+
+/*
+  The panes of the main panel. Panes are divided by a rule rather than split
+  into panels of their own, so every pane but the first draws the divider on
+  its left edge, inset 8 px from the panel's top and bottom. `--pane-edge` is
+  the one text edge everything inside a pane starts on.
+  See contributing/renderer/theming-and-styling.md.
+*/
+export const paneVariants = cva(
+  "relative flex min-h-0 min-w-0 flex-col overflow-hidden before:absolute before:inset-y-2 before:left-0 before:w-px before:bg-border before:content-[''] first:before:hidden",
+  {
+    variants: {
+      width: {
+        main: 'flex-1 [--pane-edge:24px]',
+        list: 'w-74 flex-none [--pane-edge:16px]',
+      },
+    },
+    defaultVariants: {
+      width: 'main',
+    },
+  }
+);

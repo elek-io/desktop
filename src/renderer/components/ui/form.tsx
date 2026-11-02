@@ -1274,12 +1274,7 @@ function FormAssetField<TFieldValues extends FieldValues>({
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => {
                   const key = `skeleton-${String(i)}`;
-                  return (
-                    <div
-                      key={key}
-                      className="aspect-4/3 animate-pulse rounded-md bg-muted"
-                    />
-                  );
+                  return <Skeleton key={key} className="aspect-4/3" />;
                 })}
               </div>
             ) : selectableAssets.length === 0 ? (
@@ -1541,12 +1536,7 @@ function FormEntryField<TFieldValues extends FieldValues>({
               <div className="space-y-2">
                 {Array.from({ length: 6 }).map((_, i) => {
                   const key = `skeleton-${String(i)}`;
-                  return (
-                    <div
-                      key={key}
-                      className="h-10 animate-pulse rounded-md bg-muted"
-                    />
-                  );
+                  return <Skeleton key={key} className="h-10" />;
                 })}
               </div>
             ) : availableEntries.length === 0 ? (

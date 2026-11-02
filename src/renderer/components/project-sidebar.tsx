@@ -99,11 +99,11 @@ const projectNavigation: {
 function ProjectNavigation(): React.JSX.Element {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-      <SidebarGroupContent>
+      <SidebarGroupLabel className="shrink-0">Navigation</SidebarGroupLabel>
+      <SidebarGroupContent className="shrink-0">
         <SidebarMenu>
           {projectNavigation.map((item) => (
-            <SidebarMenuItem key={item.name}>
+            <SidebarMenuItem className="shrink-0" key={item.name}>
               <SidebarMenuButton
                 render={
                   <Link to={item.to} activeProps={{ 'data-active': true }} />
@@ -175,10 +175,19 @@ export function ProjectSidebar(): React.JSX.Element {
 
   return (
     <Sidebar>
-      <SidebarHeader>
+      {/*
+        What belongs to the Project keeps its room above the navigation, which
+        is what scrolls.
+      */}
+      <SidebarHeader className="shrink-0">
         <ProjectSwitcher project={project} />
       </SidebarHeader>
-      <SidebarContent>
+      {/*
+        The navigation scrolls at full row height: no row is allowed to shrink,
+        so the smallest window the app supports scrolls the list instead of
+        squeezing every row until it fits.
+      */}
+      <SidebarContent className="[&>*]:shrink-0">
         {project.remoteOriginUrl != null ? (
           <SidebarGroup>
             <ButtonGroup className="w-full">
@@ -261,10 +270,10 @@ export function ProjectSidebar(): React.JSX.Element {
 export function ProjectSidebarSkeleton(): React.JSX.Element {
   return (
     <Sidebar>
-      <SidebarHeader>
+      <SidebarHeader className="shrink-0">
         <ProjectSwitcherSkeleton />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="[&>*]:shrink-0">
         <ProjectNavigation />
       </SidebarContent>
       <SidebarFooter />

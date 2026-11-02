@@ -1,5 +1,6 @@
 import { type ReactElement } from 'react';
 
+import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -45,9 +46,7 @@ export function AssetMimeTypePicker({
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, index) => {
           const key = `skeleton-${String(index)}`;
-          return (
-            <div key={key} className="h-10 animate-pulse rounded-md bg-muted" />
-          );
+          return <Skeleton key={key} className="h-10" />;
         })}
       </div>
     );

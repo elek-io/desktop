@@ -3,7 +3,6 @@ import { PlusIcon, LayersIcon } from 'lucide-react';
 import React from 'react';
 
 import {
-  Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -29,7 +28,7 @@ export function CollectionsSidebar({
   const { translateContent } = useProject();
 
   return (
-    <Sidebar>
+    <aside className="flex min-h-0 flex-1 flex-col">
       <SidebarHeader>
         <SidebarGroupContent>
           <SidebarMenu>
@@ -84,7 +83,7 @@ export function CollectionsSidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
-    </Sidebar>
+    </aside>
   );
 }
 
@@ -94,7 +93,7 @@ export function CollectionsSidebarSkeleton({
   projectId: string;
 }): React.JSX.Element {
   return (
-    <Sidebar>
+    <aside className="flex min-h-0 flex-1 flex-col">
       <SidebarHeader>
         <SidebarGroupContent>
           <SidebarMenu>
@@ -133,6 +132,6 @@ export function CollectionsSidebarSkeleton({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
-    </Sidebar>
+    </aside>
   );
 }

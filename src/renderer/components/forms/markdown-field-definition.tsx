@@ -20,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@renderer/components/ui/form';
+import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -293,7 +294,7 @@ function MarkdownExtras({
                 </FormDescription>
                 <div className="space-y-2">
                   {isReadingCollections === true ? (
-                    <div className="h-10 animate-pulse rounded-md bg-muted" />
+                    <Skeleton className="h-10" />
                   ) : collectionList.list.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       No Collections available in this project.

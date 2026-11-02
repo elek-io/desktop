@@ -81,7 +81,6 @@ function ProjectReleasesPage(): ReactElement {
         title="Releases"
         description={<Description />}
         actions={<Actions />}
-        layout="bare"
       >
         {isListingReleases ? (
           <div className="grid gap-2">

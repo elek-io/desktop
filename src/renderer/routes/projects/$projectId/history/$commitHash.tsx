@@ -108,7 +108,6 @@ function ProjectHistoryCommitPage(): ReactElement {
           : ''
       }
       description={<Description />}
-      layout="bare"
     >
       <div className="grid grid-cols-12 gap-6">
         <DisplayChanges />

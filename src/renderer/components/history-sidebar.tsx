@@ -5,7 +5,6 @@ import {
   CommitHistorySkeleton,
 } from '@renderer/components/commit-history';
 import {
-  Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -28,7 +27,7 @@ export function HistorySidebar({
   );
 
   return (
-    <Sidebar>
+    <aside className="flex min-h-0 flex-1 flex-col">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Changes</SidebarGroupLabel>
@@ -49,13 +48,13 @@ export function HistorySidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
-    </Sidebar>
+    </aside>
   );
 }
 
 export function HistorySidebarSkeleton(): React.JSX.Element {
   return (
-    <Sidebar>
+    <aside className="flex min-h-0 flex-1 flex-col">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Changes</SidebarGroupLabel>
@@ -67,6 +66,6 @@ export function HistorySidebarSkeleton(): React.JSX.Element {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
-    </Sidebar>
+    </aside>
   );
 }

@@ -195,7 +195,6 @@ function UserProfilePage(): ReactElement {
       title={user === null ? 'Welcome to elek.io Desktop' : 'User profile'}
       description={<Description />}
       actions={<Actions />}
-      layout="bare"
     >
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
         <Card className="py-0 lg:col-span-2">
