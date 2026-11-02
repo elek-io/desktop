@@ -194,9 +194,9 @@ test.describe('The app in one language', () => {
     // A Collection's and a Component's name is content, stored per language, so
     // the toast has to read it through the chain a screen reads it through: the
     // User's language, then the Project's default, then English. The User's
-    // language below has no word in either record, so only the Project's
-    // default can answer, and English is filled in first so that reading the
-    // record in whichever language it happens to carry would answer with the
+    // language below has a word in neither record, so only the Project's
+    // default can answer. English stands first in each record, so a toast that
+    // took whichever language a record happens to carry would answer with the
     // English name instead.
     await setUserViaIpc(mainWindow, { language: 'fr' });
     const project = await createProjectViaIpc(mainWindow, {
@@ -208,7 +208,10 @@ test.describe('The app in one language', () => {
         singular: { en: 'Article', de: 'Nachricht' },
         plural: { en: 'Articles', de: 'Nachrichten' },
       },
-      description: { en: 'What the shop says', de: 'Was das Haus sagt' },
+      description: {
+        en: 'What the dealership says',
+        de: 'Was das Autohaus sagt',
+      },
       fieldDefinitions: [
         textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
       ],
