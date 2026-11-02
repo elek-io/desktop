@@ -34,6 +34,10 @@ interface ProbedElement {
 interface ProbedStyle {
   readonly animationName: string;
   readonly backgroundColor: string;
+  readonly bottom: string;
+  readonly display: string;
+  readonly top: string;
+  readonly width: string;
   readonly flexShrink: string;
   readonly overflowY: string;
   readonly borderTopColor: string;
@@ -47,7 +51,10 @@ interface ProbedStyle {
   getPropertyValue(property: string): string;
 }
 
-declare const getComputedStyle: (element: ProbedElement) => ProbedStyle;
+declare const getComputedStyle: (
+  element: ProbedElement,
+  pseudoElement?: string
+) => ProbedStyle;
 
 declare const document: {
   body: { scrollWidth: number };

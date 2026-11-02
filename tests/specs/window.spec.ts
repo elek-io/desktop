@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
-import { contrastRatio, parseColor } from '../helpers/color.js';
+import { contrastRatio, parseColor, toBytes } from '../helpers/color.js';
 import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setTheme } from '../helpers/theme.js';
@@ -219,6 +219,58 @@ test.describe('The window', () => {
         `the panel is lighter than the ground in ${theme} mode`
       ).toBeGreaterThan(contrastRatio(parseColor(surfaces.ground), black));
     }
+  });
+
+  test('divides its panes with a rule that stops short of its edges', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // The History splits the panel into the list of changes and what it opens,
+    // which is two panes with one divider between them.
+    await navigate(mainWindow, `#/projects/${project.id}/history`);
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+
+    const measured = await mainWindow.evaluate(() => {
+      const panes = Array.from(
+        document.querySelectorAll('[data-slot="panes"] > [data-slot="pane"]')
+      );
+
+      return {
+        count: panes.length,
+        dividers: panes.map((pane) => {
+          const divider = getComputedStyle(pane, '::before');
+          return {
+            display: divider.display,
+            width: divider.width,
+            color: divider.backgroundColor,
+            top: divider.top,
+            bottom: divider.bottom,
+          };
+        }),
+        border: getComputedStyle(document.documentElement).getPropertyValue(
+          '--color-border'
+        ),
+      };
+    });
+
+    expect(measured.count).toBe(2);
+
+    // The first pane draws none: a divider belongs between two panes.
+    expect(measured.dividers[0]?.display).toBe('none');
+
+    // The second draws a hairline rule in the border color, 8 px short of the
+    // panel's top and bottom, which is the rule a row's own rule ends on.
+    const divider = measured.dividers[1];
+    expect(divider?.display).toBe('block');
+    expect(divider?.width).toBe('1px');
+    expect(divider?.top).toBe('8px');
+    expect(divider?.bottom).toBe('8px');
+    expect(toBytes(parseColor(divider?.color ?? ''))).toEqual(
+      toBytes(parseColor(measured.border))
+    );
   });
 
   test('leaves the window controls bar to the system, as high as it draws it', async ({
