@@ -24,9 +24,11 @@ function FilterInput({
   name: string;
 }): React.JSX.Element {
   return (
+    // A text input rather than a search one: `type="search"` would add the
+    // browser's own clear button inside the field, which ci does not draw.
     <Input
       data-slot="filter-input"
-      type="search"
+      type="text"
       aria-label={name}
       placeholder={name}
       {...props}

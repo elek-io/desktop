@@ -1133,7 +1133,7 @@ test.describe('Entries', () => {
     // The filter narrows the rows client side across every page. 'Entry 11'
     // started on the second page, so a match proves the filter also resets to
     // the first page (one data row plus the header).
-    const filter = mainWindow.getByRole('searchbox', {
+    const filter = mainWindow.getByRole('textbox', {
       name: 'Filter Articles',
     });
     await filter.fill('Entry 11');
