@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { msg, t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
 import { numberRules } from '@renderer/components/fields/rules';
@@ -56,7 +56,8 @@ const spec: DefinitionSpec<NumberFieldDefinition> = {
         form={form}
         minName="min"
         maxName="max"
-        unit={t`value the user can enter`}
+        minDescription={<Trans>The smallest value the user can enter.</Trans>}
+        maxDescription={<Trans>The largest value the user can enter.</Trans>}
       />
     </>
   ),

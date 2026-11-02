@@ -1,6 +1,6 @@
 import { type MessageDescriptor } from '@lingui/core';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import {
   type DefaultValues,
   type FieldPath,
@@ -71,17 +71,24 @@ export function DefaultValueInputField<Def extends FieldValues>({
  * Whether each bound has to be filled is the type's own schema's answer, which
  * the fields read themselves: a text field's bounds are optional and a range's
  * are not.
+ *
+ * Each caller passes both sentences whole, rather than a fragment this builds
+ * one out of: a sentence is one entry of the message catalog, so a language
+ * that has to reorder or inflect it can, see
+ * contributing/renderer/internationalization.md.
  */
 export function MinMaxRow<Def extends FieldValues>({
   form,
   minName,
   maxName,
-  unit,
+  minDescription,
+  maxDescription,
 }: {
   form: UseFormReturn<Def>;
   minName: FieldPath<Def>;
   maxName: FieldPath<Def>;
-  unit: string;
+  minDescription: ReactNode;
+  maxDescription: ReactNode;
 }): ReactElement {
   return (
     <div className="flex flex-row items-start justify-between space-x-2">
@@ -89,7 +96,7 @@ export function MinMaxRow<Def extends FieldValues>({
         form={form}
         name={minName}
         label={<Trans>Minimum</Trans>}
-        description={<Trans>The minimum {unit}.</Trans>}
+        description={minDescription}
       >
         {({ field, controlProps }) => (
           <TextControl field={field} type="number" {...controlProps} />
@@ -99,7 +106,7 @@ export function MinMaxRow<Def extends FieldValues>({
         form={form}
         name={maxName}
         label={<Trans>Maximum</Trans>}
-        description={<Trans>The maximum {unit}.</Trans>}
+        description={maxDescription}
       >
         {({ field, controlProps }) => (
           <TextControl field={field} type="number" {...controlProps} />

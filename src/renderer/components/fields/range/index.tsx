@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { msg, t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 import {
   contentAsStored,
@@ -50,7 +51,8 @@ const spec: DefinitionSpec<RangeFieldDefinition> = {
         form={form}
         minName="min"
         maxName="max"
-        unit={t`Value the user is able to enter`}
+        minDescription={<Trans>The lowest end of the slider.</Trans>}
+        maxDescription={<Trans>The highest end of the slider.</Trans>}
       />
     </>
   ),

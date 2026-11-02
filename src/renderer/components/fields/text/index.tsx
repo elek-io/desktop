@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 import { textRules } from '@renderer/components/fields/rules';
 import {
@@ -45,7 +45,10 @@ const spec: DefinitionSpec<TextFieldDefinition> = {
         form={form}
         minName="min"
         maxName="max"
-        unit={t`number of characters the user can enter`}
+        minDescription={
+          <Trans>The fewest characters the user can enter.</Trans>
+        }
+        maxDescription={<Trans>The most characters the user can enter.</Trans>}
       />
     </>
   ),

@@ -1484,11 +1484,6 @@ msgstr "Number"
 msgid "Number fields cannot be unique."
 msgstr "Number fields cannot be unique."
 
-#: src/renderer/components/fields/text/index.tsx
-#: src/renderer/components/fields/textarea/index.tsx
-msgid "number of characters the user can enter"
-msgstr "number of characters the user can enter"
-
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
 msgid "Object changes"
 msgstr "Object changes"
@@ -2055,6 +2050,11 @@ msgstr "The default language changed"
 msgid "The default language of this Project. Needs to be one of the supported languages."
 msgstr "The default language of this Project. Needs to be one of the supported languages."
 
+#: src/renderer/components/fields/text/index.tsx
+#: src/renderer/components/fields/textarea/index.tsx
+msgid "The fewest characters the user can enter."
+msgstr "The fewest characters the user can enter."
+
 #: src/renderer/lib/release.ts
 msgid "The Field {slug} allows less than before"
 msgstr "The Field {slug} allows less than before"
@@ -2139,6 +2139,10 @@ msgstr "The Git repository could not be reached, so check your connection and tr
 msgid "The Git repository refused access, so ask whoever set up this Project."
 msgstr "The Git repository refused access, so ask whoever set up this Project."
 
+#: src/renderer/components/fields/range/index.tsx
+msgid "The highest end of the slider."
+msgstr "The highest end of the slider."
+
 #: src/renderer/components/fields/select/definition.tsx
 msgid "The initial option for the field."
 msgstr "The initial option for the field."
@@ -2163,13 +2167,17 @@ msgstr "The label is displayed above the input Field and should indicate what th
 msgid "The label users see for this option."
 msgstr "The label users see for this option."
 
+#: src/renderer/components/fields/number/index.tsx
+msgid "The largest value the user can enter."
+msgstr "The largest value the user can enter."
+
 #: src/renderer/components/markdown/link-dialog.tsx
 msgid "The link applies to the text selected in the editor. Core accepts http(s), mailto and tel URLs, plus relative and fragment links."
 msgstr "The link applies to the text selected in the editor. Core accepts http(s), mailto and tel URLs, plus relative and fragment links."
 
-#: src/renderer/components/forms/field-definition-draft.tsx
-msgid "The maximum {unit}."
-msgstr "The maximum {unit}."
+#: src/renderer/components/fields/range/index.tsx
+msgid "The lowest end of the slider."
+msgstr "The lowest end of the slider."
 
 #: src/renderer/components/fields/asset/definition.tsx
 msgid "The maximum number of Assets the user is able to select."
@@ -2187,10 +2195,6 @@ msgstr "The maximum number of Entries the user is able to select."
 msgid "The maximum number of sections the user is able to add."
 msgstr "The maximum number of sections the user is able to add."
 
-#: src/renderer/components/forms/field-definition-draft.tsx
-msgid "The minimum {unit}."
-msgstr "The minimum {unit}."
-
 #: src/renderer/components/fields/asset/definition.tsx
 msgid "The minimum number of Assets the user needs to select."
 msgstr "The minimum number of Assets the user needs to select."
@@ -2206,6 +2210,11 @@ msgstr "The minimum number of Entries the user needs to select."
 #: src/renderer/components/fields/dynamic/definition.tsx
 msgid "The minimum number of sections the user needs to add."
 msgstr "The minimum number of sections the user needs to add."
+
+#: src/renderer/components/fields/text/index.tsx
+#: src/renderer/components/fields/textarea/index.tsx
+msgid "The most characters the user can enter."
+msgstr "The most characters the user can enter."
 
 #: src/renderer/components/forms/collection-form.tsx
 msgid "The name of each Entry inside your new Collection. Choose a short name in singular - e.g. \"Blogpost\"."
@@ -2246,6 +2255,10 @@ msgstr "the Settings of this Project"
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "The slug is generated from the selected Fields while creating an Entry, in the order the Fields appear in the Collection. If none are selected, users enter the slug manually."
 msgstr "The slug is generated from the selected Fields while creating an Entry, in the order the Fields appear in the Collection. If none are selected, users enter the slug manually."
+
+#: src/renderer/components/fields/number/index.tsx
+msgid "The smallest value the user can enter."
+msgstr "The smallest value the user can enter."
 
 #: src/renderer/components/project-sidebar.tsx
 msgid "The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again."
@@ -2494,14 +2507,6 @@ msgstr "User"
 #: src/renderer/routes/user/profile.tsx
 msgid "User profile"
 msgstr "User profile"
-
-#: src/renderer/components/fields/number/index.tsx
-msgid "value the user can enter"
-msgstr "value the user can enter"
-
-#: src/renderer/components/fields/range/index.tsx
-msgid "Value the user is able to enter"
-msgstr "Value the user is able to enter"
 
 #: src/renderer/components/release-dialog.tsx
 msgid "Version {currentVersion} becomes"
