@@ -28,6 +28,9 @@ const BUILD_RESOURCES = 'build';
 /** The installed release of the brand package, as electron-builder sees it. */
 const PACKAGED_ICONS = 'node_modules/@elek-io/branding/dist/icons';
 
+/** The renderer electron-vite builds, which is what the app loads. */
+const RENDERER_BUNDLE = 'out/renderer/assets';
+
 async function sha256(file: string): Promise<string> {
   return createHash('sha256')
     .update(await readFile(file))
@@ -57,6 +60,14 @@ test.describe('Branding', () => {
       dependencies.filter((name) => name.startsWith('@radix-ui/'))
     ).toStrictEqual([]);
 
+    // A package the app never names is still installed and still shipped, which
+    // is how sixteen Radix packages came in behind one dependency. The lockfile
+    // is the whole installed tree, so it is read rather than the manifest alone.
+    const lockfile = await readFile('pnpm-lock.yaml', 'utf8');
+    expect(
+      lockfile.split('\n').filter((line) => line.includes('@radix-ui/'))
+    ).toStrictEqual([]);
+
     // The five controls ci draws that the app did not have before.
     const components = await readdir('src/renderer/components/ui');
     for (const added of [
@@ -84,6 +95,20 @@ test.describe('Branding', () => {
       }
     }
     expect(importingRadix).toStrictEqual([]);
+
+    // And what the built renderer carries, which is what a person runs. The two
+    // markers are the import specifier and the attributes Radix's primitives
+    // write into the DOM, rather than the word "radix", which a bundle may hold
+    // for `parseInt`'s second argument.
+    const bundles = await readdir(RENDERER_BUNDLE);
+    const shippingRadix: string[] = [];
+    for (const bundle of bundles.filter((name) => name.endsWith('.js'))) {
+      const code = await readFile(path.join(RENDERER_BUNDLE, bundle), 'utf8');
+      if (code.includes('@radix-ui') || code.includes('data-radix')) {
+        shippingRadix.push(bundle);
+      }
+    }
+    expect(shippingRadix).toStrictEqual([]);
   });
 
   test('ships the brand package icons as the app icons', async () => {

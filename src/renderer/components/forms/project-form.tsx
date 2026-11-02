@@ -21,13 +21,14 @@ import { AppForm } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import { Chip } from '@renderer/components/ui/chip';
 import {
-  CommandInput,
-  CommandEmpty,
-  CommandGroup,
-  CommandList,
-  CommandItem,
-  Command,
-} from '@renderer/components/ui/command';
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from '@renderer/components/ui/combobox';
 import {
   Dialog,
   DialogClose,
@@ -47,11 +48,6 @@ import {
   FormMessage,
   FormTextareaField,
 } from '@renderer/components/ui/form';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@renderer/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -219,54 +215,51 @@ export function ProjectForm<
                           })}
                         </ul>
                         {isViewOnly ? null : (
-                          <Popover>
-                            <PopoverTrigger render={<Button role="combobox" />}>
-                              <Plus className="mr-2 h-4 w-4" />
+                          <Combobox<SupportedLanguage>
+                            items={supportedLanguageSchema.options.filter(
+                              (language) =>
+                                field.value.includes(language) === false
+                            )}
+                            // The picker adds to the list above rather than
+                            // holding a selection of its own, so its value
+                            // stays empty and the chosen language leaves the
+                            // items.
+                            value={null}
+                            onValueChange={(language) => {
+                              if (language === null) {
+                                return;
+                              }
+                              projectForm.setValue(
+                                'settings.language.supported',
+                                [...field.value, language],
+                                { shouldValidate: true, shouldDirty: true }
+                              );
+                            }}
+                          >
+                            <ComboboxTrigger
+                              // The trigger carries the combobox role, whose
+                              // name is never its own text, so it says what it
+                              // shows.
+                              aria-label="Add language"
+                              render={<Button variant="outline" Icon={Plus} />}
+                            >
                               Add language
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[200px] p-0">
-                              <Command>
-                                <CommandInput placeholder="Search language..." />
-                                <CommandEmpty>No framework found.</CommandEmpty>
-                                <CommandGroup>
-                                  <CommandList>
-                                    {supportedLanguages
-                                      .filter(
-                                        (language) =>
-                                          projectForm
-                                            .watch(
-                                              'settings.language.supported'
-                                            )
-                                            .includes(language.value) === false
-                                      )
-                                      .map((language) => (
-                                        <CommandItem
-                                          key={language.value}
-                                          value={language.value}
-                                          onSelect={(currentValue) => {
-                                            projectForm.setValue(
-                                              'settings.language.supported',
-                                              [
-                                                ...projectForm.watch(
-                                                  'settings.language.supported'
-                                                ),
-                                                currentValue as SupportedLanguage,
-                                              ],
-                                              {
-                                                shouldValidate: true,
-                                                shouldDirty: true,
-                                              }
-                                            );
-                                          }}
-                                        >
-                                          {language.label}
-                                        </CommandItem>
-                                      ))}
-                                  </CommandList>
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
+                            </ComboboxTrigger>
+                            <ComboboxContent>
+                              <ComboboxInput
+                                placeholder="Search languages"
+                                showTrigger={false}
+                              />
+                              <ComboboxEmpty>No languages found.</ComboboxEmpty>
+                              <ComboboxList>
+                                {(language: SupportedLanguage) => (
+                                  <ComboboxItem key={language} value={language}>
+                                    {language}
+                                  </ComboboxItem>
+                                )}
+                              </ComboboxList>
+                            </ComboboxContent>
+                          </Combobox>
                         )}
                       </div>
                     </FormControl>

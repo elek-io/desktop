@@ -255,6 +255,24 @@ test.describe('Projects', () => {
       mainWindow.getByRole('button', { name: 'Remove de' })
     ).toBeVisible();
 
+    // Adding one goes through the picker: its list holds the languages this
+    // Project does not support yet, the search narrows them, and choosing one
+    // adds its chip. A language already supported is not offered.
+    await mainWindow.getByRole('combobox', { name: 'Add language' }).click();
+    const languages = mainWindow.getByRole('listbox');
+    await expect(languages).toBeVisible();
+    await expect(languages.getByRole('option', { name: 'de' })).toBeHidden();
+    await mainWindow
+      .getByRole('combobox', { name: 'Search languages' })
+      .fill('es');
+    await languages.getByRole('option', { name: 'es' }).click();
+    // Choosing closes the picker, which is also what keeps its popup out of the
+    // way of the dialogs the rest of this spec reaches for.
+    await expect(languages).toBeHidden();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Remove es' })
+    ).toBeVisible();
+
     // Removing the default language is blocked in place: the guard dialog opens
     // and 'en' is not removed.
     await mainWindow.getByRole('button', { name: 'Remove en' }).click();
@@ -285,13 +303,16 @@ test.describe('Projects', () => {
       mainWindow.getByRole('button', { name: 'Remove de' })
     ).toBeHidden();
 
-    // Saving persists the narrowed supported set. A reload re-reads from Core and
-    // shows only 'en' (de gone, en stayed), guarding the default-remove guard and
-    // the supported-set persistence.
+    // Saving persists the set as it now stands. A reload re-reads from Core and
+    // shows 'en' and the added 'es' (de gone, en stayed), guarding the
+    // default-remove guard, the picker and the supported-set persistence.
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     await reloadWindow(mainWindow);
     await expect(
       mainWindow.getByRole('button', { name: 'Remove en' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Remove es' })
     ).toBeVisible();
     await expect(
       mainWindow.getByRole('button', { name: 'Remove de' })
