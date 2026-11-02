@@ -26,9 +26,9 @@ function Skeleton({
  *
  * One component for every list, so a pane that loads looks the same everywhere
  * and no screen writes its own. The label says what is being read, since the
- * rows themselves carry no text, and it needs `role="status"`: ARIA prohibits
- * naming an element with no role, so on a plain `div` neither the name nor
- * `aria-busy` is exposed.
+ * rows themselves carry no text, and it sits on `role="status"`, which takes a
+ * name and `aria-busy` both. ARIA prohibits naming an element that has no role
+ * of its own, so on a plain `div` the label lands on a generic node instead.
  *
  * It is drawn for a pane's own body, which pads its content to the pane's text
  * edge. The rows span the pane by taking that padding back, so a row's rule
