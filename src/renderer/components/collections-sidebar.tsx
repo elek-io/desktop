@@ -122,7 +122,7 @@ export function CollectionsSidebarSkeleton({
             <SidebarMenu>
               {[1, 2, 3, 4, 5].map((index) => (
                 <SidebarMenuItem key={index}>
-                  <SidebarMenuButton render={<span />}>
+                  <SidebarMenuButton render={<div />}>
                     <LayersIcon />
                     <Skeleton className="h-4 w-2/3" />
                   </SidebarMenuButton>

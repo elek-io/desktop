@@ -179,12 +179,12 @@ export function UserDropdownSkeleton(): React.JSX.Element {
     <div className="flex items-center gap-2 px-4 py-1 text-left text-sm">
       <UserAvatarSkeleton className="rounded-lg" />
       <div className="grid flex-1 text-left text-sm leading-tight">
-        <span className="truncate font-medium">
+        <div className="truncate font-medium">
           <Skeleton className="h-4 w-12 rounded" />
-        </span>
-        <span className="truncate text-xs">
+        </div>
+        <div className="truncate text-xs">
           <Skeleton className="h-3 w-24 rounded" />
-        </span>
+        </div>
       </div>
       <ChevronDown className="ml-auto size-4" />
     </div>

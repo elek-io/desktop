@@ -123,12 +123,17 @@ function relativeLuminance({ r, g, b }: Rgb): number {
   return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
 }
 
-/** The WCAG 2.2 contrast ratio of two opaque colors, rounded to two digits. */
+/**
+ * The WCAG 2.2 contrast ratio of two opaque colors, cut to two digits.
+ *
+ * Cut rather than rounded, so the number never reads higher than the ratio is.
+ * A rounded 4.496 would report 4.5 and pass a threshold WCAG says it misses.
+ */
 export function contrastRatio(first: Rgb, second: Rgb): number {
   const a = relativeLuminance(first);
   const b = relativeLuminance(second);
   const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-  return Math.round(ratio * 100) / 100;
+  return Math.floor(ratio * 100) / 100;
 }
 
 /** The 0 to 255 channels a pixel comparison works in. */
