@@ -14,13 +14,28 @@ declare const window: Window & {
 interface ProbedElement {
   readonly tagName: string;
   readonly parentElement: ProbedElement | null;
+  readonly clientHeight: number;
+  readonly scrollHeight: number;
+  readonly scrollWidth: number;
   getAttribute(name: string): string | null;
+  getBoundingClientRect(): {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+    readonly right: number;
+    readonly bottom: number;
+  };
   matches(selectors: string): boolean;
+  querySelectorAll(selectors: string): ArrayLike<ProbedElement>;
 }
 
 /** The computed properties the branding spec measures. */
 interface ProbedStyle {
+  readonly animationName: string;
   readonly backgroundColor: string;
+  readonly flexShrink: string;
+  readonly overflowY: string;
   readonly borderTopColor: string;
   readonly boxShadow: string;
   readonly color: string;
@@ -38,6 +53,7 @@ declare const document: {
   body: { scrollWidth: number };
   readonly activeElement: ProbedElement | null;
   readonly documentElement: ProbedElement;
+  getAnimations(): ArrayLike<unknown>;
   readonly fonts: Iterable<{ family: string }> & {
     ready: Promise<unknown>;
   };
@@ -49,3 +65,27 @@ declare const localStorage: {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
 };
+
+/**
+ * One record the app wrote to Core's logger, as the main process received it.
+ *
+ * The log helper replaces the `core:logger:*` handlers and keeps what they are
+ * handed here, in the main process, where `electronApp.evaluate` can read it
+ * back. See tests/helpers/log.ts.
+ */
+interface RecordedLog {
+  level: string;
+  source: string;
+  message: string;
+  meta: Record<string, unknown>;
+}
+
+// eslint-disable-next-line no-var
+declare var recordedLogs: RecordedLog[] | undefined;
+
+/**
+ * Every address the app asked the system to open, kept in the main process the
+ * same way. See tests/helpers/external.ts.
+ */
+// eslint-disable-next-line no-var
+declare var openedExternally: string[] | undefined;

@@ -9,6 +9,7 @@ import { test } from '../fixtures/electronApp.js';
 import { contrastRatio, over, parseColor, toBytes } from '../helpers/color.js';
 import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
+import { openReportDialogFromHeader } from '../helpers/report.js';
 import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -207,7 +208,7 @@ test.describe('Branding', () => {
     for (const screen of screens) {
       await navigate(mainWindow, screen);
       await expect(
-        mainWindow.getByRole('button', { name: 'Feedback' })
+        mainWindow.getByRole('button', { name: 'Help' })
       ).toBeVisible();
       await mainWindow.getByRole('button', { name: /Test User/ }).click();
       await expect(mainWindow.getByRole('menu')).toBeVisible();
@@ -453,8 +454,7 @@ test.describe('Branding', () => {
     // follows the machine's theme until one is set.
     await setTheme(mainWindow, 'light');
 
-    await mainWindow.getByRole('button', { name: 'Feedback' }).click();
-    const dialog = mainWindow.getByRole('dialog');
+    const dialog = await openReportDialogFromHeader(mainWindow);
     await expect(dialog).toBeVisible();
 
     const segments = await mainWindow.evaluate(() => {

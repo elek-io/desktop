@@ -5,6 +5,7 @@ import { type ReactElement, useId, useState } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 
 import { Page } from '@renderer/components/page';
+import { Pane, Panel } from '@renderer/components/pane';
 import {
   ProjectCard,
   ProjectCardSkeleton,
@@ -120,38 +121,42 @@ function ListProjectsPage(): ReactElement {
 
   return (
     <>
-      <Page
-        title="Projects"
-        description={<Description />}
-        actions={<Actions />}
-      >
-        {isListingProjects ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {[1, 2, 3, 4, 5].map((i) => {
-              return <ProjectCardSkeleton key={i} />;
-            })}
-          </div>
-        ) : projects.total === 0 ? (
-          <Empty className="border border-dashed">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Plus />
-              </EmptyMedia>
-              <EmptyTitle>No Projects yet</EmptyTitle>
-              <EmptyDescription>
-                You haven&apos;t created any Projects yet. Get started by
-                creating a new or cloning an existing Project.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {projects.list.map((project) => {
-              return <ProjectCard key={project.id} project={project} />;
-            })}
-          </div>
-        )}
-      </Page>
+      <Panel>
+        <Pane>
+          <Page
+            title="Projects"
+            description={<Description />}
+            actions={<Actions />}
+          >
+            {isListingProjects ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {[1, 2, 3, 4, 5].map((i) => {
+                  return <ProjectCardSkeleton key={i} />;
+                })}
+              </div>
+            ) : projects.total === 0 ? (
+              <Empty className="border border-dashed">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Plus />
+                  </EmptyMedia>
+                  <EmptyTitle>No Projects yet</EmptyTitle>
+                  <EmptyDescription>
+                    You haven&apos;t created any Projects yet. Get started by
+                    creating a new or cloning an existing Project.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {projects.list.map((project) => {
+                  return <ProjectCard key={project.id} project={project} />;
+                })}
+              </div>
+            )}
+          </Page>
+        </Pane>
+      </Panel>
 
       <Dialog
         open={isCloningDialogOpen}

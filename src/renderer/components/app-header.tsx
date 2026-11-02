@@ -75,7 +75,7 @@ export function AppHeader({
   user?: ReactNode;
 }): ReactElement {
   return (
-    <header className="grid flex-none grid-cols-[248px_minmax(0,1fr)_auto] grid-rows-[32px_48px] pr-3">
+    <header className="grid flex-none grid-cols-[248px_minmax(0,1fr)_auto] grid-rows-[32px_48px]">
       <div
         className="window-draggable-area col-span-3 row-start-1"
         aria-hidden="true"
@@ -99,7 +99,9 @@ export function AppHeader({
         {trail}
       </div>
 
-      <div className="col-start-3 row-start-2 flex items-center gap-1">
+      {/* The user menu ends 12 px from the window's edge, and the bar above
+          this one reaches the edge, so the window controls have all of it. */}
+      <div className="col-start-3 row-start-2 flex items-center gap-1 pr-3">
         <HelpMenu />
         {user}
       </div>

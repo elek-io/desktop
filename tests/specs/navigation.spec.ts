@@ -3,11 +3,16 @@ import { expect, type Page } from '@playwright/test';
 import { test } from '../fixtures/electronApp.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
 import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
+import {
+  externalOpens,
+  recordExternalOpensViaIpc,
+} from '../helpers/external.js';
 import { bootOnHash, verifyCurrentRouteHash } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToProjectDashboard,
 } from '../helpers/project.js';
+import { openHelpMenu } from '../helpers/report.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
 /**
@@ -58,7 +63,8 @@ test.describe('Navigation', () => {
     );
   });
 
-  test('global chrome shows version info and navigates', async ({
+  test('global chrome shows Help and navigates', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -67,17 +73,19 @@ test.describe('Navigation', () => {
     // The dashboard gives a non-trivial breadcrumb trail (Projects > name > ...).
     await navigateToProjectDashboard(mainWindow, project.id);
 
-    // The app-header (banner landmark) holds the single "elek.io Desktop"
-    // version dropdown trigger.
-    const versionTrigger = mainWindow.getByRole('banner').getByRole('button');
-    await versionTrigger.click();
+    // The header lockup leads to the Projects page, which is the one link in
+    // the banner landmark.
+    await expect(
+      mainWindow
+        .getByRole('banner')
+        .getByRole('link', { name: 'elek.io Desktop, Projects' })
+    ).toBeVisible();
 
-    // Only version rows render in the dropdown now. Reporting used to live here
-    // as a "Report an issue" link out to GitHub and moved to the in-app dialog
-    // behind the header's Feedback button, covered by reports.spec.ts.
+    // Help holds the documentation, Report an issue and the versions.
+    await openHelpMenu(mainWindow);
     await expect(
       mainWindow.getByRole('menuitem', { name: 'Report an issue' })
-    ).toBeHidden();
+    ).toBeVisible();
     const versionRows = [
       'elek.io Desktop',
       'elek.io Core',
@@ -91,8 +99,15 @@ test.describe('Navigation', () => {
       // Each row appends a non-empty "v…" value; "v" only occurs in that value.
       await expect(row).toContainText(/v\S/);
     }
-    // Close the dropdown so it does not intercept the following interactions.
-    await mainWindow.keyboard.press('Escape');
+    // The documentation opens in the browser. The main process denies a
+    // hostname outside the ones it allows, so an address that reaches the
+    // system is one Desktop is allowed to open.
+    await recordExternalOpensViaIpc(electronApp);
+    await mainWindow.getByRole('menuitem', { name: /^Docs/ }).click();
+    await expect
+      .poll(async () => externalOpens(electronApp))
+      .toEqual(['https://elek.io/en/documentation']);
+    await expect(mainWindow.getByRole('menu')).toBeHidden();
 
     // Back/forward drive the router history. An in-app navigation (no reload)
     // pushes a history entry, so back returns to the dashboard and forward

@@ -58,15 +58,16 @@ test.describe('Root error boundary', () => {
     // The desktop app shows a decoded message (via parseIpcError) and, in the
     // technical detail block, the decoded Core origin stack. Neither carries the
     // raw IPC sentinel JSON, so the whole error view is free of it. The message
-    // is a plain `<p>` with no ARIA role, so key its visibility off the Page's
-    // card body, which holds it and not the Page header's description. Scoping
-    // structurally rather than filtering the description out by text keeps this
-    // from breaking every time the boundary's copy is reworded. Then assert the
-    // sentinel is absent from the entire main region (the `<pre>` included,
-    // which before the fix still leaked the encoded form).
+    // is a plain `<p>` with no ARIA role, so key its visibility off the block
+    // that holds the cause, which is the message and the stack and not the page
+    // head's description. Scoping structurally rather than filtering the
+    // description out by text keeps this from breaking every time the
+    // boundary's copy is reworded. Then assert the sentinel is absent from the
+    // entire main region (the `<pre>` included, which before the fix still
+    // leaked the encoded form).
     const errorMessage = mainWindow
       .getByRole('main')
-      .locator('[data-slot="card-content"] p');
+      .locator('[data-slot="error-cause"] p');
     await expect(errorMessage).toBeVisible();
     await expect(mainWindow.getByRole('main')).not.toContainText(
       IPC_CORE_ERROR_SENTINEL

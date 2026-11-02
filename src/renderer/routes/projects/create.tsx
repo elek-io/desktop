@@ -7,6 +7,7 @@ import { type SubmitHandler, useForm } from 'react-hook-form';
 
 import { ProjectForm } from '@renderer/components/forms/project-form';
 import { Page } from '@renderer/components/page';
+import { Pane, Panel } from '@renderer/components/pane';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { queryOptions } from '@renderer/queries';
@@ -64,17 +65,21 @@ function CreateProjectPage(): ReactElement {
   };
 
   return (
-    <Page
-      title="Create a new Project"
-      description={<Description />}
-      actions={<Actions />}
-    >
-      <ProjectForm
-        id={formId}
-        projectForm={createProjectForm}
-        isViewOnly={isCreatingProject}
-        onFormSubmit={onCreate}
-      />
-    </Page>
+    <Panel>
+      <Pane>
+        <Page
+          title="Create a new Project"
+          description={<Description />}
+          actions={<Actions />}
+        >
+          <ProjectForm
+            id={formId}
+            projectForm={createProjectForm}
+            isViewOnly={isCreatingProject}
+            onFormSubmit={onCreate}
+          />
+        </Page>
+      </Pane>
+    </Panel>
   );
 }

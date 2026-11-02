@@ -10,9 +10,9 @@
  *
  * A React error boundary catches everything thrown below it and cannot tell
  * the two apart by itself, because a failed read and a failed write arrive as
- * the same `CoreError`. So the only two places that throw a failed read in
- * render, `useQueryNoError` and `useQueriesNoError`, mark it here, and a pane's
- * boundary re-throws anything that carries no mark.
+ * the same `CoreError`. So the query cache marks every read that failed, in
+ * `queries/client.ts`, which is the one place a failure is known to be a read's,
+ * and a pane's boundary re-throws anything that carries no mark.
  *
  * The mark is kept in a `WeakSet` rather than written onto the error, so
  * nothing is added to what the error screen shows, what a log record carries or
@@ -27,8 +27,7 @@ function isMarkable(error: unknown): error is object {
 }
 
 /**
- * Marks `error` as a failed read and returns it unchanged, so a thrower can
- * `throw markReadFailure(error)`.
+ * Marks `error` as a failed read and returns it unchanged.
  */
 export function markReadFailure<TError>(error: TError): TError {
   if (isMarkable(error)) {

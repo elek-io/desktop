@@ -6,8 +6,6 @@ import {
   type UseQueryOptions,
 } from '@tanstack/react-query';
 
-import { markReadFailure } from '@renderer/lib/readFailure';
-
 import type { UseQueryResultNoError } from './useQueryNoError';
 
 /**
@@ -61,8 +59,7 @@ export function useQueriesNoError<
 
   for (const query of queries) {
     if (query.isError) {
-      // Marked like the single query's, see useQueryNoError.
-      throw markReadFailure(query.error);
+      throw query.error;
     }
   }
 
