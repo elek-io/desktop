@@ -44,11 +44,21 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   routes a rejection thrown after the awaited `onSubmit` to the root error
   boundary. See [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
 - **Every field is an `AppField`.** It is the only thing that draws a label, a
-  description and an error, and it draws them in shadcn's `Field`. A field with
-  no form behind it, the Collection editor's previews, uses the same shell
-  through `FieldShell`. `name` is typed against the form passed in, so a path
-  that form does not hold is a compile error at the call site. See
-  [The field shell](#the-field-shell).
+  rule, a warning, a description and an error, and it draws them in shadcn's
+  `Field`. A field with no form behind it, the Collection editor's previews,
+  uses the same shell through `FieldShell`. `name` is typed against the form
+  passed in, so a path that form does not hold is a compile error at the call
+  site. See [The field shell](#the-field-shell).
+- **A field's rules come from Core, never from a form.** A generated field
+  takes them from its field definition, through its type's `rules`, and a
+  hand-written field reads them off the Core schema its `AppForm` is given. A
+  limit Core sets is therefore never written out in a form. Where no schema can
+  answer, `required` is a prop with no default. See
+  [What a field says it needs](#what-a-field-says-it-needs).
+- **No input carries placeholder text.** A lint rule bans the attribute across
+  the renderer, with one exception: the filter of a list keeps its name inside
+  its field, through `FilterInput`. See
+  [Placeholder text](#placeholder-text).
 - **Every field type has a folder, and the registry is exhaustive over Core's
   `FieldType`.** A field type Core adds fails to compile until it has one, and
   nothing outside a type's folder branches on a field type or a value type,
@@ -63,7 +73,10 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   react-hook-form is the sole validator. The one exception is the range `Slider`'s
   `min` / `max`, which is its functional value domain. A test asserts a required
   field renders without them. Required-ness still reaches assistive tech through
-  `aria-required`, an ARIA state that never blocks submit.
+  `aria-required`, an ARIA state that never blocks submit. A numeric input does
+  carry `step="any"`, which is the opposite of a constraint: without it the
+  browser steps by whole numbers and marks a decimal as a step mismatch, while
+  Core's number Values take any number.
 - **By-type `CoreError` handling goes through `useAppMutation`.** Its `handled`
   map is the single source of the "expected" set, never a blanket
   `throwOnError: false`. Unhandled failures reach the root error boundary. See
@@ -209,10 +222,16 @@ focus. Save simply did nothing.
 messages claims the paths it covers through `useErrorTarget(name)` (`AppField`
 claims its own path, `TranslatableField` claims its base path because the dialog
 trigger flags a hidden language). On a failed submit `AppForm` flattens
-`formState.errors`, subtracts everything a claimed path covers, and renders what
-is left in a focused `role="alert"` at the top of the form, plus an error through
-Core's logger so it is loud in a dev run. That surface is a backstop for a bug,
-not a design: an error that reaches it should get a real home.
+`formState.errors`, subtracts everything a claimed path covers, and says one
+sentence in a focused `role="alert"` at the top of the form where anything is
+left, plus an error through Core's logger so it is loud in a dev run.
+
+**The sentence carries no path, and the log record carries every one of them.**
+An internal path says nothing to the person reading it, while it is the one
+thing of use to whoever has to fix the bug behind it, and that is the log file.
+`FieldSubtreeError` follows the same rule: it renders each message and not the
+path it sits at. That surface is a backstop for a bug, not a design: an error
+that reaches it should get a real home.
 
 Giving one a real home is what `FieldSubtreeError` is for. Point it at a value
 that is bound as a single `Controller` but rendered as something else, and it
@@ -232,9 +251,15 @@ been mounted. So a required dynamic field whose last section was just removed
 reported `values.sections.content.root`, which the field's own message did not
 show and `AppForm`'s backstop counted as covered, and the submit said nothing at
 all. `AppField` reads that `root` error as the field's own, so the message lands
-on the field it belongs to. A nested error object without a
-`root` is left alone, so a field holding only errors below it still renders no
-message of its own.
+on the field it belongs to.
+
+**A nested error marks only the field it belongs to.** An error object without a
+`root` is left alone, so a field holding only errors below it renders no message
+and is not marked invalid either: a required field left empty inside a section
+is answered by that field, and the dynamic field around it says nothing, since
+pointing at the list of sections would not say which field to fill.
+[`entries.spec.ts`](../../tests/specs/entries.spec.ts) drives both halves of
+that.
 
 The UX follows the rest of the app: nothing is disabled to express "invalid",
 validation runs on the submit click, and the error appears then.
@@ -253,8 +278,8 @@ stays in place. What reaches the boundary is what nothing chose to handle.
 
 A form's `onSubmit` awaits a TanStack Query mutation. Most failures should reach
 the root error boundary, but some expected `CoreError` types should be handled in
-place instead of taking over the screen. An Entry that collides with another Entry
-on a unique field is the canonical case.
+place instead of taking over the screen. An Entry whose Value another Entry
+already holds is the canonical case.
 
 [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) is the single home
 for that. Pass a `handled` map from `CoreError` type to an in-place handler. The
@@ -265,13 +290,9 @@ dispatch can never drift. It returns a `handleError(error)` to call from the
 `catch` of `await mutateAsync(...)`:
 
 ```tsx
+const refusals = useEntryRefusals(createEntryForm);
 const { mutateAsync, handleError } = useAppMutation(queryOptions.entries.create, {
-  handled: {
-    Conflict: (error) => {
-      setConflictError(error);
-      setIsConflictDialogOpen(true);
-    },
-  },
+  handled: refusals,
 });
 
 try {
@@ -286,6 +307,24 @@ Keep the success path inside the `try`, so a handled failure skips it. Every oth
 failure still propagates to the boundary. Never opt a whole mutation out with a
 blanket `throwOnError: false`. The full recipe, including how to map a type to
 user-facing copy, is in [error-handling.md](../error-handling.md).
+
+**A refusal that belongs on a field is marked on it, with `setError`.** An
+Entry's two forms share one map,
+[`useEntryRefusals`](../../src/renderer/hooks/useEntryRefusals.ts), so both
+answer the same refusals the same way, and the Value another Entry holds, a
+reference that points at nothing and an Asset of a type the field does not take
+each land below their own field, in their section and their language. That is
+where ci's Messages table puts a field that is wrong, and it replaced the dialog
+both forms used to open.
+
+**A handler whose refusal names no field of this form throws the error on.** The
+same `Conflict` Core raises for a taken Value also stands for refusals that name
+nothing a form holds, and a `BadRequest` does too. The handler runs inside the
+submit's `catch`, so throwing there leaves `handleSubmit` rejecting, which
+`AppForm` re-throws during render and the root error boundary takes, see
+[When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
+Swallowing it instead would leave a save that said nothing and wrote nothing to
+the log.
 
 Most forms do not need this. A plain `useMutation` sends every failure to the
 boundary, which is the right default.
@@ -379,14 +418,13 @@ typed by `TFieldValues` alone.
 Every field of every form is one `AppField`
 ([`components/ui/app-form.tsx`](../../src/renderer/components/ui/app-form.tsx)):
 react-hook-form's `Controller` drawn in the one shell. Nothing else in the app
-draws a label, a description or an error.
+draws a label, a rule, a warning, a description or an error.
 
 ```tsx
 <AppField
   form={assetForm}
   name="name"
   label={<Trans>Asset name</Trans>}
-  required
   description={<Trans>What this Asset is called in your Project.</Trans>}
 >
   {({ field, controlProps }) => (
@@ -395,17 +433,19 @@ draws a label, a description or an error.
 </AppField>
 ```
 
-- **The shell is shadcn's `Field`**, holding the label, the control, the
-  description and the error in that order, which is the order ci draws a field
-  in. `orientation="horizontal"` puts the words beside the control instead,
-  which is what the switches of the field definition forms are.
+- **The shell is shadcn's `Field`**, holding the label with the field's rules at
+  its top right, then the control, the warning, the description and the error,
+  which is the order ci draws a field in. `orientation="horizontal"` puts the
+  words beside the control instead, which is what the switches of the field
+  definition forms are.
 - **It mints its own ids** with `useId` and hands them to the control through
   `controlProps`, so the label's `htmlFor` names the real focusable element by
   construction rather than by a caller remembering to wire it.
-- **`aria-describedby` names only the parts that are on screen.** A field with
-  no description and no error says nothing, instead of pointing at elements that
-  are not there. `aria-invalid` is always said, since a control that was valid
-  and then is not has to change rather than gain the state.
+- **`aria-describedby` names only the parts that are on screen**, in the order
+  they stand in: the rules, the warning, the description, the error. A field
+  with none of them says nothing, instead of pointing at elements that are not
+  there. `aria-invalid` is always said, since a control that was valid and then
+  is not has to change rather than gain the state.
 - **`name` is typed against the form that is passed in.** A path the form does
   not hold is a compile error at the call site. A shared form body that stays
   generic over its caller's values asserts only the name (`as FieldPath<T>`),
@@ -419,10 +459,17 @@ draws a label, a description or an error.
   and a list of them read the same. That paragraph's slot is what
   [`branding.spec.ts`](../../tests/specs/branding.spec.ts) measures the error
   color on.
-- **`required` only marks the label.** It suppresses the " - optional" suffix
-  `Label` appends otherwise. A generated field's `aria-required` comes from its
-  field type's folder instead, see
-  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md).
+- **The rules say whether the field is required**, and the shell offers
+  `aria-required` to every control of a required field. A control whose role
+  does not take the attribute drops it, see
+  [What a field says it needs](#what-a-field-says-it-needs).
+- **A field takes the width its definition asks for**, through `fieldWidth`
+  ([`lib/utils.ts`](../../src/renderer/lib/utils.ts)), as a container query
+  rather than a viewport one: a field that would get less than 160 px stacks at
+  full width, measured against the area it sits in. The grid that lays fields
+  out is the container, which is why each of those grids carries `@container`.
+  [`forms.spec.ts`](../../tests/specs/forms.spec.ts) drives it at the smallest
+  window.
 
 **`FieldShell`** is the same shell without a form, for a field that has no form
 state behind it. The Collection editor's previews are the case: the control
@@ -433,6 +480,51 @@ and the label still names a real, disabled control.
 bound as a single `Controller` but drawn as something other than a field (the
 field definitions array). See
 [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
+
+### What a field says it needs
+
+A field states its rules at the top right of its label before anybody presses
+Save, such as "Required, up to 200 characters". They wrap below the label when
+they do not fit beside it, and the control names them in `aria-describedby`, so
+they are read out with it rather than left to somebody who can see them.
+
+Nothing in a form writes a rule out. Each of the two kinds of field has one
+source:
+
+- **A generated field** asks its type's folder, through `rules(fieldDefinition)`
+  ([`components/fields/rules.ts`](../../src/renderer/components/fields/rules.ts)
+  holds the ones more than one type shares). A type that always holds a Value, a
+  toggle or a slider, answers with none: Core marks it required because it can
+  never be empty, so saying so would name a rule nobody can break.
+- **A hand-written field** reads the Core schema its `AppForm` is given, through
+  [`lib/fieldRules.ts`](../../src/renderer/lib/fieldRules.ts) and the walk in
+  [`lib/schemaConstraints.ts`](../../src/renderer/lib/schemaConstraints.ts).
+  Pass the same schema the resolver was built from, as every form does. The walk
+  reads zod's own API, so a limit Core changes reaches the label with no change
+  here.
+
+Two answers the walk deliberately does not give, because Core asking for a key
+is not a rule the person in front of the field could break: a list and a
+boolean are never reported as required. A list that really has to hold
+something says so through the `required` prop, which carries no default, and a
+field nothing can answer for shows no rule rather than claiming it is optional.
+That is the way round ci asks for: the app marks what is needed, where the old
+" - optional" suffix marked what is not.
+
+### Placeholder text
+
+No input carries placeholder text. It makes an empty field look filled and
+rarely adds anything the label does not already say, and a lint rule holds it
+across the renderer.
+
+The one exception is the field that filters a list, which keeps its name inside
+itself because it stands above that list with no label of its own and what
+somebody types in it is never read back as a Value. Every filter goes through
+[`components/ui/filter-input.tsx`](../../src/renderer/components/ui/filter-input.tsx),
+which is the one file the rule is dropped in, and which also puts the name on
+`aria-label` rather than leaving the accessible name to the placeholder.
+[`field-registry.spec.ts`](../../tests/specs/field-registry.spec.ts) drives the
+rule on every spelling of the attribute and on that one component.
 
 ### The shared controls and their value contracts
 
@@ -515,12 +607,21 @@ fire on an intentional violation.
 - **A test asserts the shell's order, after a refused submit.** The same spec
   reads a described required field's `aria-describedby` once before a submit and
   once after one the resolver refused, and checks that the label leads the
-  control, that the ids name the description and then the error, and that both
-  of those sit after the control. The order is only observable with an error on
-  screen, which is why a refused submit is what drives it.
+  control, that the ids name the rules, the description and then the error, and
+  that the last two sit after the control while the rules do not. The order is
+  only observable with an error on screen, which is why a refused submit is what
+  drives it.
 - **A test asserts a loading form is disabled.** The same spec hangs the Entry's
   own read, so the window a form fills in is stable, and checks that the field
   is on screen, cannot be written into, and that Save is held with it.
+- **A test asserts what each kind of field says it needs.** The same spec reads
+  the rules of a generated field per shape of rule, and of the Profile's
+  hand-written ones, whose character limits exist only in Core's own User
+  schema, so a number on screen there proves the walk reads the real schema.
+- **Placeholder text is a lint error**, in every shape the attribute is written
+  in, with the one exception of `FilterInput`.
+  [`field-registry.spec.ts`](../../tests/specs/field-registry.spec.ts) drives
+  all of them, see [Placeholder text](#placeholder-text).
 
 Every lint rule lives in [`eslint.config.mjs`](../../eslint.config.mjs). A
 rule's options replace rather than merge with an earlier config block's, so the
@@ -528,8 +629,9 @@ renderer's whole `no-restricted-syntax` list is declared once as
 `rendererRestrictedSyntax` and each blessed file reads it back through
 `exceptFor`, naming only what it drops: `app-form.tsx` drops the raw `<form>`
 and the literal `type="submit"`, a field type's folder drops the two field-type
-bans, and `useAppForm.ts` drops the raw-`useForm` ban. Add a new ban to that one
-list, so it reaches those files too.
+bans, `useAppForm.ts` drops the raw-`useForm` ban, and `filter-input.tsx` drops
+the placeholder ban. Add a new ban to that one list, so it reaches those files
+too.
 
 One rule was deliberately **not** written: "forbid `useAppForm` outside
 `components/forms`". It is self-contradictory, because `AppForm` takes the form

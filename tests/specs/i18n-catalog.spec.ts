@@ -110,11 +110,13 @@ test.describe('The message catalog', () => {
       // One per surface the criterion names, by the line it sits on: `title`
       // and the JSX text on line 3, `alt` on 5, the accessible name on 6, the
       // placeholder on 7, a string in an expression on 8 and a `title` built
-      // around a value on 9. `title` and `alt` are caught twice, by Lingui's
-      // rule and by the selector that covers the attributes it lets through on
-      // a native element.
+      // around a value on 9. Three are caught twice: `title` and `alt` by
+      // Lingui's rule and by the selector that covers the attributes it lets
+      // through on a native element, and the placeholder by the rule against
+      // placeholder text as well, see
+      // contributing/renderer/forms.md#placeholder-text.
       expect(flagged.map((message) => message.line).sort()).toEqual([
-        3, 3, 5, 5, 6, 7, 8, 9,
+        3, 3, 5, 5, 6, 7, 7, 8, 9,
       ]);
     } finally {
       await rm(probe);

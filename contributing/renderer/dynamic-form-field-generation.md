@@ -111,7 +111,7 @@ Field-definition authoring is part of the type's folder: each type's own `Defini
 
 ### Writing a `DefinitionSpec`
 
-A spec ([`field-definition-draft.tsx`](../../src/renderer/components/forms/field-definition-draft.tsx)) is a `resolver` built from Core's per-type schema, a `makeDefaults` that returns a fresh draft, an optional `Extras` component for the controls beyond the shared base, and the optional `requiredNote` and `uniquenessNote` that lock those two switches. Three rules govern what may go in one.
+A spec ([`field-definition-draft.tsx`](../../src/renderer/components/forms/field-definition-draft.tsx)) is Core's per-type `schema` with the `resolver` built from it, a `makeDefaults` that returns a fresh draft, an optional `Extras` component for the controls beyond the shared base, and the optional `requiredNote` and `uniquenessNote` that lock those two switches. The schema stands beside the resolver because the draft's `AppForm` hands it to its fields, which read their own rules off it, and because one type's form values and its schema's output diverge, which a single member could not type for every type at once. Three rules govern what may go in one.
 
 **Type-specific context arrives through `DefinitionExtrasProps`, and it is shared.** Every `Extras` receives `form`, `currentLanguage`, `supportedLanguages` and the Collection's current `fieldDefinitions`, whether it needs them or not. Only `select` reads the languages (its option labels are translatable) and only `slug` reads the sibling definitions (to offer non-slug string fields as slug sources, whose real ids Core's `slugSourceReferencesSuperRefinement` then validates). When a new type needs context the others do not, widen this one shared type rather than branching in the shared base or the sheet.
 
@@ -156,6 +156,7 @@ A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fiel
 | `Control`              | The control, with this type's Value contract                   |
 | `translatable`         | Whether the Value is per-language                              |
 | `acceptsAriaRequired`  | Whether the control's role takes `aria-required`               |
+| `rules`                | What a field of this type says it needs, beside its label      |
 | `defaultContent`       | The Value's content for a new Entry                            |
 | `previewContent`       | The static content the Collection's preview shows              |
 | `listCell`             | What a row of the list of Entries shows for this Value         |
@@ -193,11 +194,11 @@ The contracts more than one type shares, such as "a per-language record holding 
 
 #### The controls
 
-A type's control is value-typed: it receives the already-bound `field` (value/onChange/onBlur/ref) plus a `controlProps` bag (`id`, `aria-describedby`, `aria-invalid`, and `aria-required` on the controls that accept it) to place on the real input. It does not know or build a form path. The path lives at the single `Controller` in `FieldFromDefinition`, which is what lets one control serve both a hand-written form and a generated one.
+A type's control is value-typed: it receives the already-bound `field` (value/onChange/onBlur/ref) plus a `controlProps` bag (`id`, `aria-describedby`, `aria-invalid`, and `aria-required` on the controls that accept it) to place on the real input. The shell offers `aria-required` to every control of a required field and `FieldFromDefinition` drops it again where the type's `acceptsAriaRequired` says its role does not take it, so required is said in one place and emitted only where it is allowed. It does not know or build a form path. The path lives at the single `Controller` in `FieldFromDefinition`, which is what lets one control serve both a hand-written form and a generated one.
 
 The controls more than one type shares are in [`components/ui/field-controls.tsx`](../../src/renderer/components/ui/field-controls.tsx) with their value contracts, see [forms.md](./forms.md#the-shared-controls-and-their-value-contracts). A control a single type owns is in that type's folder, as `control.tsx` where it is more than a few lines. Do not hand-roll a raw `<Input>` in a control.
 
-- **No control emits a native constraint attribute.** zod (through react-hook-form) is the only validator and the form is `noValidate`, so no control sets `required` / `min` / `max` / `minLength` / `maxLength`. The one exception is the range `Slider`'s `min` / `max`, which are its functional value domain rather than HTML constraints. A test asserts a required field renders with no `required` attribute. Required-ness still reaches assistive tech, through `aria-required`, which `FieldFromDefinition` sets where the type's `acceptsAriaRequired` says its role takes it. The range slider, toggle, reference and markdown fields do not, and convey required through their label.
+- **No control emits a native constraint attribute.** zod (through react-hook-form) is the only validator and the form is `noValidate`, so no control sets `required` / `min` / `max` / `minLength` / `maxLength`. The one exception is the range `Slider`'s `min` / `max`, which are its functional value domain rather than HTML constraints. A test asserts a required field renders with no `required` attribute. Required-ness still reaches assistive tech, through `aria-required`, which `FieldFromDefinition` keeps where the type's `acceptsAriaRequired` says its role takes it. The range slider, toggle, reference and markdown fields do not, and carry it in the rules beside their label instead, which their `aria-describedby` names, see [forms.md](./forms.md#what-a-field-says-it-needs).
 - **`SlugControl` resolves its source ids** through `useFieldDefinitions()` ([`hooks/useFieldDefinitions.ts`](../../src/renderer/hooks/useFieldDefinitions.ts)), provided by the `FieldDefinitionsProvider` ([`providers/FieldDefinitionsProvider.tsx`](../../src/renderer/providers/FieldDefinitionsProvider.tsx)) that `EntryForm` wraps its fields in. Outside of it (for example the Collection editor preview) the input is simply manual.
 
 #### Drawing a field from a definition

@@ -1116,16 +1116,22 @@ test.describe('Collections', () => {
 
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
-    // The Field definitions area reports the error, naming the path it sits at.
-    // Assert the path, which is the app's own copy, not Core's message text.
+    // The Field definitions area reports the error, in a message of its own.
+    // The path it sits at is internal, so it stays out of what is on screen
+    // and goes to the log instead, see contributing/renderer/forms.md.
+    const reported = mainWindow
+      .locator('[data-slot="field-error"] [data-slot="form-message"]')
+      .first();
+    await expect(reported).toBeVisible();
+    await expect(reported).not.toHaveText('');
     await expect(
       mainWindow.getByText('fieldDefinitions.0.label.de')
-    ).toBeVisible();
+    ).toBeHidden();
 
     // It reports there and not through AppForm's whole-form backstop, which
     // proves the error found a real home rather than the catch-all.
     await expect(
-      mainWindow.getByText('not shown on any of its fields')
+      mainWindow.getByText('none of its fields says why')
     ).toBeHidden();
 
     // Nothing was saved, so the route stays on the update form with the values

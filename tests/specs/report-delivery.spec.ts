@@ -105,8 +105,8 @@ test.describe('Delivering a report to Cloud', () => {
     await dialog
       .getByLabel('What went wrong?')
       .fill('Renaming a Project does not update the breadcrumb.');
-    await dialog.getByLabel('Name - optional').fill('');
-    await dialog.getByLabel('Email - optional').fill('');
+    await dialog.getByLabel('Name', { exact: true }).fill('');
+    await dialog.getByLabel('Email', { exact: true }).fill('');
     await dialog.getByRole('button', { name: 'Send report' }).click();
     await expect(dialog).toBeHidden();
 
