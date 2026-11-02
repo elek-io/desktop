@@ -90,8 +90,13 @@ export interface FieldTypeModule<T extends FieldType> {
   translatable: boolean;
   /**
    * Whether the control's role accepts `aria-required`, which stands in for
-   * the native `required` no field emits. Where it does not, the field conveys
-   * required through the accessible name of the control that takes focus.
+   * the native `required` no field emits.
+   *
+   * Where it does not, the word stands in the rules beside the label, which
+   * the control names in `aria-describedby`, so it is still read out with the
+   * control. A type that always holds a Value says nothing either way, since
+   * it shows no rule at all: a toggle and a range are the two, and neither can
+   * be left empty.
    */
   acceptsAriaRequired: boolean;
   /**
