@@ -42,6 +42,24 @@ export function fieldRules(parts: {
 }
 
 /**
+ * The same rules with Required said, where the caller knows it and the schema
+ * cannot.
+ *
+ * A list is the case: Core refuses a Project without a language, and zod's
+ * public API carries no minimum for an array, so the walk answers that nothing
+ * about being required can be read. The field says it through the prop the
+ * shell takes instead, which only ever adds the word, since a Core schema
+ * stays the authority on what Core refuses. See `AppField`.
+ */
+export function alsoRequired(rules: FieldRules): FieldRules {
+  if (rules.required) {
+    return rules;
+  }
+
+  return { required: true, words: [t`Required`, ...rules.words] };
+}
+
+/**
  * A field that always holds a Value, such as a toggle or a slider.
  *
  * Core marks it required, since it can never be empty, so saying so would

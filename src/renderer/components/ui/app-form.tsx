@@ -42,6 +42,7 @@ import {
   type AppFormContextValue,
 } from '@renderer/hooks/useAppFormContext';
 import {
+  alsoRequired,
   fieldRules,
   fieldRulesFromSchema,
   fieldRulesLine,
@@ -239,6 +240,10 @@ export interface AppFieldProps<
    * Whether the field has to be filled, for a field no field definition and no
    * Core schema can answer for. It carries no default, so a field says nothing
    * about itself rather than claiming it is optional.
+   *
+   * It only ever adds Required to what the schema says, never takes it away: a
+   * list is the case it exists for, where Core refuses an empty one and zod's
+   * public API carries no minimum to read it off.
    */
   required?: boolean;
   children: (props: AppFieldRenderProps<TFieldValues, TName>) => ReactNode;
@@ -273,10 +278,14 @@ export function AppField<
   // because the schema a generated field is checked by is built from that
   // definition in the first place.
   const schema = useAppFormSchema();
+  // What the schema says, which is nothing at all for a path it cannot follow,
+  // and then the caller's own answer on top of it where it passed one. A list
+  // is why the two are composed rather than ordered: its bounds come off the
+  // schema while Required cannot, see `alsoRequired`.
+  const fromSchema =
+    fieldRulesFromSchema(schema, name) ?? fieldRules({ required: false });
   const shownRules =
-    rules ??
-    fieldRulesFromSchema(schema, name) ??
-    fieldRules({ required: required ?? false });
+    rules ?? (required === true ? alsoRequired(fromSchema) : fromSchema);
 
   return (
     <Controller
