@@ -219,10 +219,10 @@ const noResetInEffect = {
 };
 
 // Everything `no-restricted-syntax` bans in the renderer, declared once. Each
-// blessed file below subtracts the one or two bans it legitimately needs
-// dropped, with `exceptFor`, rather than repeating the list: a rule added here
-// has to reach every one of those files, and a repeated list is how four of
-// them missed app-form.tsx.
+// blessed file below subtracts the bans it legitimately needs dropped, with
+// `exceptFor`, rather than repeating the list: a rule added here has to reach
+// every one of those files, and a list repeated per file is what let rules this
+// one carries miss app-form.tsx altogether.
 const rendererRestrictedSyntax = [
   noEnumDeclaration,
   noRawForm,
