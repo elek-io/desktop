@@ -25,8 +25,15 @@ function Skeleton({
  * each a still bar, in the geometry of a real row.
  *
  * One component for every list, so a pane that loads looks the same everywhere
- * and no screen writes its own. `aria-busy` with a label says what is being
- * read, since the rows themselves carry no text.
+ * and no screen writes its own. The label says what is being read, since the
+ * rows themselves carry no text, and it needs `role="status"`: ARIA prohibits
+ * naming an element with no role, so on a plain `div` neither the name nor
+ * `aria-busy` is exposed.
+ *
+ * It is drawn for a pane's own body, which pads its content to the pane's text
+ * edge. The rows span the pane by taking that padding back, so a row's rule
+ * ends on the pane's divider the way a real row's does, and each row carries
+ * the text edge itself.
  */
 function SkeletonRows({
   rows = 6,
@@ -52,16 +59,20 @@ function SkeletonRows({
   return (
     <div
       data-slot="skeleton-rows"
+      role="status"
       aria-busy="true"
       aria-label={label}
-      className={cn('border-t', className)}
+      className={cn('-mx-(--pane-edge) border-t', className)}
       {...props}
     >
       {Array.from({ length: rows }, (_row, index) => {
         const [title, sub] = widths[index % widths.length] ?? ['72%', '44%'];
 
         return (
-          <div key={index} className="flex flex-col border-b py-2.5">
+          <div
+            key={index}
+            className="flex flex-col border-b px-(--pane-edge) py-2.5"
+          >
             <Skeleton className="my-1 h-3" style={{ width: title }} />
             <Skeleton className="mt-1.5 mb-1 h-2" style={{ width: sub }} />
           </div>
