@@ -168,7 +168,7 @@ A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fiel
 
 The last four are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components and the one that can be edited at all. `DefinitionDraft` is optional too, for a type Core defines and the client cannot author yet, and every type carries one today.
 
-**The registry** ([`fields/index.ts`](../../src/renderer/components/fields/index.ts)) is a mapped type over Core's `FieldType`, so a field type Core adds **fails to compile until it has a folder**, and the message names the types whose folder is missing. Reach a module through `fieldModule(fieldDefinition)`, which is generic over the field type so the module and the definition stay correlated: every member of what comes back takes exactly the definition that was passed in. Always read the module from the definition it is about, never pair one definition's module with another definition.
+**The registry** ([`fields/index.ts`](../../src/renderer/components/fields/index.ts)) is a mapped type over Core's `FieldType`, so a field type Core adds **fails to compile until it has a folder**, and the message names the types whose folder is missing. That mapped type is exported as `FieldTypeRegistry`, so the type test can name it rather than write it out again, see [forms.md](./forms.md#guardrails). Reach a module through `fieldModule(fieldDefinition)`, which is generic over the field type so the module and the definition stay correlated: every member of what comes back takes exactly the definition that was passed in. Always read the module from the definition it is about, never pair one definition's module with another definition.
 
 ```typescript
 import { fieldModule } from '@renderer/components/fields';
@@ -198,7 +198,7 @@ A type's control is value-typed: it receives the already-bound `field` (value/on
 The controls more than one type shares are in [`components/ui/field-controls.tsx`](../../src/renderer/components/ui/field-controls.tsx) with their value contracts, see [forms.md](./forms.md#the-shared-controls-and-their-value-contracts). A control a single type owns is in that type's folder, as `control.tsx` where it is more than a few lines. Do not hand-roll a raw `<Input>` in a control.
 
 - **No control emits a native constraint attribute.** zod (through react-hook-form) is the only validator and the form is `noValidate`, so no control sets `required` / `min` / `max` / `minLength` / `maxLength`. The one exception is the range `Slider`'s `min` / `max`, which are its functional value domain rather than HTML constraints. A test asserts a required field renders with no `required` attribute. Required-ness still reaches assistive tech, through `aria-required`, which `FieldFromDefinition` sets where the type's `acceptsAriaRequired` says its role takes it. The range slider, toggle, reference and markdown fields do not, and convey required through their label.
-- **`FormSlugField` resolves its source ids** through `useFieldDefinitions()` ([`hooks/useFieldDefinitions.ts`](../../src/renderer/hooks/useFieldDefinitions.ts)), provided by the `FieldDefinitionsProvider` ([`providers/FieldDefinitionsProvider.tsx`](../../src/renderer/providers/FieldDefinitionsProvider.tsx)) that `EntryForm` wraps its fields in. Outside of it (for example the Collection editor preview) the input is simply manual.
+- **`SlugControl` resolves its source ids** through `useFieldDefinitions()` ([`hooks/useFieldDefinitions.ts`](../../src/renderer/hooks/useFieldDefinitions.ts)), provided by the `FieldDefinitionsProvider` ([`providers/FieldDefinitionsProvider.tsx`](../../src/renderer/providers/FieldDefinitionsProvider.tsx)) that `EntryForm` wraps its fields in. Outside of it (for example the Collection editor preview) the input is simply manual.
 
 #### Drawing a field from a definition
 
@@ -309,7 +309,9 @@ Use the generated Zod schema with [React Hook Form's Zod resolver](https://react
 
 ```typescript
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+
+import { useAppForm } from '@renderer/hooks/useAppForm';
+
 import {
   flattenFieldDefinitions,
   getUpdateEntrySchemaFromFieldDefinitions,

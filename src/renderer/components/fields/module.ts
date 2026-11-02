@@ -114,7 +114,7 @@ export interface FieldTypeModule<T extends FieldType> {
   listCell: (props: FieldTypeListCellProps<T>) => unknown;
   /**
    * This Value's text where an Entry is named by one of its Values, or `null`
-   * where the type names no Entry. See `entryTitle` in `index.ts`.
+   * where the type names no Entry. See `entryTitle` in `entry-title.ts`.
    */
   titleText: (props: {
     content: unknown;

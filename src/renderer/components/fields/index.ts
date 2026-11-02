@@ -21,12 +21,23 @@ import type { FieldType } from '@elek-io/core';
 
 import type { FieldTypeModule } from './module';
 
-// The registry: one module per Core field type, assembled from the folders. It
-// is the only way anything outside a type's folder reaches what Desktop knows
-// about that type, which is why nothing else branches on a field type or a
-// value type, and a lint rule says so.
+// The registry: one module per Core field type, assembled from the folders.
+// Everything outside a type's folder reads that type's module through
+// `fieldModule`, which is why nothing else branches on a field type or a value
+// type, and a lint rule says so. A folder may also export a helper for a Value
+// shape only that type knows, which `dynamic/sections.ts` is: the branching
+// still happens inside the folder.
 //
 // See contributing/renderer/dynamic-form-field-generation.md.
+
+/**
+ * The registry's own type: one module per Core field type.
+ *
+ * Exported so the type test can name it rather than writing the mapped type
+ * out a second time, which would have proven TypeScript rather than this
+ * registry.
+ */
+export type FieldTypeRegistry = { [T in FieldType]: FieldTypeModule<T> };
 
 /**
  * Every field type's module, keyed by its type.
@@ -35,7 +46,7 @@ import type { FieldTypeModule } from './module';
  * compile here until it has a folder of its own, and each module sees only its
  * own narrowed field definition.
  */
-const FIELD_TYPES: { [T in FieldType]: FieldTypeModule<T> } = {
+const FIELD_TYPES: FieldTypeRegistry = {
   text: textField,
   number: numberField,
   textarea: textareaField,

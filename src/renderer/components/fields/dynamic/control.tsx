@@ -82,8 +82,8 @@ export interface FormDynamicFieldProps<
  * fields.
  *
  * Unlike every other field its Value is one flat array rather than content per
- * language, so it is the one `RenderSpec` marked `translatable: false`, and the
- * path it is bound to ends at `content` instead of at a language. See
+ * language, so it is the one module marked `translatable: false`, and the path
+ * it is bound to ends at `content` instead of at a language. See
  * contributing/renderer/dynamic-form-field-generation.md.
  *
  * Sections are reordered with Move up and Move down rather than by dragging. A

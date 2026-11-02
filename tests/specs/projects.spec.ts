@@ -516,7 +516,7 @@ test.describe('Projects', () => {
   test('rejects a clone with an empty URL client-side', async ({
     mainWindow,
   }) => {
-    // cloneProjectSchema.url is a required string and FormInputField normalizes an
+    // cloneProjectSchema.url is a required string and TextControl normalizes an
     // empty input to null, so a cleared URL is the client-rejectable case: the
     // resolver flags it before any IPC call, rather than sending an empty URL to
     // Core.

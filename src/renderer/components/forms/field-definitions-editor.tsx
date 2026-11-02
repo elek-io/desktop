@@ -86,7 +86,8 @@ export function FieldDefinitionsEditor<
   // Every form this serves holds the array under this key, but FieldPath cannot
   // resolve a literal path for an unresolved generic, so the name is asserted
   // once here. Casting the name rather than the whole form is the documented
-  // way out, as AssetForm does. See contributing/renderer/forms.md#form-typing.
+  // way out, as CollectionForm does. See
+  // contributing/renderer/forms.md#form-typing.
   const name = 'fieldDefinitions' as FieldPath<TFieldValues>;
   const { field: fieldDefinitionsField } = useController({
     control: form.control,
@@ -213,7 +214,7 @@ export function FieldDefinitionsEditor<
       {/* The definitions render as previews, not as bound fields, so a Core
       refinement that lands on the array or on a definition inside it (a
       duplicate slug, a stale slug source, a language a field is missing) has no
-      FormMessage to land on. Without this, such an error would make Save a
+      AppField to land on. Without this, such an error would make Save a
       silent no-op. See contributing/renderer/forms.md. */}
       <FieldSubtreeError form={form} name={name} className="mt-6" />
 

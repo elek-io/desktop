@@ -241,8 +241,9 @@ export async function navigateToEntryUpdate(
  *   projects, or the visible input of a translatable field), or
  * - a per-language record like `{ en: 'Hello', de: 'Hallo' }`, which opens that
  *   field's translations dialog (via its accessible name "Edit translations for
- *   <label>", from form.tsx's translatable trigger), fills each language input
- *   (labelled by its language code, scoped to the dialog), then clicks "Done".
+ *   <label>", from the translatable field's dialog trigger), fills each
+ *   language input (labelled by its language code, scoped to the dialog), then
+ *   clicks "Done".
  *
  * The string path stays backward compatible, so existing specs are unaffected.
  */

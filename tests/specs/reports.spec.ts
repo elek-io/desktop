@@ -273,9 +273,9 @@ test.describe('Reporting a bug or feedback', () => {
       await expect(message).not.toHaveAttribute(attribute);
     }
 
-    // Required-ness is conveyed by the label instead: FormLabel appends
-    // " - optional" to everything that is not required, so the contact block is
-    // marked and the message is the unmarked default.
+    // Required-ness is conveyed by the label instead: the one field label
+    // appends " - optional" to everything that is not required, so the contact
+    // block is marked and the message is the unmarked default.
     await expect(dialog.getByLabel('Email - optional')).toBeVisible();
 
     await closeReportDialog(mainWindow);

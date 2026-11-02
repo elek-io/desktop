@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect } from 'react';
 
-// What an AppForm shares with everything rendered inside it. It lives in its own
-// module rather than in app-form.tsx, because form.tsx reads it and app-form.tsx
-// already imports form.tsx. See contributing/renderer/forms.md.
+// What an AppForm shares with everything rendered inside it. It is a hook
+// module of its own rather than part of app-form.tsx, which exports components
+// only. See contributing/renderer/forms.md.
 
 export interface AppFormContextValue {
   /** The form's id, which a detached SubmitButton associates with. */
