@@ -32,6 +32,11 @@ import {
   supportedIconSchema,
 } from '@elek-io/core';
 
+/** Every icon Core offers, as the value-to-label map a select needs. */
+const iconItems: Record<string, string> = Object.fromEntries(
+  supportedIconSchema.options.map((option) => [option, option])
+);
+
 interface CollectionFormProps<
   TFieldValues extends FieldValues,
   TTransformedValues extends FieldValues,
@@ -87,7 +92,11 @@ export function CollectionForm<
               <FormItem className="col-span-12 sm:col-span-2">
                 <FormLabel isRequired>Icon</FormLabel>
                 <FormControl>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    items={iconItems}
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

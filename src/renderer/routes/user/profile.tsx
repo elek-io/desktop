@@ -44,6 +44,11 @@ import {
   supportedLanguageSchema,
 } from '@elek-io/core';
 
+/** Every language Core offers, as the value-to-label map a select needs. */
+const languageItems: Record<string, string> = Object.fromEntries(
+  supportedLanguageSchema.options.map((option) => [option, option])
+);
+
 export const Route = createFileRoute('/user/profile')({
   component: UserProfilePage,
 });
@@ -214,6 +219,7 @@ function UserProfilePage(): ReactElement {
                       <FormLabel isRequired>Preferred language</FormLabel>
                       <FormControl>
                         <Select
+                          items={languageItems}
                           value={field.value}
                           onValueChange={field.onChange}
                         >
