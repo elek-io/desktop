@@ -271,7 +271,7 @@ test.describe('Branding', () => {
         // The nearest ancestor that paints, which is what text is read
         // against. A message sits on the card, not on the page behind it.
         const backdrop = (selector: string): string => {
-          let node = document.querySelector(selector);
+          let node: ProbedElement | null = document.querySelector(selector);
           while (node !== null) {
             const color = getComputedStyle(node).backgroundColor;
             if (color !== 'rgba(0, 0, 0, 0)' && color !== 'transparent') {
@@ -449,6 +449,9 @@ test.describe('Branding', () => {
   }) => {
     await setUserViaIpc(mainWindow);
     await navigate(mainWindow, '#/projects');
+    // The segment is compared against the light tokens below, and the app
+    // follows the machine's theme until one is set.
+    await setTheme(mainWindow, 'light');
 
     await mainWindow.getByRole('button', { name: 'Feedback' }).click();
     const dialog = mainWindow.getByRole('dialog');

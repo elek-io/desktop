@@ -13,6 +13,7 @@ declare const window: Window & {
 /** The one element shape the specs read, with the attributes they ask for. */
 interface ProbedElement {
   readonly tagName: string;
+  readonly parentElement: ProbedElement | null;
   getAttribute(name: string): string | null;
   matches(selectors: string): boolean;
 }
