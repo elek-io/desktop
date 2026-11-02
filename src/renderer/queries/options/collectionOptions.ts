@@ -6,6 +6,7 @@ import {
 
 import type {
   Collection,
+  DeleteCollectionProps,
   ListCollectionsProps,
   PaginatedList,
   ReadCollectionProps,
@@ -31,6 +32,30 @@ function collectionName(
     key: 'collection.name.plural',
     record: collection.name.plural,
   });
+}
+
+/**
+ * The name a deleted Collection was last shown under, or `undefined` when the
+ * cache no longer holds it.
+ *
+ * A delete answers with nothing, so the Collection itself is only still
+ * reachable under its own read key. The toast is built before the mutation's own
+ * `onSuccess` writes to the cache, see `queries/util.ts`.
+ */
+function deletedCollectionName(
+  variables: DeleteCollectionProps,
+  context: MutationFunctionContext
+): string | undefined {
+  const collection = context.client.getQueryData(
+    collectionOptions.read({ projectId: variables.projectId, id: variables.id })
+      .queryKey
+  );
+
+  if (collection === undefined) {
+    return undefined;
+  }
+
+  return collectionName(collection, variables.projectId, context);
 }
 
 export const collectionOptions = {
@@ -132,7 +157,15 @@ export const collectionOptions = {
       objectType: 'collection',
     },
     toasts: {
-      success: () => t`Collection deleted`,
+      success: (_deletedCollection, variables, context) => {
+        const name = deletedCollectionName(variables, context);
+
+        if (name === undefined) {
+          return t`Collection deleted`;
+        }
+
+        return t`Collection ${name} deleted`;
+      },
       error: () => t`Could not delete the Collection`,
     },
     onSuccess: (_deletedCollection, variables, _result, context) => {

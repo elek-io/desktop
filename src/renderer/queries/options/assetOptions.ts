@@ -1,8 +1,12 @@
 import { t } from '@lingui/core/macro';
-import { queryOptions } from '@tanstack/react-query';
+import {
+  queryOptions,
+  type MutationFunctionContext,
+} from '@tanstack/react-query';
 
 import type {
   Asset,
+  DeleteAssetProps,
   ListAssetsProps,
   PaginatedList,
   ReadAssetProps,
@@ -14,6 +18,30 @@ import { customMutationOptions, mergeListWithObject } from '../util';
 /** What the Assets grid calls an Asset, so a toast names it the same way. */
 function assetFileName(asset: Asset): string {
   return `${asset.name}.${asset.extension}`;
+}
+
+/**
+ * What a deleted Asset was last shown as, or `undefined` when the cache no
+ * longer holds it.
+ *
+ * A delete answers with nothing, so the Asset itself is only still reachable
+ * under its own read key. The toast is built before the mutation's own
+ * `onSuccess` writes to the cache, see `queries/util.ts`.
+ */
+function deletedAssetFileName(
+  variables: DeleteAssetProps,
+  context: MutationFunctionContext
+): string | undefined {
+  const asset = context.client.getQueryData(
+    assetOptions.read({ projectId: variables.projectId, id: variables.id })
+      .queryKey
+  );
+
+  if (asset === undefined) {
+    return undefined;
+  }
+
+  return assetFileName(asset);
 }
 
 export const assetOptions = {
@@ -107,7 +135,15 @@ export const assetOptions = {
       objectType: 'asset',
     },
     toasts: {
-      success: () => t`Asset deleted`,
+      success: (_deletedAsset, variables, context) => {
+        const fileName = deletedAssetFileName(variables, context);
+
+        if (fileName === undefined) {
+          return t`Asset deleted`;
+        }
+
+        return t`Asset ${fileName} deleted`;
+      },
       error: () => t`Could not delete the Asset`,
     },
     onSuccess: (_deletedAsset, variables, _result, context) => {

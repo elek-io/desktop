@@ -291,6 +291,10 @@ msgid "Asset {fileName} added"
 msgstr "Asset {fileName} added"
 
 #: src/renderer/queries/options/assetOptions.ts
+msgid "Asset {fileName} deleted"
+msgstr "Asset {fileName} deleted"
+
+#: src/renderer/queries/options/assetOptions.ts
 msgid "Asset {fileName} saved"
 msgstr "Asset {fileName} saved"
 
@@ -471,6 +475,10 @@ msgid "Collection {name} created"
 msgstr "Collection {name} created"
 
 #: src/renderer/queries/options/collectionOptions.ts
+msgid "Collection {name} deleted"
+msgstr "Collection {name} deleted"
+
+#: src/renderer/queries/options/collectionOptions.ts
 msgid "Collection {name} saved"
 msgstr "Collection {name} saved"
 
@@ -499,6 +507,10 @@ msgstr "Component"
 #: src/renderer/queries/options/componentOptions.ts
 msgid "Component {name} created"
 msgstr "Component {name} created"
+
+#: src/renderer/queries/options/componentOptions.ts
+msgid "Component {name} deleted"
+msgstr "Component {name} deleted"
 
 #: src/renderer/queries/options/componentOptions.ts
 msgid "Component {name} saved"
@@ -1572,6 +1584,10 @@ msgstr "Project {name} cloned"
 #: src/renderer/queries/options/projectOptions.ts
 msgid "Project {name} created"
 msgstr "Project {name} created"
+
+#: src/renderer/queries/options/projectOptions.ts
+msgid "Project {name} deleted"
+msgstr "Project {name} deleted"
 
 #: src/renderer/queries/options/projectOptions.ts
 msgid "Project {name} saved"

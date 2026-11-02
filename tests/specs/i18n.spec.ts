@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
+import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import {
   addFieldDefinition,
   createCollection,
@@ -14,11 +15,13 @@ import {
   navigateToComponent,
   navigateToComponentCreate,
 } from '../helpers/component.js';
+import { confirmDialog } from '../helpers/dialog.js';
 import { fillEntryForm, navigateToEntryCreate } from '../helpers/entry.js';
 import { stubCoreReject } from '../helpers/ipc.js';
 import { navigate } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
+  navigateToAssets,
   navigateToProjectSettings,
 } from '../helpers/project.js';
 import { setUserViaIpc, waitForUserLoaded } from '../helpers/user.js';
@@ -264,6 +267,77 @@ test.describe('The app in one language', () => {
     // way.
     await expect(
       mainWindow.getByRole('link', { name: 'Werbung' })
+    ).toBeVisible();
+  });
+
+  test('a toast after a delete names what went', async ({
+    mainWindow,
+  }, testInfo) => {
+    // A delete answers with nothing, so each sentence below names the object
+    // out of the cache entry the delete then clears. This is where the name
+    // matters most: the object is gone, so nobody can open it afterwards to
+    // see which one went.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const filePath = makeTempFile(testInfo, 'logo.png', pngBytes);
+    await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath,
+      // Core slugifies an Asset's name on write, so this is the name the grid
+      // shows and the one the toast has to carry.
+      name: 'company-logo',
+    });
+
+    // The Collection, whose name is content stored per language and so goes
+    // through the same chain a screen reads it through.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await mainWindow.getByRole('button', { name: 'Delete Collection' }).click();
+    await confirmDialog(mainWindow, 'Yes, delete this Collection');
+    await expect(
+      mainWindow.getByText('Collection Articles deleted', { exact: true })
+    ).toBeVisible();
+
+    // The Component, the same.
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    await mainWindow.getByRole('button', { name: 'Delete Component' }).click();
+    await confirmDialog(mainWindow, 'Yes, delete this Component');
+    await expect(
+      mainWindow.getByText('Component Teaser deleted', { exact: true })
+    ).toBeVisible();
+
+    // The Asset, named the way its teaser names it, by file name.
+    await navigateToAssets(mainWindow, project.id);
+    await mainWindow.getByRole('button', { name: 'Delete' }).click();
+    await confirmDialog(mainWindow, 'Delete');
+    await expect(
+      mainWindow.getByText('Asset company-logo.png deleted', { exact: true })
+    ).toBeVisible();
+
+    // And the Project, last, because it takes the rest with it. A Project with
+    // no remote is refused once and deleted by force, which runs the same
+    // mutation again, so its sentence is read after a failed attempt.
+    await navigateToProjectSettings(mainWindow, project.id);
+    await mainWindow.getByRole('button', { name: 'Delete Project' }).click();
+    await confirmDialog(mainWindow, 'Delete');
+    await confirmDialog(mainWindow, 'Yes, delete');
+    await expect(
+      mainWindow.getByText('Project Autohaus Ebersfelde deleted', {
+        exact: true,
+      })
     ).toBeVisible();
   });
 

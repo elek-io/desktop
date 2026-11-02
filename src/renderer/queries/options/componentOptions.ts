@@ -6,6 +6,7 @@ import {
 
 import type {
   Component,
+  DeleteComponentProps,
   ListComponentsProps,
   PaginatedList,
   ReadComponentProps,
@@ -31,6 +32,30 @@ function componentName(
     key: 'component.name',
     record: component.name,
   });
+}
+
+/**
+ * The name a deleted Component was last shown under, or `undefined` when the
+ * cache no longer holds it.
+ *
+ * A delete answers with nothing, so the Component itself is only still
+ * reachable under its own read key. The toast is built before the mutation's own
+ * `onSuccess` writes to the cache, see `queries/util.ts`.
+ */
+function deletedComponentName(
+  variables: DeleteComponentProps,
+  context: MutationFunctionContext
+): string | undefined {
+  const component = context.client.getQueryData(
+    componentOptions.read({ projectId: variables.projectId, id: variables.id })
+      .queryKey
+  );
+
+  if (component === undefined) {
+    return undefined;
+  }
+
+  return componentName(component, variables.projectId, context);
 }
 
 export const componentOptions = {
@@ -141,7 +166,15 @@ export const componentOptions = {
       objectType: 'component',
     },
     toasts: {
-      success: () => t`Component deleted`,
+      success: (_deletedComponent, variables, context) => {
+        const name = deletedComponentName(variables, context);
+
+        if (name === undefined) {
+          return t`Component deleted`;
+        }
+
+        return t`Component ${name} deleted`;
+      },
       error: () => t`Could not delete the Component`,
     },
     onSuccess: (_deletedComponent, variables, _result, context) => {

@@ -1,7 +1,11 @@
 import { t } from '@lingui/core/macro';
-import { queryOptions } from '@tanstack/react-query';
+import {
+  queryOptions,
+  type MutationFunctionContext,
+} from '@tanstack/react-query';
 
 import type {
+  DeleteProjectProps,
   ListProjectsProps,
   PaginatedList,
   Project,
@@ -28,6 +32,23 @@ export type ProjectChanges = Awaited<
  */
 export async function fetchProjectChanges(id: string): Promise<ProjectChanges> {
   return await window.ipc.core.projects.getChanges({ id });
+}
+
+/**
+ * The name a deleted Project was last shown under, or `undefined` when the
+ * cache no longer holds it.
+ *
+ * A delete answers with nothing, so the Project itself is only still reachable
+ * under its own read key. The toast is built before the mutation's own
+ * `onSuccess` writes to the cache, see `queries/util.ts`.
+ */
+function deletedProjectName(
+  variables: DeleteProjectProps,
+  context: MutationFunctionContext
+): string | undefined {
+  return context.client.getQueryData(
+    projectOptions.read({ id: variables.id }).queryKey
+  )?.name;
 }
 
 export const projectOptions = {
@@ -113,7 +134,15 @@ export const projectOptions = {
       objectType: 'project',
     },
     toasts: {
-      success: () => t`Project deleted`,
+      success: (_deletedProject, variables, context) => {
+        const name = deletedProjectName(variables, context);
+
+        if (name === undefined) {
+          return t`Project deleted`;
+        }
+
+        return t`Project ${name} deleted`;
+      },
       error: () => t`Could not delete the Project`,
     },
     onSuccess: (_deletedProject, variables, _result, context) => {

@@ -94,11 +94,14 @@ export function customMutationOptions<
   meta: LogableMutationMeta;
   toasts: {
     /**
-     * What happened, named by what it happened to where the answer carries it.
+     * What happened, named by what it happened to.
      *
      * `context` carries the QueryClient, so content stored per language, such
      * as a Collection's name, is read in the language a screen reads it in
-     * through `translateContentFromCache`.
+     * through `translateContentFromCache`. It is called before this mutation's
+     * own `onSuccess`, which is what lets a delete name what it removed: the
+     * answer to a delete is empty, so the object comes out of the cache, as it
+     * stands before that handler writes to it.
      */
     success: (
       data: TData,
@@ -133,6 +136,8 @@ export function customMutationOptions<
           meta: errorLogAttributes(logableMutationMeta.error),
         });
       } else {
+        // Before `originalOnSuccess` below, so a delete's sentence reads the
+        // object it removed out of the cache as that handler found it.
         toast.success(toasts.success(data, variables, context));
 
         await window.ipc.core.logger.info({
