@@ -31,6 +31,9 @@ const PACKAGED_ICONS = 'node_modules/@elek-io/branding/dist/icons';
 /** The renderer electron-vite builds, which is what the app loads. */
 const RENDERER_BUNDLE = 'out/renderer/assets';
 
+/** The icon the main process gives a window, shipped inside the app. */
+const WINDOW_ICON = 'resources/icon.png';
+
 async function sha256(file: string): Promise<string> {
   return createHash('sha256')
     .update(await readFile(file))
@@ -112,14 +115,21 @@ test.describe('Branding', () => {
   });
 
   test('ships the brand package icons as the app icons', async () => {
-    // electron-builder takes the installer and window icons from
-    // directories.buildResources, so these three files are what a person ends
-    // up with on their machine.
+    // electron-builder takes the installer icons from
+    // directories.buildResources, so these three files are what an installer
+    // leaves on a person's machine.
     for (const icon of ['icon.png', 'icon.icns', 'icon.ico']) {
       expect(await sha256(path.join(BUILD_RESOURCES, icon))).toBe(
         await sha256(path.join(PACKAGED_ICONS, icon))
       );
     }
+
+    // The window icon is a fourth file, which none of the three covers: on
+    // Linux the window carries no icon of the executable, so the main process
+    // sets one from the app's own resources (see src/main/index.ts).
+    expect(await sha256(WINDOW_ICON)).toBe(
+      await sha256(path.join(PACKAGED_ICONS, 'png', '512x512.png'))
+    );
   });
 
   test('takes every color from the brand package in both themes', async ({

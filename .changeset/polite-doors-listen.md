@@ -4,7 +4,7 @@
 
 Take every color, corner, shadow and type role from elek.io's brand package, and show the app in Geist.
 
-The app now draws itself from `@elek-io/branding`, the package elek.io publishes its design from, instead of from a copy of those values it kept. Text is set in Geist and code in Geist Mono, where it used to be Montserrat and Roboto, and every interface icon is a Lucide icon. A Git host's logo stays its own brand's. The installers carry elek.io's app icon, which they did not before.
+The app now draws itself from `@elek-io/branding`, the package elek.io publishes its design from, instead of from a copy of those values it kept. Text is set in Geist and code in Geist Mono, where it used to be Montserrat and Roboto, and every interface icon is a Lucide icon. A Git host's logo stays its own brand's. The installers carry elek.io's app icon, which they did not before, and so does the window the app opens.
 
 Three things are now visible that were not:
 
