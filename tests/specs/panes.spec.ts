@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
+import { createCollectionViaIpc } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
 import { stubCoreHang, stubCoreReject } from '../helpers/ipc.js';
 import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
@@ -18,10 +19,11 @@ import {
  * the read fails.
  *
  * Both are built once, for every screen, so they are driven here through the
- * History's list of changes, whose read happens inside its own pane. The
- * matching rule for the other half, that a failed write still takes the whole
- * view to the root error screen, is asserted by the specs of each mutation
- * (see error-handling.md).
+ * screens whose read happens inside its own pane: the History's list of
+ * changes, the Entries of a Collection, and the Projects page, which is one
+ * pane of its own. The matching rule for the other half, that a failed write
+ * still takes the whole view to the root error screen, is asserted by the
+ * specs of each mutation (see error-handling.md).
  */
 test.describe('A pane that is still reading', () => {
   test('shows still rows, and nothing moves', async ({
@@ -69,6 +71,66 @@ test.describe('A pane that is still reading', () => {
       toBytes(parseColor(measured.muted))
     );
   });
+
+  test('draws the rows of a list across the pane, and says what it reads', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+
+    // The Entries of a Collection are the one list of the app, so this is
+    // where the rows every list loads with are drawn.
+    await stubCoreHang(electronApp, 'core:entries:list');
+    await navigate(
+      mainWindow,
+      `#/projects/${project.id}/collections/${collection.id}`
+    );
+
+    const rows = mainWindow.locator('[data-slot="skeleton-rows"]');
+    await expect(rows).toBeVisible();
+
+    const measured = await mainWindow.evaluate(() => {
+      const element = document.querySelector('[data-slot="skeleton-rows"]');
+      const pane = element?.closest('[data-slot="pane"]') ?? null;
+      if (element === null || pane === null) {
+        throw new Error('The pane draws no rows while it reads');
+      }
+      const row = element.querySelectorAll(':scope > *')[0];
+      if (row === undefined) {
+        throw new Error('The rows are empty');
+      }
+
+      const edge = (box: ProbedElement): { left: number; right: number } => {
+        const rect = box.getBoundingClientRect();
+        return { left: Math.round(rect.x), right: Math.round(rect.right) };
+      };
+
+      return {
+        role: element.getAttribute('role'),
+        label: element.getAttribute('aria-label'),
+        busy: element.getAttribute('aria-busy'),
+        rows: edge(element),
+        pane: edge(pane),
+        paneEdge: getComputedStyle(pane).getPropertyValue('--pane-edge'),
+        rowPadding: getComputedStyle(row).getPropertyValue('padding-left'),
+      };
+    });
+
+    // The rows span the pane, so a row's rule ends on the pane's divider the
+    // way a real row's does, and each row starts on the pane's one text edge.
+    expect(measured.rows).toEqual(measured.pane);
+    expect(measured.rowPadding).toBe(measured.paneEdge);
+
+    // What is being read is said out loud. `aria-busy` and a label need a role
+    // that permits them, since ARIA prohibits naming an element with none.
+    expect(measured.role).toBe('status');
+    expect(measured.busy).toBe('true');
+    expect(measured.label).toBe('Loading Entries');
+  });
 });
 
 test.describe('A pane whose read fails', () => {
@@ -101,6 +163,17 @@ test.describe('A pane whose read fails', () => {
     await expect(
       mainWindow.getByRole('link', { name: 'elek.io Desktop, Projects' })
     ).toBeVisible();
+
+    // Try again takes the color of the surface it sits on rather than a fill
+    // of its own, which would be the ground's color on the lighter panel.
+    const fill = await mainWindow.evaluate(() => {
+      const button = document.querySelector('[role="alert"] button');
+      if (button === null) {
+        throw new Error('The sentence comes without Try again');
+      }
+      return getComputedStyle(button).backgroundColor;
+    });
+    expect(parseColor(fill).a).toBe(0);
 
     // It is logged the way the root error screen logs, so a read that failed
     // inside a pane is in the log file with its type, message and stack.

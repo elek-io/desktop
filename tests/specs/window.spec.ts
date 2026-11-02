@@ -335,11 +335,10 @@ test.describe('The window', () => {
       mainWindow,
     }) => {
       // The window has to be open before it has buttons to place, and
-      // `mainWindow` is what waits for it. Without it the position is read, and
-      // the app is quit again, while the first window is still being created,
-      // and a window that opens during the quit cancels it, which on macOS
-      // leaves the app running with no window to close it (see
-      // `onAppAllWindowsClosed`).
+      // `mainWindow` is what waits for it. It is also what keeps the app
+      // closable: quitting it while its first window is still coming up
+      // leaves the process running, and the fixture's teardown then waits for
+      // an app that never exits.
       await expect(mainWindow.locator('header')).toBeAttached();
 
       // 16 px in, and centered in the 32 px bar: the buttons are 12 px, so

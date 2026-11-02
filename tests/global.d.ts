@@ -17,6 +17,7 @@ interface ProbedElement {
   readonly clientHeight: number;
   readonly scrollHeight: number;
   readonly scrollWidth: number;
+  closest(selectors: string): ProbedElement | null;
   getAttribute(name: string): string | null;
   getBoundingClientRect(): {
     readonly x: number;
