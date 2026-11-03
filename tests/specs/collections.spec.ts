@@ -23,7 +23,7 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { stubCoreReject } from '../helpers/ipc.js';
-import { reloadWindow } from '../helpers/navigation.js';
+import { mainPanel, reloadWindow } from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
   createProjectViaIpc,
@@ -922,13 +922,15 @@ test.describe('Collections', () => {
     );
 
     // The Project got no commit for the refused update: the History lists the
-    // three creates that arranged this test and no Collection update.
+    // three creates that arranged this test and no Collection update. Both are
+    // looked for in the main panel, because the Project's sidebar beside it
+    // carries a Create Collection link of its own.
     await navigateToHistory(mainWindow, project.id);
     await expect(
-      mainWindow.getByRole('link', { name: /create collection/i })
+      mainPanel(mainWindow).getByRole('link', { name: /create collection/i })
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('link', { name: /update collection/i })
+      mainPanel(mainWindow).getByRole('link', { name: /update collection/i })
     ).toHaveCount(0);
 
     // Routing there reloaded the renderer, so the Entry form re-reads from Core:

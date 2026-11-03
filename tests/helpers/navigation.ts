@@ -6,6 +6,18 @@ export function projectSidebar(page: Page): Locator {
 }
 
 /**
+ * The main panel, which is what a screen itself draws.
+ *
+ * Anything a screen shows is looked for in here rather than in the window,
+ * because the Project's sidebar beside it carries links of its own, such as
+ * Create Collection and one per Collection, which a name a screen shares with
+ * one of them would match too.
+ */
+export function mainPanel(page: Page): Locator {
+  return page.locator('[data-slot="panel"]');
+}
+
+/**
  * What the Project's navigation lists, top to bottom, by the name each row
  * shows.
  *
