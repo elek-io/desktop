@@ -40,7 +40,7 @@ function ProjectLayout(): ReactElement {
 Two rules follow for a screen inside a Project:
 
 - **A Collection is reached from the sidebar, not from a list of its own.** `routes/projects/$projectId/collections.tsx` is a layout with nothing but its `Outlet`, so a Collection's Entries take the whole panel, and `collections/index.tsx` is what Collections lands on before one is opened.
-- **The sidebar reads above every pane**, so a read it cannot make reaches the root error screen rather than a pane's own sentence, like every other read in a layout route. What it reads is the Project, its uncommitted changes, its Collections and the counts beside the rows, see [Loading and Updating Data](./loading-and-updating-data.md#the-counts-beside-the-sidebars-rows).
+- **The sidebar reads above every pane**, so a read it cannot make reaches the root error screen rather than a pane's own sentence, like a read in the layout above every pane. It reads in `$projectId.tsx`, outside the `Panel`, while a layout route below that one, such as `collections/$collectionId.tsx`, renders inside the pane and so reaches that pane's sentence, see [Error handling](../error-handling.md#a-read-that-failed-the-pane-says-so). What the sidebar reads is the Project, its uncommitted changes, its Collections and the counts beside the rows, see [Loading and Updating Data](./loading-and-updating-data.md#the-counts-beside-the-sidebars-rows).
 
 ## Route Parameters
 
