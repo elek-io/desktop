@@ -116,8 +116,9 @@ one of the counted things invalidates that count's key from its `onSuccess`,
 beside the direct cache update it does for the list, so the number comes back
 from Core instead of being guessed from what the renderer knows. That is what
 makes a count follow a create and a delete without the Project being opened
-again, and `tests/specs/navigation.spec.ts` drives it through an Entry create
-and an Asset delete.
+again. `tests/specs/navigation.spec.ts` drives it through an Entry create and an
+Asset delete, `tests/specs/components.spec.ts` through a Component create and a
+Component delete, and `tests/specs/releases.spec.ts` through a Release.
 
 A synchronize and a Release invalidate everything under the Project, so both
 carry the counts with them without naming them.
