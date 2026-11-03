@@ -13,6 +13,7 @@ import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from '@renderer/components/theme-provider';
 import { router } from '@renderer/index';
 import '@renderer/index.css';
+import { setRefusedValueWords } from '@renderer/lib/refusedValueText';
 import { queryClient } from '@renderer/queries';
 
 /**
@@ -56,6 +57,12 @@ function logReactError(
 // until a catalog is active, and the User's language is only known once Core
 // answers, so the app starts in English and re-activates from `UserProvider`.
 activateAppLocale(null);
+
+// The words every refused Value is explained in, set once for every schema the
+// renderer parses with, Core's generated ones included. Each sentence is read
+// from the catalog when an issue is raised, so this runs before a catalog is
+// active without pinning a language.
+setRefusedValueWords();
 
 // Render the app
 const rootElement = document.getElementById('app')!;

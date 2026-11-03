@@ -1,3 +1,6 @@
+import { t } from '@lingui/core/macro';
+
+import { coreRefusals } from '@renderer/components/fields/core-refusals';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentAsStored,
@@ -5,6 +8,8 @@ import {
   textTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
+
+import { slug } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
 import { SlugControl } from './control';
@@ -39,6 +44,31 @@ export const slugField: FieldTypeModule<'slug'> = {
   // slugSourceReferencesSuperRefinement rejects a source id that no longer
   // exists, and an error on the definitions array has no control to land on, so
   // a stale id would block every later save with no visible reason.
+  // Core refuses text that holds nothing a slug can be made of, and a slug
+  // that is not yet in the form this field's settings ask for. The second says
+  // the form it needs, worked out with Core's own helper and this field's own
+  // settings, which is what the control does when the field is left.
+  coreRefusalText: ({ message, fieldDefinition, content }) => {
+    if (message.startsWith(coreRefusals.unusableSlug)) {
+      return t`Use letters or numbers, so this can be part of a web address.`;
+    }
+    if (message.startsWith(coreRefusals.nonCanonicalSlug) === false) {
+      return null;
+    }
+
+    const canonical =
+      typeof content === 'string'
+        ? slug(content, {
+            separator: fieldDefinition.separator,
+            lowercase: fieldDefinition.lowercase,
+            decamelize: fieldDefinition.decamelize,
+          })
+        : '';
+
+    return canonical === ''
+      ? null
+      : t`This field needs "${canonical}" instead.`;
+  },
   withoutDefinition: (fieldDefinition, removedDefinitionId) =>
     fieldDefinition.ofFieldDefinitions.includes(removedDefinitionId)
       ? {

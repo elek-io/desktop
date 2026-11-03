@@ -9,7 +9,7 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
-import { AppField } from '@renderer/components/ui/app-form';
+import { AppField, type FieldRefusal } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -51,6 +51,9 @@ export interface TranslatableFieldProps<
   // The per-language dialog labels use this for their required indicator: string
   // inputs mark every language required, the optional textarea does not.
   dialogItemRequired: boolean;
+  // This field type's words for a refusal Core wrote its own English for, so a
+  // language inside the dialog says what the field outside it says.
+  coreRefusalText?: (refusal: FieldRefusal) => string;
   // Renders one language's control, given its field, the control-association
   // props to place on the real input and the label that control is named by.
   // Called for the outer field and once per language inside the dialog, where
@@ -81,6 +84,7 @@ export function TranslatableField<
   supportedLanguages,
   errors,
   dialogItemRequired,
+  coreRefusalText,
   renderControl,
 }: TranslatableFieldProps<
   TFieldValues,
@@ -169,6 +173,7 @@ export function TranslatableField<
                 name={`${baseName}.${language}` as Path<TFieldValues>}
                 label={language}
                 required={dialogItemRequired}
+                {...(coreRefusalText === undefined ? {} : { coreRefusalText })}
               >
                 {({ field: languageField, controlProps: languageProps }) =>
                   renderControl(languageField, languageProps, language)

@@ -1,3 +1,6 @@
+import { t } from '@lingui/core/macro';
+
+import { coreRefusals } from '@renderer/components/fields/core-refusals';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentInLanguage,
@@ -53,5 +56,20 @@ export const markdownField: FieldTypeModule<'markdown'> = {
       : extractText(tree as MdAstRoot);
   },
   titleText: noTitle,
+  // Core refuses a tree that is stored as empty rather than as nothing, one
+  // nested deeper than it walks, and a reference to an Entry of a Collection
+  // the field does not allow, which is the text the entry folder words too.
+  coreRefusalText: ({ message }) => {
+    if (message.startsWith(coreRefusals.emptyMarkdown)) {
+      return t`Write something here, or clear the field completely.`;
+    }
+    if (message.startsWith(coreRefusals.deepMarkdown)) {
+      return t`This text has too many levels inside it. Take some out to save.`;
+    }
+    if (message.startsWith(coreRefusals.foreignCollection)) {
+      return t`One Entry in this text is from a Collection this field doesn't take. Point it somewhere else.`;
+    }
+    return null;
+  },
   DefinitionDraft: (props) => <MarkdownDefinitionDraft {...props} />,
 };

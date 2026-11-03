@@ -23,6 +23,10 @@ msgstr "{count, plural, one {# Entry} other {# Entries}}"
 msgid "{fieldCount, plural, one {# field} other {# fields}}"
 msgstr "{fieldCount, plural, one {# field} other {# fields}}"
 
+#: src/renderer/lib/refusedValueText.ts
+msgid "{largest, plural, one {Use up to # character.} other {Use up to # characters.}}"
+msgstr "{largest, plural, one {Use up to # character.} other {Use up to # characters.}}"
+
 #: src/renderer/lib/fieldRules.ts
 msgid "{max, plural, one {up to # character} other {up to # characters}}"
 msgstr "{max, plural, one {up to # character} other {up to # characters}}"
@@ -46,6 +50,10 @@ msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
+msgstr "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
 
 #: src/renderer/components/fields/asset/control.tsx
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
@@ -487,9 +495,21 @@ msgstr "Choose {label}"
 msgid "Choose {label}, Required"
 msgstr "Choose {label}, Required"
 
+#: src/renderer/lib/refusedValueText.ts
+msgid "Choose a date and a time."
+msgstr "Choose a date and a time."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Choose a date."
+msgstr "Choose a date."
+
 #: src/renderer/components/user-dropdown.tsx
 msgid "Choose a different port on your profile to start the local API."
 msgstr "Choose a different port on your profile to start the local API."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Choose a time."
+msgstr "Choose a time."
 
 #: src/renderer/routes/projects/index.tsx
 msgid "Clone"
@@ -980,6 +1000,22 @@ msgstr "Emphasis"
 #: src/renderer/routes/user/profile.tsx
 msgid "Enabled"
 msgstr "Enabled"
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Enter a phone number with its country code, such as +4930123456."
+msgstr "Enter a phone number with its country code, such as +4930123456."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Enter a web address, such as https://elek.io."
+msgstr "Enter a web address, such as https://elek.io."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Enter an email address, such as name@example.com."
+msgstr "Enter an email address, such as name@example.com."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Enter an IPv4 address, such as 192.168.0.1."
+msgstr "Enter an IPv4 address, such as 192.168.0.1."
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again."
@@ -1548,6 +1584,14 @@ msgstr "Object changes"
 msgid "Ok"
 msgstr "Ok"
 
+#: src/renderer/components/fields/entry/index.tsx
+msgid "One Entry here is from a Collection this field doesn't take. Choose another one."
+msgstr "One Entry here is from a Collection this field doesn't take. Choose another one."
+
+#: src/renderer/components/fields/markdown/index.tsx
+msgid "One Entry in this text is from a Collection this field doesn't take. Point it somewhere else."
+msgstr "One Entry in this text is from a Collection this field doesn't take. Point it somewhere else."
+
 #: src/renderer/components/fields/asset/definition.tsx
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Only Assets of the selected file types can be referenced. If none are selected, Assets of any type are available."
@@ -1613,6 +1657,10 @@ msgstr "pagination"
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Paragraph"
 msgstr "Paragraph"
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Part of this Value isn't something this field takes."
+msgstr "Part of this Value isn't something this field takes."
 
 #: src/renderer/lib/release.ts
 msgid "Patch"
@@ -2420,6 +2468,10 @@ msgstr "This Entry is no longer available"
 msgid "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
 msgstr "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
 
+#: src/renderer/lib/refusedValueText.ts
+msgid "This field can't hold what's in it. Please report it, so we can fix it."
+msgstr "This field can't hold what's in it. Please report it, so we can fix it."
+
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "This field does not take an Asset of that type. Choose another one."
 msgstr "This field does not take an Asset of that type. Choose another one."
@@ -2427,6 +2479,22 @@ msgstr "This field does not take an Asset of that type. Choose another one."
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "This field holds at most {sectionMaximum} sections. Remove one to add another."
 msgstr "This field holds at most {sectionMaximum} sections. Remove one to add another."
+
+#: src/renderer/components/fields/slug/index.tsx
+msgid "This field needs \"{canonical}\" instead."
+msgstr "This field needs \"{canonical}\" instead."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "This field needs a Value."
+msgstr "This field needs a Value."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "This field needs at least {smallest}."
+msgstr "This field needs at least {smallest}."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "This field takes up to {largest}."
+msgstr "This field takes up to {largest}."
 
 #: src/renderer/components/ui/app-form.tsx
 msgid "This form can't be saved, and none of its fields says why. Please report it, so we can fix it."
@@ -2487,6 +2555,14 @@ msgstr "This Project only exists on this device (no remote copy). Force delete r
 #: src/renderer/routes/projects/index.tsx
 msgid "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
 msgstr "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
+
+#: src/renderer/components/fields/markdown/index.tsx
+msgid "This text has too many levels inside it. Take some out to save."
+msgstr "This text has too many levels inside it. Take some out to save."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "This Value isn't one this field takes. Change it to save."
+msgstr "This Value isn't one this field takes. Change it to save."
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "This was written by a newer version of elek.io. Update to open it."
@@ -2585,6 +2661,30 @@ msgstr "Upgrading this Project did not work."
 #: src/renderer/routes/projects/index.tsx
 msgid "URL"
 msgstr "URL"
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Use {largest} or less."
+msgstr "Use {largest} or less."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Use {smallest} or more."
+msgstr "Use {smallest} or more."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Use a multiple of {divisor}."
+msgstr "Use a multiple of {divisor}."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Use less than {largest}."
+msgstr "Use less than {largest}."
+
+#: src/renderer/components/fields/slug/index.tsx
+msgid "Use letters or numbers, so this can be part of a web address."
+msgstr "Use letters or numbers, so this can be part of a web address."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "Use more than {smallest}."
+msgstr "Use more than {smallest}."
 
 #: src/renderer/routes/user/profile.tsx
 msgid "Use the local API to read data from your local Projects. The local API is only accessible on this device. You can access it at <0>{localApiUrl}</0> once it is enabled."
@@ -2713,6 +2813,10 @@ msgstr "Width"
 #: src/renderer/lib/schemaChange.ts
 msgid "would lose what it holds in this Field, so the change is refused"
 msgstr "would lose what it holds in this Field, so the change is refused"
+
+#: src/renderer/components/fields/markdown/index.tsx
+msgid "Write something here, or clear the field completely."
+msgstr "Write something here, or clear the field completely."
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Yes, delete"

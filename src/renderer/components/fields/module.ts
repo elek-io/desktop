@@ -146,6 +146,25 @@ export interface FieldTypeModule<T extends FieldType> {
     language: SupportedLanguage;
   }) => string | null;
   /**
+   * This type's words for a refusal Core wrote its own English for, or `null`
+   * for one it does not know.
+   *
+   * zod lets a message that arrives with an issue outrank every error map, so
+   * Core's own refusals are the one thing `lib/refusedValueText.ts` cannot
+   * reach. They are matched by their text, because Core gives them no code of
+   * their own, and a refusal no module knows gets one sentence of its own
+   * rather than Core's English.
+   *
+   * A type whose refusals Core words only through zod leaves this off.
+   */
+  coreRefusalText?: (props: {
+    /** Core's own English, which is never shown. */
+    message: string;
+    fieldDefinition: DefinitionOf<T>;
+    /** The content that was refused, in the language on screen. */
+    content: unknown;
+  }) => string | null;
+  /**
    * The authoring form for a new definition of this type. A type Core defines
    * but the client cannot author yet leaves it off, which is what the Add Field
    * picker reads to offer the type as unavailable.

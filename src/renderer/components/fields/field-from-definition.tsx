@@ -20,6 +20,7 @@ import {
   AppField,
   FieldShell,
   type AppFieldRenderProps,
+  type FieldRefusal,
 } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import { ButtonGroup } from '@renderer/components/ui/button-group';
@@ -27,6 +28,7 @@ import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import { TranslatableField } from '@renderer/components/ui/translatable-field';
 import { useAppFormMode } from '@renderer/hooks/useAppFormContext';
 import { useProject } from '@renderer/hooks/useProject';
+import { unknownRefusalText } from '@renderer/lib/refusedValueText';
 import { cn, fieldWidth } from '@renderer/lib/utils';
 
 import type { FieldDefinition, SupportedLanguage } from '@elek-io/core';
@@ -56,6 +58,28 @@ function controlPropsFor(
 
   const { 'aria-required': _dropped, ...allowed } = controlProps;
   return allowed;
+}
+
+/**
+ * The words for a refusal Core wrote its own English for, from the field type
+ * it landed on.
+ *
+ * Everything zod refuses is worded by the error map
+ * `lib/refusedValueText.ts` installs. Core's own refusals carry a message that
+ * outranks that map, so the type's folder words them instead, and one sentence
+ * stands for a refusal no folder knows. Either way Core's English never
+ * reaches the field.
+ */
+function coreRefusalTextOf(
+  fieldDefinition: FieldDefinition,
+  refusal: FieldRefusal
+): string {
+  const module = fieldModule(fieldDefinition);
+
+  return (
+    module.coreRefusalText?.({ ...refusal, fieldDefinition }) ??
+    unknownRefusalText()
+  );
 }
 
 // TTransformedValues is defaulted and never read: only `control` and
@@ -147,12 +171,16 @@ export function FieldFromDefinition<
     </>
   );
 
+  const coreRefusalText = (refusal: FieldRefusal): string =>
+    coreRefusalTextOf(fieldDefinition, refusal);
+
   return (
     <AppField
       form={form}
       name={leafName}
       label={label}
       rules={module.rules(fieldDefinition)}
+      coreRefusalText={coreRefusalText}
       {...(description === null ? {} : { description })}
       className={cn(
         `col-span-12 ${fieldWidth(fieldDefinition.inputWidth)}`,
@@ -169,6 +197,7 @@ export function FieldFromDefinition<
             description={description}
             supportedLanguages={supportedLanguages}
             errors={form.formState.errors}
+            coreRefusalText={coreRefusalText}
             // The Entry renderer requires every supported language, so the
             // dialog marks each one required.
             dialogItemRequired

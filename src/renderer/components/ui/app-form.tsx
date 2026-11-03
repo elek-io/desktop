@@ -82,6 +82,41 @@ function messageError(
   return error.root ?? error;
 }
 
+/**
+ * The sentence the field shows for the error it holds, if any.
+ *
+ * Every refusal zod raises arrives already worded, through the error map
+ * `lib/refusedValueText.ts` installs. The exception is an issue Core raised
+ * with a message of its own, which zod lets outrank every map and which
+ * therefore still carries Core's English: it arrives under zod's `custom`
+ * code, and the field type it landed on words it through `coreRefusalText`.
+ * A message `setError` put here is worded by whoever called it, so only
+ * `custom` is handed on.
+ */
+function fieldErrorText(
+  error: RhfFieldError | undefined,
+  content: unknown,
+  coreRefusalText: ((refusal: FieldRefusal) => string) | undefined
+): string | undefined {
+  if (error?.message === undefined) {
+    return undefined;
+  }
+
+  const message = String(error.message);
+  if (error.type !== 'custom' || coreRefusalText === undefined) {
+    return message;
+  }
+  return coreRefusalText({ message, content });
+}
+
+/** One refusal Core wrote its own English for, as a field type is handed it. */
+export interface FieldRefusal {
+  /** Core's own English, which is never shown. */
+  message: string;
+  /** The content that was refused, which is this field's own value. */
+  content: unknown;
+}
+
 export interface FieldShellProps {
   label: ReactNode;
   /**
@@ -246,6 +281,12 @@ export interface AppFieldProps<
    * public API carries no minimum to read it off.
    */
   required?: boolean;
+  /**
+   * This field type's words for a refusal Core wrote its own English for, see
+   * `FieldFromDefinition`. A hand-written field passes none, and then the
+   * message stands as it arrived.
+   */
+  coreRefusalText?: (refusal: FieldRefusal) => string;
   children: (props: AppFieldRenderProps<TFieldValues, TName>) => ReactNode;
 }
 
@@ -267,6 +308,7 @@ export function AppField<
   name,
   rules,
   required,
+  coreRefusalText,
   children,
   ...shell
 }: AppFieldProps<TFieldValues, TName, TTransformedValues>): ReactNode {
@@ -292,15 +334,17 @@ export function AppField<
       control={form.control}
       name={name}
       render={({ field, fieldState }) => {
-        const error = messageError(fieldState.error);
+        const error = fieldErrorText(
+          messageError(fieldState.error),
+          field.value,
+          coreRefusalText
+        );
 
         return (
           <FieldShell
             {...shell}
             rules={shownRules}
-            {...(error?.message === undefined
-              ? {}
-              : { error: String(error.message) })}
+            {...(error === undefined ? {} : { error })}
           >
             {(controlProps): ReactNode =>
               children({
