@@ -405,18 +405,14 @@ test.describe('Releases', () => {
     });
 
     // The page is opened while the Project is still level with the remote, so
-    // the sidebar's count says there is nothing to synchronize and Synchronize
-    // is disabled. That count refreshes on its own only every three minutes,
-    // which is longer than an editor takes to act on the refusal below. The
-    // Refresh changes control is enabled once the first read landed, so this
-    // waits for the count rather than for a button that is disabled anyway.
+    // the card's count says there is nothing to sync and Sync is disabled. That
+    // count refreshes on its own only every three minutes, which is longer than
+    // an editor takes to act on the refusal below. The card says it is synced
+    // once the first check landed, so this waits for the count rather than for
+    // a button that is disabled anyway.
     await navigateToReleases(mainWindow, project.id);
-    const synchronize = mainWindow.getByRole('button', {
-      name: 'Synchronize',
-    });
-    await expect(
-      mainWindow.getByRole('button', { name: 'Refresh changes' })
-    ).toBeEnabled();
+    const synchronize = mainWindow.getByRole('button', { name: 'Sync' });
+    await expect(mainWindow.getByText('Everything synced')).toBeVisible();
     await expect(synchronize).toBeDisabled();
 
     // Something to release locally, and a remote that moved on out of band, so
@@ -459,7 +455,7 @@ test.describe('Releases', () => {
     expect(remoteTags(remote.path)).toEqual([]);
 
     // The one thing the refusal asks for can be done right away. The read
-    // fetched, so the count behind Synchronize is the one the dialog just saw
+    // fetched, so the count behind Sync is the one the dialog just saw
     // and not the stale zero the sidebar held when the page opened.
     await dismissDialog(mainWindow);
     await expect(synchronize).toBeEnabled();

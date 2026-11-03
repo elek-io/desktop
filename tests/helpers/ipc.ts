@@ -63,6 +63,11 @@ export async function stubCoreReject(
  * for a type the app deliberately does not handle, which has to reach the root
  * error boundary even though it carries a type.
  *
+ * Pass `delayMs` to hold the rejection open for that long, which is what makes
+ * a window between pressing a control and its failure arriving long enough to
+ * act in. A failure that depends on where focus is when it lands is observed
+ * that way: without the delay the rejection races the step that moves focus.
+ *
  * Mirrors `stubCoreReject`, including why it has to run in the main process.
  * The one difference is the message: the main process encodes a `CoreError`'s
  * type into the message with a sentinel, which the renderer decodes back out
@@ -73,18 +78,33 @@ export async function stubCoreReject(
 export async function stubCoreRejectWithType(
   electronApp: ElectronApplication,
   channel: string,
-  type: CoreErrorType
+  type: CoreErrorType,
+  options: { delayMs?: number } = {}
 ): Promise<void> {
+  const { delayMs = 0 } = options;
+
   await electronApp.evaluate(
     ({ ipcMain }, stub) => {
       ipcMain.removeHandler(stub.channel);
-      ipcMain.handle(stub.channel, () => {
+      ipcMain.handle(stub.channel, async () => {
+        if (stub.delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, stub.delayMs));
+        }
         throw new Error(stub.message);
       });
     },
     {
       channel,
-      message: serializeCoreError(type, `E2E injected ${type} failure`),
+      delayMs,
+      // A stand-in origin stack beside the type, because Core raises every
+      // `CoreError` with one and the renderer logs whatever arrives. Without
+      // it a spec that reads the log record could not tell a stack the app
+      // dropped from one that was never sent.
+      message: serializeCoreError(
+        type,
+        `E2E injected ${type} failure`,
+        `CoreError: E2E injected ${type} failure\n    at stubCoreRejectWithType (tests/helpers/ipc.ts)`
+      ),
     }
   );
 }

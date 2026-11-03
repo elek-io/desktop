@@ -68,6 +68,8 @@ interface ProbedStyle {
   readonly animationName: string;
   readonly backgroundColor: string;
   readonly bottom: string;
+  readonly paddingLeft: string;
+  readonly paddingRight: string;
   readonly display: string;
   readonly opacity: string;
   readonly top: string;

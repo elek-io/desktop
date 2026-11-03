@@ -328,14 +328,14 @@ test.describe('Projects', () => {
     ).toBeHidden();
   });
 
-  test('sets the remote origin URL and reveals the Synchronize control', async ({
+  test('sets the remote origin URL and reveals Sync', async ({
     mainWindow,
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
     // A bare mirror of the Project's draft is a reachable origin, so the
-    // sidebar's getChanges succeeds once the origin is set and the console stays
+    // sidebar's check succeeds once the origin is set and the console stays
     // clean (clone --bare copies the refs without an LFS push path).
     const projectPath = join(
       testDataDirs(testInfo).dataDir,
@@ -346,14 +346,12 @@ test.describe('Projects', () => {
 
     await navigateToVersionControl(mainWindow, project.id);
 
-    // No origin yet: Save is gated and the sidebar shows no Synchronize control
-    // (it renders only when remoteOriginUrl != null).
+    // No origin yet: Save is gated and the sidebar shows no Sync (it renders
+    // only when remoteOriginUrl != null).
     await expect(
       mainWindow.getByRole('button', { name: 'Save changes' })
     ).toBeDisabled();
-    await expect(
-      mainWindow.getByRole('button', { name: 'Synchronize' })
-    ).toBeHidden();
+    await expect(mainWindow.getByRole('button', { name: 'Sync' })).toBeHidden();
 
     // Setting the origin dirties the form, so Save enables.
     await mainWindow.getByLabel('Remote URL').fill(remote.url);
@@ -362,12 +360,12 @@ test.describe('Projects', () => {
     ).toBeEnabled();
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
-    // The origin is set: the Synchronize button appears, which renders only for
+    // The origin is set: the Sync button appears, which renders only for
     // a Project that has one, so the change reached Core. The page stays open
     // and makes its form pristine again with what it saved, which re-gates
     // Save.
     await expect(
-      mainWindow.getByRole('button', { name: 'Synchronize' })
+      mainWindow.getByRole('button', { name: 'Sync' })
     ).toBeVisible();
     await expect(
       mainWindow.getByRole('button', { name: 'Save changes' })

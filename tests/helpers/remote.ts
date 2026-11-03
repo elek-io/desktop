@@ -212,7 +212,12 @@ export function commitFileOnRemote(
   file: { relPath: string; content: string },
   message: GitMessage
 ): void {
-  const workTree = testInfo.outputPath('remote-commit-clone');
+  // Named after the file it commits, so a test that advances the remote by
+  // more than one commit gets a work tree of its own for each: a clone into a
+  // directory a previous call already filled fails.
+  const workTree = testInfo.outputPath(
+    `remote-commit-clone-${file.relPath.replace(/[^a-zA-Z0-9]+/g, '-')}`
+  );
 
   // Entry/plain files are not LFS-tracked, and skipping the smudge filter keeps
   // git-lfs from reaching for a remote it cannot serve.

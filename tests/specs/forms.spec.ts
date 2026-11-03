@@ -321,10 +321,8 @@ test.describe('A form filled from its query', () => {
       },
     });
 
-    // The sidebar's Synchronize is on every Project route, this one included.
-    const synchronize = mainWindow.getByRole('button', {
-      name: 'Synchronize',
-    });
+    // The sidebar's Sync is on every Project route, this one included.
+    const synchronize = mainWindow.getByRole('button', { name: 'Sync' });
     await expect(synchronize).toBeEnabled();
     await synchronize.click();
     await expect(mainWindow.getByText('Changes synced')).toBeVisible();

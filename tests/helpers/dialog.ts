@@ -27,9 +27,14 @@ export async function confirmDialog(
  * arrives during the entry transition is swallowed, which made this flaky. The
  * dialog carries `data-starting-style` while it enters, so the key is pressed
  * once that is gone.
+ *
+ * Matches either role, like `confirmDialog`: a `Dialog` exposes `role="dialog"`
+ * and one that answers something the person is waiting for, such as a failed
+ * sync, exposes `role="alertdialog"`. Only one is ever open at a time, so the
+ * `.or` resolves to a single element.
  */
 export async function dismissDialog(page: Page): Promise<void> {
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog').or(page.getByRole('alertdialog'));
   await expect(dialog).toBeVisible();
   await expect(dialog).not.toHaveAttribute('data-starting-style');
   await page.keyboard.press('Escape');

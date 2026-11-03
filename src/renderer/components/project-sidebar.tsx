@@ -605,7 +605,10 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
     checkError === null && notSynced === 0 && incoming === 0;
 
   return (
-    <div className="rounded-lg border bg-card shadow-raised">
+    <div
+      data-slot="project-card"
+      className="rounded-lg border bg-card shadow-raised"
+    >
       <ProjectSwitcher project={project} />
 
       <div className="flex flex-col gap-1 border-t px-2.5 pt-2 pb-2.5">
@@ -778,7 +781,10 @@ export function ProjectSidebarSkeleton(): React.JSX.Element {
   return (
     <Sidebar>
       <SidebarHeader className="shrink-0 p-0 pb-2">
-        <div className="rounded-lg border bg-card shadow-raised">
+        <div
+          data-slot="project-card"
+          className="rounded-lg border bg-card shadow-raised"
+        >
           <ProjectSwitcherSkeleton />
         </div>
       </SidebarHeader>

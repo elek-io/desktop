@@ -106,8 +106,8 @@ export async function deleteProjectViaIpc(
 
 /**
  * Route to a Project's dashboard and confirm the app rendered there. The
- * dashboard is a Project route, so the ProjectSidebar (with the Synchronize
- * control) renders alongside it.
+ * dashboard is a Project route, so the ProjectSidebar (with the Project card
+ * and its Sync) renders alongside it.
  */
 export async function navigateToProjectDashboard(
   page: Page,
