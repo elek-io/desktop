@@ -14,15 +14,17 @@ import { EntryDefinitionDraft } from './definition';
 /** One or more Entries of the Collections the field allows, held as references. */
 export const entryField: FieldTypeModule<'entry'> = {
   translatable: true,
-  // The control is the dialog's trigger, a button, whose role does not take
-  // `aria-required`, so the rules beside the label carry it, which the
-  // trigger's `aria-describedby` names.
+  // The control is a list of rows and the buttons that fill it, and a button's
+  // role takes no `aria-required`, so the rules beside the label carry it,
+  // which every one of those buttons names in `aria-describedby`, and Choose
+  // says the word in its accessible name too.
   acceptsAriaRequired: false,
   rules: countRules,
-  Control: ({ field, fieldDefinition, disabled, controlProps }) => (
+  Control: ({ field, fieldDefinition, disabled, controlProps, label }) => (
     <EntryControl
       field={field}
       fieldDefinition={fieldDefinition}
+      label={label}
       disabled={disabled}
       {...controlProps}
     />
