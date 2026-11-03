@@ -35,7 +35,7 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { stubCoreRejectWithType } from '../helpers/ipc.js';
-import { navigate } from '../helpers/navigation.js';
+import { navigate, projectSidebar } from '../helpers/navigation.js';
 import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -68,6 +68,15 @@ test.describe('Components', () => {
     const project = await createProjectViaIpc(mainWindow);
 
     await navigateToComponentCreate(mainWindow, project.id);
+
+    // The sidebar's Components row carries Core's number, so it stands at zero
+    // while the Project has none.
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*0$/,
+      })
+    ).toBeVisible();
+
     await mainWindow
       .getByLabel('Component name', { exact: true })
       .fill('Teaser');
@@ -84,6 +93,13 @@ test.describe('Components', () => {
     // A uuid detail route (never 'create') means Core accepted the Component
     // with its field definition. Core owns file and commit correctness.
     await expect(mainWindow).toHaveURL(componentRoute);
+
+    // The row follows the create without the Project being opened again.
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*1$/,
+      })
+    ).toBeVisible();
 
     // The list names it by the name somebody gave it, not by its id.
     await navigateToComponents(mainWindow, project.id);
@@ -248,11 +264,24 @@ test.describe('Components', () => {
       projectId: project.id,
       componentId: component.id,
     });
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*1$/,
+      })
+    ).toBeVisible();
+
     await mainWindow.getByRole('button', { name: 'Delete Component' }).click();
     await confirmDialog(mainWindow, 'Yes, delete this Component');
 
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
     await expect(mainWindow.getByText('No Components yet')).toBeVisible();
+
+    // And the sidebar's row follows the delete too.
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*0$/,
+      })
+    ).toBeVisible();
   });
 
   test('refuses deleting a Component a Collection still uses, in place', async ({

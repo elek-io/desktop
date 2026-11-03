@@ -21,7 +21,10 @@ import {
   stubCoreRejectWithType,
   stubCoreResolve,
 } from '../helpers/ipc.js';
-import { verifyCurrentRouteHash } from '../helpers/navigation.js';
+import {
+  projectSidebar,
+  verifyCurrentRouteHash,
+} from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToHistory,
@@ -72,9 +75,14 @@ test.describe('Releases', () => {
     await createCollectionViaIpc(mainWindow, { projectId: project.id });
 
     // The page is reached from the Project's sidebar, whose row carries how
-    // many Releases there are, so its name starts with the row's own name.
+    // many Releases there are, so its name starts with the row's own name. The
+    // number is Core's, and this Project has published nothing yet.
     await navigateToProjectDashboard(mainWindow, project.id);
-    await mainWindow.getByRole('link', { name: /^Releases/ }).click();
+    const releasesRow = projectSidebar(mainWindow).getByRole('link', {
+      name: /^Releases\s*0$/,
+    });
+    await expect(releasesRow).toBeVisible();
+    await releasesRow.click();
     await verifyCurrentRouteHash(
       mainWindow,
       `#/projects/${project.id}/releases`
@@ -131,8 +139,12 @@ test.describe('Releases', () => {
     await expect(dialog).toBeHidden();
 
     // What was published and when, without a reload: the Releases list shows
-    // the version Core wrote and the Project carries it in the sidebar.
+    // the version Core wrote, and the Project carries it in the sidebar, whose
+    // row counts the new Release without the Project being opened again.
     await expect(mainWindow.getByText('No Releases yet')).toBeHidden();
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', { name: /^Releases\s*1$/ })
+    ).toBeVisible();
     await expect(
       mainWindow
         .getByRole('main')
