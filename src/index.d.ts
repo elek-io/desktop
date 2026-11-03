@@ -91,6 +91,7 @@ declare global {
         create: ElekIoCore['releases']['create'];
       };
       assets: {
+        count: ElekIoCore['assets']['count'];
         list: ElekIoCore['assets']['list'];
         create: ElekIoCore['assets']['create'];
         read: ElekIoCore['assets']['read'];
@@ -117,6 +118,7 @@ declare global {
         delete: ElekIoCore['components']['delete'];
       };
       entries: {
+        count: ElekIoCore['entries']['count'];
         list: ElekIoCore['entries']['list'];
         create: ElekIoCore['entries']['create'];
         read: ElekIoCore['entries']['read'];

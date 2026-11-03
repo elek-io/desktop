@@ -6,6 +6,7 @@ import {
 
 import type {
   Component,
+  CountComponentsProps,
   DeleteComponentProps,
   ListComponentsProps,
   PaginatedList,
@@ -76,7 +77,7 @@ export const componentOptions = {
       },
       error: () => t`Could not create the Component`,
     },
-    onSuccess: (createdComponent, variables, _result, context) => {
+    onSuccess: async (createdComponent, variables, _result, context) => {
       // Add Component to cache individually
       context.client.setQueryData(
         [
@@ -95,6 +96,13 @@ export const componentOptions = {
         ['projects', variables.projectId, 'current', 'components', 'list'],
         (oldList) => mergeListWithObject(oldList, createdComponent)
       );
+
+      // The count behind the sidebar's Components row is Core's number rather
+      // than ours to add to, so it is read again instead of incremented here.
+      await context.client.invalidateQueries({
+        queryKey: componentOptions.count({ projectId: variables.projectId })
+          .queryKey,
+      });
     },
   }),
   read: (props: ReadComponentProps) =>
@@ -177,7 +185,7 @@ export const componentOptions = {
       },
       error: () => t`Could not delete the Component`,
     },
-    onSuccess: (_deletedComponent, variables, _result, context) => {
+    onSuccess: async (_deletedComponent, variables, _result, context) => {
       // Remove Component from cache individually
       context.client.setQueryData(
         [
@@ -201,6 +209,11 @@ export const componentOptions = {
             'delete'
           )
       );
+
+      await context.client.invalidateQueries({
+        queryKey: componentOptions.count({ projectId: variables.projectId })
+          .queryKey,
+      });
     },
   }),
   list: (props: ListComponentsProps) =>
@@ -226,6 +239,22 @@ export const componentOptions = {
         });
 
         return components;
+      },
+      throwOnError: true,
+    }),
+  /**
+   * How many Components the Project holds.
+   *
+   * Core counts them without reading each one, so the sidebar's Components row
+   * says how many there are without the whole list being read for it. Every
+   * mutation that adds or removes one invalidates this key, which is how the
+   * number follows a create and a delete.
+   */
+  count: (props: CountComponentsProps) =>
+    queryOptions({
+      queryKey: ['projects', props.projectId, 'current', 'components', 'count'],
+      queryFn: async () => {
+        return await window.ipc.core.components.count(props);
       },
       throwOnError: true,
     }),

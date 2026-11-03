@@ -109,6 +109,8 @@ const ipc: ContextBridgeApi = {
         ipcRenderer.invoke('core:releases:create', ...args),
     },
     assets: {
+      count: async (...args) =>
+        ipcRenderer.invoke('core:assets:count', ...args),
       list: async (...args) => ipcRenderer.invoke('core:assets:list', ...args),
       create: async (...args) =>
         ipcRenderer.invoke('core:assets:create', ...args),
@@ -152,6 +154,8 @@ const ipc: ContextBridgeApi = {
         ipcRenderer.invoke('core:components:delete', ...args),
     },
     entries: {
+      count: async (...args) =>
+        ipcRenderer.invoke('core:entries:count', ...args),
       list: async (...args) => ipcRenderer.invoke('core:entries:list', ...args),
       create: async (...args) =>
         ipcRenderer.invoke('core:entries:create', ...args),

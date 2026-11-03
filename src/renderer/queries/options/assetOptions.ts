@@ -6,6 +6,7 @@ import {
 
 import type {
   Asset,
+  CountAssetsProps,
   DeleteAssetProps,
   ListAssetsProps,
   PaginatedList,
@@ -58,7 +59,7 @@ export const assetOptions = {
       },
       error: () => t`Could not add the Asset`,
     },
-    onSuccess: (createdAsset, variables, _result, context) => {
+    onSuccess: async (createdAsset, variables, _result, context) => {
       // Add Asset to cache individually
       context.client.setQueryData(
         [
@@ -77,6 +78,13 @@ export const assetOptions = {
         ['projects', variables.projectId, 'current', 'assets', 'list'],
         (oldList) => mergeListWithObject(oldList, createdAsset)
       );
+
+      // The count behind the sidebar's Assets row is Core's number rather than
+      // ours to add to, so it is read again instead of incremented here.
+      await context.client.invalidateQueries({
+        queryKey: assetOptions.count({ projectId: variables.projectId })
+          .queryKey,
+      });
     },
   }),
   read: (props: ReadAssetProps) =>
@@ -146,7 +154,7 @@ export const assetOptions = {
       },
       error: () => t`Could not delete the Asset`,
     },
-    onSuccess: (_deletedAsset, variables, _result, context) => {
+    onSuccess: async (_deletedAsset, variables, _result, context) => {
       // Remove Asset from cache individually
       context.client.setQueryData(
         [
@@ -166,6 +174,11 @@ export const assetOptions = {
         (oldList) =>
           mergeListWithObject(oldList, { id: variables.id } as Asset, 'delete')
       );
+
+      await context.client.invalidateQueries({
+        queryKey: assetOptions.count({ projectId: variables.projectId })
+          .queryKey,
+      });
     },
   }),
   save: customMutationOptions({
@@ -208,6 +221,22 @@ export const assetOptions = {
         });
 
         return assets;
+      },
+      throwOnError: true,
+    }),
+  /**
+   * How many Assets the Project holds.
+   *
+   * Core counts the sidecars in one directory read, so the sidebar's Assets row
+   * says how many there are without the whole list being read for it. Every
+   * mutation that adds or removes one invalidates this key, which is how the
+   * number follows a create and a delete.
+   */
+  count: (props: CountAssetsProps) =>
+    queryOptions({
+      queryKey: ['projects', props.projectId, 'current', 'assets', 'count'],
+      queryFn: async () => {
+        return await window.ipc.core.assets.count(props);
       },
       throwOnError: true,
     }),

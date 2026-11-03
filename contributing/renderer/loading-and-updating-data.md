@@ -26,7 +26,7 @@ All `queryOptions` and `mutationOptions` are centrally defined in the [`options/
 
 ### Query Key Structure
 
-Query keys follow a consistent hierarchy so individual items, lists and historical states can be cached and invalidated independently. Each level is followed by a state marker (`'current'` for HEAD or a commit hash for a historical state), and list queries end in `'list'`:
+Query keys follow a consistent hierarchy so individual items, lists and historical states can be cached and invalidated independently. Each level is followed by a state marker (`'current'` for HEAD or a commit hash for a historical state), list queries end in `'list'` and a count of what a level holds ends in `'count'`:
 
 ```typescript
 // all projects
@@ -46,8 +46,13 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
 ['projects', projectId, 'current', 'releases', 'list'];
 ['projects', projectId, 'current', 'releases', 'pending'];
 
-// components in a project, and one Component at HEAD
+// the Assets of a project, and how many there are
+['projects', projectId, 'current', 'assets', 'list'];
+['projects', projectId, 'current', 'assets', 'count'];
+
+// components in a project, how many there are, and one Component at HEAD
 ['projects', projectId, 'current', 'components', 'list'];
+['projects', projectId, 'current', 'components', 'count'];
 ['projects', projectId, 'current', 'components', componentId, 'current'];
 
 // collections in a project
@@ -68,6 +73,18 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
   'list',
 ];
 
+// how many Entries a collection holds
+[
+  'projects',
+  projectId,
+  'current',
+  'collections',
+  collectionId,
+  'current',
+  'entries',
+  'count',
+];
+
 // an entry at HEAD
 [
   'projects',
@@ -81,6 +98,29 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
   'current',
 ];
 ```
+
+### The counts beside the sidebar's rows
+
+The Project's sidebar says how many things each of its rows leads to, and each
+number is Core's rather than the length of a list the renderer happens to hold:
+
+| Row              | Where its number comes from                                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Assets           | `assets.count`, one directory read of the sidecars                                                                                 |
+| Components       | `components.count`                                                                                                                 |
+| Every Collection | `entries.count` of that Collection, one query per row through [`useQueriesNoError`](../../src/renderer/hooks/useQueriesNoError.ts) |
+| Releases         | `releases.list`, because Core counts no Releases. It is the query the Releases screen reads, so both show the same number          |
+
+**A count is invalidated, not incremented.** Every mutation that adds or removes
+one of the counted things invalidates that count's key from its `onSuccess`,
+beside the direct cache update it does for the list, so the number comes back
+from Core instead of being guessed from what the renderer knows. That is what
+makes a count follow a create and a delete without the Project being opened
+again, and `tests/specs/navigation.spec.ts` drives it through an Entry create
+and an Asset delete.
+
+A synchronize and a Release invalidate everything under the Project, so both
+carry the counts with them without naming them.
 
 ## Querying Data
 

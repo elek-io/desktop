@@ -2,6 +2,7 @@ import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import type {
+  CountEntriesProps,
   Entry,
   ListEntriesProps,
   PaginatedList,
@@ -22,7 +23,7 @@ export const entryOptions = {
       success: () => t`Entry created`,
       error: () => t`Could not create the Entry`,
     },
-    onSuccess: (createdEntry, variables, _result, context) => {
+    onSuccess: async (createdEntry, variables, _result, context) => {
       // Add Entry to cache individually
       context.client.setQueryData(
         [
@@ -53,6 +54,16 @@ export const entryOptions = {
         ],
         (oldList) => mergeListWithObject(oldList, createdEntry)
       );
+
+      // The count behind the Collection's row in the sidebar is Core's number
+      // rather than ours to add to, so it is read again instead of incremented
+      // here.
+      await context.client.invalidateQueries({
+        queryKey: entryOptions.count({
+          projectId: variables.projectId,
+          collectionId: variables.collectionId,
+        }).queryKey,
+      });
     },
   }),
   read: (props: ReadEntryProps) =>
@@ -126,7 +137,7 @@ export const entryOptions = {
       success: () => t`Entry deleted`,
       error: () => t`Could not delete the Entry`,
     },
-    onSuccess: (_deletedEntry, variables, _result, context) => {
+    onSuccess: async (_deletedEntry, variables, _result, context) => {
       // Remove Entry from cache individually
       context.client.setQueryData(
         [
@@ -158,6 +169,13 @@ export const entryOptions = {
         (oldList) =>
           mergeListWithObject(oldList, { id: variables.id } as Entry, 'delete')
       );
+
+      await context.client.invalidateQueries({
+        queryKey: entryOptions.count({
+          projectId: variables.projectId,
+          collectionId: variables.collectionId,
+        }).queryKey,
+      });
     },
   }),
   list: (props: ListEntriesProps) =>
@@ -195,6 +213,31 @@ export const entryOptions = {
         });
 
         return entries;
+      },
+      throwOnError: true,
+    }),
+  /**
+   * How many Entries a Collection holds.
+   *
+   * Core counts the Entry files in one directory read, so the Collection's row
+   * in the sidebar says how many there are without every Entry being read for
+   * it. Every mutation that adds or removes one invalidates this key, which is
+   * how the number follows a create and a delete.
+   */
+  count: (props: CountEntriesProps) =>
+    queryOptions({
+      queryKey: [
+        'projects',
+        props.projectId,
+        'current',
+        'collections',
+        props.collectionId,
+        'current',
+        'entries',
+        'count',
+      ],
+      queryFn: async () => {
+        return await window.ipc.core.entries.count(props);
       },
       throwOnError: true,
     }),
