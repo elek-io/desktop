@@ -696,6 +696,15 @@ test.describe('Entries', () => {
       new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
     );
     await expect(translationsTrigger).toHaveAttribute('aria-invalid', 'true');
+
+    // And the language that is missing says what it needs inside the dialog,
+    // in the same words the field outside it would show.
+    await translationsTrigger.click();
+    const languages = mainWindow.getByRole('dialog', { name: 'Title' });
+    await expect(languages).toBeVisible();
+    await expect(
+      languages.getByText('This field needs a Value.')
+    ).toBeVisible();
   });
 
   test('formats temporal fields and relative columns per the user language', async ({
@@ -1368,7 +1377,9 @@ test.describe('Entries', () => {
     // The inner field says what is wrong and is marked invalid, while the
     // field holding the sections says nothing and is not.
     await expect(headline).toHaveAttribute('aria-invalid', 'true');
-    await expectErrorOf(mainWindow, 'Headline').not.toBeNull();
+    await expectErrorOf(mainWindow, 'Headline').toBe(
+      'This field needs a Value.'
+    );
     expect(await errorOf(mainWindow, 'Sections')).toBeNull();
     await expect(
       mainWindow.getByRole('button', { name: 'Add section' })

@@ -86,9 +86,10 @@ export type RefusalWords = {
 };
 
 const REFUSAL_WORDS: RefusalWords = {
-  // What the field holds is not of the type it stores. An absent Value is the
-  // one shape an editor causes, since Core marks a required field's Value
-  // non-nullable rather than counting it as empty.
+  // What the field holds is not of the type it stores. A Value that is not
+  // there is the one shape an editor causes, since Core marks a required
+  // field's Value non-nullable rather than counting it as empty, and a control
+  // that is left empty answers with `null`.
   invalid_type: (issue) =>
     issue.input === null || issue.input === undefined
       ? needsValueText()
@@ -159,15 +160,19 @@ const REFUSAL_WORDS: RefusalWords = {
     return t`Use a multiple of ${divisor}.`;
   },
 
-  // A Value the field does not define, and a key its Component does not
-  // declare. Both are a shape no control writes.
+  // A literal the Value has to carry, such as which Component a section is
+  // built from, a key no field declares and a language the Project does not
+  // support. None of them is a shape a control writes.
   invalid_value: wrongShapeText,
   unrecognized_keys: wrongShapeText,
   invalid_key: wrongShapeText,
   invalid_element: wrongShapeText,
 
-  // Part of the Value is none of the shapes the field accepts, which is what a
-  // markdown tree holding a block its field does not allow comes out as.
+  // Part of the Value is none of the shapes the field accepts, which a
+  // markdown tree holding a block its field does not allow comes out as. The
+  // resolver prefers the message of the shortest branch wherever a union
+  // carries branches, each of which is worded above, so this stands for one
+  // that carries none.
   invalid_union: () => t`Part of this Value isn't something this field takes.`,
 
   // A rule a schema added itself. Core's own carry their English with them and

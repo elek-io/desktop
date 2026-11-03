@@ -559,10 +559,13 @@ test.describe('Components', () => {
 
     // The field is required, so an empty list cannot be saved. The message
     // lands on the field and marks its control, rather than the press doing
-    // nothing at all. It is zod's own text, as every other field's is.
+    // nothing at all, and it says what the field needs rather than what the
+    // validator measured.
     const addSection = mainWindow.getByRole('button', { name: 'Add section' });
     await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(mainWindow.getByText(/too small/i)).toBeVisible();
+    await expect(
+      mainWindow.getByText('This field needs a Value.')
+    ).toBeVisible();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/[^/]+/${entry.id}/update$`)
     );
@@ -593,7 +596,9 @@ test.describe('Components', () => {
       .click();
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
     await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(mainWindow.getByText(/too small/i)).toBeVisible();
+    await expect(
+      mainWindow.getByText('This field needs a Value.')
+    ).toBeVisible();
   });
 
   test('authors a dynamic Field on a Collection through the Add Field sheet', async ({

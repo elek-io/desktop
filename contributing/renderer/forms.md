@@ -241,9 +241,12 @@ message a Core release rewords falls to that rather than reaching a field.
 `refusal-words.spec.ts` triggers all five against the installed Core, so a
 reword fails there instead.
 
-A hand-written field passes no `coreRefusalText` and its message stands as it
-arrived. A Core refusal of a field definition still shows Core's English on a
-Collection's or a Component's settings, which the rebuild of those forms words.
+The map is global, so a refusal zod raises reads the same under a hand-written
+field as under a generated one. What a hand-written field does not pass is
+`coreRefusalText`, so a refusal Core worded itself stands there as Core wrote
+it. A Collection's and a Component's settings are where that shows, since Core
+words its refusals of a field definition itself, and the rebuild of those forms
+words them.
 
 ## When an error has no field to land on
 
