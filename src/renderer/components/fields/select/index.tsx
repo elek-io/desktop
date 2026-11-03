@@ -14,10 +14,11 @@ export const selectField: FieldTypeModule<'select'> = {
   translatable: true,
   acceptsAriaRequired: true,
   rules: scalarRules,
-  Control: ({ field, fieldDefinition, disabled, controlProps }) => (
+  Control: ({ field, fieldDefinition, disabled, controlProps, label }) => (
     <SelectControl
       field={field}
       fieldDefinition={fieldDefinition}
+      label={label}
       disabled={disabled}
       {...controlProps}
     />

@@ -5,6 +5,10 @@ import { Plus, TrashIcon } from 'lucide-react';
 import { useEffect, useId, useState, type ReactElement } from 'react';
 import { useFieldArray, useWatch, type UseFormReturn } from 'react-hook-form';
 
+import {
+  OptionChoice,
+  type ChoiceOption,
+} from '@renderer/components/fields/select/control';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 import {
   DefinitionDraft,
@@ -100,55 +104,45 @@ function ValueTypeSelect({
   );
 }
 
-/** A "Default value" picker keyed by option index. A select item cannot hold an
- * empty value, so the stored value maps to the option's position. */
-function DefaultOptionSelect({
+/**
+ * A Default Value picker keyed by option index, which is what the select
+ * field's own control is: a list of radio buttons led by None, since a Default
+ * Value may stay empty, and a dropdown with a filter once the list is long.
+ *
+ * An option's own value can be the empty string, which no item value may be,
+ * so the stored value maps to the option's position.
+ */
+function DefaultOptionChoice({
+  label,
   items,
   selectedIndex,
   onSelectIndex,
   controlProps,
+  field,
   disabled,
 }: {
-  items: { itemValue: string; display: string }[];
+  label: string;
+  items: ChoiceOption[];
   selectedIndex: number;
   onSelectIndex: (index: number | null) => void;
   controlProps: FieldControlProps;
+  field: { onBlur: () => void; ref: (instance: unknown) => void };
   disabled: boolean;
 }): ReactElement {
-  const { t } = useLingui();
   return (
-    <Select
-      items={{
-        none: t`None`,
-        ...Object.fromEntries(
-          items.map((item) => [item.itemValue, item.display])
-        ),
-      }}
-      value={selectedIndex === -1 ? 'none' : String(selectedIndex)}
-      onValueChange={(selected) =>
-        onSelectIndex(
-          selected === null || selected === 'none' ? null : Number(selected)
-        )
-      }
+    <OptionChoice
+      {...controlProps}
+      label={label}
+      options={items}
+      chosen={selectedIndex === -1 ? null : String(selectedIndex)}
+      withNone
       disabled={disabled}
-    >
-      {/* The trigger is the real focusable control, so the
-      control-association props land there rather than on the root, which
-      forwards none of them. */}
-      <SelectTrigger {...controlProps}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">
-          <Trans>None</Trans>
-        </SelectItem>
-        {items.map((item) => (
-          <SelectItem key={item.itemValue} value={item.itemValue}>
-            {item.display}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      onChoose={(itemValue) =>
+        onSelectIndex(itemValue === null ? null : Number(itemValue))
+      }
+      onBlur={field.onBlur}
+      controlRef={field.ref}
+    />
   );
 }
 
@@ -239,6 +233,9 @@ function StringSelectExtras({
   supportedLanguages,
 }: DefinitionExtrasProps<StringSelectFieldDefinition>): ReactElement {
   const { t } = useLingui();
+  // Read once, since the field's label and the name of its group of radio
+  // buttons are the same words.
+  const defaultValueLabel = t`Default value`;
   const options = useFieldArray({ control: form.control, name: 'options' });
   const watchedOptions = useWatch({ control: form.control, name: 'options' });
 
@@ -314,12 +311,14 @@ function StringSelectExtras({
       <AppField
         form={form}
         name="defaultValue"
-        label={<Trans>Default value</Trans>}
+        label={defaultValueLabel}
         description={<Trans>The initial option for the field.</Trans>}
       >
         {({ field, controlProps, disabled }) => (
-          <DefaultOptionSelect
+          <DefaultOptionChoice
+            label={defaultValueLabel}
             controlProps={controlProps}
+            field={field}
             disabled={disabled}
             items={items}
             selectedIndex={
@@ -408,6 +407,10 @@ function NumberSelectExtras({
   currentLanguage,
   supportedLanguages,
 }: DefinitionExtrasProps<NumberSelectFieldDefinition>): ReactElement {
+  const { t } = useLingui();
+  // Read once, since the field's label and the name of its group of radio
+  // buttons are the same words.
+  const defaultValueLabel = t`Default value`;
   const options = useFieldArray({ control: form.control, name: 'options' });
   const watchedOptions = useWatch({ control: form.control, name: 'options' });
 
@@ -478,12 +481,14 @@ function NumberSelectExtras({
       <AppField
         form={form}
         name="defaultValue"
-        label={<Trans>Default value</Trans>}
+        label={defaultValueLabel}
         description={<Trans>The initial option for the field.</Trans>}
       >
         {({ field, controlProps, disabled }) => (
-          <DefaultOptionSelect
+          <DefaultOptionChoice
+            label={defaultValueLabel}
             controlProps={controlProps}
+            field={field}
             disabled={disabled}
             items={items}
             selectedIndex={
