@@ -68,6 +68,13 @@ export async function stubCoreReject(
  * act in. A failure that depends on where focus is when it lands is observed
  * that way: without the delay the rejection races the step that moves focus.
  *
+ * Pass `cause` to drive a shape Core attaches to one, which it does for a
+ * refused field definition change and for a sync it would integrate dangling
+ * references with. It goes through `serializeCoreError`, so it crosses exactly
+ * as the real one does, narrowed by the same encoding (see
+ * `shared/ipcError.ts`). Used for a set of references no local repository can
+ * be arranged into, such as the same field reached through two carriers.
+ *
  * Mirrors `stubCoreReject`, including why it has to run in the main process.
  * The one difference is the message: the main process encodes a `CoreError`'s
  * type into the message with a sentinel, which the renderer decodes back out
@@ -79,9 +86,9 @@ export async function stubCoreRejectWithType(
   electronApp: ElectronApplication,
   channel: string,
   type: CoreErrorType,
-  options: { delayMs?: number } = {}
+  options: { delayMs?: number; cause?: unknown } = {}
 ): Promise<void> {
-  const { delayMs = 0 } = options;
+  const { delayMs = 0, cause } = options;
 
   await electronApp.evaluate(
     ({ ipcMain }, stub) => {
@@ -103,7 +110,8 @@ export async function stubCoreRejectWithType(
       message: serializeCoreError(
         type,
         `E2E injected ${type} failure`,
-        `CoreError: E2E injected ${type} failure\n    at stubCoreRejectWithType (tests/helpers/ipc.ts)`
+        `CoreError: E2E injected ${type} failure\n    at stubCoreRejectWithType (tests/helpers/ipc.ts)`,
+        cause
       ),
     }
   );

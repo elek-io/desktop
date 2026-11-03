@@ -547,6 +547,94 @@ test.describe('Sync', () => {
     ).toBeVisible();
   });
 
+  test('names each field Core named once, and by its slug where the Collection no longer has it', async ({
+    mainWindow,
+    electronApp,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // Its own slug, since the arrangement below adds a Collection of its own
+    // and Core refuses a second one under the same slug.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Blog post' }, plural: { en: 'Blog posts' } },
+      slug: { singular: 'blog-post', plural: 'blog-posts' },
+      fieldDefinitions: [textFieldDefinition(), referenceFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours' }),
+        related: referenceValue(),
+      },
+    });
+    const synchronize = await arrangeSyncableProject(
+      mainWindow,
+      testInfo,
+      project.id
+    );
+
+    // The set of references Core can name that no local repository can be
+    // arranged into: the same field reached through both carriers it stores a
+    // reference in, and one in a field the Collection no longer has, which is
+    // what a field removed between the write and the sync leaves.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:projects:synchronize',
+      'Conflict',
+      {
+        cause: [
+          {
+            collectionId: collection.id,
+            entryId: entry.id,
+            fieldSlug: 'related',
+            via: 'reference',
+            componentPath: [],
+            targetKind: 'entry',
+            targetId: entry.id,
+            targetCollectionId: collection.id,
+          },
+          {
+            collectionId: collection.id,
+            entryId: entry.id,
+            fieldSlug: 'related',
+            via: 'mdast',
+            componentPath: [],
+            targetKind: 'entry',
+            targetId: entry.id,
+            targetCollectionId: collection.id,
+          },
+          {
+            collectionId: collection.id,
+            entryId: entry.id,
+            fieldSlug: 'a-field-that-went',
+            via: 'reference',
+            componentPath: [],
+            targetKind: 'asset',
+            targetId: entry.id,
+            targetCollectionId: null,
+          },
+        ],
+      }
+    );
+
+    await synchronize.click();
+
+    // One row per field rather than one per broken id, so the dialog offers one
+    // way into each field.
+    const dialog = syncDialog(mainWindow);
+    const rows = dialog.getByRole('listitem');
+    await expect(rows).toHaveCount(2);
+    await expect(
+      rows.filter({ hasText: 'Related' }).getByRole('link')
+    ).toHaveText('Spring opening hours');
+
+    // A field the Collection no longer has is named by the slug a site reads
+    // its Value under, since there is no label left to read.
+    await expect(rows.filter({ hasText: 'a-field-that-went' })).toHaveCount(1);
+  });
+
   test('answers a refusal in the dialog while focus is still on Sync, and gives focus back', async ({
     mainWindow,
     electronApp,
