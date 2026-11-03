@@ -116,6 +116,24 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
+ * A language by its name in the language the app is read in, such as "German"
+ * for `de` while the app is English and "Deutsch" while it is German.
+ *
+ * For a sentence that names a language, which is what ci writes: "German is
+ * missing 1 Value". The names come from the system's own language data through
+ * `Intl.DisplayNames`, so they are not in the catalog and no language has to be
+ * written out here. A code the system has no name for reads as the code, which
+ * is `Intl`'s own fallback. Where a language is labeled rather than spoken
+ * about, such as the switch above an Entry's fields, ci puts its code.
+ */
+export function languageName(language: SupportedLanguage): string {
+  return (
+    new Intl.DisplayNames([i18n.locale], { type: 'language' }).of(language) ??
+    language
+  );
+}
+
+/**
  * Often used by tailwind components to join multiple strings of classes
  *
  * @param classes Array of classes to join

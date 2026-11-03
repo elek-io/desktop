@@ -13,15 +13,16 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+        default:
+          'bg-primary text-primary-foreground hover:not-aria-disabled:bg-primary-hover',
         outline:
-          'border-border bg-transparent shadow-xs hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input',
+          'border-border bg-transparent shadow-xs hover:not-aria-disabled:bg-muted hover:not-aria-disabled:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+          'bg-secondary text-secondary-foreground hover:not-aria-disabled:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
         ghost:
-          'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
+          'hover:not-aria-disabled:bg-muted hover:not-aria-disabled:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:not-aria-disabled:bg-muted/50',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive-hover',
+          'bg-destructive text-destructive-foreground hover:not-aria-disabled:bg-destructive-hover',
         link: 'underline decoration-link-underline decoration-2 underline-offset-4',
       },
       size: {

@@ -231,7 +231,9 @@ const blockedBy = missing === 0 ? undefined : t`...`;
   together with the reason it points at, which a `disabled` button cannot be.
   That is why the pending and the `requireDirty` gates say it the same way,
   though neither of them has words. The look comes from `aria-disabled:opacity-50`
-  in `buttonVariants`, and the press animation is suppressed for it.
+  in `buttonVariants`, where every variant's hover color and the press animation
+  are guarded with `not-aria-disabled:`, so a blocked control does not answer the
+  pointer the way an available one does.
 - **The click is stopped in `SubmitButton`** and **`AppForm` ignores a blocked
   submit**, because a control that still takes a click still raises one, and
   Enter in a field raises a submit of the form itself. So nothing reaches the

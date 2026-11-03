@@ -19,6 +19,7 @@ import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
 import { useEntryRefusals } from '@renderer/hooks/useEntryRefusals';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { languageName } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
@@ -163,11 +164,14 @@ function UpdateEntryPage(): ReactElement {
         defaultLanguage: project.settings.language.default,
       });
   // The first language that misses one, since the person opens one language at
-  // a time. It is named by its code, which is how every other screen of the app
-  // names a language today.
-  const [language, missingValues] = [...missingByLanguage.entries()].find(
-    ([, count]) => count > 0
-  ) ?? [undefined, 0];
+  // a time. The sentence names it by its word in the language the app is read
+  // in, as ci writes it, rather than by the code the switch above the fields
+  // carries.
+  const [missingLanguage, missingValues] = [
+    ...missingByLanguage.entries(),
+  ].find(([, count]) => count > 0) ?? [undefined, 0];
+  const language =
+    missingLanguage === undefined ? undefined : languageName(missingLanguage);
   const blockedBy =
     language === undefined
       ? undefined

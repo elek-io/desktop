@@ -102,6 +102,8 @@ Every word elek.io Desktop shows comes from one message catalog, read through [L
 
 A message is identified by its English text: Lingui hashes the text into the id, so rewording the English asks for a new translation rather than leaving a stale one behind.
 
+Name a language inside a sentence with `languageName` in [`lib/utils.ts`](../../src/renderer/lib/utils.ts), rather than with its code. It asks `Intl.DisplayNames` for the word in the locale the app is read in, so "German is missing 1 Value" reads as German in a German app and no language needs a catalog entry of its own. A language that is labeled rather than spoken about keeps its code, which is what ci draws in the switch above an Entry's fields.
+
 ### Adding a string
 
 Write the macro, then run `pnpm i18n:extract`. Nothing else: the catalog is generated from the code, never edited by hand.

@@ -88,7 +88,9 @@ test.describe('A form that cannot be saved yet', () => {
     // Core refuses an Entry whose required Value is empty in a language of the
     // Project, so emptying the one required field is what blocks Save.
     await title.fill('');
-    await expect(blockedReason(mainWindow)).toHaveText('en is missing 1 Value');
+    await expect(blockedReason(mainWindow)).toHaveText(
+      'English is missing 1 Value'
+    );
     await expect(save).toBeDisabled();
 
     // Nothing may reach Core, however the submit is raised. The channel in
@@ -106,7 +108,9 @@ test.describe('A form that cannot be saved yet', () => {
     await expect(mainWindow).toHaveURL((url) =>
       url.hash.endsWith(`/${ids.entryId}/update`)
     );
-    await expect(blockedReason(mainWindow)).toHaveText('en is missing 1 Value');
+    await expect(blockedReason(mainWindow)).toHaveText(
+      'English is missing 1 Value'
+    );
     // The submit was ignored rather than run, so the validator did not mark
     // the field either. That is what tells a blocked form from one that is
     // checked when Save is pressed.
@@ -141,7 +145,7 @@ test.describe('A form that cannot be saved yet', () => {
     const reasonId = await save.getAttribute('aria-describedby');
     expect(reasonId).not.toBeNull();
     await expect(mainWindow.locator(`#${reasonId ?? ''}`)).toHaveText(
-      'en is missing 1 Value'
+      'English is missing 1 Value'
     );
     // The same element ci draws the line as, in the warning color with its
     // icon, so the color alone does not carry it.

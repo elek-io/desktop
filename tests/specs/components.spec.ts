@@ -565,7 +565,7 @@ test.describe('Components', () => {
     await expect(save).toBeDisabled();
     await expect(
       mainWindow.locator('[data-slot="form-blocked-reason"]')
-    ).toHaveText('en is missing 1 Value');
+    ).toHaveText('English is missing 1 Value');
     await save.click({ force: true });
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/[^/]+/${entry.id}/update$`)
