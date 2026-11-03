@@ -1,29 +1,9 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import type { ReactElement } from 'react';
 
-import { entryTitle } from '@renderer/components/fields/entry-title';
-import { Button } from '@renderer/components/ui/button';
-import {
-  Dialog,
-  DialogBody,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@renderer/components/ui/dialog';
-import { Skeleton } from '@renderer/components/ui/skeleton';
-import { useProject } from '@renderer/hooks/useProject';
-import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
-import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { queryOptions } from '@renderer/queries';
+import { EntryPickerDialog } from '@renderer/components/pickers/entry-picker-dialog';
 
-import {
-  flattenFieldDefinitions,
-  type Collection,
-  type Entry,
-} from '@elek-io/core';
+import type { Collection, Entry } from '@elek-io/core';
 
 export interface EntryReferencePickerProps {
   open: boolean;
@@ -38,8 +18,10 @@ export interface EntryReferencePickerProps {
 }
 
 /**
- * Dialog to pick a single Entry for an entryReference inside the markdown
- * editor. Single-select variant of the Entry field's picker.
+ * The dialog that picks one Entry to reference inside the markdown editor.
+ *
+ * It is the Entry field's own picker with one choice, so the Entries are listed
+ * the same way, each with a radio button.
  */
 export const EntryReferencePicker = ({
   open,
@@ -47,130 +29,29 @@ export const EntryReferencePicker = ({
   ofCollections,
   onPick,
 }: EntryReferencePickerProps): ReactElement => {
-  const {
-    projectId,
-    translateContent,
-    projectQuery: { data: project, isPending: isReadingProject },
-  } = useProject();
-  /* eslint-disable lingui/no-unlocalized-strings -- a language code, which is
-  the same in every language */
-  const titleLanguage = isReadingProject
-    ? 'en'
-    : project.settings.language.default;
-  /* eslint-enable lingui/no-unlocalized-strings */
-  const { data: collectionList, isPending: isReadingCollections } =
-    useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
-
-  const allowedCollections: Collection[] = isReadingCollections
-    ? []
-    : ofCollections.length > 0
-      ? collectionList.list.filter((collection) =>
-          ofCollections.includes(collection.id)
-        )
-      : collectionList.list;
-
-  const entryQueries = useQueriesNoError(
-    allowedCollections.map((collection) =>
-      queryOptions.entries.list({
-        projectId,
-        collectionId: collection.id,
-        limit: 0,
-      })
-    )
-  );
-  const isReadingEntries = entryQueries.some((query) => query.isPending);
-
-  const entriesByCollection = allowedCollections.map((collection, index) => {
-    const entryQuery = entryQueries[index];
-    return {
-      collection,
-      entries:
-        entryQuery !== undefined && entryQuery.isPending === false
-          ? entryQuery.data.list
-          : [],
-    };
-  });
-  const hasEntries = entriesByCollection.some(
-    ({ entries }) => entries.length > 0
-  );
+  const { t } = useLingui();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>
-            <Trans>Reference an Entry</Trans>
-          </DialogTitle>
-          <DialogDescription>
-            <Trans>The reference is inserted at the cursor position.</Trans>
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogBody>
-          {isReadingCollections || isReadingEntries ? (
-            <div className="space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => {
-                const key = `skeleton-${String(i)}`;
-                return <Skeleton key={key} className="h-10" />;
-              })}
-            </div>
-          ) : hasEntries === false ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              <Trans>
-                No Entries available. Create Entries in the allowed Collections
-                first.
-              </Trans>
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {entriesByCollection.map(({ collection, entries }) => {
-                if (entries.length === 0) {
-                  return null;
-                }
-                return (
-                  <div key={collection.id}>
-                    <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                      {translateContent({
-                        key: 'collection.name.plural',
-                        record: collection.name.plural,
-                      })}
-                    </h3>
-                    <div className="space-y-1">
-                      {entries.map((entry) => {
-                        const label = entryTitle({
-                          entry,
-                          fieldDefinitions: flattenFieldDefinitions(
-                            collection.fieldDefinitions
-                          ),
-                          language: titleLanguage,
-                        });
-                        return (
-                          <button
-                            key={entry.id}
-                            type="button"
-                            onClick={() => {
-                              onPick({ entry, collection, label });
-                            }}
-                            className="flex w-full cursor-pointer items-center justify-between rounded-md border border-border px-3 py-2 text-left transition-colors hover:border-input"
-                          >
-                            <span className="text-sm font-medium">{label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </DialogBody>
-
-        <DialogFooter>
-          <DialogClose render={<Button variant="secondary" />}>
-            <Trans>Cancel</Trans>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <EntryPickerDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t`Reference an Entry`}
+      description={
+        <Trans>The reference is inserted at the cursor position.</Trans>
+      }
+      ofCollections={ofCollections}
+      chosenIds={[]}
+      max={1}
+      onChoose={(entries) => {
+        const chosen = entries[0];
+        if (chosen !== undefined) {
+          onPick({
+            entry: chosen.entry,
+            collection: chosen.collection,
+            label: chosen.title,
+          });
+        }
+      }}
+    />
   );
 };
