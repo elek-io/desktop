@@ -45,6 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu';
+import { Toggle } from '@renderer/components/ui/toggle';
 
 import type { MarkdownFieldDefinition } from '@elek-io/core';
 
@@ -53,19 +54,27 @@ import { EntryReferencePicker } from './entry-reference-picker';
 import { LinkDialog } from './link-dialog';
 import { insertAssetReferenceCommand } from './plugins/asset-reference';
 import { insertEntryReferenceCommand } from './plugins/entry-reference';
+import type { ActiveMarkFormats } from './plugins/mark-formats';
 
 export interface MarkdownToolbarProps {
   fieldDefinition: MarkdownFieldDefinition;
+  /** Which inline formats the cursor or the selection is inside right now. */
+  activeFormats: ActiveMarkFormats;
   disabled: boolean;
 }
 
 /**
  * Compact toolbar over the markdown editor. Renders only the affordances the
- * field's features enable. Buttons use onMouseDown with preventDefault so the
- * editor selection survives the click.
+ * field's features enable.
+ *
+ * A button that turns an inline format on and off is a Toggle, pressed while
+ * that format is on, so somebody can see and hear what the text already is.
+ * Every button runs on click, so the keyboard reaches it, and prevents the
+ * default of the mouse press before it, so the editor's selection survives.
  */
 export const MarkdownToolbar = ({
   fieldDefinition,
+  activeFormats,
   disabled,
 }: MarkdownToolbarProps): ReactElement | null => {
   const { t } = useLingui();
@@ -98,14 +107,39 @@ export const MarkdownToolbar = ({
       variant="ghost"
       size="icon"
       disabled={disabled}
-      onMouseDown={(event) => {
-        event.preventDefault();
-        onRun();
-      }}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onRun}
     >
       {icon}
       <span className="sr-only">{label}</span>
     </Button>
+  );
+
+  /**
+   * A button for an inline format, pressed while that format is on.
+   *
+   * ci gives a pressed button the muted surface and a ring in the input color,
+   * so it is never color alone, and `aria-pressed` says the same thing to a
+   * screen reader.
+   */
+  const formatToggle = (
+    label: string,
+    icon: ReactNode,
+    isPressed: boolean,
+    onRun: () => void
+  ): ReactElement => (
+    <Toggle
+      key={label}
+      type="button"
+      size="sm"
+      disabled={disabled}
+      pressed={isPressed}
+      onMouseDown={(event) => event.preventDefault()}
+      onPressedChange={onRun}
+    >
+      {icon}
+      <span className="sr-only">{label}</span>
+    </Toggle>
   );
 
   const hasMarks =
@@ -171,24 +205,39 @@ export const MarkdownToolbar = ({
       ) : null}
 
       {features.strong
-        ? button(t`Bold`, <BoldIcon />, () => {
+        ? formatToggle(t`Bold`, <BoldIcon />, activeFormats.strong, () => {
             run(toggleStrongCommand.key);
           })
         : null}
       {features.emphasis
-        ? button(t`Italic`, <ItalicIcon />, () => {
-            run(toggleEmphasisCommand.key);
-          })
+        ? formatToggle(
+            t`Italic`,
+            <ItalicIcon />,
+            activeFormats.emphasis,
+            () => {
+              run(toggleEmphasisCommand.key);
+            }
+          )
         : null}
       {features.inlineCode
-        ? button(t`Inline code`, <CodeIcon />, () => {
-            run(toggleInlineCodeCommand.key);
-          })
+        ? formatToggle(
+            t`Inline code`,
+            <CodeIcon />,
+            activeFormats.inlineCode,
+            () => {
+              run(toggleInlineCodeCommand.key);
+            }
+          )
         : null}
       {features.strikethrough
-        ? button(t`Strikethrough`, <StrikethroughIcon />, () => {
-            run(toggleStrikethroughCommand.key);
-          })
+        ? formatToggle(
+            t`Strikethrough`,
+            <StrikethroughIcon />,
+            activeFormats.strikethrough,
+            () => {
+              run(toggleStrikethroughCommand.key);
+            }
+          )
         : null}
 
       {features.lists
