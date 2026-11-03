@@ -18,6 +18,10 @@ What does not ask:
 - Deleting what the page is about, since the page and everything typed into it are gone either way.
 - Reloading, which is how the error screen gets you back into the app.
 
-The Entry page is now titled by the Entry's own name, the one its row, its breadcrumb and every picker already use, rather than by its id. The Project's settings page makes its form available again after it saved, so Save no longer stays offered with nothing left to save.
+The Entry page is now titled by the Entry's own name, the one its row, its breadcrumb and every picker already use, rather than by its id.
+
+While a page is saving, its fields stay readable and keep the cursor where it was, and they take no change until the save is through. Typing into one while its save was on its way could leave what you typed on screen with nobody having saved it, Save unavailable and leaving the page asking nothing. The Project's settings no longer turns grey while it saves either.
+
+On macOS, clicking the app's icon while elek.io Desktop is still starting no longer opens a second window. Two windows shared one answer to the question above, so the window you had typed in could close without asking.
 
 Nothing about your Projects changes, and nothing needs a migration.

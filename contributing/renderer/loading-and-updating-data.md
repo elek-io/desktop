@@ -284,9 +284,11 @@ way, through [`useAppForm`](../../src/renderer/hooks/useAppForm.ts):
   already holds does nothing at all.
 - **`resetOptions: { keepDirtyValues: true }`** is pinned by the hook. A field
   somebody has touched keeps what they typed, and every field they have not
-  takes the new state. That is what makes a read that arrives beside an editor
-  harmless: a synchronize reads every query of a Project again, and before this
-  the open form replaced what was being written without a word.
+  takes the new state, so a read that arrives beside an editor does not replace
+  what is being written: a synchronize reads every query of a Project again, and
+  before this the open form took the new state without a word. What it keeps is
+  the value and not the dirtiness, see
+  [Gating Save](#gating-save).
 - **`disabled`** holds the query's pending state. The form shows at once with
   its fields disabled, rather than appearing empty and filling in a moment
   later, and `SubmitButton` disables with it, so a form cannot be saved before
@@ -358,14 +360,25 @@ This is distinct from validation. Validation is surfaced on click through the
 field's own error, not by keeping the button blocked, so an invalid but changed
 form still shows its Save button available and reports the errors when submitted.
 
-**A form that stays open after it saved resets to what it saved.** `isDirty` is
-what both `requireDirty` and the guard that asks before unsaved changes are lost
-read, and neither a mutation nor a refetch clears it: `values` fills the form
-with `keepDirtyValues`, which keeps a dirty field dirty on purpose. So a form
-whose submit does not navigate away calls `form.reset(values)` after the
-mutation resolved, inside the submit handler. The Project's settings is the one
-page of them. Without it Save would stay available with nothing to save, and
-leaving would ask about changes that are already saved.
+**A form that stays open after it saved is pristine again.** `isDirty` is what
+both `requireDirty` and the guard that asks before unsaved changes are lost
+read, so a form that kept it set after a save would offer Save with nothing left
+to save and ask about changes that are already stored. Two things clear it: the
+state the save brings back, which fills the form through `values`, and the
+`form.reset(values)` a submit handler calls after the mutation resolved. The
+Project's general settings and its version control settings do the second as
+well, so the form is pristine the moment the save is through rather than when
+its data comes back.
+
+**`keepDirtyValues` keeps a dirty field's value, not its dirtiness.** Every reset
+goes through it, the `reset()` above as much as the one `values` runs, because
+react-hook-form merges `useForm`'s own `resetOptions` into both. A refetch
+therefore never overwrites what somebody is typing, which is what the option is
+pinned for, while `isDirty` comes back as `false` either way unless `keepDirty`
+is passed as well. That is why a form takes no edit while its own save runs: one
+typed in between would stay on screen while the form counted as clean, so Save
+would be unavailable and leaving would ask nothing, see
+[forms.md](./forms.md#a-form-is-read-only-while-it-saves).
 
 ### Mutation Metadata
 
