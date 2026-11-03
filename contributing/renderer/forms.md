@@ -315,7 +315,12 @@ words them.
 ## When an error has no field to land on
 
 A form is only honest if pressing Save either saves or says why not. Two paths
-used to end nowhere, and `AppForm` closes both.
+used to end nowhere, and `AppForm` closes both. One case stays short of that on
+a Project with more than one language: a refusal placed on a language a field is
+not drawing is set on that language's own field, which only that field's
+translations dialog renders, so nothing of it reaches the page but the dialog
+trigger's invalid state, until the switch ci draws above an Entry's fields
+replaces the dialog.
 
 **A validation error with no mounted message.** zod validates the whole form
 value, so an error can land on a path that no field renders. The field
