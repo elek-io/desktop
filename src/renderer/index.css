@@ -49,7 +49,58 @@
 }
 
 /*
-  By default, the frameless window is non-draggable. 
+  A Project's navigation scrolls with its scrollbar hidden, so a 1 px rule marks
+  each edge it continues past: one at the top while rows sit above the list, one
+  at the bottom while rows sit below it. Both are sticky inside the list and
+  pulled back over its edge by a negative margin, so neither takes room, and
+  each one's opacity follows the scroll position rather than a clock. A list
+  with nothing to scroll has an inactive timeline, which leaves both at the
+  opacity the rule above sets, so neither shows.
+  See contributing/renderer/theming-and-styling.md.
+*/
+[data-slot='sidebar'] > [data-slot='sidebar-content']::before,
+[data-slot='sidebar'] > [data-slot='sidebar-content']::after {
+  content: '';
+  position: sticky;
+  z-index: 1;
+  flex: none;
+  height: 1px;
+  background: var(--color-border);
+  opacity: 0;
+}
+[data-slot='sidebar'] > [data-slot='sidebar-content']::before {
+  top: 0;
+  margin-bottom: -1px;
+  animation: sidebar-content-above linear both;
+  animation-timeline: scroll(nearest);
+}
+[data-slot='sidebar'] > [data-slot='sidebar-content']::after {
+  bottom: 0;
+  margin-top: -1px;
+  animation: sidebar-content-below linear both;
+  animation-timeline: scroll(nearest);
+}
+@keyframes sidebar-content-above {
+  from {
+    opacity: 0;
+  }
+  1%,
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sidebar-content-below {
+  from,
+  99% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+  By default, the frameless window is non-draggable.
   Apps need to specify app-region: drag in CSS to tell Electron 
   which regions are draggable (like the OS's standard titlebar)
   @see https://www.electronjs.org/de/docs/latest/tutorial/window-customization#set-custom-draggable-region

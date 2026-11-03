@@ -19,6 +19,10 @@ msgstr "{count, plural, one {# Asset} other {# Assets}}"
 msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "{entryTotal, plural, one {# Entry} other {# Entries}}"
+msgstr "{entryTotal, plural, one {# Entry} other {# Entries}}"
+
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "{fieldCount, plural, one {# field} other {# fields}}"
 msgstr "{fieldCount, plural, one {# field} other {# fields}}"
@@ -499,6 +503,10 @@ msgstr "Choose {label}"
 msgid "Choose {label}, Required"
 msgstr "Choose {label}, Required"
 
+#: src/renderer/routes/projects/$projectId/collections/index.tsx
+msgid "Choose a Collection in the sidebar to see its Entries."
+msgstr "Choose a Collection in the sidebar to see its Entries."
+
 #: src/renderer/lib/refusedValueText.ts
 msgid "Choose a date and a time."
 msgstr "Choose a date and a time."
@@ -579,7 +587,6 @@ msgstr "Collection name (Plural)"
 msgid "Collection-Slug"
 msgstr "Collection-Slug"
 
-#: src/renderer/components/collections-sidebar.tsx
 #: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/collections.tsx
 msgid "Collections"
@@ -804,7 +811,7 @@ msgstr "Create a new Project"
 msgid "Create a Release"
 msgstr "Create a Release"
 
-#: src/renderer/components/collections-sidebar.tsx
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 msgid "Create Collection"
 msgstr "Create Collection"
@@ -1428,10 +1435,6 @@ msgstr "My Account"
 msgid "Name"
 msgstr "Name"
 
-#: src/renderer/components/project-sidebar.tsx
-msgid "Navigation"
-msgstr "Navigation"
-
 #: src/renderer/lib/schemaChange.ts
 msgid "needs a Value for this Field, which is now required and has no default"
 msgstr "needs a Value for this Field, which is now required and has no default"
@@ -1489,9 +1492,9 @@ msgstr "No Collection uses this Component yet, so saving changes nothing but the
 msgid "No Collections available in this project."
 msgstr "No Collections available in this project."
 
-#: src/renderer/components/collections-sidebar.tsx
-msgid "No Collections found"
-msgstr "No Collections found"
+#: src/renderer/routes/projects/$projectId/collections/index.tsx
+msgid "No Collections yet"
+msgstr "No Collections yet"
 
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "No Components yet"
@@ -1966,6 +1969,10 @@ msgstr "Save local User"
 msgid "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
 msgstr "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "Search comes later"
+msgstr "Search comes later"
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Search languages"
 msgstr "Search languages"
@@ -2153,10 +2160,6 @@ msgstr "the changes of this Project"
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "The character placed between words of the slug."
 msgstr "The character placed between words of the slug."
-
-#: src/renderer/routes/projects/$projectId/collections.tsx
-msgid "the Collections of this Project"
-msgstr "the Collections of this Project"
 
 #: src/renderer/components/markdown/markdown-editor.tsx
 msgid "The content could not be read from the editor: {bridgeError}"
@@ -2785,7 +2788,6 @@ msgstr "What this group of fields is, in singular, such as \"Teaser\"."
 
 #: src/renderer/routes/__root.tsx
 #: src/renderer/routes/projects/$projectId.tsx
-#: src/renderer/routes/projects/$projectId/collections.tsx
 #: src/renderer/routes/projects/create.tsx
 msgid "what this screen shows"
 msgstr "what this screen shows"

@@ -27,6 +27,21 @@ function ProjectLayout(): ReactElement {
 }
 ```
 
+## One sidebar leads to every screen of a Project
+
+[`routes/projects/$projectId.tsx`](../../src/renderer/routes/projects/$projectId.tsx) renders the one sidebar a Project has, in [`components/project-sidebar.tsx`](../../src/renderer/components/project-sidebar.tsx), beside the main panel every screen below it sits in. It holds, in this order:
+
+| Part           | What it is                                                                                                                                                                                                              |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The Project    | The switcher, and Synchronize where the Project has a Git repository                                                                                                                                                    |
+| The search     | Disabled until Core can search across a Project, so its place is kept. It carries `aria-disabled` rather than `disabled`, so it stays in the tab order and says why it is disabled                                      |
+| The navigation | The Dashboard, Assets and Components, then every Collection by its plural name, then the History, Releases and Settings. Only this part scrolls, at full row height, and a rule marks each edge its list continues past |
+
+Two rules follow for a screen inside a Project:
+
+- **A Collection is reached from the sidebar, not from a list of its own.** `routes/projects/$projectId/collections.tsx` is a layout with nothing but its `Outlet`, so a Collection's Entries take the whole panel, and `collections/index.tsx` is what Collections lands on before one is opened.
+- **The sidebar reads above every pane**, so a read it cannot make reaches the root error screen rather than a pane's own sentence, like every other read in a layout route. What it reads is the Project, its uncommitted changes, its Collections and the counts beside the rows, see [Loading and Updating Data](./loading-and-updating-data.md#the-counts-beside-the-sidebars-rows).
+
 ## Route Parameters
 
 Route parameters are accessed in a type-safe way via `Route.useParams()`:
