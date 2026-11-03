@@ -74,6 +74,15 @@ class Main {
       : 'https://api.dev.elek.io';
   private core: ElekIoCore | null = null;
   /**
+   * The start, from the `ready` event to the first window being loaded, or
+   * `null` until Electron is ready.
+   *
+   * An activation waits for it before it counts the windows, so a dock click
+   * that lands while the start is still running never opens a window beside
+   * the one the start is about to create, see `onAppActivate`.
+   */
+  private startup: Promise<void> | null = null;
+  /**
    * Whether the window holds something nobody saved, as the renderer last said
    * over `electron:window:setUnsavedChanges`.
    *
@@ -105,7 +114,9 @@ class Main {
 
     // Register app events
     app.on('ready', () => {
-      void this.onAppReady().catch(async (error: unknown) =>
+      // Held, because an activation has to wait for it rather than count the
+      // windows while it runs, see `onAppActivate`.
+      this.startup = this.onAppReady().catch(async (error: unknown) =>
         this.onAppReadyFailed(error)
       );
     });
@@ -261,6 +272,16 @@ class Main {
    * or clicking on the application's dock or taskbar icon.
    */
   private async onAppActivate(): Promise<void> {
+    // The start is asynchronous and this arrives whenever the icon is clicked,
+    // so it can land before the start created its window. Counting windows
+    // then would make a second one, which the app has no state for: both
+    // renderers would claim the one `hasUnsavedChanges` field, and a clean
+    // window's answer would clear what the edited one claimed. So the start is
+    // waited for first, and the count below is taken once there is something
+    // to count.
+    await app.whenReady();
+    await this.startup;
+
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {

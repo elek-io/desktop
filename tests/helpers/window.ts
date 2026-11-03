@@ -28,6 +28,15 @@ export async function windowMinimumSize(
   });
 }
 
+/** How many windows the app holds open right now. */
+export async function openWindowCount(
+  app: ElectronApplication
+): Promise<number> {
+  return app.evaluate(
+    ({ BrowserWindow }) => BrowserWindow.getAllWindows().length
+  );
+}
+
 /** The window's size right now. */
 export async function windowSize(
   app: ElectronApplication

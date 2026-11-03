@@ -54,7 +54,7 @@ The handlers are registered once for the process and hold no window of their own
 
 If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. One rejection is not a failed start: Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing, and `loadWindow()` logs a warning and carries on. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
 
-Other lifecycle events: `activate` (macOS dock click) recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS.
+Other lifecycle events: `activate` (macOS dock click) waits for the start above to finish and then recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS. The wait is what keeps the app at one window: an activation that lands while the start is still running would otherwise count the windows before the start created its own, and the second window it made would claim the same unsaved-changes state, so a clean window's answer could clear what the edited one claimed.
 
 **Closing with unsaved changes.** A window that still holds something nobody saved is held open until the question in it is answered, so a close never loses what was typed:
 
