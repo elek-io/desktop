@@ -494,8 +494,8 @@ test.describe('Entries', () => {
     );
     // A Value nobody filled in, and a list nothing was chosen from, which Core
     // measures as a count rather than as a missing Value.
-    expect(await errorOf(mainWindow, 'Note')).toBe('This field needs a Value.');
-    expect(await errorOf(mainWindow, 'Logo')).toBe('This field needs a Value.');
+    expect(await errorOf(mainWindow, 'Note')).toBe('Fill in this field.');
+    expect(await errorOf(mainWindow, 'Logo')).toBe('Fill in this field.');
     expect(await errorOf(mainWindow, 'Sections')).toBe(
       'This field needs at least 2.'
     );
@@ -719,7 +719,7 @@ test.describe('Entries', () => {
     const languages = mainWindow.getByRole('dialog', { name: 'Title' });
     await expect(languages).toBeVisible();
     await expect(
-      languages.getByText('This field needs a Value.')
+      languages.getByText('Fill in this field.')
     ).toBeVisible();
   });
 
@@ -1394,7 +1394,7 @@ test.describe('Entries', () => {
     // field holding the sections says nothing and is not.
     await expect(headline).toHaveAttribute('aria-invalid', 'true');
     await expectErrorOf(mainWindow, 'Headline').toBe(
-      'This field needs a Value.'
+      'Fill in this field.'
     );
     expect(await errorOf(mainWindow, 'Sections')).toBeNull();
     await expect(

@@ -564,7 +564,7 @@ test.describe('Components', () => {
     const addSection = mainWindow.getByRole('button', { name: 'Add section' });
     await expect(addSection).toHaveAttribute('aria-invalid', 'true');
     await expect(
-      mainWindow.getByText('This field needs a Value.')
+      mainWindow.getByText('Fill in this field.')
     ).toBeVisible();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/[^/]+/${entry.id}/update$`)
@@ -597,7 +597,7 @@ test.describe('Components', () => {
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
     await expect(addSection).toHaveAttribute('aria-invalid', 'true');
     await expect(
-      mainWindow.getByText('This field needs a Value.')
+      mainWindow.getByText('Fill in this field.')
     ).toBeVisible();
   });
 

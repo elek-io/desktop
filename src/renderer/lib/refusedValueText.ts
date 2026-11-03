@@ -21,9 +21,16 @@ import { z } from 'zod';
 // See contributing/renderer/internationalization.md and
 // contributing/renderer/dynamic-form-field-generation.md.
 
-/** A Value that is not there, where the field has to hold one. */
-function needsValueText(): string {
-  return t`This field needs a Value.`;
+/**
+ * Nothing where the field has to hold something.
+ *
+ * The map is global, so this sentence also stands under a field of Create
+ * Project, of a Project's settings and of Add Asset, none of which holds a
+ * Value. So it names neither a Value nor what the field holds, and says what
+ * to do instead.
+ */
+function nothingThereText(): string {
+  return t`Fill in this field.`;
 }
 
 /**
@@ -45,7 +52,7 @@ function wrongShapeText(): string {
  * of them rewords degrades to this rather than leaking.
  */
 export function unknownRefusalText(): string {
-  return t`This Value isn't one this field takes. Change it to save.`;
+  return t`This field can't take that. Change it to save.`;
 }
 
 /** The words for a string that is not in the format its field type asks for. */
@@ -92,7 +99,7 @@ const REFUSAL_WORDS: RefusalWords = {
   // that is left empty answers with `null`.
   invalid_type: (issue) =>
     issue.input === null || issue.input === undefined
-      ? needsValueText()
+      ? nothingThereText()
       : wrongShapeText(),
 
   // What a Value may be at least, which is a length for text, a count for a
@@ -107,7 +114,7 @@ const REFUSAL_WORDS: RefusalWords = {
       // one is how it says the field has to hold something, not a length worth
       // reading out.
       return smallest <= 1
-        ? needsValueText()
+        ? nothingThereText()
         : plural(smallest, {
             one: 'Use at least # character.',
             other: 'Use at least # characters.',
@@ -117,7 +124,7 @@ const REFUSAL_WORDS: RefusalWords = {
       // The same for a list: Core asks for one item where the field is
       // required, and for more where the field's own minimum says so.
       return smallest <= 1
-        ? needsValueText()
+        ? nothingThereText()
         : t`This field needs at least ${smallest}.`;
     }
     if (issue.origin === 'number' || issue.origin === 'int') {
@@ -173,7 +180,8 @@ const REFUSAL_WORDS: RefusalWords = {
   // resolver prefers the message of the shortest branch wherever a union
   // carries branches, each of which is worded above, so this stands for one
   // that carries none.
-  invalid_union: () => t`Part of this Value isn't something this field takes.`,
+  invalid_union: () =>
+    t`This field can't take part of what's in it. Change it to save.`,
 
   // A rule a schema added itself. Core's own carry their English with them and
   // never reach this, see the note at the top of this file.

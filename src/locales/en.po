@@ -1078,6 +1078,10 @@ msgstr "Feedback sent"
 msgid "Fields of a Component cannot be unique, since the same Component is used in more than one place."
 msgstr "Fields of a Component cannot be unique, since the same Component is used in more than one place."
 
+#: src/renderer/lib/refusedValueText.ts
+msgid "Fill in this field."
+msgstr "Fill in this field."
+
 #: src/renderer/routes/user/profile.tsx
 msgid "Fill out your information below and watch it influence how your future changes will look like on the right."
 msgstr "Fill out your information below and watch it influence how your future changes will look like on the right."
@@ -1657,10 +1661,6 @@ msgstr "pagination"
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Paragraph"
 msgstr "Paragraph"
-
-#: src/renderer/lib/refusedValueText.ts
-msgid "Part of this Value isn't something this field takes."
-msgstr "Part of this Value isn't something this field takes."
 
 #: src/renderer/lib/release.ts
 msgid "Patch"
@@ -2472,6 +2472,14 @@ msgstr "This Field allows every Component of this Project, the ones added later 
 msgid "This field can't hold what's in it. Please report it, so we can fix it."
 msgstr "This field can't hold what's in it. Please report it, so we can fix it."
 
+#: src/renderer/lib/refusedValueText.ts
+msgid "This field can't take part of what's in it. Change it to save."
+msgstr "This field can't take part of what's in it. Change it to save."
+
+#: src/renderer/lib/refusedValueText.ts
+msgid "This field can't take that. Change it to save."
+msgstr "This field can't take that. Change it to save."
+
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "This field does not take an Asset of that type. Choose another one."
 msgstr "This field does not take an Asset of that type. Choose another one."
@@ -2483,10 +2491,6 @@ msgstr "This field holds at most {sectionMaximum} sections. Remove one to add an
 #: src/renderer/components/fields/slug/index.tsx
 msgid "This field needs \"{canonical}\" instead."
 msgstr "This field needs \"{canonical}\" instead."
-
-#: src/renderer/lib/refusedValueText.ts
-msgid "This field needs a Value."
-msgstr "This field needs a Value."
 
 #: src/renderer/lib/refusedValueText.ts
 msgid "This field needs at least {smallest}."
@@ -2559,10 +2563,6 @@ msgstr "This repository holds no Project, or one made with an older version of e
 #: src/renderer/components/fields/markdown/index.tsx
 msgid "This text has too many levels inside it. Take some out to save."
 msgstr "This text has too many levels inside it. Take some out to save."
-
-#: src/renderer/lib/refusedValueText.ts
-msgid "This Value isn't one this field takes. Change it to save."
-msgstr "This Value isn't one this field takes. Change it to save."
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "This was written by a newer version of elek.io. Update to open it."
