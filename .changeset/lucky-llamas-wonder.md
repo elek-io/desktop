@@ -8,7 +8,7 @@ Save now says what keeps it from saving, instead of looking available and then d
 
 The button stays reachable with the keyboard while it is blocked, and a screen reader reads it out together with the line that says why. A button that is switched off cannot be reached at all, which would have left the reason unread. The two other things that keep Save from saving, a save that is still running and a form nothing was changed in, now mark it the same way and say nothing, because there is nothing to fix in either case.
 
-Leaving a page with changes you have not saved asks before they are lost: "Discard your changes to Spring opening hours?", named by the page you are on, with Keep editing and a red Discard. Until now choosing the next Entry, or anything else in the app, threw away what you had typed with nothing on screen to stop it. The five pages that edit something ask: an Entry, a Collection's settings, a Component, the Project's settings and your profile.
+Leaving a page with changes you have not saved asks before they are lost: "Discard your changes to Spring opening hours?", named by the page you are on, with Keep editing and a red Discard. Until now choosing the next Entry, or anything else in the app, threw away what you had typed with nothing on screen to stop it. The pages that edit something ask: an Entry, a Collection's settings, a Component, the Project's general and version control settings, and your profile.
 
 It asks the same thing in the same dialog when you close the window or quit elek.io Desktop, and the window stays open with your changes until you answer. Without changes it closes at once, as before.
 

@@ -15,11 +15,16 @@ import {
   navigateToEntryUpdate,
   stringValue,
 } from '../helpers/entry.js';
-import { recordedCoreCalls, stubCoreRecord } from '../helpers/ipc.js';
+import {
+  recordedCoreCalls,
+  stubCoreHang,
+  stubCoreRecord,
+} from '../helpers/ipc.js';
 import { reloadWindow } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToProjectSettings,
+  navigateToVersionControl,
 } from '../helpers/project.js';
 import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
 
@@ -153,6 +158,35 @@ test.describe('A form that cannot be saved yet', () => {
       'id',
       reasonId ?? ''
     );
+  });
+
+  test('blocks Save the same way while it is saving', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+
+    // The save never answers, so the form stays mid-save to be read instead of
+    // racing the navigation a finished save ends in.
+    await stubCoreHang(electronApp, 'core:entries:update');
+    await title.fill('A title that is being saved');
+    await save.click();
+
+    // Blocked the same way as a reason blocks it, which is what keeps the
+    // button and its spinner reachable: `aria-disabled` rather than
+    // `disabled`, which would drop it out of the tab order mid-save.
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(save).not.toHaveAttribute('disabled', /.*/);
+    await save.focus();
+    await expect(save).toBeFocused();
+
+    // And it says nothing, because a save in flight is nothing to fix.
+    await expect(save).not.toHaveAttribute('aria-describedby', /.*/);
+    await expect(blockedReason(mainWindow)).toBeHidden();
   });
 });
 
@@ -315,6 +349,11 @@ test.describe('Leaving a page with changes nobody saved', () => {
         open: async () => navigateToProjectSettings(mainWindow, project.id),
         label: 'Project name',
         question: 'Discard your changes to General Settings?',
+      },
+      {
+        open: async () => navigateToVersionControl(mainWindow, project.id),
+        label: 'Remote URL',
+        question: 'Discard your changes to Version Control Settings?',
       },
       {
         open: async () => navigateToUserProfile(mainWindow),

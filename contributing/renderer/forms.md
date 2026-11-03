@@ -458,9 +458,10 @@ A page opts in by passing its own title:
 <AppForm form={form} onSubmit={onSave} unsavedChangesTitle={title}>
 ```
 
-The five page forms that edit something do: the Entry, a Collection's settings, a
-Component, the Project's settings and the Profile. A form that passes no title
-asks nothing, which is every dialog, sheet and create form.
+Every page form that edits something does: the Entry, a Collection's settings, a
+Component, the Project's general and version control settings, and the Profile. A
+form that passes no title asks nothing, which is every dialog, sheet and create
+form.
 
 **The parts**
 
@@ -509,7 +510,8 @@ Three things follow from holding `close` rather than the document's
   fresh document starts with nothing unsaved.
 - **A test that leaves a form changed needs a teardown that destroys the window**,
   since a held close cannot be answered by one. The `electronApp` fixture and
-  `relaunchApp` both go through `destroyWindows`.
+  `relaunchApp` both go through `closeApp`, which destroys every window before it
+  closes the app.
 
 ## Form typing
 

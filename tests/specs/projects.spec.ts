@@ -362,8 +362,10 @@ test.describe('Projects', () => {
     ).toBeEnabled();
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
-    // The origin is set: the Synchronize button appears, and the form reset back
-    // to the saved origin re-gates Save (proving the change reached Core).
+    // The origin is set: the Synchronize button appears, which renders only for
+    // a Project that has one, so the change reached Core. The page stays open
+    // and makes its form pristine again with what it saved, which re-gates
+    // Save.
     await expect(
       mainWindow.getByRole('button', { name: 'Synchronize' })
     ).toBeVisible();

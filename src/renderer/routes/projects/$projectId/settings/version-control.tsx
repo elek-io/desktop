@@ -72,6 +72,10 @@ function ProjectSettingsVersionControlPage(): ReactElement {
     SetRemoteOriginUrlProjectProps
   > = async (props) => {
     await setRemoteOriginUrl(props);
+    // This page stays open after it saved, so the form is made pristine again
+    // with what went in. Without it Save would stay available and leaving would
+    // ask about changes that are already saved.
+    remoteOriginUrlForm.reset(props);
   };
 
   return (
@@ -84,6 +88,7 @@ function ProjectSettingsVersionControlPage(): ReactElement {
         form={remoteOriginUrlForm}
         schema={setRemoteOriginUrlProjectSchema}
         onSubmit={onSetRemoteOriginUrl}
+        unsavedChangesTitle={t`Version Control Settings`}
       >
         <PageSection
           title={t`Remote`}
