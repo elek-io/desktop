@@ -420,6 +420,12 @@ test.describe('Entries', () => {
     // one submit, so what every field says is read from one form.
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       fieldDefinitions: [
@@ -442,6 +448,7 @@ test.describe('Entries', () => {
         telephoneFieldDefinition(),
         textFieldDefinition({ slug: 'note', label: { en: 'Note' } }),
         assetFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id], min: 2 }),
       ],
     });
 
@@ -459,6 +466,12 @@ test.describe('Entries', () => {
       Server: 'nowhere',
       Hotline: 'nobody',
     });
+    // One section where the field asks for two, which is the one count an
+    // editor can be short of: a picker holds a field at its maximum, so no
+    // field can hold more than it takes.
+    await mainWindow.getByRole('button', { name: 'Add section' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
+    await fillEntryForm(mainWindow, { Headline: 'One of two' });
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
     await expectErrorOf(mainWindow, 'Title').toBe('Use at least 3 characters.');
@@ -483,6 +496,9 @@ test.describe('Entries', () => {
     // measures as a count rather than as a missing Value.
     expect(await errorOf(mainWindow, 'Note')).toBe('This field needs a Value.');
     expect(await errorOf(mainWindow, 'Logo')).toBe('This field needs a Value.');
+    expect(await errorOf(mainWindow, 'Sections')).toBe(
+      'This field needs at least 2.'
+    );
 
     // And nothing zod wrote is anywhere on the screen, which is what every
     // one of these fields showed before.

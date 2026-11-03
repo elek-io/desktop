@@ -238,7 +238,7 @@ code. Core gives them no code, so a module matches the opening of the text,
 which [`components/fields/core-refusals.ts`](../../src/renderer/components/fields/core-refusals.ts)
 holds in one place. A refusal no module knows gets one sentence of its own, so a
 message a Core release rewords falls to that rather than reaching a field.
-`refusal-words.spec.ts` triggers all five against the installed Core, so a
+`refusal-words.spec.ts` triggers each of them against the installed Core, so a
 reword fails there instead.
 
 The map is global, so a refusal zod raises reads the same under a hand-written
