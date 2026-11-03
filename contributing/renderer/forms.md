@@ -522,6 +522,13 @@ zod's public API carries no minimum for an array.
 That is the way round ci asks for: the app marks what is needed, where the old
 " - optional" suffix marked what is not.
 
+Required also reaches assistive tech as the state, `aria-required`, on every
+control whose role takes it, which the field type's `acceptsAriaRequired`
+answers. Where a role does not, the word stands in the rules the control names
+in `aria-describedby`, and the buttons of an Asset or an Entry field carry it in
+their accessible name too, such as "Choose Cover, Required", since a button
+shows no rule of its own.
+
 ### Placeholder text
 
 No input carries placeholder text. It makes an empty field look filled and
@@ -537,7 +544,8 @@ nowhere else:
   is the filter above a list, such as the Entries of a Collection.
 - [`components/ui/combobox.tsx`](../../src/renderer/components/ui/combobox.tsx)
   is the filter inside a combobox's popup, such as the one that adds a language
-  to a Project. Its name is a required prop, so a combobox cannot be drawn with
+  to a Project or the one a select field with a long list of options opens. Its
+  name is a required prop, so a combobox cannot be drawn with
   an unnamed field.
 
 Both put the name on `aria-label` as well, rather than leaving the accessible
@@ -567,13 +575,20 @@ subtly wrong and Core validates tightly:
   select option's value, pass `transform={rawTextFromInput}`.
 - **`TextareaControl`** is the same contract over several lines.
 - **`SwitchControl`** binds a `Switch` to a boolean.
+- **`OptionChoice`** ([`fields/select/control.tsx`](../../src/renderer/components/fields/select/control.tsx)) is the choice between named options: a list of radio buttons up to seven of them and a combobox with a filter beyond that, with None leading wherever the Value may stay empty. The select field's control and the Default Value of a select's own settings are both it, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-select-fields-options). It lives in the select folder rather than here, because the select field is what it is about.
 - The transforms themselves are in
   [`lib/fieldValues.ts`](../../src/renderer/lib/fieldValues.ts), so a form that
   needs one does not reach into a control.
 
 Each control places the props on its real focusable element (the `input` for the
-scalars, the trigger for a select or a picker), so a label, a description and an
-error always point at something a user can focus.
+scalars, the group for a list of radio buttons, the editable element for the
+markdown editor), so a label, a description and an error always point at
+something a user can focus. A field whose control is several controls, such as
+the Asset and Entry fields and the Project form's Supported languages, puts them
+on their container and hands its `aria-describedby` to each button inside, so
+the parts are read out with whichever one has focus. A control whose element
+takes no name from a `<label>` says the field's label itself with `aria-label`,
+which is what the shell hands every control as text.
 
 ## Guardrails
 

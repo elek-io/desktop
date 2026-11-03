@@ -156,6 +156,7 @@ A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fiel
 | `Control`              | The control, with this type's Value contract                   |
 | `translatable`         | Whether the Value is per-language                              |
 | `acceptsAriaRequired`  | Whether the control's role takes `aria-required`               |
+| `label`                | Not a member: the field's label, handed to `Control` as a prop |
 | `rules`                | What a field of this type says it needs, beside its label      |
 | `defaultContent`       | The Value's content for a new Entry                            |
 | `previewContent`       | The static content the Collection's preview shows              |
@@ -188,20 +189,22 @@ const cell = fieldModule(fieldDefinition).listCell({
 Two derived helpers sit beside the registry, because each walks a Collection's definitions and asks their folders:
 
 - **`defaultEntryValue` / `defaultEntryValues`** ([`fields/value-defaults.ts`](../../src/renderer/components/fields/value-defaults.ts)) build the Values a new Entry holds.
-- **`entryTitle`** ([`fields/entry-title.ts`](../../src/renderer/components/fields/entry-title.ts)) is the one way the app names an Entry: the list of Entries, the Entry and Asset pickers, the markdown editor's reference picker and the breadcrumb all call it. An Entry has no title of its own yet, so it is named by the first of its Collection's fields that holds text, in the language the screen shows and otherwise in any language that holds something, and by the start of its id where nothing does.
+- **`entryTitle`** ([`fields/entry-title.ts`](../../src/renderer/components/fields/entry-title.ts)) is the one way the app names an Entry: the list of Entries, the Entry field, the Entry picker the field and the markdown editor share, and the breadcrumb all call it. An Entry has no title of its own yet, so it is named by the first of its Collection's fields that holds text, in the language the screen shows and otherwise in any language that holds something, and by the start of its id where nothing does.
 
 The contracts more than one type shares, such as "a per-language record holding the same default" or "the text of a text-like Value", are plain functions in [`fields/value-contracts.ts`](../../src/renderer/components/fields/value-contracts.ts) that a module opts into. Nothing there reads a type either: a module picks the contract that describes its Value.
 
 #### The controls
 
-A type's control is value-typed: it receives the already-bound `field` (value/onChange/onBlur/ref) plus a `controlProps` bag (`id`, `aria-describedby`, `aria-invalid`, and `aria-required` on the controls that accept it) to place on the real input. The shell offers `aria-required` to every control of a required field and `FieldFromDefinition` drops it again where the type's `acceptsAriaRequired` says its role does not take it, so required is said in one place and emitted only where it is allowed. It does not know or build a form path. The path lives at the single `Controller` in `FieldFromDefinition`, which is what lets one control serve both a hand-written form and a generated one.
+A type's control is value-typed: it receives the already-bound `field` (value/onChange/onBlur/ref) plus a `controlProps` bag (`id`, `aria-describedby`, `aria-invalid`, and `aria-required` on the controls that accept it) to place on the real input, and the field's `label` as text. The shell offers `aria-required` to every control of a required field and `FieldFromDefinition` drops it again where the type's `acceptsAriaRequired` says its role does not take it, so required is said in one place and emitted only where it is allowed. It does not know or build a form path. The path lives at the single `Controller` in `FieldFromDefinition`, which is what lets one control serve both a hand-written form and a generated one.
+
+`label` is there for a control whose element takes no name from a `<label>`: a group of radio buttons, a combobox, the markdown editor's editable element and each button of a picker all say it themselves, with `aria-label`. Inside the translations dialog it is the language being edited, so two controls of one field never read alike.
 
 The controls more than one type shares are in [`components/ui/field-controls.tsx`](../../src/renderer/components/ui/field-controls.tsx) with their value contracts, see [forms.md](./forms.md#the-shared-controls-and-their-value-contracts). A control a single type owns is in that type's folder, as `control.tsx` where it is more than a few lines. Do not hand-roll a raw `<Input>` in a control.
 
-- **No control emits a native constraint attribute.** zod (through react-hook-form) is the only validator and the form is `noValidate`, so no control sets `required` / `min` / `max` / `minLength` / `maxLength`. The one exception is the range `Slider`'s `min` / `max`, which are its functional value domain rather than HTML constraints. A test asserts a required field renders with no `required` attribute. Required-ness still reaches assistive tech, through `aria-required`, which `FieldFromDefinition` keeps where the type's `acceptsAriaRequired` says its role takes it. Five types answer no, see [forms.md](./forms.md#what-a-field-says-it-needs):
+- **No control emits a native constraint attribute.** zod (through react-hook-form) is the only validator and the form is `noValidate`, so no control sets `required` / `min` / `max` / `minLength` / `maxLength`. The one exception is the range `Slider`'s `min` / `max`, which are its functional value domain rather than HTML constraints. A test asserts a required field renders with no `required` attribute. Required-ness still reaches assistive tech, through `aria-required`, which `FieldFromDefinition` keeps where the type's `acceptsAriaRequired` says its role takes it. These types answer no, see [forms.md](./forms.md#what-a-field-says-it-needs):
   - The **range slider** and the **toggle** always hold a Value, so they show no rule at all and say nothing about required either way. Core marks them required because they can never be empty, which is not a rule anybody in front of the field can break.
-  - The **Asset**, **Entry** and **dynamic** fields show the word in the rules beside their label, and the element their label points at names those rules in `aria-describedby`, so they are read out with it.
-  - The **markdown** field does the same, with the control props on a wrapper around its editor rather than on the Milkdown `contenteditable` they must not reach into.
+  - The **Asset**, **Entry** and **dynamic** fields are several controls rather than one, and a button's role takes no `aria-required`. The container the label points at names the rules in `aria-describedby`, every button of the field names them too, so they are read out with whichever one has focus, and the buttons that fill the field carry the word in their accessible name as well, such as "Choose Cover, Required".
+  - The **markdown** field answers yes. Its editable element carries `role="textbox"`, which takes `aria-required`, and the control props reach it through ProseMirror's own `attributes` prop rather than by reaching into Milkdown's `contenteditable`, see [markdown-editor.md](./markdown-editor.md#what-the-field-tells-the-editor).
 
 - **`SlugControl` resolves its source ids** through `useFieldDefinitions()` ([`hooks/useFieldDefinitions.ts`](../../src/renderer/hooks/useFieldDefinitions.ts)), provided by the `FieldDefinitionsProvider` ([`providers/FieldDefinitionsProvider.tsx`](../../src/renderer/providers/FieldDefinitionsProvider.tsx)) that `EntryForm` wraps its fields in. Outside of it (for example the Collection editor preview) the input is simply manual.
 
@@ -258,7 +261,13 @@ Three things about it are load bearing:
 
 The `asset` and `entry` field types differ from scalar fields. Their `valueType` is `reference`, and their value is an array of references (`{ id, objectType }`), not a single value.
 
-Their controls fetch data from within the form. `AssetControl` and `EntryControl` (each in its own folder) load the selectable Assets or Entries with TanStack Query (the entry field uses `useQueriesNoError` to load Entries across several Collections), render a selection UI, and enforce `fieldDefinition.max` directly in the UI (further selection is disabled once the limit is reached). The Entry picker names each Entry with `entryTitle`, the one way the app names one.
+**The field shows what it holds, and a dialog chooses more.** An Asset field draws a row per chosen Asset with its preview, its name, its type and size, Replace and Remove. An Entry field draws a row per chosen Entry with its title and its Collection, and Remove. Below the rows stands Choose, while the field allows another, so a field holding its maximum shows its rows alone. With nothing chosen the field says so in a row of its own.
+
+The field is therefore **several controls rather than one**. The control-association props land on their container, which is what the label points at, and every button inside names the same `aria-describedby`, so the rules, the description and the error are read out with whichever button has focus. The accessible name of every Choose, Replace and Remove button includes the field's label, as ci asks: "Choose Cover", "Replace Cover", "Remove Mara Klein from Authors". The same pattern draws the Supported languages field of the Project form.
+
+**Both pickers are one dialog each**, in [`components/pickers/`](../../src/renderer/components/pickers/) rather than in a field type's folder, because they are about Assets and Entries rather than about a field type: the Asset field, the Entry field and the markdown editor's two reference pickers all open them. Each has a filter, lists the Assets as a grid or the Entries as rows, and carries a radio button per item where the field takes one and a checkbox where it takes several. What is ticked stays inside the dialog until Choose is pressed, so Cancel changes nothing, and the field's maximum holds there: an item that is not ticked is disabled once the maximum is. Add Asset, which ci draws beside the filter, belongs to the Assets screen's own pane and is built with it.
+
+Their controls fetch data from within the form. `AssetControl` and `EntryControl` (each in its own folder) load the Assets or Entries with TanStack Query (the entry field uses `useQueriesNoError` to load Entries across several Collections). Both pickers name each Entry with `entryTitle`, the one way the app names one.
 
 Their definition forms add type-specific options:
 
@@ -267,6 +276,16 @@ Their definition forms add type-specific options:
 - The dynamic definition form ([`fields/dynamic/definition.tsx`](../../src/renderer/components/fields/dynamic/definition.tsx)) is modelled on it: an `ofComponents` list restricting which Components may be added as a section, backed by a Components query, plus the `min` / `max` section counts. Each toggle carries its Component's name as its accessible name, so a Component is never shown by its id.
 
 `ofAssetMimeTypes` is authored through the shared [`asset-mime-type-picker.tsx`](../../src/renderer/components/forms/asset-mime-type-picker.tsx), used by both the asset folder's spec and the markdown folder's (where it constrains `assetReference` targets and only shows while `features.assetReferences` is on). It offers the distinct MIME types of the Project's own Assets rather than a hardcoded universe, and an empty selection means "any type".
+
+### The select field's options
+
+A select field takes one Value out of a named list, and ci draws that list rather than a menu. `OptionChoice` ([`fields/select/control.tsx`](../../src/renderer/components/fields/select/control.tsx)) is the one control for it:
+
+- **Up to seven options are a list of radio buttons**, named by the field's label through `aria-label`, since a radio group takes no name from the buttons inside it. Its role is one of those that do take `aria-required`.
+- **More than seven are a combobox with a filter**, because ci's own example of a long list is 86 Entries. Nils decided the bound.
+- **None leads the list wherever the Value may stay empty**: an optional field, and a Default Value in a field's settings, which is the same control.
+
+An option is keyed by its place in the list, because an option's own value can be the empty string, which no item value may be. What the field stores is the option's own string or number, unchanged from what the menu stored before.
 
 > [!IMPORTANT]
 > A reference value's stored shape is not symmetric. An asset reference is `{ id, objectType: 'asset' }`, but Core's `valueContentReferenceToEntrySchema` also requires `collectionId` on an **entry** reference, and refines it against the definition's `ofCollections`. `EntryControl` therefore takes the collection from the selected Entry's own collection at the point of selection. Do not reintroduce a cast over `field.onChange` here: the missing `collectionId` was invisible to `tsc` for exactly that reason, and it made every entry-reference field unsaveable.

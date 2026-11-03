@@ -55,9 +55,24 @@ Heading depths are restricted for typed input, the toolbar and keyboard shortcut
 
 ## Reference nodes
 
-[`plugins/asset-reference.ts`](../../src/renderer/components/markdown/plugins/asset-reference.ts) and [`plugins/entry-reference.ts`](../../src/renderer/components/markdown/plugins/entry-reference.ts) define inline atom nodes for Core's custom mdast types, rendered as chips. They ride through the parser/serializer the same way stock nodes do (their `parseMarkdown`/`toMarkdown` runners match the mdast `type` directly), so no text syntax is ever invented for them. Insertion happens through single-select picker dialogs ([`asset-reference-picker.tsx`](../../src/renderer/components/markdown/asset-reference-picker.tsx), [`entry-reference-picker.tsx`](../../src/renderer/components/markdown/entry-reference-picker.tsx)) filtered by the definition's `ofAssetMimeTypes` / `ofCollections`.
+[`plugins/asset-reference.ts`](../../src/renderer/components/markdown/plugins/asset-reference.ts) and [`plugins/entry-reference.ts`](../../src/renderer/components/markdown/plugins/entry-reference.ts) define inline atom nodes for Core's custom mdast types, rendered as chips. They ride through the parser/serializer the same way stock nodes do (their `parseMarkdown`/`toMarkdown` runners match the mdast `type` directly), so no text syntax is ever invented for them. Insertion happens through [`asset-reference-picker.tsx`](../../src/renderer/components/markdown/asset-reference-picker.tsx) and [`entry-reference-picker.tsx`](../../src/renderer/components/markdown/entry-reference-picker.tsx), filtered by the definition's `ofAssetMimeTypes` / `ofCollections`. Each is the matching field's own dialog from [`components/pickers/`](../../src/renderer/components/pickers/) with one choice, so an Asset or an Entry is listed here exactly as the Asset and Entry fields list it, with a radio button each, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#reference-fields-asset-and-entry).
 
 One v1 simplification: Core's `entryReference` carries phrasing children as its label, the editor flattens them to plain text (see [not-yet-implemented.md](../not-yet-implemented.md)).
+
+## The toolbar
+
+[`markdown-toolbar.tsx`](../../src/renderer/components/markdown/markdown-toolbar.tsx) draws only the affordances the field's features enable.
+
+- **A button for an inline format is a `Toggle`**, pressed while that format is on at the cursor or over the selection. ci gives a pressed button the muted surface and a 1 px ring in the input color, so it is never color alone, and the toggle carries `aria-pressed`. The four are strong, emphasis, inline code and strikethrough. A button that inserts something or changes a block, such as Heading or Table, is a plain button with no pressed state, because it is not a two-state thing.
+- **Which formats are on comes from ProseMirror**, through [`plugins/mark-formats.ts`](../../src/renderer/components/markdown/plugins/mark-formats.ts): a `$prose` plugin whose view reports the active marks whenever the document or the selection changes. It is handed the field's features, since a format the field disallows registers no mark schema and so has no mark type to ask about. Each format's mark type comes from its own Milkdown schema export, so no mark name is written out a second time.
+- **Every button runs on click and prevents the default of the mouse press before it.** The click is what the keyboard reaches, and the prevented mouse press is what keeps the editor's own selection while the pointer goes to the toolbar.
+
+## What the field tells the editor
+
+The markdown field's control props reach the editable element through ProseMirror's `attributes` prop, which Milkdown takes in `editorViewOptionsCtx`, so nothing reaches into the `contenteditable` by hand:
+
+- `role="textbox"` with `aria-multiline`, which is what makes `aria-required` and `aria-invalid` allowed there, plus the field's `id`, its `aria-label` and its `aria-describedby`. The element that takes focus is therefore the one a screen reader reads the field's name, its rules, its description and its error from, which is why the markdown module answers `acceptsAriaRequired` with yes.
+- `attributes` is handed as a function over a ref, so a render never leaves a stale value behind. ProseMirror only recomputes it on a state update, so the editor also asks for one with `view.setProps({})` whenever the props change, which is what puts an error on the element that was not typed into.
 
 ## The editor component
 
