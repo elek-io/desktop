@@ -575,7 +575,9 @@ export interface FieldSubtreeErrorProps<
  * bound as a single Controller but rendered as something other than a field (the
  * Collection editor's `fieldDefinitions` array), so a refinement landing on the
  * value itself or on a path inside it still has a surface. An `AppField` cannot
- * serve here, because it only shows the message sitting at its own exact path.
+ * serve here, because that value is drawn as previews rather than as one field,
+ * so there is no field shell to hold a message, and a refinement on the array
+ * reports several at once while a field shows one.
  *
  * It claims the whole subtree as an error target, which is also what keeps
  * AppForm from reporting the same errors a second time.

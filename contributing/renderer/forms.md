@@ -503,10 +503,10 @@ draws a label, a rule, a warning, a description or an error.
   not hold is a compile error at the call site. A shared form body that stays
   generic over its caller's values asserts only the name (`as FieldPath<T>`),
   never the whole form, see [Form typing](#form-typing).
-- **The error it shows is the one at its own path**, or the one react-hook-form
-  nested under `root`, see
+- **The error it shows is the first one at its own path or below it** that no
+  error target mounted deeper renders, see
   [When an error has no field to land on](#when-an-error-has-no-field-to-land-on).
-  It claims that path as an error target whether a message is on screen or not,
+  It claims its path as an error target whether a message is on screen or not,
   so `AppForm`'s backstop never reports an error this field would show.
 - **The words of the error sit in a paragraph inside the alert**, so one message
   and a list of them read the same. That paragraph's slot is what
