@@ -211,15 +211,29 @@ test.describe("A Project's sidebar", () => {
     ).toEqual(['Collections']);
 
     const measured = await mainWindow.evaluate(() => {
-      const content = document.querySelector(
-        '[data-slot="sidebar"] [data-slot="sidebar-content"]'
-      );
+      const sidebar = document.querySelector('[data-slot="sidebar"]');
+      const header = sidebar?.querySelector('[data-slot="sidebar-header"]');
+      const content = sidebar?.querySelector('[data-slot="sidebar-content"]');
       const rule = content?.querySelector('[data-slot="sidebar-separator"]');
-      if (content === null || rule === null || rule === undefined) {
+      const label = content?.querySelector(
+        '[data-slot="sidebar-group-label"] span'
+      );
+      if (
+        content === null ||
+        content === undefined ||
+        header === null ||
+        header === undefined ||
+        rule === null ||
+        rule === undefined ||
+        label === null ||
+        label === undefined
+      ) {
         throw new Error('The navigation has no rule ending the Collections');
       }
 
       return {
+        headerBottom: Math.round(header.getBoundingClientRect().bottom),
+        labelLeft: Math.round(label.getBoundingClientRect().x),
         ruleTop: Math.round(rule.getBoundingClientRect().y),
         ruleLeft: Math.round(rule.getBoundingClientRect().x),
         rows: Array.from(
@@ -250,9 +264,37 @@ test.describe("A Project's sidebar", () => {
     ]);
     expect(['Articles', 'Events']).toContain(above.at(-1)?.label);
 
-    // It is inset to the column the icons and the counts stand in, rather than
-    // spanning the sidebar.
-    expect(measured.ruleLeft).toBe(above[0]?.iconLeft);
+    // The search is the first thing below the Project and stands above the
+    // first row of the navigation, which is where ci puts it. It renders in a
+    // group of its own rather than among the rows, so the order of the rows
+    // alone cannot show it.
+    const search = sidebar.getByRole('button', {
+      name: 'Search comes later',
+    });
+    const searchBox = await search.boundingBox();
+    const searchIcon = await search.locator('svg').boundingBox();
+    const lockup = await mainWindow
+      .getByRole('banner')
+      .getByRole('link', { name: 'elek.io Desktop, Projects' })
+      .boundingBox();
+    if (searchBox === null || searchIcon === null || lockup === null) {
+      throw new Error('The sidebar has no search, or the header no lockup');
+    }
+    expect(searchBox.y).toBeGreaterThanOrEqual(measured.headerBottom);
+    expect(searchBox.y + searchBox.height).toBeLessThanOrEqual(
+      measured.rows[0]?.top ?? 0
+    );
+
+    // One column carries the search's icon, every row's icon, the Collections
+    // label and the rule, and it is the column the header lockup already
+    // stands on, rather than one of ci's three.
+    const column = Math.round(lockup.x);
+    expect(Math.round(searchIcon.x)).toBe(column);
+    expect([...new Set(measured.rows.map((row) => row.iconLeft))]).toEqual([
+      column,
+    ]);
+    expect(measured.labelLeft).toBe(column);
+    expect(measured.ruleLeft).toBe(column);
 
     // A Collection opens its Entries from this one sidebar, which is what the
     // second sidebar inside Collections used to do.
@@ -271,6 +313,21 @@ test.describe("A Project's sidebar", () => {
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
     });
+    // A second Collection, holding a different number of Entries, so each row
+    // has to carry its own Collection's count rather than whichever one Core
+    // answered first.
+    const events = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Event' }, plural: { en: 'Events' } },
+      slug: { singular: 'event', plural: 'events' },
+    });
+    for (const title of ['Spring fair', 'Summer party', 'Autumn market']) {
+      await createEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: events.id,
+        values: { title: stringValue({ en: title }) },
+      });
+    }
     await createAssetViaIpc(mainWindow, {
       projectId: project.id,
       filePath: makeTempFile(testInfo, 'logo.png', pngBytes),
@@ -279,13 +336,18 @@ test.describe("A Project's sidebar", () => {
     const sidebar = projectSidebar(mainWindow);
 
     // A Collection's row says how many Entries it holds in words, because its
-    // own name does not say what the number counts.
+    // own name does not say what the number counts. Core answers the
+    // Collections of a Project in no order, so the two numbers also prove each
+    // one landed on the row of the Collection it was read for.
     await navigateToEntryCreate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
     await expect(
       sidebar.getByRole('link', { name: /^Articles\s*0 Entries$/ })
+    ).toBeVisible();
+    await expect(
+      sidebar.getByRole('link', { name: /^Events\s*3 Entries$/ })
     ).toBeVisible();
 
     // The create goes through the app, and the number follows it without the
@@ -297,6 +359,10 @@ test.describe("A Project's sidebar", () => {
     );
     await expect(
       sidebar.getByRole('link', { name: /^Articles\s*1 Entry$/ })
+    ).toBeVisible();
+    // The other Collection's number is untouched by it.
+    await expect(
+      sidebar.getByRole('link', { name: /^Events\s*3 Entries$/ })
     ).toBeVisible();
 
     // Assets and Components name what they count themselves, so their rows
@@ -569,7 +635,9 @@ test.describe("A Project's sidebar", () => {
       // the list continues past it. It is the border color in both themes.
       expect(atTop.above, theme).toBe('0');
       expect(atTop.below, theme).toBe('1');
-      expect(parseColor(atTop.cue), theme).toEqual(parseColor(atTop.border));
+      expect(toBytes(parseColor(atTop.cue)), theme).toEqual(
+        toBytes(parseColor(atTop.border))
+      );
 
       await mainWindow.evaluate(() => {
         const content = document.querySelector(
