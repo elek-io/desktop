@@ -16,12 +16,9 @@ msgid "{count, plural, one {# Asset} other {# Assets}}"
 msgstr "{count, plural, one {# Asset} other {# Assets}}"
 
 #: src/renderer/components/fields/entry/index.tsx
+#: src/renderer/components/project-sidebar.tsx
 msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
-
-#: src/renderer/components/project-sidebar.tsx
-msgid "{entryTotal, plural, one {# Entry} other {# Entries}}"
-msgstr "{entryTotal, plural, one {# Entry} other {# Entries}}"
 
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "{fieldCount, plural, one {# field} other {# fields}}"

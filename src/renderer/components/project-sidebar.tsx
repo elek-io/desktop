@@ -281,7 +281,10 @@ function ProjectNavigation(): React.JSX.Element {
                 ))
               : collectionList.map((collection, index) => {
                   const entryQuery = entryCounts[index];
-                  const entryTotal =
+                  // Named `count`, because the name of a local reaches a
+                  // translator as the plural's own placeholder, and every
+                  // other place that counts Entries in words uses that name.
+                  const count =
                     entryQuery === undefined || entryQuery.isPending
                       ? undefined
                       : entryQuery.data;
@@ -301,11 +304,11 @@ function ProjectNavigation(): React.JSX.Element {
                         key: 'collection.name.plural',
                         record: collection.name.plural,
                       })}
-                      count={entryTotal}
+                      count={count}
                       counted={
-                        entryTotal === undefined
+                        count === undefined
                           ? undefined
-                          : t`${plural(entryTotal, { one: '# Entry', other: '# Entries' })}`
+                          : t`${plural(count, { one: '# Entry', other: '# Entries' })}`
                       }
                     />
                   );
