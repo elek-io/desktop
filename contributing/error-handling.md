@@ -157,7 +157,7 @@ The dialog's sentence comes from `describeCoreError` with `SYNC_REFUSALS`, and e
 
 Handling `Internal` in place is the exception to make on purpose, the same one the Release dialog makes: every failure of this one call has the same, true, actionable answer, and it is what keeps Core's raw message off the screen, since a Git repository's address can carry a credential.
 
-Core unwinds a refused sync before the error arrives, so the dialog says once that nothing was synced and the changes stay on this computer, and pressing Sync again retries.
+`synchronize()` pushes nothing until every step before it went through (see Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#synchronizing)), so the dialog says once that nothing was synced and the changes stay on this computer. It does not unwind what it already did locally: a `Conflict` comes after the rebase, and the integrated commits stay local on purpose, which is what lets the editor repair the Entry the dialog links and sync again.
 
 ### Example: a clone Core refuses
 

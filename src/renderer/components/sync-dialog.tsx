@@ -36,8 +36,8 @@ import { flattenFieldDefinitions, type Collection } from '@elek-io/core';
  * where ci puts a failure somebody is waiting for, and Show why in the Project
  * card reopens it afterwards. One sentence says what stopped the sync and what
  * to do next, each Entry Core named is a link with the field inside it, and one
- * line says that nothing was synced, because Core unwinds a refused sync before
- * the error arrives.
+ * line says that nothing was synced, which holds because Core pushes nothing
+ * until every step before it went through.
  *
  * It never shows Core's error type, Core's own message or what git wrote, since
  * a Git repository's address can carry a credential, see

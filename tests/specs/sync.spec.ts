@@ -960,6 +960,25 @@ test.describe('The Project card', () => {
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeHidden();
     await expect(card.getByRole('button', { name: 'Sync' })).toBeEnabled();
+
+    // Only a repository that answered and refused gets that line. Every other
+    // way this one call can fail leaves nothing counted, so the card says what
+    // is true of all of them, and still reaches no error screen.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:projects:getChanges',
+      'NotFound'
+    );
+    await card.getByRole('button', { name: 'Check now' }).click();
+    await expect(
+      card.getByText("Can't reach the Git repository")
+    ).toBeVisible();
+    await expect(
+      card.getByText('The Git repository refused access')
+    ).toHaveCount(0);
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeHidden();
   });
 
   test('stands on the sidebar column and fits the smallest window in both themes', async ({
