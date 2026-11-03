@@ -1,0 +1,457 @@
+import { expect, type Locator, type Page } from '@playwright/test';
+
+import { test } from '../fixtures/electronApp.js';
+import {
+  createCollectionViaIpc,
+  navigateToCollectionSettings,
+  textFieldDefinition,
+} from '../helpers/collection.js';
+import {
+  createComponentViaIpc,
+  navigateToComponent,
+} from '../helpers/component.js';
+import {
+  createEntryViaIpc,
+  navigateToEntryUpdate,
+  stringValue,
+} from '../helpers/entry.js';
+import { recordedCoreCalls, stubCoreRecord } from '../helpers/ipc.js';
+import { reloadWindow } from '../helpers/navigation.js';
+import {
+  createProjectViaIpc,
+  navigateToProjectSettings,
+} from '../helpers/project.js';
+import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
+
+/**
+ * What keeps a form from saving, as it stands below Save.
+ *
+ * ci puts it on a row of its own under the button, in the warning color, and
+ * has Save point at it. The row is what this reads, and the pointing is
+ * asserted from the button.
+ */
+function blockedReason(page: Page): Locator {
+  return page.locator('[data-slot="form-blocked-reason"]');
+}
+
+/** The question asked before changes nobody saved are lost. */
+function discardDialog(page: Page): Locator {
+  return page.locator('[data-slot="discard-changes-dialog"]');
+}
+
+/** A Project with one Collection whose only field is a required Title. */
+async function projectWithEntry(page: Page): Promise<{
+  projectId: string;
+  collectionId: string;
+  entryId: string;
+}> {
+  await setUserViaIpc(page);
+  const project = await createProjectViaIpc(page);
+  const collection = await createCollectionViaIpc(page, {
+    projectId: project.id,
+    fieldDefinitions: [textFieldDefinition()],
+  });
+  const entry = await createEntryViaIpc(page, {
+    projectId: project.id,
+    collectionId: collection.id,
+    values: { title: stringValue({ en: 'The stored title' }) },
+  });
+
+  return {
+    projectId: project.id,
+    collectionId: collection.id,
+    entryId: entry.id,
+  };
+}
+
+/** The one in-app link every screen has, which leaves the page it is on. */
+function leaveThePage(page: Page): Locator {
+  return page
+    .getByRole('banner')
+    .getByRole('link', { name: 'elek.io Desktop, Projects' });
+}
+
+test.describe('A form that cannot be saved yet', () => {
+  test('says why below Save, and neither a click nor Enter saves', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+
+    // Nothing is missing yet, so Save waits only for a change.
+    await expect(blockedReason(mainWindow)).toBeHidden();
+
+    // Core refuses an Entry whose required Value is empty in a language of the
+    // Project, so emptying the one required field is what blocks Save.
+    await title.fill('');
+    await expect(blockedReason(mainWindow)).toHaveText('en is missing 1 Value');
+    await expect(save).toBeDisabled();
+
+    // Nothing may reach Core, however the submit is raised. The channel in
+    // front of it is the seam this records.
+    await stubCoreRecord(electronApp, 'core:entries:update');
+
+    // A click, which the control still takes, since it is not `disabled`.
+    await save.click({ force: true });
+    // Enter in a field, which raises a submit of the form itself rather than a
+    // click on the button.
+    await title.press('Enter');
+
+    expect(await recordedCoreCalls(electronApp)).toEqual([]);
+    // Still on the page, which a saved Entry would have left.
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.endsWith(`/${ids.entryId}/update`)
+    );
+    await expect(blockedReason(mainWindow)).toHaveText('en is missing 1 Value');
+    // The submit was ignored rather than run, so the validator did not mark
+    // the field either. That is what tells a blocked form from one that is
+    // checked when Save is pressed.
+    await expect(title).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  test('keeps Save reachable and names its reason, and blocks the same way without one', async ({
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+
+    // An unchanged form blocks Save too, and says nothing: there is nothing to
+    // save rather than something to fix.
+    await expect(save).toBeDisabled();
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(save).not.toHaveAttribute('disabled', /.*/);
+    await expect(save).not.toHaveAttribute('aria-describedby', /.*/);
+
+    await title.fill('');
+
+    // Blocked by a reason now: still reachable with the keyboard, and read out
+    // with the line that says why, which is what `disabled` would take away.
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(save).not.toHaveAttribute('disabled', /.*/);
+    await save.focus();
+    await expect(save).toBeFocused();
+
+    const reasonId = await save.getAttribute('aria-describedby');
+    expect(reasonId).not.toBeNull();
+    await expect(mainWindow.locator(`#${reasonId ?? ''}`)).toHaveText(
+      'en is missing 1 Value'
+    );
+    // The same element ci draws the line as, in the warning color with its
+    // icon, so the color alone does not carry it.
+    await expect(blockedReason(mainWindow)).toHaveAttribute(
+      'id',
+      reasonId ?? ''
+    );
+  });
+});
+
+test.describe('Leaving a page with changes nobody saved', () => {
+  test('asks, named by the page, and keeps the changes or lets go of them', async ({
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+
+    const title = mainWindow.getByLabel('Title', { exact: true });
+
+    // Nothing was typed, so leaving asks nothing.
+    await leaveThePage(mainWindow).click();
+    await expect(mainWindow).toHaveURL((url) => url.hash === '#/projects');
+    await expect(discardDialog(mainWindow)).toBeHidden();
+
+    await navigateToEntryUpdate(mainWindow, ids);
+    await title.fill('A title nobody saved');
+
+    // Keep editing leaves both the page and what was typed alone.
+    await leaveThePage(mainWindow).click();
+    await expect(
+      discardDialog(mainWindow).getByRole('heading', {
+        name: 'Discard your changes to The stored title?',
+      })
+    ).toBeVisible();
+    await discardDialog(mainWindow)
+      .getByRole('button', { name: 'Keep editing' })
+      .click();
+    await expect(discardDialog(mainWindow)).toBeHidden();
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.endsWith(`/${ids.entryId}/update`)
+    );
+    await expect(title).toHaveValue('A title nobody saved');
+
+    // Discard lets go of it and carries on where it was going.
+    await leaveThePage(mainWindow).click();
+    await discardDialog(mainWindow)
+      .getByRole('button', { name: 'Discard' })
+      .click();
+    await expect(mainWindow).toHaveURL((url) => url.hash === '#/projects');
+    await expect(discardDialog(mainWindow)).toBeHidden();
+  });
+
+  test('asks nothing after the form saved itself', async ({ mainWindow }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+
+    await mainWindow
+      .getByLabel('Title', { exact: true })
+      .fill('A title that is saved');
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+
+    // Saving leaves this page for the list of Entries. That navigation is the
+    // form's own, so the guard lets it through rather than asking about the
+    // changes it just saved.
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.endsWith(`/collections/${ids.collectionId}`)
+    );
+    await expect(discardDialog(mainWindow)).toBeHidden();
+
+    // The Profile is the form where only that rule carries it: it stays
+    // writable while it saves, so the guard is live at the moment the submit
+    // navigates away.
+    await navigateToUserProfile(mainWindow);
+    await mainWindow
+      .getByLabel('Full name', { exact: true })
+      .fill('Mara Klein');
+    await mainWindow.getByRole('button', { name: 'Save local User' }).click();
+
+    await expect(mainWindow).toHaveURL((url) => url.hash === '#/projects');
+    await expect(discardDialog(mainWindow)).toBeHidden();
+  });
+
+  test('asks nothing when the page takes a way out itself', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+
+    // Changed, so leaving would ask.
+    await mainWindow
+      .getByLabel('Collection name (Plural)', { exact: true })
+      .fill('Report');
+
+    // Deleting the Collection takes the page off screen on purpose, and takes
+    // everything typed into it with it, so there is nothing to ask about.
+    await mainWindow.getByRole('button', { name: 'Delete Collection' }).click();
+    await mainWindow
+      .getByRole('button', { name: 'Yes, delete this Collection' })
+      .click();
+
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.endsWith(`/projects/${project.id}/collections`)
+    );
+    await expect(discardDialog(mainWindow)).toBeHidden();
+  });
+
+  test('asks on every page form that edits something today', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'The stored title' }) },
+    });
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+
+    const pages: {
+      open: () => Promise<void>;
+      label: string;
+      question: string;
+    }[] = [
+      {
+        open: async () =>
+          navigateToEntryUpdate(mainWindow, {
+            projectId: project.id,
+            collectionId: collection.id,
+            entryId: entry.id,
+          }),
+        label: 'Title',
+        question: 'Discard your changes to The stored title?',
+      },
+      {
+        open: async () =>
+          navigateToCollectionSettings(mainWindow, {
+            projectId: project.id,
+            collectionId: collection.id,
+          }),
+        label: 'Collection name (Plural)',
+        question: 'Discard your changes to Configure Articles?',
+      },
+      {
+        open: async () =>
+          navigateToComponent(mainWindow, {
+            projectId: project.id,
+            componentId: component.id,
+          }),
+        label: 'Component name',
+        question: 'Discard your changes to Teaser?',
+      },
+      {
+        open: async () => navigateToProjectSettings(mainWindow, project.id),
+        label: 'Project name',
+        question: 'Discard your changes to General Settings?',
+      },
+      {
+        open: async () => navigateToUserProfile(mainWindow),
+        label: 'Full name',
+        question: 'Discard your changes to User profile?',
+      },
+    ];
+
+    for (const page of pages) {
+      await page.open();
+      await mainWindow
+        .getByLabel(page.label, { exact: true })
+        .fill('Something nobody saved');
+      await leaveThePage(mainWindow).click();
+
+      await expect(
+        discardDialog(mainWindow).getByRole('heading', { name: page.question })
+      ).toBeVisible();
+      await discardDialog(mainWindow)
+        .getByRole('button', { name: 'Discard' })
+        .click();
+      await expect(mainWindow).toHaveURL((url) => url.hash === '#/projects');
+    }
+  });
+});
+
+test.describe('Closing the window with changes nobody saved', () => {
+  test('reloads and ends the run with a form left changed', async ({
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await title.fill('A title nobody saved');
+
+    // A reload is not a close, so nothing holds it. It is how the app recovers
+    // from the error screen, and it is what most of the suite arranges a route
+    // with.
+    await reloadWindow(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+    await expect(title).toHaveValue('The stored title');
+
+    // Left changed on purpose. The run ends here, so the teardown is what has
+    // to close a window that holds something unsaved.
+    await title.fill('A title nobody saved either');
+    await expect(title).toHaveValue('A title nobody saved either');
+  });
+
+  test('closes at once while nothing is unsaved', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+
+    // Awaited from before the close, since a window with nothing unsaved is
+    // gone before anything could start listening afterwards.
+    const closed = mainWindow.waitForEvent('close');
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.close();
+    });
+
+    await closed;
+    expect(mainWindow.isClosed()).toBe(true);
+  });
+
+  test('asks the same question, and closes once Discard is pressed', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await title.fill('A title nobody saved');
+
+    const askToClose = async (): Promise<void> => {
+      await electronApp.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.close();
+      });
+    };
+
+    // Keep editing keeps the window and what was typed in it.
+    await askToClose();
+    await expect(
+      discardDialog(mainWindow).getByRole('heading', {
+        name: 'Discard your changes to The stored title?',
+      })
+    ).toBeVisible();
+    await discardDialog(mainWindow)
+      .getByRole('button', { name: 'Keep editing' })
+      .click();
+    await expect(discardDialog(mainWindow)).toBeHidden();
+    expect(mainWindow.isClosed()).toBe(false);
+    await expect(title).toHaveValue('A title nobody saved');
+
+    // Discard closes it.
+    await askToClose();
+    await expect(discardDialog(mainWindow)).toBeVisible();
+    const closed = mainWindow.waitForEvent('close');
+    await discardDialog(mainWindow)
+      .getByRole('button', { name: 'Discard' })
+      .click();
+    await closed;
+    expect(mainWindow.isClosed()).toBe(true);
+  });
+
+  test('asks the same question before the app quits', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+    await mainWindow
+      .getByLabel('Title', { exact: true })
+      .fill('A title nobody saved');
+
+    // A quit closes every window, so the question comes up for this one and
+    // holds the quit until it is answered.
+    await electronApp.evaluate(({ app }) => {
+      app.quit();
+    });
+    await expect(
+      discardDialog(mainWindow).getByRole('heading', {
+        name: 'Discard your changes to The stored title?',
+      })
+    ).toBeVisible();
+    await discardDialog(mainWindow)
+      .getByRole('button', { name: 'Keep editing' })
+      .click();
+    await expect(discardDialog(mainWindow)).toBeHidden();
+    expect(mainWindow.isClosed()).toBe(false);
+
+    // Discard ends the app rather than only its window.
+    await electronApp.evaluate(({ app }) => {
+      app.quit();
+    });
+    await expect(discardDialog(mainWindow)).toBeVisible();
+    const quit = electronApp.waitForEvent('close');
+    await discardDialog(mainWindow)
+      .getByRole('button', { name: 'Discard' })
+      .click();
+    await quit;
+  });
+});

@@ -112,6 +112,35 @@ export async function stubCoreHang(
 }
 
 /**
+ * Replace a Core IPC handler so it records that it was called instead of
+ * reaching Core, to observe that something never got that far.
+ *
+ * A form that blocks Save is the case: pressing it has to reach neither Core
+ * nor the channel in front of it, and the channel is the seam a desktop test
+ * owns (see testing.md). Mirrors `stubCoreReject`, including why it has to run
+ * in the main process. Read what it collected with `recordedCoreCalls`.
+ */
+export async function stubCoreRecord(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    globalThis.recordedCoreCalls = [];
+    ipcMain.removeHandler(ch);
+    ipcMain.handle(ch, () => {
+      globalThis.recordedCoreCalls?.push(ch);
+    });
+  }, channel);
+}
+
+/** Every call a `stubCoreRecord` channel took since it was put in place. */
+export async function recordedCoreCalls(
+  electronApp: ElectronApplication
+): Promise<string[]> {
+  return electronApp.evaluate(() => globalThis.recordedCoreCalls ?? []);
+}
+
+/**
  * Replace a Core IPC handler so its next call answers with a canned value, to
  * drive a shape of Core's answer the UI has to render without arranging what
  * Core computes it from.

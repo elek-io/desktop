@@ -140,3 +140,10 @@ declare var titleBarOverlayCalls: RecordedTitleBarOverlay[] | undefined;
  */
 // eslint-disable-next-line no-var
 declare var openedExternally: string[] | undefined;
+
+/**
+ * Every call a recorded Core channel took, by its channel name, kept in the
+ * main process the same way. See tests/helpers/ipc.ts.
+ */
+// eslint-disable-next-line no-var
+declare var recordedCoreCalls: string[] | undefined;

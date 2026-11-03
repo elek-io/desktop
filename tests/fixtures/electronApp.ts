@@ -195,6 +195,14 @@ export const test = base.extend<{
     // relaunchApp) closes this app itself first, so tolerate an already-closed
     // app rather than failing teardown on a double close
     try {
+      // A window that holds changes nobody saved refuses to close until the
+      // question in it is answered, and no teardown can answer it. `destroy`
+      // skips the close the app holds, so a test may leave a form changed.
+      await app
+        .evaluate(({ BrowserWindow }) => {
+          BrowserWindow.getAllWindows().forEach((window) => window.destroy());
+        })
+        .catch(() => {});
       await app.close();
     } catch {
       // Already closed by the test, nothing to clean up
