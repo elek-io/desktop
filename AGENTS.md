@@ -56,10 +56,11 @@ Read these before touching any form. Each is enforced (a compile error, a lint e
 - Every form is built with `useAppForm` and filled from its query through `values` and `disabled`, never by calling `reset()` in an effect. Both are lint errors otherwise.
 - Everything the app knows about one field type lives in that type's folder under `components/fields/`. The registry is a mapped type over Core's `FieldType`, so a new Core type is a compile error until it has a folder, and nothing outside a folder branches on a field type or a value type.
 - No control emits a native constraint attribute (`required`/`min`/`max`/`minLength`/`maxLength`); zod is the sole validator. The only exception is the range `Slider`'s value domain.
+- No validator's own words reach a field. One zod error map, set once when the renderer starts, words every refusal zod raises through the catalog, and the field type a refusal Core worded itself lands on words that one. An issue code without words fails the type check.
 - By-type `CoreError` handling goes through `useAppMutation`, never a blanket `throwOnError: false`. Its suppression of the wrapper's toast and log is per handled type, not per mutation.
 
 ## Testing notes
 
 - Playwright E2E tests live in `tests/` and run against the packaged app. See [`contributing/testing.md`](./contributing/testing.md) for how the fixtures, isolation and CI work. Run `pnpm test` to verify a change end to end, and make sure `pnpm check` passes before considering it done.
-- Playwright is the only runner. Most specs drive the packaged app, and one runs in Node for what needs no window, see [`contributing/testing.md`](./contributing/testing.md). Verify behavior neither covers by running the app with `pnpm dev` and telling the user to exercise the affected flows.
+- Playwright is the only runner. Most specs drive the packaged app, and a few run in Node for what needs no window, see [`contributing/testing.md`](./contributing/testing.md). Verify behavior neither covers by running the app with `pnpm dev` and telling the user to exercise the affected flows.
 - All Core file and git operations run in the main process and are reached from the renderer only through `window.ipc`. Exercise them through the running app, not in isolation.

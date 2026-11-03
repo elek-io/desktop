@@ -81,6 +81,10 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   map is the single source of the "expected" set, never a blanket
   `throwOnError: false`. Unhandled failures reach the root error boundary. See
   [error-handling.md](../error-handling.md).
+- **No validator's own words reach a field.** One zod error map words every
+  refusal zod raises, and the field type a refusal Core worded itself lands on
+  words that one. An issue code without words fails the type check. See
+  [The words a refused Value is explained in](#the-words-a-refused-value-is-explained-in).
 
 ## Writing a form
 
@@ -205,6 +209,41 @@ for an update. Because it is the same component the editor uses, a field added t
 the editor shows up in the diff with no extra work.
 [`components/component-diff.tsx`](../../src/renderer/components/component-diff.tsx)
 is the same shape for a Component.
+
+## The words a refused Value is explained in
+
+Core's schemas stay the only judge of what is valid. What a field shows is not
+their English: zod writes "Too small: expected string to have >=3 characters",
+which names a type, a comparison sign and an internal measure, none of which an
+editor asked about.
+
+[`lib/refusedValueText.ts`](../../src/renderer/lib/refusedValueText.ts) holds one
+sentence per zod issue code, keyed by the code and by what the code measures: a
+length for text, a count for a list, the number itself for a number, and the
+format a field type asks of its text.
+[`app.tsx`](../../src/renderer/app.tsx) installs it once as zod's global
+`customError`, which reaches every schema the renderer parses with, Core's
+generated ones included, because the renderer loads one copy of zod. Each
+sentence is read from the message catalog at the moment an issue is raised, so a
+change of language reaches the next refusal. `RefusalWords` is a mapped type
+over zod's own union of codes, so a code zod adds fails to compile until it has
+words, which `refusal-words.spec.ts` drives with a probe.
+
+One refusal the map cannot reach: zod lets a message that arrives with an issue
+outrank every error map, and Core raises several of its own with their own
+English. Those are worded by the field type they land on, through
+`FieldTypeModule.coreRefusalText`, which `FieldFromDefinition` passes to
+`AppField` and `AppField` applies to a message that arrives under zod's `custom`
+code. Core gives them no code, so a module matches the opening of the text,
+which [`components/fields/core-refusals.ts`](../../src/renderer/components/fields/core-refusals.ts)
+holds in one place. A refusal no module knows gets one sentence of its own, so a
+message a Core release rewords falls to that rather than reaching a field.
+`refusal-words.spec.ts` triggers all five against the installed Core, so a
+reword fails there instead.
+
+A hand-written field passes no `coreRefusalText` and its message stands as it
+arrived. A Core refusal of a field definition still shows Core's English on a
+Collection's or a Component's settings, which the rebuild of those forms words.
 
 ## When an error has no field to land on
 

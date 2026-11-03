@@ -124,6 +124,22 @@ function SyncButton({ label }: { label: string }): ReactElement {
 - **Text that goes into a prop**, such as an accessible name, a `title`, an `alt` or a `placeholder`, is `` t`...` `` from `useLingui()`. The hook is what re-renders the component when the language changes.
 - **Outside a component**, in the query layer or in the main process, `` t`...` `` comes from `@lingui/core/macro` instead and reads the active catalog when it is called.
 - **A map of sentences at module scope** holds `` msg`...` `` descriptors, not strings, and renders each one with `i18n._()` where it is shown. A string there would be read before a catalog is active. [`lib/coreErrorText.ts`](../../src/renderer/lib/coreErrorText.ts) and [`lib/release.ts`](../../src/renderer/lib/release.ts) are the examples.
+- **A map of functions** is the other way around that: each entry calls `` t`...` `` when it is asked, which reads the catalog at that moment rather than at module scope. That is what a sentence built around a value needs, and [`lib/refusedValueText.ts`](../../src/renderer/lib/refusedValueText.ts) and [`lib/fieldRules.ts`](../../src/renderer/lib/fieldRules.ts) are the examples.
+
+### The words a refused Value is explained in
+
+A validator writes English of its own, and none of it reaches a field. zod's
+goes through one error map, [`lib/refusedValueText.ts`](../../src/renderer/lib/refusedValueText.ts),
+which [`app.tsx`](../../src/renderer/app.tsx) installs once when the renderer
+starts and which words every issue code through the catalog. Core's own, which
+zod lets outrank every map, is worded by the field type the refusal lands on.
+The whole mechanism is in [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
+
+Two things follow for the catalog. A sentence that counts something, such as how
+many characters a field takes, is one `plural` message rather than a sentence
+with a number spliced in, so each language picks its own forms. And the map is
+read when an issue is raised rather than when it is installed, so a language
+somebody switches to reaches the next refusal without anything being rebuilt.
 
 ### Adding a placeholder
 

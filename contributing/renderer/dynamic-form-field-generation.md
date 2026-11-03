@@ -162,13 +162,14 @@ A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fiel
 | `previewContent`       | The static content the Collection's preview shows              |
 | `listCell`             | What a row of the list of Entries shows for this Value         |
 | `titleText`            | This Value's text where an Entry is named by one of its Values |
+| `coreRefusalText`      | This type's words for a refusal Core wrote its own English for |
 | `DefinitionDraft`      | The authoring form for a new definition of this type           |
 | `forbiddenInComponent` | That Core refuses this type inside a Component                 |
 | `allowedComponentIds`  | Which Components a definition allows as a section              |
 | `withoutDefinition`    | How a definition forgets another one the editor removed        |
 | `EditSheet`            | The sheet that edits a definition of this type after it exists |
 
-The last four are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components and the one that can be edited at all. `DefinitionDraft` is optional too, for a type Core defines and the client cannot author yet, and every type carries one today.
+The last four are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components and the one that can be edited at all. `coreRefusalText` is optional too, and three types carry one: `slug`, `entry` and `markdown` are where the refusals Core words itself land, see [Where a refusal's words come from](#where-a-refusals-words-come-from). `DefinitionDraft` is optional too, for a type Core defines and the client cannot author yet, and every type carries one today.
 
 **The registry** ([`fields/index.ts`](../../src/renderer/components/fields/index.ts)) is a mapped type over Core's `FieldType`, so a field type Core adds **fails to compile until it has a folder**, and the message names the types whose folder is missing. That mapped type is exported as `FieldTypeRegistry`, so the type test can name it rather than write it out again, see [forms.md](./forms.md#guardrails). Reach a module through `fieldModule(fieldDefinition)`, which is generic over the field type so the module and the definition stay correlated: every member of what comes back takes exactly the definition that was passed in. Always read the module from the definition it is about, never pair one definition's module with another definition.
 
@@ -368,6 +369,17 @@ const form = useAppForm({
 
 // Form validates automatically and each AppField shows its own error
 ```
+
+### Where a refusal's words come from
+
+The generated schema decides what is refused. It does not decide what the editor
+reads: one zod error map words every refusal zod raises, keyed by the issue code
+and by what that code measures, and the field type a refusal Core wrote its own
+English for words that one through its `coreRefusalText`. `FieldFromDefinition`
+reads it off the type's module and hands it to `AppField`, so no form branches on
+a field type to word anything. The whole mechanism, the one sentence for a
+refusal nothing knows included, is in
+[forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
 
 ### Submitting the form
 
