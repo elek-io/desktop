@@ -24,6 +24,10 @@ msgstr "{count, plural, one {# Entry} other {# Entries}}"
 msgid "{fieldCount, plural, one {# field} other {# fields}}"
 msgstr "{fieldCount, plural, one {# field} other {# fields}}"
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "{incoming, plural, one {# incoming change} other {# incoming changes}}"
+msgstr "{incoming, plural, one {# incoming change} other {# incoming changes}}"
+
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 msgid "{language} is missing {missingValues, plural, one {# Value} other {# Values}}"
 msgstr "{language} is missing {missingValues, plural, one {# Value} other {# Values}}"
@@ -55,6 +59,10 @@ msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "{notSynced, plural, one {# change not synced} other {# changes not synced}}"
+msgstr "{notSynced, plural, one {# change not synced} other {# changes not synced}}"
 
 #: src/renderer/lib/refusedValueText.ts
 msgid "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
@@ -288,10 +296,6 @@ msgstr "An Asset's file was replaced"
 msgid "An Asset's name or description changed"
 msgstr "An Asset's name or description changed"
 
-#: src/renderer/components/project-sidebar.tsx
-msgid "An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again."
-msgstr "An Entry in this Project points at an Entry or an Asset that no longer exists, so no change reached the Git repository. Open that Entry, point it at something else or clear the field, then synchronize again."
-
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "An Entry this field points at no longer exists. Choose another one."
 msgstr "An Entry this field points at no longer exists. Choose another one."
@@ -442,6 +446,10 @@ msgstr "By enabling the local API it will start whenever elek.io Desktop is open
 msgid "Bytes"
 msgstr "Bytes"
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "Can't reach the Git repository"
+msgstr "Can't reach the Git repository"
+
 #: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/forms/project-form.tsx
 #: src/renderer/components/markdown/link-dialog.tsx
@@ -479,9 +487,21 @@ msgstr "Changes were saved or a Release was made on another computer, so synchro
 msgid "Changing your preferred language will attempt to translate everything you see in elek.io Desktop. You can help translate elek.io Desktop by contributing to our <0>GitHub repository</0>."
 msgstr "Changing your preferred language will attempt to translate everything you see in elek.io Desktop. You can help translate elek.io Desktop by contributing to our <0>GitHub repository</0>."
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "Check now"
+msgstr "Check now"
+
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Checkboxes inside lists. Requires lists."
 msgstr "Checkboxes inside lists. Requires lists."
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "Checked {ago}"
+msgstr "Checked {ago}"
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "Checked just now"
+msgstr "Checked just now"
 
 #: src/renderer/components/fields/asset/control.tsx
 #: src/renderer/components/fields/entry/control.tsx
@@ -533,8 +553,8 @@ msgid "Clone Project"
 msgstr "Clone Project"
 
 #: src/renderer/components/asset-teaser.tsx
-#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/components/release-dialog.tsx
+#: src/renderer/components/sync-dialog.tsx
 #: src/renderer/components/ui/dialog.tsx
 #: src/renderer/components/ui/sheet.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
@@ -772,10 +792,6 @@ msgstr "Could not start the local API"
 msgid "Could not stop the local API"
 msgstr "Could not stop the local API"
 
-#: src/renderer/components/project-sidebar.tsx
-msgid "Could not synchronize this Project"
-msgstr "Could not synchronize this Project"
-
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 #: src/renderer/routes/projects/$projectId/components/create.tsx
@@ -984,6 +1000,10 @@ msgstr "Drag to reorder"
 msgid "Dynamic fields cannot be unique."
 msgstr "Dynamic fields cannot be unique."
 
+#: src/renderer/lib/sync.ts
+msgid "Each field below points at an Entry or an Asset that no longer exists, because it was deleted here or on another computer. Open each Entry, choose something else or empty the field, then sync again."
+msgstr "Each field below points at an Entry or an Asset that no longer exists, because it was deleted here or on another computer. Open each Entry, choose something else or empty the field, then sync again."
+
 #: src/renderer/components/ui/translatable-field.tsx
 msgid "Edit translations for {title}"
 msgstr "Edit translations for {title}"
@@ -1073,6 +1093,10 @@ msgstr "Error"
 #: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Every Component of this Project is allowed already, so there is nothing to add."
 msgstr "Every Component of this Project is allowed already, so there is nothing to add."
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "Everything synced"
+msgstr "Everything synced"
 
 #: src/renderer/routes/user/profile.tsx
 msgid "Example change"
@@ -1326,7 +1350,6 @@ msgstr "Links to external URLs."
 msgid "Lists"
 msgstr "Lists"
 
-#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/components/ui/spinner.tsx
 msgid "Loading"
 msgstr "Loading"
@@ -1472,10 +1495,6 @@ msgstr "No Assets yet"
 msgid "No Assets yet. Add one on the Assets screen first."
 msgstr "No Assets yet. Add one on the Assets screen first."
 
-#: src/renderer/components/project-sidebar.tsx
-msgid "No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project."
-msgstr "No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project."
-
 #: src/renderer/components/history-sidebar.tsx
 msgid "No Changes found"
 msgstr "No Changes found"
@@ -1585,6 +1604,10 @@ msgstr "Nothing was saved, and this Collection is exactly as it was. Either anot
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
 msgstr "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
+
+#: src/renderer/components/sync-dialog.tsx
+msgid "Nothing was synced, and your changes stay on this computer."
+msgstr "Nothing was synced, and your changes stay on this computer."
 
 #: src/renderer/components/fields/select/definition.tsx
 msgid "Number"
@@ -1778,6 +1801,10 @@ msgstr "Raw HTML"
 msgid "Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it."
 msgstr "Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it."
 
+#: src/renderer/components/sync-dialog.tsx
+msgid "Reading this Entry"
+msgstr "Reading this Entry"
+
 #: src/renderer/components/markdown/asset-reference-picker.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Reference an Asset"
@@ -1793,14 +1820,11 @@ msgstr "Reference an Entry"
 msgid "Reference fields cannot be unique."
 msgstr "Reference fields cannot be unique."
 
-#: src/renderer/components/project-sidebar.tsx
-msgid "Refresh changes"
-msgstr "Refresh changes"
-
 #: src/renderer/routes/projects/$projectId/releases.tsx
 msgid "Release"
 msgstr "Release"
 
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
 msgid "Release {version}"
 msgstr "Release {version}"
@@ -1939,6 +1963,10 @@ msgstr "Restrict to Collections"
 msgid "Restrict to file types"
 msgstr "Restrict to file types"
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "Retry"
+msgstr "Retry"
+
 #: src/renderer/components/asset-teaser.tsx
 msgid "Save as"
 msgstr "Save as"
@@ -2019,6 +2047,10 @@ msgid "Separator"
 msgstr "Separator"
 
 #: src/renderer/components/project-sidebar.tsx
+msgid "Set up sync in Settings"
+msgstr "Set up sync in Settings"
+
+#: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/settings.tsx
 msgid "Settings"
 msgstr "Settings"
@@ -2030,6 +2062,10 @@ msgstr "Settings related to the languages used in this Project"
 #: src/renderer/components/report-dialog.tsx
 msgid "Share feedback"
 msgstr "Share feedback"
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "Show why"
+msgstr "Show why"
 
 #: src/renderer/components/entry-table.tsx
 msgid "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
@@ -2088,13 +2124,19 @@ msgstr "Subscription"
 msgid "Supported"
 msgstr "Supported"
 
+#: src/renderer/components/project-sidebar.tsx
+msgid "Sync"
+msgstr "Sync"
+
+#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/sync-dialog.tsx
 #: src/renderer/queries/options/projectOptions.ts
 msgid "Sync failed"
 msgstr "Sync failed"
 
 #: src/renderer/components/project-sidebar.tsx
-msgid "Synchronize"
-msgstr "Synchronize"
+msgid "Syncing"
+msgstr "Syncing"
 
 #: src/renderer/components/user-dropdown.tsx
 msgid "System"
@@ -2264,10 +2306,20 @@ msgid "The Field {slug} writes its Values differently"
 msgstr "The Field {slug} writes its Values differently"
 
 #: src/renderer/lib/release.ts
+#: src/renderer/lib/sync.ts
 msgid "The Git repository could not be reached, so check your connection and try again."
 msgstr "The Git repository could not be reached, so check your connection and try again."
 
+#: src/renderer/lib/sync.ts
+msgid "The Git repository may hold something besides this Project, it may not be able to store the Assets, or the same text may have been changed here and somewhere else. Ask whoever set up this Project."
+msgstr "The Git repository may hold something besides this Project, it may not be able to store the Assets, or the same text may have been changed here and somewhere else. Ask whoever set up this Project."
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "The Git repository refused access"
+msgstr "The Git repository refused access"
+
 #: src/renderer/lib/release.ts
+#: src/renderer/lib/sync.ts
 msgid "The Git repository refused access, so ask whoever set up this Project."
 msgstr "The Git repository refused access, so ask whoever set up this Project."
 
@@ -2396,9 +2448,9 @@ msgstr "The slug is generated from the selected Fields while creating an Entry, 
 msgid "The smallest value the user can enter."
 msgstr "The smallest value the user can enter."
 
-#: src/renderer/components/project-sidebar.tsx
-msgid "The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again."
-msgstr "The synchronization stopped, and no change reached the Git repository. Your changes on this computer are safe. Please try again."
+#: src/renderer/lib/sync.ts
+msgid "The synchronization stopped before anything reached the Git repository. Please try again."
+msgstr "The synchronization stopped before anything reached the Git repository. Please try again."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "The technical key this Field's Values are stored under. It is generated from the label until edited manually."
@@ -2475,6 +2527,10 @@ msgstr "This Component could not be saved. Please review your changes and try ag
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
+
+#: src/renderer/components/project-sidebar.tsx
+msgid "This computer only"
+msgstr "This computer only"
 
 #: src/renderer/components/fields/entry/control.tsx
 msgid "This Entry is no longer available"

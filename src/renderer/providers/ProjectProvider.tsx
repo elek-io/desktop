@@ -16,7 +16,8 @@ export function ProjectProvider({
   projectId: string;
   children: React.ReactNode;
 }): React.JSX.Element {
-  const { userQuery, formatDatetime, formatInUserLocale } = useUser();
+  const { userQuery, formatDatetime, formatInUserLocale, formatRelativeShort } =
+    useUser();
   const projectQuery = useQueryNoError(
     queryOptions.projects.read({ id: projectId })
   );
@@ -56,6 +57,7 @@ export function ProjectProvider({
         projectQuery,
         formatDatetime,
         formatInUserLocale,
+        formatRelativeShort,
         translateContent,
       }}
     >

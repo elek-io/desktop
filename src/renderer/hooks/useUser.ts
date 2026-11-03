@@ -12,6 +12,7 @@ export type UserContextValue = {
     absolute: string;
   };
   formatInUserLocale: (date: Date, pattern: string) => string;
+  formatRelativeShort: (datetime: number | string | Date) => string | null;
 };
 
 export const UserContext = createContext<UserContextValue | null>(null);
