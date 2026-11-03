@@ -51,12 +51,14 @@ export interface TranslatableFieldProps<
   // The per-language dialog labels use this for their required indicator: string
   // inputs mark every language required, the optional textarea does not.
   dialogItemRequired: boolean;
-  // Renders one language's control, given its field and the control-association
-  // props to place on the real input. Called for the outer field and once per
-  // language inside the dialog.
+  // Renders one language's control, given its field, the control-association
+  // props to place on the real input and the label that control is named by.
+  // Called for the outer field and once per language inside the dialog, where
+  // the label is the language, so two controls of one field never read alike.
   renderControl: (
     field: ControllerRenderProps<TFieldValues>,
-    controlProps: FieldControlProps
+    controlProps: FieldControlProps,
+    label: string
   ) => React.ReactElement;
 }
 
@@ -123,15 +125,19 @@ export function TranslatableField<
   }
 
   if (supportedLanguages.length <= 1) {
-    return renderControl(field, controlProps);
+    return renderControl(field, controlProps, title);
   }
 
   return (
     <div className="flex items-center">
-      {renderControl(field, {
-        ...controlProps,
-        className: cn('rounded-r-none', controlProps.className),
-      })}
+      {renderControl(
+        field,
+        {
+          ...controlProps,
+          className: cn('rounded-r-none', controlProps.className),
+        },
+        title
+      )}
       <Dialog>
         <DialogTrigger
           render={
@@ -165,7 +171,7 @@ export function TranslatableField<
                 required={dialogItemRequired}
               >
                 {({ field: languageField, controlProps: languageProps }) =>
-                  renderControl(languageField, languageProps)
+                  renderControl(languageField, languageProps, language)
                 }
               </AppField>
             ))}

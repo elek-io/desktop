@@ -37,6 +37,15 @@ export interface FieldTypeControlProps<
   disabled: boolean;
   /** The id and `aria-*` to place on the real focusable element. */
   controlProps: FieldControlProps;
+  /**
+   * The field's label as text, which the shell draws above the control.
+   *
+   * A control whose element takes no name from a `<label>` says it itself: a
+   * group of radio buttons, a combobox, the markdown editor's editable element
+   * and each button of a picker. It is the language dialog's own label inside
+   * that dialog, so a control there is named after the language it edits.
+   */
+  label: string;
 }
 
 /** What one Value contributes to a row of the list of Entries. */
@@ -92,11 +101,12 @@ export interface FieldTypeModule<T extends FieldType> {
    * Whether the control's role accepts `aria-required`, which stands in for
    * the native `required` no field emits.
    *
-   * Where it does not, the word stands in the rules beside the label, which
-   * the control names in `aria-describedby`, so it is still read out with the
-   * control. A type that always holds a Value says nothing either way, since
-   * it shows no rule at all: a toggle and a range are the two, and neither can
-   * be left empty.
+   * Where it does not, the word stands in the rules beside the label, which the
+   * control names in `aria-describedby`, so it is still read out with the
+   * control, and the buttons of a picker say it in their accessible name as
+   * well, since a button carries no rule of its own either. A type that always
+   * holds a Value says nothing either way, since it shows no rule at all: a
+   * toggle and a range are the two, and neither can be left empty.
    */
   acceptsAriaRequired: boolean;
   /**

@@ -130,7 +130,8 @@ export function FieldFromDefinition<
 
   const renderControl = (
     field: ControllerRenderProps<TFieldValues>,
-    controlProps: FieldControlProps
+    controlProps: FieldControlProps,
+    controlLabel: string
   ): React.ReactElement => (
     <>
       {module.Control({
@@ -141,6 +142,7 @@ export function FieldFromDefinition<
           field.disabled === true ||
           mode === 'view',
         controlProps: controlPropsFor(fieldDefinition, controlProps),
+        label: controlLabel,
       })}
     </>
   );
@@ -176,7 +178,7 @@ export function FieldFromDefinition<
           // A non-translatable type (only `dynamic` today) renders straight
           // through its folder, bound to `content` itself, with no language
           // dialog.
-          renderControl(field, controlProps)
+          renderControl(field, controlProps, label)
         )
       }
     </AppField>
@@ -319,6 +321,7 @@ export function FieldDefinitionPreview({
               fieldDefinition,
               disabled: true,
               controlProps: controlPropsFor(fieldDefinition, controlProps),
+              label,
             })
           }
         </FieldShell>
