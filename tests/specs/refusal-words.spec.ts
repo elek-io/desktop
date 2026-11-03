@@ -143,16 +143,20 @@ function coreWrote(messages: string[]): string[] {
   return messages.filter((message) => message !== MAPPED);
 }
 
-/** Every sentence the catalog holds for one of the files above. */
+/**
+ * Every sentence the catalog holds for one of the files above.
+ *
+ * A catalog's origin lines are written with forward slashes on every platform,
+ * which is what Lingui emits and what the file on disk holds, so the paths
+ * above are matched as they are written rather than rebuilt with `path.sep`.
+ */
 async function wordedSentences(): Promise<string[]> {
   const catalog = await readFile(catalogPath, 'utf8');
 
   return catalog
     .split('\n\n')
     .filter((entry) =>
-      wordingSources.some((source) =>
-        entry.includes(`#: ${source.replaceAll('/', path.sep)}`)
-      )
+      wordingSources.some((source) => entry.includes(`#: ${source}`))
     )
     .flatMap((entry) => entry.match(/^msgid "((?:[^"\\]|\\.)*)"/m) ?? [])
     .filter((_match, index) => index % 2 === 1);
