@@ -73,6 +73,10 @@ import { type CoreErrorType } from '@elek-io/core';
  * it keeps the muted surface at full contrast instead of fading, as ci's
  * Sidebar rules it. The shortcut comes with the search itself, so none is shown
  * here.
+ *
+ * Its icon stands on ci's one column with every row's: the group around it
+ * takes no horizontal padding, and the `sm` button's own 10 px plus its border
+ * are the 11 px ci puts an icon inside a row.
  */
 function ProjectSearch(): React.JSX.Element {
   return (
@@ -97,6 +101,10 @@ function ProjectSearch(): React.JSX.Element {
  * of pushing it out of the row. A row whose own name does not say what the
  * number counts, which is every Collection, passes `counted` and says it in
  * words instead of reading out the bare number.
+ *
+ * Its icon stands 11 px inside the row, which is ci's one column for the
+ * sidebar, rather than the registry's 8 px. The row itself spans the sidebar's
+ * own padding, because the groups below give it none.
  */
 function NavigationRow({
   link,
@@ -121,7 +129,7 @@ function NavigationRow({
     <SidebarMenuItem className="shrink-0">
       <SidebarMenuButton
         render={link}
-        className="text-muted-foreground data-active:bg-background data-active:text-foreground data-active:ring-1 data-active:shadow-raised data-active:ring-border dark:data-active:bg-muted dark:data-active:ring-0"
+        className="px-[11px] text-muted-foreground data-active:bg-background data-active:text-foreground data-active:ring-1 data-active:shadow-raised data-active:ring-border dark:data-active:bg-muted dark:data-active:ring-0"
       >
         <Icon />
         <span className="truncate">{label}</span>
@@ -151,6 +159,10 @@ function NavigationRow({
  * No label heads the Project's own pages, since every row belongs to the
  * Project, and a rule inset to the column of the icons ends the Collections, so
  * the three rows below them do not read as Collections.
+ *
+ * No group of it takes horizontal padding. Every row, the label and the rule
+ * stand on ci's one column instead, 11 px inside a row whose box starts at the
+ * sidebar's own 12 px, which is the column the header lockup takes too.
  */
 function ProjectNavigation(): React.JSX.Element {
   const { t } = useLingui();
@@ -187,7 +199,7 @@ function ProjectNavigation(): React.JSX.Element {
         The Project's own pages. No label heads them, since every row of the
         navigation belongs to the Project.
       */}
-      <SidebarGroup className="shrink-0 py-0">
+      <SidebarGroup className="shrink-0 p-0">
         <SidebarGroupContent className="shrink-0">
           <SidebarMenu>
             <NavigationRow
@@ -234,8 +246,8 @@ function ProjectNavigation(): React.JSX.Element {
         An empty group shows its label and its button alone, because the button
         is the way to add the first Collection.
       */}
-      <SidebarGroup className="shrink-0 py-0">
-        <SidebarGroupLabel className="mt-3 mb-1 justify-between pr-2">
+      <SidebarGroup className="shrink-0 p-0">
+        <SidebarGroupLabel className="mt-3 mb-1 justify-between px-[11px]">
           <span id={collectionsLabelId}>
             <Trans>Collections</Trans>
           </span>
@@ -308,11 +320,11 @@ function ProjectNavigation(): React.JSX.Element {
         inset is the wrapper's padding, because the rule itself spans whatever
         it sits in.
       */}
-      <div className="shrink-0 px-4 py-2">
+      <div className="shrink-0 px-[11px] py-2">
         <SidebarSeparator className="mx-0" />
       </div>
 
-      <SidebarGroup className="shrink-0 py-0">
+      <SidebarGroup className="shrink-0 p-0">
         <SidebarGroupContent className="shrink-0">
           <SidebarMenu>
             <NavigationRow
@@ -498,7 +510,7 @@ export function ProjectSidebar(): React.JSX.Element {
         Below the Project card, and above the navigation, which is the only part
         that scrolls.
       */}
-      <SidebarGroup className="shrink-0 pt-0 pb-2">
+      <SidebarGroup className="shrink-0 p-0 pb-2">
         <ProjectSearch />
       </SidebarGroup>
       {/*
@@ -520,7 +532,7 @@ export function ProjectSidebarSkeleton(): React.JSX.Element {
       <SidebarHeader className="shrink-0">
         <ProjectSwitcherSkeleton />
       </SidebarHeader>
-      <SidebarGroup className="shrink-0 pt-0 pb-2">
+      <SidebarGroup className="shrink-0 p-0 pb-2">
         <ProjectSearch />
       </SidebarGroup>
       <SidebarContent className="gap-0 [&>*]:shrink-0">
