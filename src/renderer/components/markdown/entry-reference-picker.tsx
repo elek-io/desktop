@@ -1,4 +1,4 @@
-import { Trans, useLingui } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react/macro';
 import type { ReactElement } from 'react';
 
 import { EntryPickerDialog } from '@renderer/components/pickers/entry-picker-dialog';
@@ -36,9 +36,7 @@ export const EntryReferencePicker = ({
       open={open}
       onOpenChange={onOpenChange}
       title={t`Reference an Entry`}
-      description={
-        <Trans>The reference is inserted at the cursor position.</Trans>
-      }
+      description={t`The reference is inserted at the cursor position.`}
       ofCollections={ofCollections}
       chosenIds={[]}
       max={1}

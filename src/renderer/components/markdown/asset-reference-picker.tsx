@@ -1,6 +1,7 @@
-import { Trans, useLingui } from '@lingui/react/macro';
+import { useLingui } from '@lingui/react/macro';
 import type { ReactElement } from 'react';
 
+import { assetKindSentence } from '@renderer/components/fields/asset/kind';
 import { AssetPickerDialog } from '@renderer/components/pickers/asset-picker-dialog';
 
 import type { Asset } from '@elek-io/core';
@@ -32,7 +33,12 @@ export const AssetReferencePicker = ({
       open={open}
       onOpenChange={onOpenChange}
       title={t`Reference an Asset`}
-      description={<Trans>The Asset is inserted at the cursor position.</Trans>}
+      description={[
+        assetKindSentence(ofAssetMimeTypes),
+        t`The Asset is inserted at the cursor position.`,
+      ]
+        .filter((part): part is string => part !== null)
+        .join(' ')}
       ofAssetMimeTypes={ofAssetMimeTypes}
       chosenIds={[]}
       max={1}

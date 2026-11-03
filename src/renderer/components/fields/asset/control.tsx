@@ -1,5 +1,6 @@
+import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { ImageIcon, XIcon } from 'lucide-react';
+import { ImageIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import * as React from 'react';
 import type {
   ControllerRenderProps,
@@ -22,6 +23,8 @@ import type {
   ValueContentReferenceToAsset,
 } from '@elek-io/core';
 
+import { assetKindSentence } from './kind';
+
 export interface FormAssetFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
@@ -36,10 +39,14 @@ export interface FormAssetFieldProps<
 /** Which Asset the picker is open for: another one, or the one it replaces. */
 type OpenPicker = { kind: 'choose' } | { kind: 'replace'; assetId: string };
 
+/** One row of the field: a stored reference, and the Asset it points at. */
+type ChosenRow = { id: string; asset: Asset | undefined };
+
 /**
  * The control of an Asset field: a row per chosen Asset with its preview, its
  * name, its type and size, Replace and Remove, then Choose while the field
- * allows another, which is how ci draws it.
+ * allows another, which is how ci draws it. A reference whose Asset is no
+ * longer in the Project keeps its row too, saying so, with Remove.
  *
  * The field is several controls rather than one, so the control-association
  * props land on their container, and every button inside names the field's
@@ -66,15 +73,20 @@ export function AssetControl<TFieldValues extends FieldValues>({
   const chosenRefs: ValueContentReferenceToAsset[] = Array.isArray(field.value)
     ? field.value
     : [];
+  // A row per stored reference, so what the field draws is what it holds.
   // Resolved against the whole list rather than the types the field takes, so
-  // an Asset that predates a narrowing still shows instead of vanishing.
-  const chosenAssets: Asset[] = isReadingAssets
+  // an Asset that predates a narrowing still shows instead of vanishing, and a
+  // reference nothing resolves keeps its row and says so, which is the only
+  // way somebody can take it out again.
+  const chosenRows: ChosenRow[] = isReadingAssets
     ? []
-    : chosenRefs
-        .map((reference) =>
-          assetList.list.find((asset) => asset.id === reference.id)
-        )
-        .filter((asset): asset is Asset => asset !== undefined);
+    : chosenRefs.map((reference) => ({
+        id: reference.id,
+        asset: assetList.list.find((asset) => asset.id === reference.id),
+      }));
+  const chosenAssets: Asset[] = chosenRows
+    .map((row) => row.asset)
+    .filter((asset): asset is Asset => asset !== undefined);
   const maxReached =
     fieldDefinition.max !== null && chosenRefs.length >= fieldDefinition.max;
   const takesOne = fieldDefinition.max === 1;
@@ -108,11 +120,17 @@ export function AssetControl<TFieldValues extends FieldValues>({
     if (openPicker?.kind === 'replace') {
       const replacement = references[0];
       const replaced = openPicker.assetId;
+      const next = chosenRefs.map((reference) =>
+        reference.id === replaced && replacement !== undefined
+          ? replacement
+          : reference
+      );
+      // A field never holds one Asset twice, so replacing an Asset with one
+      // the field already holds leaves one row rather than two of the same.
       field.onChange(
-        chosenRefs.map((reference) =>
-          reference.id === replaced && replacement !== undefined
-            ? replacement
-            : reference
+        next.filter(
+          (reference, index) =>
+            next.findIndex((other) => other.id === reference.id) === index
         ) as typeof field.value
       );
       return;
@@ -126,6 +144,27 @@ export function AssetControl<TFieldValues extends FieldValues>({
       : undefined;
   const replacedName = replacedAsset?.name;
 
+  // The dialog's one line: which Assets the field takes, then how many of them
+  // or what the choice replaces, which is how ci words it. How many are chosen
+  // is the dialog's own, since that changes while it is open.
+  const kindSentence = assetKindSentence(fieldDefinition.ofAssetMimeTypes);
+  const maximumSentence =
+    fieldDefinition.max === null || takesOne
+      ? null
+      : t`Up to ${plural(fieldDefinition.max, {
+          one: '# Asset',
+          other: '# Assets',
+        })}.`;
+  const describesTheChoice = [
+    kindSentence,
+    replacedName !== undefined
+      ? t`The one you choose replaces ${replacedName}.`
+      : (maximumSentence ??
+        (kindSentence === null ? t`The Assets this field takes.` : null)),
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' ');
+
   return (
     <div
       {...controlProps}
@@ -133,7 +172,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
       ref={field.ref}
       onBlur={field.onBlur}
     >
-      {chosenAssets.length === 0 ? (
+      {chosenRows.length === 0 ? (
         <div className={rowClassName}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
             <ImageIcon className="size-4" />
@@ -143,7 +182,36 @@ export function AssetControl<TFieldValues extends FieldValues>({
           </span>
         </div>
       ) : (
-        chosenAssets.map((asset) => {
+        chosenRows.map((row) => {
+          const asset = row.asset;
+
+          // A reference the Project no longer holds, which a synchronize can
+          // leave behind. Core refuses to save it, so the row says what is
+          // wrong and Remove is what repairs it.
+          if (asset === undefined) {
+            return (
+              <div key={row.id} className={rowClassName}>
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
+                  <TriangleAlertIcon className="size-4" />
+                </span>
+                <span className="flex-1 text-sm text-muted-foreground">
+                  <Trans>This Asset no longer exists</Trans>
+                </span>
+                {disabled ? null : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    Icon={XIcon}
+                    aria-describedby={describedBy}
+                    aria-label={t`Remove the missing Asset from ${label}`}
+                    onClick={() => remove(row.id)}
+                  />
+                )}
+              </div>
+            );
+          }
+
           const name = asset.name;
           const type = asset.extension.toUpperCase();
           const size = formatBytes(asset.size);
@@ -227,18 +295,12 @@ export function AssetControl<TFieldValues extends FieldValues>({
           }
         }}
         title={replacedAsset === undefined ? chooseTitle : replaceTitle}
-        description={
-          replacedName === undefined ? (
-            <Trans>The Assets this field takes.</Trans>
-          ) : (
-            t`The one you choose replaces ${replacedName}.`
-          )
-        }
+        description={describesTheChoice}
         ofAssetMimeTypes={fieldDefinition.ofAssetMimeTypes}
         chosenIds={
           openPicker?.kind === 'replace'
             ? [openPicker.assetId]
-            : chosenRefs.map((reference) => reference.id)
+            : chosenAssets.map((asset) => asset.id)
         }
         max={openPicker?.kind === 'replace' ? 1 : fieldDefinition.max}
         onChoose={chosen}

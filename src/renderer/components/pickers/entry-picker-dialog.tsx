@@ -1,5 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro';
-import { useId, useState, type ReactElement, type ReactNode } from 'react';
+import { useId, useState, type ReactElement } from 'react';
 
 import { entryTitle } from '@renderer/components/fields/entry-title';
 import { Button } from '@renderer/components/ui/button';
@@ -53,8 +53,12 @@ export interface EntryPickerDialogProps {
   onOpenChange: (open: boolean) => void;
   /** What the dialog is called, which names the field it was opened from. */
   title: string;
-  /** The one line below the title, saying what choosing does. */
-  description: ReactNode;
+  /**
+   * The one line below the title, saying which Entries the field allows and
+   * how many. How many are chosen is added here, since that changes while the
+   * dialog is open.
+   */
+  description: string;
   /** The Collections the field allows, or every Collection where it is empty. */
   ofCollections: string[];
   /** The Entries already chosen, so the dialog opens on them. */
@@ -163,6 +167,16 @@ export function EntryPickerDialog({
     }))
     .filter((group) => group.entries.length > 0);
   const maxReached = max !== null && draftIds.length >= max;
+  // How many are chosen right now, which ci draws beside what the field
+  // allows, so a row that cannot be ticked at the maximum says why. A field
+  // that takes one needs none of it, since its radio buttons say that
+  // themselves.
+  const chosenCount = draftIds.length;
+  const chosenSentence =
+    takesOne || chosenCount === 0 ? null : t`${chosenCount} chosen.`;
+  const describesTheChoice = [description, chosenSentence]
+    .filter((part): part is string => part !== null)
+    .join(' ');
 
   // ci names a Collection and its Entries by the Collection's own plural, and
   // keeps "Entries" where several Collections meet, which is what a field that
@@ -260,7 +274,7 @@ export function EntryPickerDialog({
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogDescription>{describesTheChoice}</DialogDescription>
         </DialogHeader>
 
         <DialogBody>

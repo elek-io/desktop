@@ -1,5 +1,6 @@
+import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { ListIcon, XIcon } from 'lucide-react';
+import { ListIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import * as React from 'react';
 import type {
   ControllerRenderProps,
@@ -27,6 +28,9 @@ import {
   type ValueContentReferenceToEntry,
 } from '@elek-io/core';
 
+/** One row of the field: a stored reference, and the Entry it points at. */
+type ChosenRow = { id: string; pickable: PickableEntry | undefined };
+
 export interface FormEntryFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
@@ -41,7 +45,9 @@ export interface FormEntryFieldProps<
 /**
  * The control of an Entry field: a row per chosen Entry with its title, its
  * Collection and Remove, then Choose while the field allows another, which is
- * how ci draws it.
+ * how ci draws it. A reference to an Entry the field can no longer show, one
+ * that is gone or in a Collection the field stopped allowing, keeps its row
+ * too, saying so, with Remove.
  *
  * The field is several controls rather than one, so the control-association
  * props land on their container, and every button inside names the field's
@@ -116,10 +122,22 @@ export function EntryControl<TFieldValues extends FieldValues>({
   const chosenRefs: ValueContentReferenceToEntry[] = Array.isArray(field.value)
     ? field.value
     : [];
-  const chosenEntries: PickableEntry[] = chosenRefs
-    .map((reference) =>
-      availableEntries.find((pickable) => pickable.entry.id === reference.id)
-    )
+  // A row per stored reference, so what the field draws is what it holds. A
+  // reference to an Entry the field can no longer show keeps its row and says
+  // so, which is the only way somebody can take it out again.
+  // Nothing is drawn as missing while a query is still reading, since the
+  // Collections are what the Entries are read per.
+  const chosenRows: ChosenRow[] =
+    isReadingCollections || isReadingEntries
+      ? []
+      : chosenRefs.map((reference) => ({
+          id: reference.id,
+          pickable: availableEntries.find(
+            (candidate) => candidate.entry.id === reference.id
+          ),
+        }));
+  const chosenEntries: PickableEntry[] = chosenRows
+    .map((row) => row.pickable)
     .filter((pickable): pickable is PickableEntry => pickable !== undefined);
   const maxReached =
     fieldDefinition.max !== null && chosenRefs.length >= fieldDefinition.max;
@@ -130,6 +148,17 @@ export function EntryControl<TFieldValues extends FieldValues>({
   // to the field rather than to the dialog, so only the button says it.
   const chooseTitle = t`Choose ${label}`;
   const chooseName = required ? t`Choose ${label}, Required` : chooseTitle;
+  // The dialog's one line: how many Entries the field allows, which is how ci
+  // words it. How many are chosen is the dialog's own, since that changes
+  // while it is open, and a field that takes one says nothing about a maximum,
+  // since its radio buttons say that themselves.
+  const describesTheChoice =
+    fieldDefinition.max === null || fieldDefinition.max === 1
+      ? t`The Entries this field allows.`
+      : t`Up to ${plural(fieldDefinition.max, {
+          one: '# Entry',
+          other: '# Entries',
+        })}.`;
   const rowClassName = cn(
     'flex items-center gap-3 rounded-md border px-3 py-2',
     isInvalid ? 'border-destructive' : 'border-border'
@@ -166,7 +195,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
       ref={field.ref}
       onBlur={field.onBlur}
     >
-      {chosenEntries.length === 0 ? (
+      {chosenRows.length === 0 ? (
         <div className={rowClassName}>
           <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
             <ListIcon className="size-4" />
@@ -176,7 +205,38 @@ export function EntryControl<TFieldValues extends FieldValues>({
           </span>
         </div>
       ) : (
-        chosenEntries.map((pickable) => {
+        chosenRows.map((row) => {
+          const pickable = row.pickable;
+
+          // An Entry this field can no longer show: it is gone, or its
+          // Collection is one the field stopped allowing. Core refuses to save
+          // it either way, so the row says so and Remove is what repairs it.
+          if (pickable === undefined) {
+            return (
+              <div key={row.id} className={rowClassName}>
+                <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+                  <TriangleAlertIcon className="size-4" />
+                </span>
+                <span className="flex-1 text-sm text-muted-foreground">
+                  <Trans>This Entry is no longer available</Trans>
+                </span>
+                {disabled ? null : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-describedby={describedBy}
+                    aria-label={t`Remove the missing Entry from ${label}`}
+                    onClick={() => remove(row.id)}
+                    Icon={XIcon}
+                  >
+                    <Trans>Remove</Trans>
+                  </Button>
+                )}
+              </div>
+            );
+          }
+
           const title = pickable.title;
 
           return (
@@ -228,9 +288,9 @@ export function EntryControl<TFieldValues extends FieldValues>({
         open={isPickerOpen}
         onOpenChange={setIsPickerOpen}
         title={chooseTitle}
-        description={<Trans>The Entries this field allows.</Trans>}
+        description={describesTheChoice}
         ofCollections={fieldDefinition.ofCollections}
-        chosenIds={chosenRefs.map((reference) => reference.id)}
+        chosenIds={chosenEntries.map((pickable) => pickable.entry.id)}
         max={fieldDefinition.max}
         onChoose={chosen}
       />

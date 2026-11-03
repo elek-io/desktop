@@ -1,8 +1,10 @@
 import { expect, type Page } from '@playwright/test';
+import { rmSync } from 'node:fs';
+import { join } from 'node:path';
 
 import type { Collection } from '@elek-io/core';
 
-import { test } from '../fixtures/electronApp.js';
+import { test, testDataDirs } from '../fixtures/electronApp.js';
 import {
   createAssetViaIpc,
   deleteAssetViaIpc,
@@ -38,6 +40,7 @@ import {
   listEntriesViaIpc,
   navigateToEntryCreate,
   navigateToEntryUpdate,
+  referenceValue,
   stringValue,
   temporalValue,
 } from '../helpers/entry.js';
@@ -867,6 +870,193 @@ test.describe('Entries', () => {
     );
   });
 
+  test('says that an Asset a field points at is gone and takes the reference out', async ({
+    mainWindow,
+  }, testInfo) => {
+    // What a synchronize can leave behind: one side removed the Asset while
+    // the other pointed an Entry at it. Core blocks a delete that would do
+    // that, so the Asset's own files are what goes here, which is the state a
+    // rebase integrates and Core then refuses to push.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const showroom = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+      name: 'Showroom',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        assetFieldDefinition({
+          slug: 'cover',
+          label: { en: 'Cover' },
+          isRequired: false,
+          min: null,
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours' }),
+        cover: assetReferenceValue(showroom.id),
+      },
+    });
+    const projectDir = join(
+      testDataDirs(testInfo).dataDir,
+      'projects',
+      project.id
+    );
+    rmSync(join(projectDir, 'assets', `${showroom.id}.json`));
+    rmSync(join(projectDir, 'lfs', `${showroom.id}.${showroom.extension}`));
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveValue(
+      'Spring opening hours'
+    );
+
+    // The field says what it holds rather than reading as empty, which is what
+    // left this Value with nothing on screen to repair it.
+    await expect(
+      mainWindow.getByText('This Asset no longer exists')
+    ).toBeVisible();
+    await expect(mainWindow.getByText('No Asset chosen')).toBeHidden();
+    // The row counts against the field's one place like any other, so Choose
+    // comes back once the reference is out.
+    const choose = mainWindow.getByRole('button', {
+      name: 'Choose Cover',
+      exact: true,
+    });
+    await expect(choose).toBeHidden();
+    const remove = mainWindow.getByRole('button', {
+      name: 'Remove the missing Asset from Cover',
+      exact: true,
+    });
+    await remove.focus();
+    await mainWindow.keyboard.press('Enter');
+    await expect(mainWindow.getByText('No Asset chosen')).toBeVisible();
+    await expect(choose).toBeVisible();
+
+    // The Entry saves again, which is the repair the message after a refused
+    // synchronize asks for.
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const [saved] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(saved?.values['cover']?.content).toEqual({ en: [] });
+  });
+
+  test('says that an Entry a field points at is gone and takes the reference out', async ({
+    mainWindow,
+  }, testInfo) => {
+    // The same from the other side, and the same kind of state: the Entry is
+    // gone while another Entry still points at it. Core blocks a delete that
+    // would do that, and refuses the reference at the next save, so the row
+    // has to be there to take out.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const team = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Author' }, plural: { en: 'Team' } },
+      description: { en: 'Authors created by the E2E tests' },
+      slug: { singular: 'author', plural: 'team' },
+    });
+    const mara = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: team.id,
+      values: { title: stringValue({ en: 'Mara Klein' }) },
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        referenceFieldDefinition({
+          slug: 'authors',
+          label: { en: 'Authors' },
+          ofCollections: [team.id],
+          max: 2,
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours' }),
+        authors: referenceValue(mara.id, team.id),
+      },
+    });
+    rmSync(
+      join(
+        testDataDirs(testInfo).dataDir,
+        'projects',
+        project.id,
+        'collections',
+        team.id,
+        `${mara.id}.json`
+      )
+    );
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveValue(
+      'Spring opening hours'
+    );
+
+    await expect(
+      mainWindow.getByText('This Entry is no longer available')
+    ).toBeVisible();
+    await expect(mainWindow.getByText('No Entry chosen')).toBeHidden();
+    // The field takes two, so the one row leaves a place and Choose stands
+    // beside it, while the row itself is the one to take out.
+    const choose = mainWindow.getByRole('button', {
+      name: 'Choose Authors',
+      exact: true,
+    });
+    await expect(choose).toBeVisible();
+
+    // The dialog counts what it can hand back rather than the reference it
+    // cannot show, so nothing reads as chosen in there.
+    await choose.click();
+    const picker = mainWindow.getByRole('dialog', { name: 'Choose Authors' });
+    await expect(picker.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Up to 2 Entries.'
+    );
+    await picker.getByRole('button', { name: 'Cancel' }).click();
+    await expect(picker).toBeHidden();
+
+    const remove = mainWindow.getByRole('button', {
+      name: 'Remove the missing Entry from Authors',
+      exact: true,
+    });
+    await remove.focus();
+    await mainWindow.keyboard.press('Enter');
+    await expect(mainWindow.getByText('No Entry chosen')).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const [saved] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(saved?.values['authors']?.content).toEqual({ en: [] });
+  });
+
   test('marks an Asset of a type a field no longer takes inside its own section', async ({
     mainWindow,
   }, testInfo) => {
@@ -1262,12 +1452,19 @@ test.describe('Entries', () => {
         exact: true,
       })
     ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('button', {
+    const chosenRow = mainWindow
+      .getByRole('button', {
         name: `Remove ${showroom.name} from Cover`,
         exact: true,
       })
-    ).toBeVisible();
+      .locator('..');
+    await expect(chosenRow).toBeVisible();
+    // The preview ci draws first in the row, which is the Asset's own file
+    // rather than a stand-in for it.
+    await expect(chosenRow.locator('img')).toHaveAttribute(
+      'src',
+      new RegExp(showroom.id)
+    );
     // The field holds one Asset and takes one, so Choose is gone.
     await expect(choose).toBeHidden();
 
@@ -1318,6 +1515,180 @@ test.describe('Entries', () => {
     });
   });
 
+  test('chooses several Assets from the keyboard and holds the field at its maximum', async ({
+    mainWindow,
+  }, testInfo) => {
+    // An Asset field that takes up to two images out of three, which is the
+    // shape ci draws with a checkbox per card.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const showroom = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+      name: 'Showroom',
+    });
+    const serviceTeam = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'service-team.png', pngBytes),
+      name: 'Service team',
+    });
+    const charging = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'charging-station.png', pngBytes),
+      name: 'Charging station',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        assetFieldDefinition({
+          slug: 'gallery',
+          label: { en: 'Gallery' },
+          isRequired: false,
+          min: null,
+          max: 2,
+          ofAssetMimeTypes: ['image/png'],
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+
+    const choose = mainWindow.getByRole('button', {
+      name: 'Choose Gallery',
+      exact: true,
+    });
+    await choose.focus();
+    await mainWindow.keyboard.press('Enter');
+
+    // The dialog says which Assets the field takes in a word rather than in
+    // MIME types, and how many of them, which is what explains a card that
+    // cannot be ticked further down.
+    const picker = mainWindow.getByRole('dialog', { name: 'Choose Gallery' });
+    const says = picker.locator('[data-slot="dialog-description"]');
+    await expect(says).toHaveText('Images only. Up to 2 Assets.');
+
+    // Several Assets, so each card carries a checkbox rather than a radio
+    // button, and the count follows what is ticked.
+    const first = picker.getByRole('checkbox', {
+      name: `${showroom.name} PNG, 70 Bytes`,
+      exact: true,
+    });
+    const second = picker.getByRole('checkbox', {
+      name: `${serviceTeam.name} PNG, 70 Bytes`,
+      exact: true,
+    });
+    const third = picker.getByRole('checkbox', {
+      name: `${charging.name} PNG, 70 Bytes`,
+      exact: true,
+    });
+    // shadcn's checkbox on Base UI, not markup of our own.
+    await expect(first).toHaveAttribute('data-slot', 'checkbox');
+    await first.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(says).toHaveText('Images only. Up to 2 Assets. 1 chosen.');
+    await second.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(says).toHaveText('Images only. Up to 2 Assets. 2 chosen.');
+
+    // The maximum holds in the picker: the third Asset cannot be ticked while
+    // two are, so the field can never come back holding more than it takes.
+    await expect(third).toBeDisabled();
+    await third.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(third).toHaveAttribute('aria-checked', 'false');
+
+    const confirm = picker.getByRole('button', { name: 'Choose', exact: true });
+    await confirm.focus();
+    await mainWindow.keyboard.press('Enter');
+    await expect(picker).toBeHidden();
+
+    // A row per chosen Asset, and ci names Replace and Remove after the Asset
+    // where the field holds several, so no two rows of one field read alike.
+    await expect(
+      mainWindow.getByRole('button', {
+        name: `Replace ${showroom.name} in Gallery`,
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: `Remove ${serviceTeam.name} from Gallery`,
+        exact: true,
+      })
+    ).toBeVisible();
+    // The field holds as many as it takes, so Choose is gone.
+    await expect(choose).toBeHidden();
+
+    // Replacing one Asset with one the field already holds leaves one row
+    // rather than two of the same, and Choose comes back with the free place.
+    await mainWindow
+      .getByRole('button', { name: `Replace ${showroom.name} in Gallery` })
+      .click();
+    // The dialog is named after the field and its one line names the Asset
+    // the choice replaces, which is how ci draws it.
+    const replacePicker = mainWindow.getByRole('dialog', {
+      name: 'Replace Gallery',
+    });
+    await expect(
+      replacePicker.locator('[data-slot="dialog-description"]')
+    ).toHaveText(`Images only. The one you choose replaces ${showroom.name}.`);
+    await replacePicker
+      .getByRole('radio', { name: `${serviceTeam.name} PNG, 70 Bytes` })
+      .click();
+    await replacePicker
+      .getByRole('button', { name: 'Choose', exact: true })
+      .click();
+    await expect(replacePicker).toBeHidden();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: `Remove ${serviceTeam.name} from Gallery`,
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: `Remove ${showroom.name} from Gallery`,
+      })
+    ).toBeHidden();
+    await expect(choose).toBeVisible();
+
+    // The picker opens on what the field holds, counted against the maximum,
+    // so the free place is the only one left to fill.
+    await choose.click();
+    await expect(says).toHaveText('Images only. Up to 2 Assets. 1 chosen.');
+    await picker
+      .getByRole('checkbox', { name: `${charging.name} PNG, 70 Bytes` })
+      .click();
+    await picker.getByRole('button', { name: 'Choose', exact: true }).click();
+    await expect(picker).toBeHidden();
+    // Two rows again, which is what the field takes, so Choose is gone.
+    await expect(choose).toBeHidden();
+
+    // What the field holds is what Core stores: a reference per row. Which
+    // order they come back in is the order the picker listed them, which is
+    // Core's own and not this field's, so the rows above are what pins how
+    // many there are.
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const [entryWithTwo] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(entryWithTwo?.values['gallery']?.content).toEqual({
+      en: expect.arrayContaining([
+        { id: charging.id, objectType: 'asset' },
+        { id: serviceTeam.id, objectType: 'asset' },
+      ]),
+    });
+  });
+
   test('chooses several Entries from the keyboard and holds the field at its maximum', async ({
     mainWindow,
   }) => {
@@ -1346,6 +1717,7 @@ test.describe('Entries', () => {
           slug: 'authors',
           label: { en: 'Authors' },
           ofCollections: [team.id],
+          isRequired: true,
           max: 2,
         }),
       ],
@@ -1358,19 +1730,24 @@ test.describe('Entries', () => {
     await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
 
     await expect(mainWindow.getByText('No Entry chosen')).toBeVisible();
+    // The field is required and a button's role takes no `aria-required`, so
+    // Choose says the word itself.
     const choose = mainWindow.getByRole('button', {
-      name: 'Choose Authors',
+      name: 'Choose Authors, Required',
       exact: true,
     });
     await choose.focus();
     await mainWindow.keyboard.press('Enter');
 
     // Several Entries, so each row carries a checkbox, and its filter is named
-    // after the one Collection the field allows.
+    // after the one Collection the field allows. How many it takes stands
+    // below the title, and the count follows what is ticked.
     const picker = mainWindow.getByRole('dialog', { name: 'Choose Authors' });
     await expect(
       picker.getByRole('textbox', { name: 'Filter Team' })
     ).toBeVisible();
+    const says = picker.locator('[data-slot="dialog-description"]');
+    await expect(says).toHaveText('Up to 2 Entries.');
     const mara = picker.getByRole('checkbox', { name: 'Mara Klein' });
     const jonas = picker.getByRole('checkbox', { name: 'Jonas Brandt' });
     const lena = picker.getByRole('checkbox', { name: 'Lena Vogt' });
@@ -1378,10 +1755,12 @@ test.describe('Entries', () => {
     await expect(mara).toHaveAttribute('data-slot', 'checkbox');
     await mara.focus();
     await mainWindow.keyboard.press('Space');
+    await expect(says).toHaveText('Up to 2 Entries. 1 chosen.');
     await jonas.focus();
     await mainWindow.keyboard.press('Space');
     await expect(mara).toHaveAttribute('aria-checked', 'true');
     await expect(jonas).toHaveAttribute('aria-checked', 'true');
+    await expect(says).toHaveText('Up to 2 Entries. 2 chosen.');
 
     // The maximum holds in the picker: the third Entry cannot be ticked while
     // two are, so the field can never come back holding more than it takes.
@@ -1407,7 +1786,11 @@ test.describe('Entries', () => {
         exact: true,
       })
     ).toBeVisible();
-    await expect(mainWindow.getByText('Author').first()).toBeVisible();
+    // Each row names the Collection its Entry belongs to, by the Collection's
+    // own singular, which is not the field's label beside it.
+    await expect(mainWindow.getByText('Author', { exact: true })).toHaveCount(
+      2
+    );
     await expect(choose).toBeHidden();
 
     // Removing one brings Choose back, since the field allows another again.
@@ -1427,6 +1810,116 @@ test.describe('Entries', () => {
       collectionId: collection.id,
     });
     expect(entry?.values['authors']?.content).toEqual({
+      en: [
+        {
+          id: expect.any(String),
+          objectType: 'entry',
+          collectionId: team.id,
+        },
+      ],
+    });
+  });
+
+  test('chooses one Entry from the keyboard and names it after its Collection', async ({
+    mainWindow,
+  }) => {
+    // An Entry field that takes one Entry out of two, which is the shape ci
+    // draws with a radio button per row.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const team = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Author' }, plural: { en: 'Team' } },
+      description: { en: 'Authors created by the E2E tests' },
+      slug: { singular: 'author', plural: 'team' },
+    });
+    for (const name of ['Mara Klein', 'Jonas Brandt']) {
+      await createEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: team.id,
+        values: { title: stringValue({ en: name }) },
+      });
+    }
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        referenceFieldDefinition({
+          slug: 'lead',
+          label: { en: 'Lead author' },
+          ofCollections: [team.id],
+          max: 1,
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+
+    await expect(mainWindow.getByText('No Entry chosen')).toBeVisible();
+    const choose = mainWindow.getByRole('button', {
+      name: 'Choose Lead author',
+      exact: true,
+    });
+    await choose.focus();
+    await mainWindow.keyboard.press('Enter');
+
+    // One Entry, so the rows carry radio buttons in one group named after the
+    // field, and the dialog says nothing about a maximum, since the group
+    // already says only one of them holds.
+    const picker = mainWindow.getByRole('dialog', {
+      name: 'Choose Lead author',
+    });
+    await expect(picker.locator('[data-slot="dialog-description"]')).toHaveText(
+      'The Entries this field allows.'
+    );
+    await expect(
+      picker.getByRole('radiogroup', { name: 'Choose Lead author' })
+    ).toHaveAttribute('data-slot', 'radio-group');
+    const mara = picker.getByRole('radio', { name: 'Mara Klein' });
+    const jonas = picker.getByRole('radio', { name: 'Jonas Brandt' });
+    // shadcn's radio group on Base UI, not markup of our own.
+    await expect(mara).toHaveAttribute('data-slot', 'radio-group-item');
+    await mara.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(mara).toHaveAttribute('aria-checked', 'true');
+    await expect(jonas).toHaveAttribute('aria-checked', 'false');
+    const confirm = picker.getByRole('button', { name: 'Choose', exact: true });
+    await confirm.focus();
+    await mainWindow.keyboard.press('Enter');
+    await expect(picker).toBeHidden();
+
+    // The row ci draws: the Entry's title, the Collection it belongs to by
+    // that Collection's own singular, and Remove named after both.
+    await expect(
+      mainWindow.getByText('Mara Klein', { exact: true })
+    ).toBeVisible();
+    await expect(mainWindow.getByText('Author', { exact: true })).toHaveCount(
+      1
+    );
+    await expect(
+      mainWindow.getByRole('button', {
+        name: 'Remove Mara Klein from Lead author',
+        exact: true,
+      })
+    ).toBeVisible();
+    // The field holds one Entry and takes one, so Choose is gone.
+    await expect(choose).toBeHidden();
+
+    // Core wants the Collection beside the reference, so a save that goes
+    // through is what proves the dialog's one choice built it.
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const [saved] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(saved?.values['lead']?.content).toEqual({
       en: [
         {
           id: expect.any(String),

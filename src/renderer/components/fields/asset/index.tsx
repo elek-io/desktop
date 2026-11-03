@@ -10,33 +10,7 @@ import {
 import { type FieldTypeModule } from '../module';
 import { AssetControl } from './control';
 import { AssetDefinitionDraft } from './definition';
-
-/**
- * Which Assets the field takes, in one word, or nothing where it takes any.
- *
- * Core allows any list of MIME types, so a field could take a handful from
- * several kinds at once. Where every allowed type is of one kind, that kind is
- * the word somebody reads, and a mixed list says only that the choice is
- * narrowed, since the picker shows which Assets are left.
- */
-function assetKindNote(mimeTypes: string[]): string[] {
-  const everyTypeIs = (kind: string): boolean =>
-    mimeTypes.every((mimeType) => mimeType.startsWith(kind));
-
-  if (mimeTypes.length === 0) {
-    return [];
-  }
-  if (everyTypeIs('image/')) {
-    return [t`images only`];
-  }
-  if (everyTypeIs('video/')) {
-    return [t`videos only`];
-  }
-  if (everyTypeIs('audio/')) {
-    return [t`audio only`];
-  }
-  return [t`certain file types only`];
-}
+import { assetKindNote } from './kind';
 
 /** One or more of the Project's Assets, held as references. */
 export const assetField: FieldTypeModule<'asset'> = {

@@ -6,6 +6,11 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+#: src/renderer/components/pickers/entry-picker-dialog.tsx
+msgid "{chosenCount} chosen."
+msgstr "{chosenCount} chosen."
+
 #: src/renderer/components/fields/asset/index.tsx
 msgid "{count, plural, one {# Asset} other {# Assets}}"
 msgstr "{count, plural, one {# Asset} other {# Assets}}"
@@ -356,9 +361,13 @@ msgstr "Assets"
 msgid "at least {min}"
 msgstr "at least {min}"
 
-#: src/renderer/components/fields/asset/index.tsx
+#: src/renderer/components/fields/asset/kind.ts
 msgid "audio only"
 msgstr "audio only"
+
+#: src/renderer/components/fields/asset/kind.ts
+msgid "Audio only."
+msgstr "Audio only."
 
 #: src/renderer/routes/__root.tsx
 msgid "Back to Projects"
@@ -433,9 +442,13 @@ msgstr "Bytes"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/renderer/components/fields/asset/index.tsx
+#: src/renderer/components/fields/asset/kind.ts
 msgid "certain file types only"
 msgstr "certain file types only"
+
+#: src/renderer/components/fields/asset/kind.ts
+msgid "Certain file types only."
+msgstr "Certain file types only."
 
 #: src/renderer/components/history-sidebar.tsx
 msgid "Changes"
@@ -1183,9 +1196,13 @@ msgstr "Images and files from this Project's Assets."
 msgid "Images from external URLs."
 msgstr "Images from external URLs."
 
-#: src/renderer/components/fields/asset/index.tsx
+#: src/renderer/components/fields/asset/kind.ts
 msgid "images only"
 msgstr "images only"
+
+#: src/renderer/components/fields/asset/kind.ts
+msgid "Images only."
+msgstr "Images only."
 
 #: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
@@ -1384,8 +1401,8 @@ msgid "No Asset matches the filter."
 msgstr "No Asset matches the filter."
 
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
-msgid "No Asset of a type this field takes yet. It takes {allowedMimeTypes}."
-msgstr "No Asset of a type this field takes yet. It takes {allowedMimeTypes}."
+msgid "No Asset of a type this field takes yet."
+msgstr "No Asset of a type this field takes yet."
 
 #: src/renderer/components/forms/asset-mime-type-picker.tsx
 msgid "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
@@ -1784,6 +1801,14 @@ msgstr "Remove the {label} field"
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "Remove the {name} section"
 msgstr "Remove the {name} section"
+
+#: src/renderer/components/fields/asset/control.tsx
+msgid "Remove the missing Asset from {label}"
+msgstr "Remove the missing Asset from {label}"
+
+#: src/renderer/components/fields/entry/control.tsx
+msgid "Remove the missing Entry from {label}"
+msgstr "Remove the missing Entry from {label}"
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Remove this Project?"
@@ -2347,6 +2372,10 @@ msgstr "This Asset could not be deleted. Please review and try again."
 msgid "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
 msgstr "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
 
+#: src/renderer/components/fields/asset/control.tsx
+msgid "This Asset no longer exists"
+msgstr "This Asset no longer exists"
+
 #: src/renderer/routes/projects/$projectId/history.tsx
 msgid "this change"
 msgstr "this change"
@@ -2382,6 +2411,10 @@ msgstr "This Component could not be saved. Please review your changes and try ag
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
+
+#: src/renderer/components/fields/entry/control.tsx
+msgid "This Entry is no longer available"
+msgstr "This Entry is no longer available"
 
 #: src/renderer/components/fields/dynamic/allow-components-sheet.tsx
 msgid "This Field allows every Component of this Project, the ones added later included, so there is nothing to add."
@@ -2516,6 +2549,16 @@ msgstr "Unique"
 msgid "unknown"
 msgstr "unknown"
 
+#. placeholder {0}: fieldDefinition.max
+#: src/renderer/components/fields/asset/control.tsx
+msgid "Up to {0, plural, one {# Asset} other {# Assets}}."
+msgstr "Up to {0, plural, one {# Asset} other {# Assets}}."
+
+#. placeholder {0}: fieldDefinition.max
+#: src/renderer/components/fields/entry/control.tsx
+msgid "Up to {0, plural, one {# Entry} other {# Entries}}."
+msgstr "Up to {0, plural, one {# Entry} other {# Entries}}."
+
 #: src/renderer/lib/fieldRules.ts
 msgid "up to {max}"
 msgstr "up to {max}"
@@ -2568,9 +2611,13 @@ msgstr "Version Control"
 msgid "Version Control Settings"
 msgstr "Version Control Settings"
 
-#: src/renderer/components/fields/asset/index.tsx
+#: src/renderer/components/fields/asset/kind.ts
 msgid "videos only"
 msgstr "videos only"
+
+#: src/renderer/components/fields/asset/kind.ts
+msgid "Videos only."
+msgstr "Videos only."
 
 #: src/renderer/components/asset-teaser.tsx
 msgid "View"

@@ -1,5 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro';
-import { useId, useState, type ReactElement, type ReactNode } from 'react';
+import { useId, useState, type ReactElement } from 'react';
 
 import { AssetDisplay } from '@renderer/components/asset-display';
 import { Button } from '@renderer/components/ui/button';
@@ -42,8 +42,12 @@ export interface AssetPickerDialogProps {
   onOpenChange: (open: boolean) => void;
   /** What the dialog is called, which names the field it was opened from. */
   title: string;
-  /** The one line below the title, saying what choosing does. */
-  description: ReactNode;
+  /**
+   * The one line below the title, saying which Assets the field takes and how
+   * many. How many are chosen is added here, since that changes while the
+   * dialog is open.
+   */
+  description: string;
   /** The MIME types the field takes, or every type where it is empty. */
   ofAssetMimeTypes: string[];
   /** The Assets already chosen, so the dialog opens on them. */
@@ -109,7 +113,15 @@ export function AssetPickerDialog({
           asset.name.toLowerCase().includes(needle)
         );
   const maxReached = max !== null && draftIds.length >= max;
-  const allowedMimeTypes = ofAssetMimeTypes.join(', ');
+  // How many are chosen right now, which ci draws beside what the field takes,
+  // so a card that cannot be ticked at the maximum says why. A field that
+  // takes one needs none of it, since its radio buttons say that themselves.
+  const chosenCount = draftIds.length;
+  const chosenSentence =
+    takesOne || chosenCount === 0 ? null : t`${chosenCount} chosen.`;
+  const describesTheChoice = [description, chosenSentence]
+    .filter((part): part is string => part !== null)
+    .join(' ');
 
   function toggle(assetId: string, isChosen: boolean): void {
     if (takesOne) {
@@ -178,7 +190,7 @@ export function AssetPickerDialog({
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogDescription>{describesTheChoice}</DialogDescription>
         </DialogHeader>
 
         <DialogBody>
@@ -201,7 +213,9 @@ export function AssetPickerDialog({
                   No Assets yet. Add one on the Assets screen first.
                 </Trans>
               ) : (
-                t`No Asset of a type this field takes yet. It takes ${allowedMimeTypes}.`
+                // Which types it takes is the line above rather than a list of
+                // MIME types, which say nothing to somebody writing content.
+                <Trans>No Asset of a type this field takes yet.</Trans>
               )}
             </p>
           ) : shownAssets.length === 0 ? (
