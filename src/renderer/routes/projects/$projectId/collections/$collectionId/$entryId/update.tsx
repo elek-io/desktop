@@ -1,11 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
 import { useId, type ReactElement } from 'react';
-import { type SubmitHandler } from 'react-hook-form';
+import { useWatch, type SubmitHandler } from 'react-hook-form';
 
 import { defaultEntryValues } from '@renderer/components/fields';
+import { entryTitle } from '@renderer/components/fields/entry-title';
+import { missingRequiredValues } from '@renderer/components/fields/missing-values';
 import { EntryForm } from '@renderer/components/forms/entry-form';
 import { Page } from '@renderer/components/page';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
@@ -21,6 +24,7 @@ import { queryOptions } from '@renderer/queries';
 import {
   flattenFieldDefinitions,
   getUpdateEntrySchemaFromFieldDefinitions,
+  type SupportedLanguage,
   type UpdateEntryProps,
 } from '@elek-io/core';
 
@@ -38,6 +42,7 @@ function UpdateEntryPage(): ReactElement {
   useBreadcrumb(Route, t`Update`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
+    userQuery: { data: user },
     translateContent,
   } = useProject();
   const { data: collection, isPending: isReadingCollection } = useQueryNoError(
@@ -128,12 +133,45 @@ function UpdateEntryPage(): ReactElement {
     }
   };
 
-  // @todo Should map to a Value defined by the user (which could also be used in the Collection index page and breadcrumb to always show a "title" of the Entry)
-  // context.translate(
-  //   'currentCollection.name.plural',
-  //   context.currentEntry.values[0].content
-  // );
-  const title = entry ? entry.id : '';
+  // The Entry by the one name Desktop gives it, which is what its row, its
+  // crumb and every picker say, so the question before leaving names the page
+  // the way the person found it.
+  const title =
+    isReadingEntryForm || user === null || user === undefined
+      ? ''
+      : entryTitle({
+          entry,
+          fieldDefinitions: flattenFieldDefinitions(
+            collection.fieldDefinitions
+          ),
+          language: user.language,
+        });
+
+  // What keeps this Entry from being saved, in the words below Save. Core
+  // refuses it until every language of the Project holds each required Value,
+  // so the line names the first language that misses one and how many.
+  const editedValues = useWatch({
+    control: updateEntryForm.control,
+    name: 'values',
+  });
+  const missingByLanguage = isReadingEntryForm
+    ? new Map<SupportedLanguage, number>()
+    : missingRequiredValues({
+        values: editedValues,
+        fieldDefinitions: flattenFieldDefinitions(collection.fieldDefinitions),
+        supportedLanguages: project.settings.language.supported,
+        defaultLanguage: project.settings.language.default,
+      });
+  // The first language that misses one, since the person opens one language at
+  // a time. It is named by its code, which is how every other screen of the app
+  // names a language today.
+  const [language, missingValues] = [...missingByLanguage.entries()].find(
+    ([, count]) => count > 0
+  ) ?? [undefined, 0];
+  const blockedBy =
+    language === undefined
+      ? undefined
+      : t`${language} is missing ${plural(missingValues, { one: '# Value', other: '# Values' })}`;
 
   function Description(): ReactElement {
     return <Trans>Here you can edit this Entries Values</Trans>;
@@ -150,7 +188,7 @@ function UpdateEntryPage(): ReactElement {
 
   function Actions(): ReactElement {
     return (
-      <FormActions form={updateEntryForm} id={formId}>
+      <FormActions form={updateEntryForm} id={formId} blockedBy={blockedBy}>
         <SubmitButton requireDirty Icon={Check}>
           <Trans>Update {entryName}</Trans>
         </SubmitButton>
@@ -172,6 +210,8 @@ function UpdateEntryPage(): ReactElement {
           project={project}
           isViewOnly={isUpdatingEntry}
           onFormSubmit={onUpdateEntry}
+          blockedBy={blockedBy}
+          unsavedChangesTitle={title}
         />
       </Page>
     </>

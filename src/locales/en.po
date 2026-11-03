@@ -23,6 +23,10 @@ msgstr "{count, plural, one {# Entry} other {# Entries}}"
 msgid "{fieldCount, plural, one {# field} other {# fields}}"
 msgstr "{fieldCount, plural, one {# field} other {# fields}}"
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+msgid "{language} is missing {missingValues, plural, one {# Value} other {# Values}}"
+msgstr "{language} is missing {missingValues, plural, one {# Value} other {# Values}}"
+
 #: src/renderer/lib/refusedValueText.ts
 msgid "{largest, plural, one {Use up to # character.} other {Use up to # characters.}}"
 msgstr "{largest, plural, one {Use up to # character.} other {Use up to # characters.}}"
@@ -948,6 +952,14 @@ msgstr "Desktop can't read {name}."
 msgid "Disabled"
 msgstr "Disabled"
 
+#: src/renderer/components/discard-changes-dialog.tsx
+msgid "Discard"
+msgstr "Discard"
+
+#: src/renderer/components/discard-changes-dialog.tsx
+msgid "Discard your changes to {title}?"
+msgstr "Discard your changes to {title}?"
+
 #: src/renderer/components/app-header.tsx
 msgid "Docs"
 msgstr "Docs"
@@ -1264,6 +1276,10 @@ msgstr "Italic"
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Italic text."
 msgstr "Italic text."
+
+#: src/renderer/components/discard-changes-dialog.tsx
+msgid "Keep editing"
+msgstr "Keep editing"
 
 #: src/renderer/components/fields/select/definition.tsx
 #: src/renderer/components/forms/default-field-definition-form.tsx

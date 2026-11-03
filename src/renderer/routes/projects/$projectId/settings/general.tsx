@@ -141,12 +141,18 @@ function ProjectSettingsGeneralPage(): ReactElement {
 
   const onUpdate: SubmitHandler<ProjectFormValues> = async (values) => {
     await updateProject({ ...values, id: projectId });
+    // This page stays open after it saved, so the form is made pristine again
+    // with what went in. Without it Save would stay available and leaving would
+    // ask about changes that are already saved.
+    updateProjectForm.reset(values);
   };
 
   const onDelete = async (): Promise<void> => {
     try {
       await deleteProject({ id: projectId });
-      await router.navigate({ to: '/projects' });
+      // The page takes this way out itself, so leaving it asks nothing: the
+      // Project and everything typed into its settings are gone.
+      await router.navigate({ to: '/projects', ignoreBlocker: true });
     } catch (error) {
       handleDeleteError(error);
     }
@@ -155,7 +161,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
   const onForceDelete = async (): Promise<void> => {
     try {
       await forceDeleteProject({ id: projectId, force: true });
-      await router.navigate({ to: '/projects' });
+      await router.navigate({ to: '/projects', ignoreBlocker: true });
     } catch {
       // A force delete bypasses the guard, so any failure here is unexpected.
       // forceDeleteProject handles no type, so throwOnError routes it to the
@@ -178,6 +184,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
         projectForm={updateProjectForm}
         isViewOnly={isUpdatingProject}
         onFormSubmit={onUpdate}
+        unsavedChangesTitle={t`General Settings`}
       >
         <PageSection
           title={t`Delete this Project from this device`}

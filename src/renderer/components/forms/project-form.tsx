@@ -77,6 +77,8 @@ interface ProjectFormProps {
    * same `form={id}`, so it submits this form from outside its subtree.
    */
   id?: string;
+  /** The page's title, which turns the leave guard on, see `AppForm`. */
+  unsavedChangesTitle?: string | undefined;
 }
 
 export function ProjectForm({
@@ -86,6 +88,7 @@ export function ProjectForm({
   children,
   isViewOnly = false,
   id,
+  unsavedChangesTitle,
 }: ProjectFormProps): React.JSX.Element {
   const { t } = useLingui();
 
@@ -124,6 +127,7 @@ export function ProjectForm({
         onSubmit={onFormSubmit}
         id={id}
         mode={isViewOnly ? 'view' : 'edit'}
+        unsavedChangesTitle={unsavedChangesTitle}
       >
         <div className="space-y-4 p-6">
           <div className="grid grid-cols-12 gap-6">

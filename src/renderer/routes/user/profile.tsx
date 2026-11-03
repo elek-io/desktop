@@ -185,12 +185,10 @@ function UserProfilePage(): ReactElement {
     await router.navigate({ to: '/projects' });
   };
 
+  const title = user === null ? t`Welcome to elek.io Desktop` : t`User profile`;
+
   return (
-    <Page
-      title={user === null ? t`Welcome to elek.io Desktop` : t`User profile`}
-      description={<Description />}
-      actions={<Actions />}
-    >
+    <Page title={title} description={<Description />} actions={<Actions />}>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-8">
         <Card className="py-0 lg:col-span-2">
           <AppForm
@@ -198,6 +196,7 @@ function UserProfilePage(): ReactElement {
             schema={setUserSchema}
             onSubmit={onSetUser}
             id={formId}
+            unsavedChangesTitle={title}
           >
             <PageSection
               title={t`Local User`}

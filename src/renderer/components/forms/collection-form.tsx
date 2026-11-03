@@ -49,6 +49,8 @@ interface CollectionFormProps<
    * same `form={id}`, so it submits this form from outside its subtree.
    */
   id?: string;
+  /** The page's title, which turns the leave guard on, see `AppForm`. */
+  unsavedChangesTitle?: string | undefined;
 }
 
 export function CollectionForm<
@@ -62,6 +64,7 @@ export function CollectionForm<
   isViewOnly = false,
   onFormSubmit = () => {},
   id,
+  unsavedChangesTitle,
 }: CollectionFormProps<TFieldValues, TTransformedValues>): ReactElement {
   const { t } = useLingui();
 
@@ -79,6 +82,7 @@ export function CollectionForm<
       onSubmit={onFormSubmit}
       id={id}
       mode={isViewOnly ? 'view' : 'edit'}
+      unsavedChangesTitle={unsavedChangesTitle}
     >
       <div className="space-y-6 p-6">
         <div className="grid grid-cols-12 items-start gap-6">

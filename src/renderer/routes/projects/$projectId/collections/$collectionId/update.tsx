@@ -222,11 +222,14 @@ function ProjectCollectionUpdate(): ReactElement {
         projectId,
         id: collection.id,
       });
+      // The page takes this way out itself, so leaving it asks nothing:
+      // the Collection and everything typed into its settings are gone.
       await router.navigate({
         to: '/projects/$projectId/collections',
         params: {
           projectId,
         },
+        ignoreBlocker: true,
       });
     } catch (error) {
       handleDeleteError(error);
@@ -249,6 +252,7 @@ function ProjectCollectionUpdate(): ReactElement {
         project={project}
         isViewOnly={isUpdatingCollection}
         onFormSubmit={onUpdate}
+        unsavedChangesTitle={title}
       >
         <PageSection title={t`Danger Zone`}>
           <div className="flex items-center justify-between">

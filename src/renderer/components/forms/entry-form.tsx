@@ -40,6 +40,10 @@ interface EntryFormProps<
    * same `form={id}`, so it submits this form from outside its subtree.
    */
   id?: string;
+  /** Why the Entry cannot be saved yet, see `AppForm`. */
+  blockedBy?: string | undefined;
+  /** The page's title, which turns the leave guard on, see `AppForm`. */
+  unsavedChangesTitle?: string | undefined;
 }
 
 export function EntryForm<
@@ -53,6 +57,8 @@ export function EntryForm<
   isViewOnly = false,
   onFormSubmit = () => {},
   id,
+  blockedBy,
+  unsavedChangesTitle,
 }: EntryFormProps<TFieldValues, TTransformedValues>): React.JSX.Element {
   const { translateContent } = useProject();
   const defaultLanguage = project.settings.language.default;
@@ -73,6 +79,8 @@ export function EntryForm<
         onSubmit={onFormSubmit}
         id={id}
         mode={isViewOnly ? 'view' : 'edit'}
+        blockedBy={blockedBy}
+        unsavedChangesTitle={unsavedChangesTitle}
       >
         <div className="@container grid grid-cols-12 gap-x-6 gap-y-8 p-6">
           {fieldDefinitions.map((fieldDefinition) => {

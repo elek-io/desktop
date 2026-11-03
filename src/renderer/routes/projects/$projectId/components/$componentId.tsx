@@ -247,9 +247,12 @@ function ProjectComponentUpdate(): ReactElement {
   const onDelete = async (): Promise<void> => {
     try {
       await deleteComponent({ projectId, id: componentId });
+      // The page takes this way out itself, so leaving it asks nothing: the
+      // Component and everything typed into it are gone.
       await router.navigate({
         to: '/projects/$projectId/components',
         params: { projectId },
+        ignoreBlocker: true,
       });
     } catch (error) {
       handleDeleteError(error);
@@ -289,6 +292,7 @@ function ProjectComponentUpdate(): ReactElement {
         project={project}
         isViewOnly={isUpdatingComponent}
         onFormSubmit={onUpdate}
+        unsavedChangesTitle={name}
       >
         <ComponentImpact componentId={componentId} />
 
