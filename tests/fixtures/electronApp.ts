@@ -136,6 +136,27 @@ export async function launchApp(
 }
 
 /**
+ * Close a running app, whatever its windows hold.
+ *
+ * A window that holds changes nobody saved refuses to close until the question
+ * in it is answered, and nothing that closes an app from the outside can answer
+ * one. So every window is destroyed first, which skips the close the app holds,
+ * and a spec may leave a form changed. Every close of an app goes through this,
+ * see contributing/renderer/forms.md#leaving-unsaved-changes.
+ *
+ * Both steps tolerate an app that is already gone, so a spec that closed it
+ * itself does not fail here.
+ */
+export async function closeApp(app: ElectronApplication): Promise<void> {
+  await app
+    .evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows().forEach((window) => window.destroy());
+    })
+    .catch(() => {});
+  await app.close().catch(() => {});
+}
+
+/**
  * Custom fixtures for Electron E2E testing
  *
  * Tests run against the packaged build in "dist",
@@ -192,21 +213,9 @@ export const test = base.extend<{
     await use(app);
 
     // Clean up - close the app after tests. A spec that relaunches (see
-    // relaunchApp) closes this app itself first, so tolerate an already-closed
-    // app rather than failing teardown on a double close
-    try {
-      // A window that holds changes nobody saved refuses to close until the
-      // question in it is answered, and no teardown can answer it. `destroy`
-      // skips the close the app holds, so a test may leave a form changed.
-      await app
-        .evaluate(({ BrowserWindow }) => {
-          BrowserWindow.getAllWindows().forEach((window) => window.destroy());
-        })
-        .catch(() => {});
-      await app.close();
-    } catch {
-      // Already closed by the test, nothing to clean up
-    }
+    // relaunchApp) closes this app itself first, and `closeApp` tolerates an
+    // already-closed app rather than failing teardown on a double close
+    await closeApp(app);
 
     // The data dirs sit outside testInfo.outputPath (kept short for Windows
     // MAX_PATH, see testDataDirs), so Playwright's preserveOutput does not sweep

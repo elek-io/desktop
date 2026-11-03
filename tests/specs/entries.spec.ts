@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import type { Collection, MdAstRoot } from '@elek-io/core';
 
-import { test, testDataDirs } from '../fixtures/electronApp.js';
+import { closeApp, test, testDataDirs } from '../fixtures/electronApp.js';
 import { relaunchApp } from '../helpers/app.js';
 import {
   createAssetViaIpc,
@@ -746,7 +746,7 @@ test.describe('Entries', () => {
       expect(shown).not.toContain('maximum nesting depth');
     } finally {
       // The relaunched app is not covered by the fixture teardown, so close it.
-      await app.close();
+      await closeApp(app);
     }
   });
 

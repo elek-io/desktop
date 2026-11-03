@@ -555,15 +555,18 @@ test.describe('Components', () => {
     await expect(
       mainWindow.getByText('No sections yet. Add one to start building')
     ).toBeVisible();
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
 
-    // The field is required, so an empty list cannot be saved. The message
-    // lands on the field and marks its control, rather than the press doing
-    // nothing at all, and it says what the field needs rather than what the
-    // validator measured.
+    // The field is required, so an empty list cannot be saved. On the update
+    // route that is said before Save is pressed, since the Entry is missing a
+    // required Value and Save is blocked with the reason below it, see
+    // contributing/renderer/forms.md#saves-block.
     const addSection = mainWindow.getByRole('button', { name: 'Add section' });
-    await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(mainWindow.getByText('Fill in this field.')).toBeVisible();
+    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+    await expect(save).toBeDisabled();
+    await expect(
+      mainWindow.locator('[data-slot="form-blocked-reason"]')
+    ).toHaveText('en is missing 1 Value');
+    await save.click({ force: true });
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/[^/]+/${entry.id}/update$`)
     );
@@ -578,9 +581,8 @@ test.describe('Components', () => {
       mainWindow.getByLabel('Headline', { exact: true })
     ).toHaveValue('Only one');
 
-    // The same on create, where a section has been added and removed again.
-    // Nothing is mounted inside the field on arrival there, which is what hid
-    // the message on the update route alone.
+    // The same field on create, where a section has been added and removed
+    // again and Save is not blocked by a reason.
     await navigateToEntryCreate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -593,6 +595,12 @@ test.describe('Components', () => {
       .getByRole('button', { name: 'Remove the Teaser section' })
       .click();
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+
+    // On create the press runs, so the message lands on the field and marks
+    // its control, rather than the press doing nothing at all, and it says what
+    // the field needs rather than what the validator measured. Nothing is
+    // mounted inside the field on arrival here, which is what hid the message
+    // when only the update route was driven.
     await expect(addSection).toHaveAttribute('aria-invalid', 'true');
     await expect(mainWindow.getByText('Fill in this field.')).toBeVisible();
   });

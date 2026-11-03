@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import { test } from '../fixtures/electronApp.js';
+import { closeApp, test } from '../fixtures/electronApp.js';
 import { relaunchApp } from '../helpers/app.js';
 import {
   createCollectionViaIpc,
@@ -48,7 +48,7 @@ test.describe('Persistence', () => {
       ).toBeVisible();
     } finally {
       // The relaunched app is not covered by the fixture teardown, so close it
-      await app.close();
+      await closeApp(app);
     }
   });
 });

@@ -506,7 +506,8 @@ Three things follow from holding `close` rather than the document's
   show no question, so `webContents.isCrashed()` holds nothing either, and a
   fresh document starts with nothing unsaved.
 - **A test that leaves a form changed needs a teardown that destroys the window**,
-  since a held close cannot be answered by one. The `electronApp` fixture does.
+  since a held close cannot be answered by one. The `electronApp` fixture and
+  `relaunchApp` both go through `destroyWindows`.
 
 ## Form typing
 
