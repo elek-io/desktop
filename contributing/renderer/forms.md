@@ -493,7 +493,7 @@ in the main process while the renderer says there is something unsaved, over
 `electron:window:setUnsavedChanges`, and the renderer is asked for the question
 over `electron:window:askBeforeClose`. It answers `discard` or `keep` over
 `electron:window:answerClose`, and on `discard` the main process closes the
-window, or quits where a quit is what was closing it.
+window the answer came from, or quits where a quit is what was closing it.
 
 Three things follow from holding `close` rather than the document's
 `beforeunload`:

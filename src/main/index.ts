@@ -177,11 +177,11 @@ class Main {
     // IPC calls as soon as it mounts, so registering after the load would leave
     // a startup gap where a call arrives before its handler exists and rejects
     // with "No handler registered", which throwOnError turns into the root error
-    // boundary on launch. The handlers only touch the window when invoked, so it
-    // just needs to exist here, not be loaded yet.
-    const window = this.createWindow();
-    this.registerIpcMain(window, this.core);
-    await this.loadWindow(window);
+    // boundary on launch. They are registered once for the process and hold no
+    // window of their own, so every window the app goes on to create is served
+    // by them, see `windowOf`.
+    this.registerIpcMain(this.core);
+    await this.loadWindow(this.createWindow());
   }
 
   /**
@@ -663,17 +663,30 @@ class Main {
   }
 
   /**
+   * The window the renderer that called is drawn in, or `null` when the call
+   * came from something that is no window.
+   *
+   * Asked per call rather than captured once. The handlers are registered a
+   * single time, while a window is created again whenever the app is activated
+   * without one, which macOS does from the dock. A window held from
+   * registration is destroyed by then and everything done to it throws, so
+   * every handler that drives a window reads it off the call instead.
+   */
+  private windowOf(
+    event: Electron.IpcMainInvokeEvent
+  ): Electron.BrowserWindow | null {
+    return BrowserWindow.fromWebContents(event.sender);
+  }
+
+  /**
    * Registers IPC handlers for the main process
    */
-  private registerIpcMain(
-    window: Electron.BrowserWindow,
-    core: ElekIoCore
-  ): void {
+  private registerIpcMain(core: ElekIoCore): void {
     // The three things the renderer may say about its window, and the only
     // channels outside the map below, because they drive the window rather than
     // Core. Each takes one named value, which is parsed here, so neither a
     // color nor any other window option crosses from the renderer.
-    ipcMain.handle('electron:window:setTheme', (_event, theme: unknown) => {
+    ipcMain.handle('electron:window:setTheme', (event, theme: unknown) => {
       const parsed = this.fromRenderer(
         core,
         windowThemeSchema,
@@ -688,7 +701,7 @@ class Main {
         return;
       }
 
-      window.setTitleBarOverlay(this.titleBarOverlayFor(parsed));
+      this.windowOf(event)?.setTitleBarOverlay(this.titleBarOverlayFor(parsed));
     });
 
     // Whether the window holds something nobody saved, which decides whether a
@@ -707,7 +720,7 @@ class Main {
 
     // The answer to the question the renderer put on screen for a close this
     // process held.
-    ipcMain.handle('electron:window:answerClose', (_event, answer: unknown) => {
+    ipcMain.handle('electron:window:answerClose', (event, answer: unknown) => {
       const parsed = this.fromRenderer(
         core,
         windowCloseAnswerSchema,
@@ -723,8 +736,9 @@ class Main {
       }
 
       // What was typed is let go of, so the close this process held goes
-      // through. The window is closed from here rather than from the renderer,
-      // which cannot close its own window.
+      // through. The window that asked is the one that is closed, and it is
+      // closed from here rather than from the renderer, which cannot close its
+      // own window.
       this.hasUnsavedChanges = false;
 
       if (this.isQuitting) {
@@ -732,7 +746,7 @@ class Main {
         return;
       }
 
-      window.close();
+      this.windowOf(event)?.close();
     });
 
     const channelToHandlerMap = {
@@ -805,14 +819,20 @@ class Main {
         ...args: unknown[]
       ) => unknown;
 
-      ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
+      ipcMain.handle(channel, async (event, ...args: unknown[]) => {
         try {
-          // Prepend window argument for dialog calls
+          // A file dialog belongs to the window that asked for it, which the
+          // call says rather than the registration, see `windowOf`. Without a
+          // window it is shown on its own instead of over one that is gone.
           if (
             channel === 'electron:dialog:showOpenDialog' ||
             channel === 'electron:dialog:showSaveDialog'
           ) {
-            return await handler(window, ...args);
+            const senderWindow = this.windowOf(event);
+
+            return await (senderWindow === null
+              ? handler(...args)
+              : handler(senderWindow, ...args));
           }
 
           return await handler(...args);

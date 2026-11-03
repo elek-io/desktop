@@ -46,9 +46,11 @@ On `app.on('ready')` the `onAppReady()` method:
 1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise, and the elek.io Cloud URL this build talks to, see [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)).
 2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`. If it fails to start, for example because the port is in use, the failure is logged and the app launches with the API off.
 3. Registers the custom file protocol.
-4. Creates the first window (`createWindow()`), registers the IPC handlers for it (`registerIpcMain()`), then loads the renderer into it (`loadWindow()`).
+4. Registers the IPC handlers (`registerIpcMain()`), then creates the first window (`createWindow()`) and loads the renderer into it (`loadWindow()`).
 
-The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. The handlers only touch the window when invoked, so it just needs to exist (be created) at registration time, not be loaded. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
+The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
+
+The handlers are registered once for the process and hold no window of their own. A handler that drives a window asks `windowOf(event)` which window the call came from, because `activate` creates a window again after the last one was closed, and a window held from registration is destroyed by then.
 
 If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. One rejection is not a failed start: Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing, and `loadWindow()` logs a warning and carries on. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
 
@@ -58,7 +60,7 @@ Other lifecycle events: `activate` (macOS dock click) recreates and loads a wind
 
 1. The renderer tells the main process whenever that changes, over `electron:window:setUnsavedChanges`, which takes one boolean and is parsed with zod like the title bar theme.
 2. The window's own `close` event is held with `event.preventDefault()` while that is true, and the main process sends `electron:window:askBeforeClose` instead. A quit goes through the same event, since it closes every window, and `before-quit` is what tells the two apart.
-3. The renderer shows the app's own discard dialog, named by the page, and answers `discard` or `keep` over `electron:window:answerClose`. On `discard` the main process closes the window, or quits where a quit is what was closing it.
+3. The renderer shows the app's own discard dialog, named by the page, and answers `discard` or `keep` over `electron:window:answerClose`. On `discard` the main process closes the window the answer came from, or quits where a quit is what was closing it.
 
 The question is drawn in the window rather than in a native box, because a box could neither name the page nor draw the app's own buttons. A close is only ever held on the renderer's own claim, so a crashed renderer holds nothing and a fresh document starts with nothing unsaved. See [forms.md](./renderer/forms.md#leaving-unsaved-changes), which also covers why the document's `beforeunload` is left alone.
 

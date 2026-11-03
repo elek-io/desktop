@@ -421,6 +421,65 @@ test.describe('Closing the window with changes nobody saved', () => {
     expect(mainWindow.isClosed()).toBe(true);
   });
 
+  test('asks and closes on a window the app made again', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    const ids = await projectWithEntry(mainWindow);
+
+    // macOS keeps the app alive without a window and makes a new one when the
+    // dock icon is clicked, which is what `activate` is. Every other system
+    // quits instead, so the listener that quits is taken off and the app
+    // behaves like macOS wherever this runs. The window the app makes here is
+    // not the one the IPC handlers were registered with.
+    const opened = electronApp.waitForEvent('window');
+    await electronApp.evaluate(async ({ app, BrowserWindow }) => {
+      app.removeAllListeners('window-all-closed');
+      await Promise.all(
+        BrowserWindow.getAllWindows().map(
+          async (window) =>
+            new Promise<void>((resolve) => {
+              window.once('closed', () => {
+                resolve();
+              });
+              window.close();
+            })
+        )
+      );
+      app.emit('activate');
+    });
+    const reopened = await opened;
+
+    // Whatever the renderer failed at while answering, which is where a
+    // handler that acts on a window that is gone ends up.
+    const pageErrors: string[] = [];
+    reopened.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await navigateToEntryUpdate(reopened, ids);
+    const title = reopened.getByLabel('Title', { exact: true });
+    await title.fill('A title nobody saved');
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.close();
+    });
+    await expect(
+      discardDialog(reopened).getByRole('heading', {
+        name: 'Discard your changes to The stored title?',
+      })
+    ).toBeVisible();
+
+    // Discard closes this window, rather than the one that was there when the
+    // handlers were registered, which is gone.
+    const closed = reopened.waitForEvent('close');
+    await discardDialog(reopened)
+      .getByRole('button', { name: 'Discard' })
+      .click();
+    await closed;
+    expect(reopened.isClosed()).toBe(true);
+    expect(pageErrors).toEqual([]);
+    expect(mainWindow.isClosed()).toBe(true);
+  });
+
   test('asks the same question before the app quits', async ({
     electronApp,
     mainWindow,
