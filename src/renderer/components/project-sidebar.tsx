@@ -82,7 +82,6 @@ function ProjectSearch(): React.JSX.Element {
       disabled
       focusableWhenDisabled
       Icon={Search}
-      data-slot="sidebar-search"
       className="w-full justify-start gap-2 bg-muted text-muted-foreground aria-disabled:opacity-100"
     >
       <Trans>Search comes later</Trans>
