@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
+import type { MarkdownFieldDefinition } from '@elek-io/core';
+
 import { test } from '../fixtures/electronApp.js';
 import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import {
@@ -74,8 +76,9 @@ function expectRingOf(
 }
 
 /** Every markdown feature the toolbar draws a button for in these specs. */
-const features = {
+const features: MarkdownFieldDefinition['features'] = {
   ...markdownFieldDefinition().features,
+  headings: [2],
   strong: true,
   emphasis: true,
   assetReferences: true,
@@ -114,16 +117,16 @@ test.describe('The markdown field', () => {
       (node) => getComputedStyle(node).boxShadow
     );
 
-    // ci gives every button of the bar one size, so a toggle and a button that
-    // inserts something measure the same square.
-    const toggleBox = await bold.boundingBox();
-    const insertBox = await mainWindow
-      .getByRole('button', { name: 'Reference an Asset' })
-      .boundingBox();
-    expect({
-      width: toggleBox?.width,
-      height: toggleBox?.height,
-    }).toEqual({ width: insertBox?.width, height: insertBox?.height });
+    // ci gives every button of the bar one size, so a toggle, a button that
+    // inserts something and the one that opens a menu all measure the same
+    // square.
+    const boxOf = async (name: string): Promise<string> => {
+      const box = await mainWindow.getByRole('button', { name }).boundingBox();
+      return `${String(box?.width)} by ${String(box?.height)}`;
+    };
+    const toggleSize = await boxOf('Bold');
+    expect(await boxOf('Reference an Asset')).toBe(toggleSize);
+    expect(await boxOf('Heading')).toBe(toggleSize);
 
     // Bold from the keyboard with nothing selected, which turns the format on
     // for whatever is typed next. Neither the text nor the selection changes
