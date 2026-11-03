@@ -3,6 +3,7 @@ import type { Dialog } from 'electron';
 
 import type ElekIoCore from '@elek-io/core';
 
+import type { WindowCloseAnswer } from './shared/windowClose.js';
 import type { WindowTheme } from './shared/windowTheme.js';
 
 /**
@@ -35,6 +36,19 @@ declare global {
          * why this is a theme name and nothing else.
          */
         setTheme: (theme: WindowTheme) => Promise<void>;
+        /**
+         * Tells the main process whether the window holds something nobody
+         * saved, so a close is held for the question. See
+         * `shared/windowClose.ts`.
+         */
+        setUnsavedChanges: (hasUnsavedChanges: boolean) => Promise<void>;
+        /** Answers the question the main process asked for before a close. */
+        answerClose: (answer: WindowCloseAnswer) => Promise<void>;
+        /**
+         * Listens for the main process asking the question before a close, and
+         * returns the function that stops listening.
+         */
+        onAskedToClose: (listener: () => void) => () => void;
       };
     };
     core: AsyncifyMethods<{

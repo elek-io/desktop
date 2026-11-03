@@ -14,6 +14,7 @@ import {
 import { realpath } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import Path from 'path';
+import { type ZodType } from 'zod';
 
 import { colors } from '@elek-io/branding';
 import ElekIoCore, { CoreError } from '@elek-io/core';
@@ -22,6 +23,10 @@ import icon from '../../resources/icon.png?asset';
 import { activateAppLocale } from '../shared/i18n.js';
 import { serializeCoreError } from '../shared/ipcError.js';
 import { errorLogAttributes } from '../shared/logError.js';
+import {
+  unsavedChangesSchema,
+  windowCloseAnswerSchema,
+} from '../shared/windowClose.js';
 import { windowThemeSchema, type WindowTheme } from '../shared/windowTheme.js';
 
 // import { updateElectronApp } from 'update-electron-app';
@@ -68,6 +73,24 @@ class Main {
       ? 'https://api.elek.io'
       : 'https://api.dev.elek.io';
   private core: ElekIoCore | null = null;
+  /**
+   * Whether the window holds something nobody saved, as the renderer last said
+   * over `electron:window:setUnsavedChanges`.
+   *
+   * One field for one window, which is all the app opens. A close is held only
+   * while this is true, so the renderer that says it is the renderer that
+   * answers the question, and a renderer with nothing unsaved holds nothing.
+   */
+  private hasUnsavedChanges = false;
+  /**
+   * Whether what is closing the window is a quit, so Discard ends the app
+   * rather than leaving it running without a window on macOS.
+   *
+   * Electron aborts a quit when a window refuses to close and emits nothing to
+   * say so, so this is cleared again when the question is answered with Keep
+   * editing.
+   */
+  private isQuitting = false;
 
   constructor() {
     // Allow the vite dev server to do HMR in development
@@ -88,6 +111,9 @@ class Main {
     });
     app.on('activate', () => {
       void this.onAppActivate();
+    });
+    app.on('before-quit', () => {
+      this.isQuitting = true;
     });
     app.on('window-all-closed', () => this.onAppAllWindowsClosed());
     app.on('web-contents-created', (event, webContents) =>
@@ -332,8 +358,43 @@ class Main {
     window.webContents.on('will-navigate', (event, urlToLoad) =>
       this.onWindowWebContentsWillNavigate(window, event, urlToLoad)
     );
+    window.on('close', (event) => this.onWindowClose(window, event));
+    // A fresh document has saved nothing yet and has not said anything about
+    // itself, so a reload leaves no claim of the document before it behind.
+    window.webContents.on('did-finish-load', () => {
+      this.hasUnsavedChanges = false;
+    });
 
     return window;
+  }
+
+  /**
+   * Holds the window open while the renderer still has something nobody saved,
+   * and asks the renderer to put the question on screen.
+   *
+   * The question is ci's own discard dialog in the window, named by the page,
+   * rather than a native box, which could draw neither a red Discard nor a
+   * ghost Keep editing and would not know what page is open. So this process
+   * only stops the close and hands the question over, and closes once the
+   * renderer answers with Discard over `electron:window:answerClose`.
+   *
+   * A close is held only while the renderer said there is something unsaved,
+   * which is a claim only a living renderer makes. A crashed one can show no
+   * question, so nothing of it is held either and the window closes.
+   *
+   * `close` is emitted before the document's own unload events, which is why
+   * the leave guard in the renderer keeps TanStack Router's `beforeunload` off:
+   * a `beforeunload` that cancels would stop the close again after this handler
+   * let it through, and without a `will-prevent-unload` handler nobody would be
+   * told.
+   */
+  private onWindowClose(window: BrowserWindow, event: Electron.Event): void {
+    if (this.hasUnsavedChanges === false || window.webContents.isCrashed()) {
+      return;
+    }
+
+    event.preventDefault();
+    window.webContents.send('electron:window:askBeforeClose');
   }
 
   /**
@@ -572,28 +633,53 @@ class Main {
   }
 
   /**
+   * What the renderer sent on one of the channels that drive the window, or a
+   * rejected call.
+   *
+   * The renderer is the process that runs content somebody else wrote, so
+   * nothing it sends over one of those channels is taken as it arrives. A value
+   * the schema does not accept rejects the call and is logged like the other
+   * refusals in this process, and the rejection's message says which value was
+   * refused, which is what the caller sees.
+   */
+  private fromRenderer<T>(
+    core: ElekIoCore,
+    schema: ZodType<T>,
+    value: unknown,
+    refusal: string
+  ): T {
+    const parsed = schema.safeParse(value);
+
+    if (parsed.success === false) {
+      const errorMessage = `${refusal}: ${JSON.stringify(value)}`;
+      core.logger.error({
+        source: 'desktop',
+        message: errorMessage,
+      });
+      throw new Error(errorMessage);
+    }
+
+    return parsed.data;
+  }
+
+  /**
    * Registers IPC handlers for the main process
    */
   private registerIpcMain(
     window: Electron.BrowserWindow,
     core: ElekIoCore
   ): void {
-    // The one thing the renderer may change about its window, and the only
-    // channel outside the map below, because it drives the window rather than
-    // Core. It takes a theme name, which is parsed here, so neither a color nor
-    // any other window option crosses from the renderer. Anything else rejects
-    // the call and is logged like the other refusals in this process.
+    // The three things the renderer may say about its window, and the only
+    // channels outside the map below, because they drive the window rather than
+    // Core. Each takes one named value, which is parsed here, so neither a
+    // color nor any other window option crosses from the renderer.
     ipcMain.handle('electron:window:setTheme', (_event, theme: unknown) => {
-      const parsed = windowThemeSchema.safeParse(theme);
-
-      if (parsed.success === false) {
-        const errorMessage = `Refused to set a title bar theme that is neither "light" nor "dark": ${JSON.stringify(theme)}`;
-        core.logger.error({
-          source: 'desktop',
-          message: errorMessage,
-        });
-        throw new Error(errorMessage);
-      }
+      const parsed = this.fromRenderer(
+        core,
+        windowThemeSchema,
+        theme,
+        'Refused to set a title bar theme that is neither "light" nor "dark"'
+      );
 
       // Only Windows and Linux draw a Window Controls Overlay this can restyle.
       // macOS draws its traffic lights in the system's own colors and has no
@@ -602,7 +688,51 @@ class Main {
         return;
       }
 
-      window.setTitleBarOverlay(this.titleBarOverlayFor(parsed.data));
+      window.setTitleBarOverlay(this.titleBarOverlayFor(parsed));
+    });
+
+    // Whether the window holds something nobody saved, which decides whether a
+    // close is held for the question. See `onWindowClose`.
+    ipcMain.handle(
+      'electron:window:setUnsavedChanges',
+      (_event, hasUnsavedChanges: unknown) => {
+        this.hasUnsavedChanges = this.fromRenderer(
+          core,
+          unsavedChangesSchema,
+          hasUnsavedChanges,
+          'Refused to set whether the window holds unsaved changes to something that is neither true nor false'
+        );
+      }
+    );
+
+    // The answer to the question the renderer put on screen for a close this
+    // process held.
+    ipcMain.handle('electron:window:answerClose', (_event, answer: unknown) => {
+      const parsed = this.fromRenderer(
+        core,
+        windowCloseAnswerSchema,
+        answer,
+        'Refused an answer to the question before closing that is neither "discard" nor "keep"'
+      );
+
+      if (parsed === 'keep') {
+        // The window stays and so does what was typed. A quit this close
+        // belonged to was aborted with it, so the next close is just a close.
+        this.isQuitting = false;
+        return;
+      }
+
+      // What was typed is let go of, so the close this process held goes
+      // through. The window is closed from here rather than from the renderer,
+      // which cannot close its own window.
+      this.hasUnsavedChanges = false;
+
+      if (this.isQuitting) {
+        app.quit();
+        return;
+      }
+
+      window.close();
     });
 
     const channelToHandlerMap = {
