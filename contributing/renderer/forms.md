@@ -45,6 +45,11 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   page, closing the window and quitting alike. The form's own Save never asks,
   nor does a way out the page takes on purpose. See
   [Leaving unsaved changes](#leaving-unsaved-changes).
+- **A form takes no edit while its own save runs.** Every field it draws is
+  read-only until the state the save brings back has arrived, so an edit typed
+  in between cannot be dropped by the state that arrives. Read-only rather than
+  disabled, so the field keeps its focus and its look. See
+  [A form is read-only while it saves](#a-form-is-read-only-while-it-saves).
 - **Every submit control is a `SubmitButton`.** It sets `type="submit"` and the
   form association structurally, so a submit button can never silently do nothing.
   `SubmitButtonProps` omits `type` and `render`, so neither can be passed, and
@@ -246,6 +251,39 @@ const blockedBy = missing === 0 ? undefined : t`...`;
   [`components/fields/missing-values.ts`](../../src/renderer/components/fields/missing-values.ts)
   answers that per language of the Project, without a validator, so it is cheap
   on every change.
+
+## A form is read-only while it saves
+
+A form that stays open after it saved is filled again from what the save brought
+back, and a reset keeps a dirty field's value without its dirtiness, see
+[Gating Save](./loading-and-updating-data.md#gating-save). An edit typed while
+the save was still on its way would therefore stand on screen with nobody having
+saved it, Save unavailable and leaving asking nothing. So the form takes no edit
+while its own save runs.
+
+- **`AppForm` publishes it** as `isSaving` on the `AppFormContext`. It is the
+  form's own state rather than react-hook-form's `isSubmitting`, which the
+  `reset()` a submit handler calls at its end already clears.
+- **`AppField` puts `readOnly` on the control props it mints**, the bag each
+  control already places on its real control, so an input refuses the keystroke.
+  That is one fold rather than a per-type opt-in.
+- **A control that is no input reads `readOnly` off the render props** and
+  refuses the change itself, because only an input carries the attribute with a
+  meaning. The Project's languages are the case: the default language takes no
+  choice, and the picker and the remove buttons of Supported take no press,
+  while the form saves.
+- **It lasts as long as the submit handler**, which is until the state the save
+  brings back has arrived rather than until Core answered.
+  `customMutationOptions` awaits a mutation's own `onSuccess`, so a mutation that
+  invalidates resolves once its refetch landed, see
+  [Mutation Metadata](./loading-and-updating-data.md#mutation-metadata).
+- **Read-only, not disabled.** A read-only input keeps its focus and its look,
+  while a disabled control loses the focus of whoever was typing in it and dims.
+  That is why the Project's general settings no longer hands its pending save to
+  `isViewOnly`, which would have greyed the whole form on every save.
+
+[`tests/specs/unsaved-changes.spec.ts`](../../tests/specs/unsaved-changes.spec.ts)
+drives it on both pages that stay open after they saved.
 
 ## View-only forms and diffs
 

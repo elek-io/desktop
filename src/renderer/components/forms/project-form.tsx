@@ -178,7 +178,7 @@ export function ProjectForm({
               }
               className={cn('col-span-12', fieldWidth('6'))}
             >
-              {({ field, controlProps }) => {
+              {({ field, controlProps, readOnly }) => {
                 // The chosen languages and the picker that adds one are
                 // several controls rather than one, so what the label points
                 // at is their container and not a control. `aria-required` is
@@ -199,6 +199,10 @@ export function ProjectForm({
                                 variant="ghost"
                                 size="icon"
                                 className="ml-4 rounded-full"
+                                // Only an input can be read-only on its own, so
+                                // while the form saves the two controls that
+                                // change this Value take no press instead.
+                                disabled={readOnly}
                                 onClick={() => {
                                   if (
                                     language ===
@@ -246,7 +250,13 @@ export function ProjectForm({
                           // The trigger carries the combobox role, whose name is
                           // never its own text, so it says what it shows.
                           aria-label={t`Add language`}
-                          render={<Button variant="outline" Icon={Plus} />}
+                          render={
+                            <Button
+                              variant="outline"
+                              Icon={Plus}
+                              disabled={readOnly}
+                            />
+                          }
                         >
                           <Trans>Add language</Trans>
                         </ComboboxTrigger>
@@ -292,7 +302,7 @@ export function ProjectForm({
               }
               className={cn('col-span-12', fieldWidth('6'))}
             >
-              {({ field, controlProps, disabled }) => {
+              {({ field, controlProps, disabled, readOnly }) => {
                 const availableOptions = supportedLanguages.filter((language) =>
                   projectForm
                     .watch('settings.language.supported')
@@ -309,7 +319,9 @@ export function ProjectForm({
                     )}
                     value={field.value}
                     onValueChange={(value) => field.onChange(value)}
-                    disabled={disabled}
+                    // A select has no read-only of its own, so while the form
+                    // saves it takes no choice instead.
+                    disabled={disabled || readOnly}
                   >
                     <SelectTrigger {...controlProps}>
                       <SelectValue />

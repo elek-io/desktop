@@ -38,6 +38,7 @@ import { Spinner } from '@renderer/components/ui/spinner';
 import {
   AppFormContext,
   useAppFormId,
+  useAppFormIsSaving,
   useAppFormSchema,
   useDeeperErrorTarget,
   useErrorTarget,
@@ -243,6 +244,14 @@ export interface AppFieldRenderProps<
   controlProps: FieldControlProps;
   /** Whether the whole form or this one field is disabled. */
   disabled: boolean;
+  /**
+   * Whether the form's own save is running, which `controlProps` already
+   * carries as `readOnly` for the control. A field drawn as several controls
+   * reads it to leave out the ones that would change its Value, since only an
+   * input can be read-only on its own. See
+   * contributing/renderer/forms.md#a-form-is-read-only-while-it-saves.
+   */
+  readOnly: boolean;
 }
 
 // TTransformedValues is defaulted and never read here: only `control` is used,
@@ -305,6 +314,9 @@ export function AppField<
   // Claimed whether or not a message is on screen right now, so AppForm's
   // backstop never reports an error this field would show.
   useErrorTarget(name);
+  // Whether this form's own save is running, which holds the field read-only
+  // until it is through, see forms.md#a-form-is-read-only-while-it-saves.
+  const isSaving = useAppFormIsSaving();
   // What this field leaves to the fields inside it, so a field holding sections
   // says nothing for a refusal one of those sections shows.
   const hasDeeperErrorTarget = useDeeperErrorTarget();
@@ -344,8 +356,11 @@ export function AppField<
             {(controlProps): ReactNode =>
               children({
                 field,
-                controlProps,
+                controlProps: isSaving
+                  ? { ...controlProps, readOnly: true }
+                  : controlProps,
                 disabled: field.disabled === true,
+                readOnly: isSaving,
               })
             }
           </FieldShell>
@@ -502,6 +517,12 @@ export function AppForm<
   // in happens inside the awaited handler, before React has rendered the new
   // state, and the guard below is read at that moment.
   const isSubmittingRef = useRef(false);
+  // Whether this form's own save is running, which holds every field it draws
+  // read-only. The form's own state rather than `formState.isSubmitting`,
+  // because the `reset()` a submit handler calls at its end clears that one,
+  // and the form is filled from what the save brought back after it. See
+  // contributing/renderer/forms.md#a-form-is-read-only-while-it-saves.
+  const [isSaving, setIsSaving] = useState(false);
   const guardId = useId();
   const unsavedChanges = useUnsavedChanges();
   const isGuarded = unsavedChangesTitle !== undefined && mode === 'edit';
@@ -551,11 +572,12 @@ export function AppForm<
     () => ({
       id: formId,
       mode,
+      isSaving,
       schema,
       registerErrorTarget,
       hasDeeperErrorTarget,
     }),
-    [formId, mode, schema, registerErrorTarget, hasDeeperErrorTarget]
+    [formId, mode, isSaving, schema, registerErrorTarget, hasDeeperErrorTarget]
   );
 
   // A validation error nothing renders would make the submit a silent no-op, so
@@ -598,6 +620,8 @@ export function AppForm<
     // guard lets it through. Set before the submit rather than read off
     // `formState`, which React has not rendered yet by then.
     isSubmittingRef.current = true;
+    // The fields are read-only from here until the submit has settled.
+    setIsSaving(true);
     // handleSubmit re-throws whatever onSubmit rejected with, after awaiting it.
     // Nothing is left to catch that by then, so hold it and re-throw it during
     // render, where the root error boundary sees it. A CoreError handled in place
@@ -610,6 +634,7 @@ export function AppForm<
       })
       .finally(() => {
         isSubmittingRef.current = false;
+        setIsSaving(false);
       });
   };
 

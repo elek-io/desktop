@@ -13,6 +13,12 @@ export interface AppFormContextValue {
    */
   mode: 'edit' | 'view';
   /**
+   * Whether the form's own save is running, which holds every field it draws
+   * read-only until it is through. See
+   * contributing/renderer/forms.md#a-form-is-read-only-while-it-saves.
+   */
+  isSaving: boolean;
+  /**
    * The Core schema the form checks against, which every field inside reads
    * its own rules off. `undefined` where the form passes none, as a form of
    * generated fields does.
@@ -45,6 +51,16 @@ export function useAppFormId(): string | null {
  */
 export function useAppFormMode(): 'edit' | 'view' {
   return useContext(AppFormContext)?.mode ?? 'edit';
+}
+
+/**
+ * Whether the enclosing AppForm's own save is running, and `false` outside one.
+ *
+ * A field reads it to hold itself read-only, so an edit typed while the save is
+ * on its way cannot be dropped by the state the save brings back.
+ */
+export function useAppFormIsSaving(): boolean {
+  return useContext(AppFormContext)?.isSaving ?? false;
 }
 
 /**

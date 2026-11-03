@@ -19,6 +19,7 @@ import {
   recordedCoreCalls,
   stubCoreHang,
   stubCoreRecord,
+  stubCoreResolve,
 } from '../helpers/ipc.js';
 import { reloadWindow } from '../helpers/navigation.js';
 import {
@@ -26,6 +27,7 @@ import {
   navigateToProjectSettings,
   navigateToVersionControl,
 } from '../helpers/project.js';
+import { setupRemote } from '../helpers/remote.js';
 import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
 
 /**
@@ -187,6 +189,143 @@ test.describe('A form that cannot be saved yet', () => {
     // And it says nothing, because a save in flight is nothing to fix.
     await expect(save).not.toHaveAttribute('aria-describedby', /.*/);
     await expect(blockedReason(mainWindow)).toBeHidden();
+  });
+});
+
+test.describe('A form while its own save runs', () => {
+  test('is read-only on the page that stays open, and keeps what was sent', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToVersionControl(mainWindow, project.id);
+
+    const url = mainWindow.getByLabel('Remote URL', { exact: true });
+    const sent = 'https://example.com/first.git';
+
+    // The save never answers, so the window the form is locked for stays open
+    // to be read.
+    await stubCoreHang(electronApp, 'core:projects:setRemoteOriginUrl');
+    await url.fill(sent);
+    // Submitted from the field, so what focus does while the form saves is
+    // about the field rather than about the button that was pressed.
+    await url.press('Enter');
+
+    // Read-only rather than disabled: the field keeps its focus and its look,
+    // and it is still enabled, which a disabled `<fieldset>` around it would
+    // also take away.
+    await expect(url).toHaveAttribute('readonly', '');
+    await expect(url).toBeEnabled();
+    await expect(url).toBeFocused();
+
+    // So the keystroke is refused rather than taken and dropped. Typed through
+    // the keyboard, because `fill` waits for a field it may write to and this
+    // one must not be writable.
+    await mainWindow.keyboard.type('https://example.com/second.git');
+    await expect(url).toHaveValue(sent);
+  });
+
+  test('knows about an edit typed the moment the save is through', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToVersionControl(mainWindow, project.id);
+
+    const url = mainWindow.getByLabel('Remote URL', { exact: true });
+    const save = mainWindow.getByRole('button', { name: 'Save changes' });
+
+    // A remote that is really there, so the Project card may read it once the
+    // URL is stored rather than failing on a remote nobody can reach.
+    await url.fill(setupRemote(testInfo).url);
+    await save.click();
+
+    // Typed as early as the form takes it, which is the moment the lock lifts.
+    // `fill` waits for exactly that, so this lands in the first instant the
+    // field is writable again.
+    await url.fill('/a-remote-nobody-saved');
+
+    // And the form knows it holds something unsaved: Save is available, and
+    // leaving asks. A form that counted as clean here would have let the state
+    // the save brought back drop what was typed on top of it.
+    await expect(save).not.toHaveAttribute('aria-disabled', 'true');
+    await leaveThePage(mainWindow).click();
+    await expect(
+      discardDialog(mainWindow).getByRole('heading', {
+        name: 'Discard your changes to Version Control Settings?',
+      })
+    ).toBeVisible();
+    await discardDialog(mainWindow)
+      .getByRole('button', { name: 'Keep editing' })
+      .click();
+    await expect(url).toHaveValue('/a-remote-nobody-saved');
+  });
+
+  test('stays read-only until the state the save brings back has arrived', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToVersionControl(mainWindow, project.id);
+
+    const url = mainWindow.getByLabel('Remote URL', { exact: true });
+
+    // The save answers at once and stores nothing, so what holds the form after
+    // it is the read it asks for, and no Project ends up pointing at a remote
+    // this spec would have to reach.
+    await stubCoreResolve(
+      electronApp,
+      'core:projects:setRemoteOriginUrl',
+      undefined
+    );
+    // The read the save invalidates never answers, so the moment after Core
+    // answered and before the form is filled again is stable to read.
+    await stubCoreHang(electronApp, 'core:projects:read');
+    await url.fill('https://example.com/first.git');
+    await url.press('Enter');
+
+    // Core answered, which is what the toast says.
+    await expect(mainWindow.getByText('Remote URL saved')).toBeVisible();
+
+    // And the form is still read-only, because what it is to show next is
+    // still on its way.
+    await expect(url).toHaveAttribute('readonly', '');
+    await expect(url).toBeEnabled();
+  });
+
+  test('is read-only rather than grey on the Project settings', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToProjectSettings(mainWindow, project.id);
+
+    const name = mainWindow.getByLabel('Project name', { exact: true });
+    const sent = 'A name saved first';
+
+    await stubCoreHang(electronApp, 'core:projects:update');
+    await name.fill(sent);
+    await name.press('Enter');
+
+    await expect(name).toHaveAttribute('readonly', '');
+    await expect(name).toBeEnabled();
+    await expect(name).toBeFocused();
+
+    // The two controls of the languages field that would change it take no
+    // press while the form saves, since neither is an input that could be
+    // read-only on its own.
+    await expect(
+      mainWindow.getByRole('combobox', { name: 'Add language' })
+    ).toBeDisabled();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Remove en' })
+    ).toBeDisabled();
+
+    await mainWindow.keyboard.type('A name typed during the save');
+    await expect(name).toHaveValue(sent);
   });
 });
 

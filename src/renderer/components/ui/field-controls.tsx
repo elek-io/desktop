@@ -25,6 +25,13 @@ export interface FieldControlProps {
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
   'aria-required'?: boolean;
+  /**
+   * Set while the form's own save is running, so an input refuses a keystroke
+   * instead of taking an edit the state the save brings back would drop. It
+   * keeps its focus and its look, which `disabled` would both take away, see
+   * contributing/renderer/forms.md#a-form-is-read-only-while-it-saves.
+   */
+  readOnly?: boolean;
   className?: string;
 }
 

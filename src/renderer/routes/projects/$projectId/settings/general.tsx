@@ -92,8 +92,9 @@ function ProjectSettingsGeneralPage(): ReactElement {
     disabled: isReadingProject,
   });
 
-  const { mutateAsync: updateProject, isPending: isUpdatingProject } =
-    useMutation(queryOptions.projects.update);
+  const { mutateAsync: updateProject } = useMutation(
+    queryOptions.projects.update
+  );
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isForceDeleteDialogOpen, setIsForceDeleteDialogOpen] = useState(false);
@@ -182,7 +183,6 @@ function ProjectSettingsGeneralPage(): ReactElement {
         schema={createProjectSchema}
         id={formId}
         projectForm={updateProjectForm}
-        isViewOnly={isUpdatingProject}
         onFormSubmit={onUpdate}
         unsavedChangesTitle={t`General Settings`}
       >
