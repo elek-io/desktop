@@ -14,8 +14,9 @@ import { setUserViaIpc } from '../helpers/user.js';
 test.describe('Empty states', () => {
   // Pin all six app-wide empty strings in one place, walked in an order that
   // keeps each precondition true (project before assets and Releases, no
-  // collections before the sidebar empty state, a collection before its empty
-  // entry table). This is the single spot a renamed empty state is caught, so
+  // collections before the empty Collections state, a collection before its
+  // empty entry table). This is the single spot a renamed empty state is
+  // caught, so
   // some overlap with the projects, entries and releases specs is intentional.
   test('renders each area empty state when its total is zero', async ({
     mainWindow,
@@ -38,9 +39,10 @@ test.describe('Empty states', () => {
     await navigateToComponents(mainWindow, project.id);
     await expect(mainWindow.getByText('No Components yet')).toBeVisible();
 
-    // 5. The project has no Collections, so the sidebar shows its empty state.
+    // 5. The project has no Collections, so Collections says so where a
+    // Collection would open.
     await navigate(mainWindow, `#/projects/${project.id}/collections`);
-    await expect(mainWindow.getByText('No Collections found')).toBeVisible();
+    await expect(mainWindow.getByText('No Collections yet')).toBeVisible();
 
     // 6. A Collection with no Entries shows the entry table empty state.
     const collection = await createCollectionViaIpc(mainWindow, {

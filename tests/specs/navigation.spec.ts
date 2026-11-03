@@ -1,19 +1,44 @@
 import { expect, type Page } from '@playwright/test';
 
+import { colors } from '@elek-io/branding';
+
 import { test } from '../fixtures/electronApp.js';
-import { createCollectionViaIpc } from '../helpers/collection.js';
-import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
+import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
+import {
+  createCollectionViaIpc,
+  navigateToCollection,
+} from '../helpers/collection.js';
+import { parseColor, toBytes } from '../helpers/color.js';
+import { confirmDialog } from '../helpers/dialog.js';
+import {
+  createEntryViaIpc,
+  fillEntryForm,
+  navigateToEntryCreate,
+  stringValue,
+} from '../helpers/entry.js';
 import {
   externalOpens,
   recordExternalOpensViaIpc,
 } from '../helpers/external.js';
-import { bootOnHash, verifyCurrentRouteHash } from '../helpers/navigation.js';
+import {
+  bootOnHash,
+  navigationRows,
+  projectSidebar,
+  verifyCurrentRouteHash,
+} from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
+  navigateToAssets,
   navigateToProjectDashboard,
 } from '../helpers/project.js';
 import { openHelpMenu } from '../helpers/report.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  waitForLayout,
+} from '../helpers/window.js';
 
 /**
  * Boot the app fresh at `fromHash` and assert it redirects to `toHash`.
@@ -135,5 +160,439 @@ test.describe('Navigation', () => {
     const crumbLinks = breadcrumb.getByRole('link');
     await expect(crumbLinks.first()).toBeVisible();
     expect(await crumbLinks.count()).toBeGreaterThanOrEqual(2);
+  });
+});
+
+/**
+ * The one sidebar of a Project: the search, every page of the Project and every
+ * Collection with how many Entries it holds.
+ *
+ * What it replaced was a second sidebar inside Collections, so the specs below
+ * also pin that every Collection is reachable from this one, which is what the
+ * Collections screens now rely on.
+ */
+test.describe("A Project's sidebar", () => {
+  test('lists every page of the Project and every Collection in one order', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const articles = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Event' }, plural: { en: 'Events' } },
+      slug: { singular: 'event', plural: 'events' },
+    });
+
+    await navigateToProjectDashboard(mainWindow, project.id);
+    const sidebar = projectSidebar(mainWindow);
+    await expect(sidebar.getByRole('link', { name: /^Events/ })).toBeVisible();
+
+    // Core answers the Collections of a Project in no particular order, so the
+    // two of them are compared as a set while everything around them is in the
+    // order ci draws.
+    const rows = await navigationRows(mainWindow);
+    expect(rows.slice(0, 3)).toEqual(['Dashboard', 'Assets', 'Components']);
+    expect(rows.slice(3, -3).sort()).toEqual(['Articles', 'Events']);
+    expect(rows.slice(-3)).toEqual(['History', 'Releases', 'Settings']);
+
+    // One label, and it heads the Collections. Nothing heads the Project's own
+    // pages, since every row of the navigation belongs to the Project.
+    expect(
+      await mainWindow
+        .locator(
+          '[data-slot="sidebar-content"] [data-slot="sidebar-group-label"]'
+        )
+        .evaluateAll((labels) =>
+          labels.map((label) => label.textContent?.trim() ?? '')
+        )
+    ).toEqual(['Collections']);
+
+    const measured = await mainWindow.evaluate(() => {
+      const content = document.querySelector(
+        '[data-slot="sidebar"] [data-slot="sidebar-content"]'
+      );
+      const rule = content?.querySelector('[data-slot="sidebar-separator"]');
+      if (content === null || rule === null || rule === undefined) {
+        throw new Error('The navigation has no rule ending the Collections');
+      }
+
+      return {
+        ruleTop: Math.round(rule.getBoundingClientRect().y),
+        ruleLeft: Math.round(rule.getBoundingClientRect().x),
+        rows: Array.from(
+          content.querySelectorAll('[data-slot="sidebar-menu-button"]')
+        ).map((row) => {
+          const box = row.getBoundingClientRect();
+          const icon = row.querySelector('svg');
+
+          return {
+            label: row.querySelector('span')?.textContent?.trim() ?? '',
+            top: Math.round(box.y),
+            bottom: Math.round(box.bottom),
+            iconLeft:
+              icon === null ? 0 : Math.round(icon.getBoundingClientRect().x),
+          };
+        }),
+      };
+    });
+
+    // The rule ends the Collections: every row below it is one of the three
+    // that must not read as a Collection, and the last row above it is one.
+    const above = measured.rows.filter((row) => row.bottom <= measured.ruleTop);
+    const below = measured.rows.filter((row) => row.top >= measured.ruleTop);
+    expect(below.map((row) => row.label)).toEqual([
+      'History',
+      'Releases',
+      'Settings',
+    ]);
+    expect(['Articles', 'Events']).toContain(above.at(-1)?.label);
+
+    // It is inset to the column the icons and the counts stand in, rather than
+    // spanning the sidebar.
+    expect(measured.ruleLeft).toBe(above[0]?.iconLeft);
+
+    // A Collection opens its Entries from this one sidebar, which is what the
+    // second sidebar inside Collections used to do.
+    await sidebar.getByRole('link', { name: /^Articles/ }).click();
+    await verifyCurrentRouteHash(
+      mainWindow,
+      `#/projects/${project.id}/collections/${articles.id}`
+    );
+  });
+
+  test('counts what each page holds, and follows a create and a delete', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'logo.png', pngBytes),
+    });
+
+    const sidebar = projectSidebar(mainWindow);
+
+    // A Collection's row says how many Entries it holds in words, because its
+    // own name does not say what the number counts.
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await expect(
+      sidebar.getByRole('link', { name: /^Articles\s*0 Entries$/ })
+    ).toBeVisible();
+
+    // The create goes through the app, and the number follows it without the
+    // Project being opened again.
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    await expect(
+      sidebar.getByRole('link', { name: /^Articles\s*1 Entry$/ })
+    ).toBeVisible();
+
+    // Assets and Components name what they count themselves, so their rows
+    // carry the number alone. A delete takes it back down.
+    await navigateToAssets(mainWindow, project.id);
+    await expect(
+      sidebar.getByRole('link', { name: /^Assets\s*1$/ })
+    ).toBeVisible();
+    await expect(
+      sidebar.getByRole('link', { name: /^Components\s*0$/ })
+    ).toBeVisible();
+    await expect(
+      sidebar.getByRole('link', { name: /^Releases\s*0$/ })
+    ).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Delete' }).click();
+    await confirmDialog(mainWindow, 'Delete');
+    await expect(
+      sidebar.getByRole('link', { name: /^Assets\s*0$/ })
+    ).toBeVisible();
+  });
+
+  test('opens Create Collection from the Collections label', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToProjectDashboard(mainWindow, project.id);
+
+    // A ghost button on the label, which is a link rather than the create
+    // page's own Create Collection button.
+    await projectSidebar(mainWindow)
+      .getByRole('link', { name: 'Create Collection' })
+      .click();
+    await verifyCurrentRouteHash(
+      mainWindow,
+      `#/projects/${project.id}/collections/create`
+    );
+    await expect(
+      mainWindow.getByRole('button', { name: 'Create Collection' })
+    ).toBeVisible();
+  });
+
+  test('says the search comes later while the screens keep filtering', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    for (const title of ['Spring opening hours', 'Winter tyres']) {
+      await createEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+        values: { title: stringValue({ en: title }) },
+      });
+    }
+
+    await navigateToCollection(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+
+    // Disabled, and it says why rather than only looking unavailable. It keeps
+    // `aria-disabled` rather than `disabled`, so it stays reachable and the
+    // sentence is read out, and it shows no shortcut, which comes with the
+    // search itself.
+    const search = projectSidebar(mainWindow).getByRole('button', {
+      name: 'Search comes later',
+    });
+    await expect(search).toBeVisible();
+    await expect(search).toBeDisabled();
+    await expect(search).toHaveAttribute('aria-disabled', 'true');
+    await expect(search).toHaveText('Search comes later');
+
+    // What filters inside a screen is untouched by it.
+    await expect(
+      mainWindow.getByRole('cell', { name: 'Spring opening hours' })
+    ).toBeVisible();
+    await mainWindow.getByLabel('Filter Articles').fill('Winter');
+    await expect(
+      mainWindow.getByRole('cell', { name: 'Winter tyres' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('cell', { name: 'Spring opening hours' })
+    ).toBeHidden();
+  });
+
+  test('marks the open Collection, keeps the focus ring inside and cuts a long name', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Monthly newsletter issue' },
+        plural: { en: 'Monthly newsletter issues and announcements' },
+      },
+      slug: { singular: 'newsletter-issue', plural: 'newsletter-issues' },
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'The first issue' }) },
+    });
+
+    const row = projectSidebar(mainWindow).getByRole('link', {
+      name: /^Monthly newsletter issues and announcements/,
+    });
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(mainWindow, theme);
+      await navigateToCollection(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+      });
+
+      // Marked for assistive technology by the route it leads to, and drawn as
+      // ci draws it: the card surface with a hairline in light mode, and the
+      // muted surface in dark mode, where the card surface is the ground.
+      await expect(row).toHaveAttribute('aria-current', 'page');
+      await expect(row).toHaveAttribute('data-active', 'true');
+
+      // Read through the document rather than through the locator's own
+      // handle, so what is measured is the row that is on screen now rather
+      // than one a re-render has replaced.
+      const surfaces = await mainWindow.evaluate(() => {
+        const active = document.querySelector(
+          '[data-slot="sidebar-content"] [data-slot="sidebar-menu-button"][data-active]'
+        );
+        const ground = document.querySelector('body');
+        if (active === null || ground === null) {
+          throw new Error('No row of the navigation is marked as the open one');
+        }
+
+        return {
+          row: getComputedStyle(active).backgroundColor,
+          // Tailwind draws a ring as a box shadow, which it composes in this
+          // property, so the hairline's width is read from it rather than from
+          // the composed shadow a transparent one also writes to.
+          hairline:
+            getComputedStyle(active).getPropertyValue('--tw-ring-shadow'),
+          ground: getComputedStyle(ground).backgroundColor,
+        };
+      });
+
+      expect(toBytes(parseColor(surfaces.row)), theme).toEqual(
+        toBytes(
+          parseColor(
+            theme === 'light'
+              ? colors.light.background.oklch
+              : colors.dark.muted.oklch
+          )
+        )
+      );
+      expect(toBytes(parseColor(surfaces.row)), theme).not.toEqual(
+        toBytes(parseColor(surfaces.ground))
+      );
+      // Light mode adds the hairline, because the row's surface is white on an
+      // almost white ground. Dark mode has none, as ci draws it, where the
+      // muted surface already stands out from the ground.
+      expect(surfaces.hairline.includes('1px'), theme).toBe(theme === 'light');
+    }
+
+    // The ring is drawn inside the row, because the list it sits in would clip
+    // one drawn outside it. Reached with the keyboard, which is what
+    // :focus-visible means.
+    await row.focus();
+    await mainWindow.keyboard.press('Tab');
+    await mainWindow.keyboard.press('Shift+Tab');
+    await expect(row).toBeFocused();
+
+    const measured = await mainWindow.evaluate(() => {
+      const focused = document.activeElement;
+      const label = focused?.querySelector('span') ?? null;
+      const count = focused?.querySelector('span[aria-hidden="true"]') ?? null;
+      if (focused === null || label === null || count === null) {
+        throw new Error('The focused element is not a row of the navigation');
+      }
+
+      return {
+        isRow: focused.matches('[data-slot="sidebar-menu-button"]'),
+        outlineOffset: getComputedStyle(focused).outlineOffset,
+        nameIsCut: label.scrollWidth > label.clientWidth,
+        countRight: Math.round(count.getBoundingClientRect().right),
+        rowRight: Math.round(focused.getBoundingClientRect().right),
+      };
+    });
+
+    expect(measured.isRow).toBe(true);
+    expect(measured.outlineOffset).toBe('-2px');
+
+    // A name too long for the row is cut rather than pushing the count out of
+    // it, so the number stays inside the row with its padding to spare.
+    expect(measured.nameIsCut).toBe(true);
+    expect(measured.countRight).toBeLessThan(measured.rowRight);
+  });
+
+  test('scrolls at full row height, with a rule marking what it continues past', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // More Collections than the smallest window the app supports can show, so
+    // the list is what gives way rather than the rows.
+    for (const index of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      await createCollectionViaIpc(mainWindow, {
+        projectId: project.id,
+        name: {
+          singular: { en: `Set ${index}` },
+          plural: { en: `Sets ${index}` },
+        },
+        slug: { singular: `set-${index}`, plural: `sets-${index}` },
+      });
+    }
+
+    const sidebar = projectSidebar(mainWindow);
+    await navigateToProjectDashboard(mainWindow, project.id);
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(mainWindow, theme);
+      await navigateToProjectDashboard(mainWindow, project.id);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await expect(
+        sidebar.getByRole('link', { name: /^Sets 8/ })
+      ).toBeVisible();
+      await waitForLayout(mainWindow);
+
+      const atTop = await mainWindow.evaluate(() => {
+        const content = document.querySelector(
+          '[data-slot="sidebar"] [data-slot="sidebar-content"]'
+        );
+        if (content === null) {
+          throw new Error('The sidebar has no navigation');
+        }
+
+        return {
+          rowHeights: Array.from(
+            new Set(
+              Array.from(
+                content.querySelectorAll('[data-slot="sidebar-menu-button"]')
+              ).map((row) => Math.round(row.getBoundingClientRect().height))
+            )
+          ),
+          scrolls: content.scrollHeight > content.clientHeight,
+          above: getComputedStyle(content, '::before').opacity,
+          below: getComputedStyle(content, '::after').opacity,
+          cue: getComputedStyle(content, '::after').backgroundColor,
+          border: getComputedStyle(document.documentElement).getPropertyValue(
+            '--color-border'
+          ),
+        };
+      });
+
+      // Every row keeps the 32 px it is drawn at, and the list scrolls instead.
+      expect(atTop.rowHeights, theme).toEqual([32]);
+      expect(atTop.scrolls, theme).toBe(true);
+
+      // Nothing sits above the first row yet, and the rule at the bottom says
+      // the list continues past it. It is the border color in both themes.
+      expect(atTop.above, theme).toBe('0');
+      expect(atTop.below, theme).toBe('1');
+      expect(parseColor(atTop.cue), theme).toEqual(parseColor(atTop.border));
+
+      await mainWindow.evaluate(() => {
+        const content = document.querySelector(
+          '[data-slot="sidebar"] [data-slot="sidebar-content"]'
+        );
+        if (content === null) {
+          throw new Error('The sidebar has no navigation');
+        }
+        content.scrollTop = content.scrollHeight;
+      });
+      await waitForLayout(mainWindow);
+
+      const atBottom = await mainWindow.evaluate(() => {
+        const content = document.querySelector(
+          '[data-slot="sidebar"] [data-slot="sidebar-content"]'
+        );
+        if (content === null) {
+          throw new Error('The sidebar has no navigation');
+        }
+
+        return {
+          above: getComputedStyle(content, '::before').opacity,
+          below: getComputedStyle(content, '::after').opacity,
+        };
+      });
+
+      // At the end of the list the two swap: rows sit above it, none below.
+      expect(atBottom.above, theme).toBe('1');
+      expect(atBottom.below, theme).toBe('0');
+    }
   });
 });

@@ -71,9 +71,10 @@ test.describe('Releases', () => {
     // version below are what the desktop app has to show of Core's answer.
     await createCollectionViaIpc(mainWindow, { projectId: project.id });
 
-    // The page is reached from the Project's sidebar.
+    // The page is reached from the Project's sidebar, whose row carries how
+    // many Releases there are, so its name starts with the row's own name.
     await navigateToProjectDashboard(mainWindow, project.id);
-    await mainWindow.getByRole('link', { name: 'Releases' }).click();
+    await mainWindow.getByRole('link', { name: /^Releases/ }).click();
     await verifyCurrentRouteHash(
       mainWindow,
       `#/projects/${project.id}/releases`

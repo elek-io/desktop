@@ -54,11 +54,13 @@ test.describe('Collections', () => {
     // verifies only the desktop app's part: the create reached Core, and the UI
     // reflects the result by listing the new Collection in the sidebar. Scope to
     // the sidebar (a complementary landmark) so the matching breadcrumb crumb on
-    // the detail page does not make the link locator ambiguous.
+    // the detail page does not make the link locator ambiguous. The row carries
+    // how many Entries the Collection holds, so its name starts with the
+    // Collection's own name rather than being it.
     await expect(
       mainWindow
         .getByRole('complementary')
-        .getByRole('link', { name: 'Articles' })
+        .getByRole('link', { name: /^Articles/ })
     ).toBeVisible();
   });
 
@@ -116,7 +118,7 @@ test.describe('Collections', () => {
     await expect(
       mainWindow
         .getByRole('complementary')
-        .getByRole('link', { name: 'Guides' })
+        .getByRole('link', { name: /^Guides/ })
     ).toBeVisible();
   });
 
@@ -154,14 +156,14 @@ test.describe('Collections', () => {
 
     // The delete redirecting to the Collections list is how Core's success
     // surfaces (it did not throw). The UI reflects the removal: the Collection
-    // is gone from the sidebar and the empty state shows. Its seeded Entry went
-    // with it (Core's cascade, which Core tests), so there is no Collection left
-    // to view Entries under.
+    // is gone from the sidebar and the bare route says there is none. Its
+    // seeded Entry went with it (Core's cascade, which Core tests), so there is
+    // no Collection left to view Entries under.
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/collections$/);
     await expect(
-      mainWindow.getByRole('link', { name: 'Articles' })
+      mainWindow.getByRole('link', { name: /^Articles/ })
     ).toBeHidden();
-    await expect(mainWindow.getByText('No Collections found')).toBeVisible();
+    await expect(mainWindow.getByText('No Collections yet')).toBeVisible();
   });
 
   test('surfaces a blocked delete in place when another Collection references in', async ({

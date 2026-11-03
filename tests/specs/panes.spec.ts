@@ -53,13 +53,22 @@ test.describe('A pane that is still reading', () => {
         muted: getComputedStyle(document.documentElement).getPropertyValue(
           '--color-muted'
         ),
-        running: document.getAnimations().length,
+        // Every animation the document runs but the two the Project's
+        // navigation declares for the rule that marks the edge its list
+        // continues past. Those follow the scroll position rather than a
+        // clock, so neither moves on its own, and what this catches is a
+        // pulse.
+        running: Array.from(document.getAnimations()).filter(
+          (animation) =>
+            animation.animationName?.startsWith('sidebar-content-') !== true
+        ).length,
       };
     });
 
     // Still rows in the muted surface: ci rules out the pulse, since nothing
-    // moves while a page loads. Nothing in this document runs an animation
-    // either, which catches a pulse put back anywhere else on this screen.
+    // moves while a page loads. Nothing in this document runs an animation of
+    // its own either, which catches a pulse put back anywhere else on this
+    // screen.
     expect(measured.count).toBeGreaterThan(0);
     expect(measured.animations).toEqual(['none']);
     expect(measured.running).toBe(0);

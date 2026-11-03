@@ -40,14 +40,18 @@ test.describe('History', () => {
 
     await navigateToHistory(mainWindow, project.id);
 
-    // The sidebar lists a commit per object type. Each commit renders as a Link
+    // The History lists a commit per object type. Each commit renders as a Link
     // whose label starts with "<method> <objectType>", so it is addressable by
     // that text. Newest-first ordering is Core's, so this only asserts presence.
+    // Each one is looked for inside the main panel, because the Project's
+    // sidebar beside it carries a Create Collection button of its own.
     await expect(
       mainWindow.getByRole('link', { name: /create project/i })
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('link', { name: /create collection/i })
+      mainWindow
+        .locator('[data-slot="panel"]')
+        .getByRole('link', { name: /create collection/i })
     ).toBeVisible();
     await expect(
       mainWindow.getByRole('link', { name: /create entry/i })
@@ -56,7 +60,10 @@ test.describe('History', () => {
     // The collection commit renders with the CollectionDiff. Its page title is
     // "<method> <objectType>" and a distinguishing Collection form field proves
     // the CollectionDiff (not another diff) rendered.
-    await mainWindow.getByRole('link', { name: /create collection/i }).click();
+    await mainWindow
+      .locator('[data-slot="panel"]')
+      .getByRole('link', { name: /create collection/i })
+      .click();
     await expect(
       mainWindow.getByRole('heading', { name: 'create collection' })
     ).toBeVisible();
@@ -97,12 +104,16 @@ test.describe('History', () => {
     await navigateToProjectDashboard(mainWindow, project.id);
 
     // "Latest changes" renders the seeded commits (the panel slices to the
-    // latest 5, but three commits are well under that cap).
+    // latest 5, but three commits are well under that cap). The Collection's
+    // change is looked for inside the main panel, because the Project's sidebar
+    // carries a Create Collection button of its own.
     await expect(
       mainWindow.getByRole('link', { name: /create project/i })
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('link', { name: /create collection/i })
+      mainWindow
+        .locator('[data-slot="panel"]')
+        .getByRole('link', { name: /create collection/i })
     ).toBeVisible();
     await expect(
       mainWindow.getByRole('link', { name: /create entry/i })
@@ -138,7 +149,10 @@ test.describe('History', () => {
     await navigateToHistory(mainWindow, project.id);
 
     // Open the collection-create commit's diff.
-    await mainWindow.getByRole('link', { name: /create collection/i }).click();
+    await mainWindow
+      .locator('[data-slot="panel"]')
+      .getByRole('link', { name: /create collection/i })
+      .click();
     await expect(
       mainWindow.getByRole('heading', { name: 'create collection' })
     ).toBeVisible();

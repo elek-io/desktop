@@ -1,4 +1,24 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+
+/** The Project's sidebar, which every screen inside a Project stands beside. */
+export function projectSidebar(page: Page): Locator {
+  return page.locator('[data-slot="sidebar"]');
+}
+
+/**
+ * What the Project's navigation lists, top to bottom, by the name each row
+ * shows.
+ *
+ * A row's name is its first span, so a count beside it, and the words a screen
+ * reader hears instead of that count, stay out of the order.
+ */
+export async function navigationRows(page: Page): Promise<string[]> {
+  return page
+    .locator('[data-slot="sidebar-content"] [data-slot="sidebar-menu-button"]')
+    .evaluateAll((rows) =>
+      rows.map((row) => row.querySelector('span')?.textContent?.trim() ?? '')
+    );
+}
 
 /**
  * Verify that the current route hash matches the expected hash

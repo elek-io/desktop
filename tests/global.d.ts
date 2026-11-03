@@ -16,8 +16,15 @@ interface ProbedElement {
   readonly textContent: string | null;
   readonly parentElement: ProbedElement | null;
   readonly clientHeight: number;
+  readonly clientWidth: number;
   readonly scrollHeight: number;
   readonly scrollWidth: number;
+  /**
+   * How far the element is scrolled, which one spec writes to: a sidebar that
+   * scrolls marks the edge it continues past, and scrolling it is how both
+   * marks are driven.
+   */
+  scrollTop: number;
   closest(selectors: string): ProbedElement | null;
   getAttribute(name: string): string | null;
   setAttribute(name: string, value: string): void;
@@ -46,12 +53,23 @@ interface ProbedElement {
   compareDocumentPosition(other: ProbedElement): number;
 }
 
+/**
+ * One animation the document is running, as the loading spec reads it.
+ *
+ * `animationName` is what a CSS animation carries, so an animation started any
+ * other way has none and counts as one the spec did not expect.
+ */
+interface ProbedAnimation {
+  readonly animationName?: string;
+}
+
 /** The computed properties the branding spec measures. */
 interface ProbedStyle {
   readonly animationName: string;
   readonly backgroundColor: string;
   readonly bottom: string;
   readonly display: string;
+  readonly opacity: string;
   readonly top: string;
   readonly width: string;
   readonly flexShrink: string;
@@ -77,7 +95,7 @@ declare const document: {
   getElementById(id: string): ProbedElement | null;
   readonly activeElement: ProbedElement | null;
   readonly documentElement: ProbedElement;
-  getAnimations(): ArrayLike<unknown>;
+  getAnimations(): ArrayLike<ProbedAnimation>;
   readonly fonts: Iterable<{ family: string }> & {
     ready: Promise<unknown>;
   };
