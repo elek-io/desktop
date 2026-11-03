@@ -14,6 +14,7 @@ import '@milkdown/kit/prose/view/style/prosemirror.css';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 
+import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import { cn } from '@renderer/lib/utils';
 
 import { z, type MarkdownFieldDefinition, type MdAstRoot } from '@elek-io/core';
@@ -22,6 +23,11 @@ import './markdown-editor.css';
 import { MarkdownToolbar } from './markdown-toolbar';
 import { docToMdast, mdastToDoc } from './mdast-bridge';
 import { buildEditorPlugins } from './plugin-assembly';
+import {
+  markFormatsPlugin,
+  noActiveMarkFormats,
+  type ActiveMarkFormats,
+} from './plugins/mark-formats';
 
 // Zod errors stringify their whole issue list as the message, show only the
 // first issue's human readable part instead
@@ -32,10 +38,51 @@ function bridgeErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * The attributes the field's control props become on the editable element.
+ *
+ * ProseMirror puts whatever `attributes` holds on the element that takes
+ * focus, so the label, the rules, the description and the error all reach the
+ * one place a screen reader reads them. `role="textbox"` is what makes
+ * `aria-required` and `aria-invalid` allowed there, and `aria-multiline` says
+ * the box holds more than one line.
+ */
+function editableAttributes(
+  controlProps: FieldControlProps,
+  label: string
+): Record<string, string> {
+  const describedBy = controlProps['aria-describedby'];
+
+  /* eslint-disable lingui/no-unlocalized-strings -- an ARIA role and the fixed
+  values of ARIA states, which read the same in every language */
+  return {
+    role: 'textbox',
+    'aria-multiline': 'true',
+    'aria-label': label,
+    ...(controlProps.id === undefined ? {} : { id: controlProps.id }),
+    ...(describedBy === undefined ? {} : { 'aria-describedby': describedBy }),
+    // Said either way, as the shell says it on every other control: a field
+    // that was valid and then is not has to change the state rather than gain
+    // it.
+    'aria-invalid': String(controlProps['aria-invalid'] === true),
+    ...(controlProps['aria-required'] === true
+      ? { 'aria-required': 'true' }
+      : {}),
+  };
+  /* eslint-enable lingui/no-unlocalized-strings */
+}
+
 export interface MarkdownEditorProps {
   value: MdAstRoot | null;
   onChange: (value: MdAstRoot | null) => void;
   fieldDefinition: MarkdownFieldDefinition;
+  /**
+   * The id and `aria-*` of the field, placed on the editable element, since
+   * that is what takes focus.
+   */
+  controlProps: FieldControlProps;
+  /** The field's label, which names the editable element. */
+  label: string;
   disabled?: boolean | undefined;
   className?: string | undefined;
 }
@@ -61,6 +108,8 @@ const MarkdownEditorInner = ({
   value,
   onChange,
   fieldDefinition,
+  controlProps,
+  label,
   disabled = false,
   className,
 }: MarkdownEditorProps): ReactElement => {
@@ -69,6 +118,12 @@ const MarkdownEditorInner = ({
   const lastEmittedRef = useRef<string | null>(null);
   const isHydratedRef = useRef(false);
   const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const [activeFormats, setActiveFormats] =
+    useState<ActiveMarkFormats>(noActiveMarkFormats);
+  // Read inside the plugin and the editor's config, both of which are built
+  // once per editor, so the attributes below never go stale.
+  const attributesRef = useRef(editableAttributes(controlProps, label));
+  attributesRef.current = editableAttributes(controlProps, label);
 
   const emit = (ctx: Ctx, doc: Node): void => {
     try {
@@ -94,7 +149,12 @@ const MarkdownEditorInner = ({
       return Editor.make()
         .config((ctx) => {
           ctx.set(rootCtx, root);
-          ctx.set(editorViewOptionsCtx, { editable: () => !disabled });
+          ctx.set(editorViewOptionsCtx, {
+            editable: () => !disabled,
+            // A function, so every state update puts the field's current
+            // attributes on the editable element again.
+            attributes: () => attributesRef.current,
+          });
           ctx
             .get(listenerCtx)
             .updated((listenerCtx_, doc) => {
@@ -106,7 +166,12 @@ const MarkdownEditorInner = ({
               emitRef.current(blurCtx, blurCtx.get(editorViewCtx).state.doc);
             });
         })
-        .use(buildEditorPlugins(fieldDefinition.features));
+        .use(buildEditorPlugins(fieldDefinition.features))
+        .use(
+          markFormatsPlugin(fieldDefinition.features, (formats) => {
+            setActiveFormats(formats);
+          })
+        );
     },
     // Rebuilding on disabled changes is fine, content re-hydrates from value
     [disabled]
@@ -148,6 +213,19 @@ const MarkdownEditorInner = ({
     });
   }, [loading, get, value]);
 
+  // The attributes are a doc decoration ProseMirror recomputes on a state
+  // update, so an error that arrives while nothing is typed would otherwise
+  // not reach the element. `setProps` asks for that redraw and nothing else.
+  const attributes = JSON.stringify(attributesRef.current);
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    get()?.action((ctx) => {
+      ctx.get(editorViewCtx).setProps({});
+    });
+  }, [loading, get, attributes]);
+
   return (
     <div
       className={cn(
@@ -158,6 +236,7 @@ const MarkdownEditorInner = ({
     >
       <MarkdownToolbar
         fieldDefinition={fieldDefinition}
+        activeFormats={activeFormats}
         disabled={disabled || loading}
       />
       <Milkdown />

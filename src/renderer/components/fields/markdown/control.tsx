@@ -16,6 +16,8 @@ export interface FormMarkdownFieldProps<
 > extends FieldControlProps {
   field: ControllerRenderProps<TFieldValues, TName>;
   fieldDefinition: MarkdownFieldDefinition;
+  /** The field's label, which names the editable element. */
+  label: string;
   disabled: boolean;
 }
 
@@ -32,22 +34,28 @@ function isMdAstRoot(value: unknown): value is MdAstRoot {
  * Thin adapter that binds the Milkdown based MarkdownEditor to a form field.
  * The Value is Core's mdast tree or null when empty.
  *
- * The control-association props land on the wrapper, not the editor, which is a
- * Milkdown contenteditable this must not reach into.
+ * The control-association props go to the editor rather than onto a wrapper,
+ * because the element that takes focus is the editable one inside it, and that
+ * is where a screen reader reads the label, the rules, the description and the
+ * error. The editor puts them there through ProseMirror's own `attributes`, so
+ * nothing reaches into Milkdown's contenteditable.
  */
 export function MarkdownControl<TFieldValues extends FieldValues>({
   field,
   fieldDefinition,
+  label,
   disabled,
   className,
   ...controlProps
 }: FormMarkdownFieldProps<TFieldValues>): React.ReactElement {
   return (
-    <div {...controlProps} ref={field.ref} onBlur={field.onBlur}>
+    <div ref={field.ref} onBlur={field.onBlur}>
       <MarkdownEditor
         value={isMdAstRoot(field.value) ? field.value : null}
         onChange={field.onChange}
         fieldDefinition={fieldDefinition}
+        controlProps={controlProps}
+        label={label}
         disabled={disabled}
         className={className}
       />

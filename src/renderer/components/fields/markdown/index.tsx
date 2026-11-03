@@ -18,15 +18,16 @@ import { MarkdownDefinitionDraft } from './definition';
 /** Rich text, stored as Core's mdast tree rather than as a markdown string. */
 export const markdownField: FieldTypeModule<'markdown'> = {
   translatable: true,
-  // The editor is a contenteditable the control must not reach into, so the
-  // control-association props land on its wrapper and the rules beside the
-  // label carry required.
-  acceptsAriaRequired: false,
+  // The editable element carries `role="textbox"`, which takes `aria-required`,
+  // so the editor is told the control's props through ProseMirror's own
+  // `attributes` rather than reached into.
+  acceptsAriaRequired: true,
   rules: scalarRules,
-  Control: ({ field, fieldDefinition, disabled, controlProps }) => (
+  Control: ({ field, fieldDefinition, disabled, controlProps, label }) => (
     <MarkdownControl
       field={field}
       fieldDefinition={fieldDefinition}
+      label={label}
       disabled={disabled}
       {...controlProps}
     />
