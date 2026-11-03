@@ -447,6 +447,21 @@ class Main {
         window.webContents.openDevTools();
       }
     } catch (error) {
+      // A window closed while its load still runs rejects that load too, and
+      // that is no failed start: nothing is left to load into, and the box a
+      // failed start shows would ask somebody who is already closing the app
+      // to acknowledge it. A close takes the window's web contents down first
+      // and the window itself a tick later, so the rejection can arrive while
+      // only the contents are gone, which is why both are asked.
+      if (window.isDestroyed() || window.webContents.isDestroyed()) {
+        this.core?.logger.warn({
+          source: 'desktop',
+          message: 'Loading the window stopped, because it was closed',
+          meta: errorLogAttributes(error),
+        });
+        return;
+      }
+
       // Electron rejects a pending load with ERR_ABORTED as soon as another
       // main frame navigation starts, even one the navigation guard blocks. Our
       // document is already showing by then, since only it can start one, so

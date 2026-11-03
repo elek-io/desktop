@@ -24,4 +24,6 @@ While a page is saving, its fields stay readable and keep the cursor where it wa
 
 On macOS, clicking the app's icon while elek.io Desktop is still starting no longer opens a second window. Two windows shared one answer to the question above, so the window you had typed in could close without asking.
 
+Closing elek.io Desktop while it is still starting now just closes it, instead of saying it could not start. Closing the window stops it from loading, which the app read as a start that had failed, and the box saying so had to be clicked away before the app would go.
+
 Nothing about your Projects changes, and nothing needs a migration.

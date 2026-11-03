@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -26,6 +27,74 @@ test.describe('App Initialization', () => {
     // Verify the initial "/" to "/projects" redirect happened
     await verifyCurrentRouteHash(mainWindow, '#/projects');
   });
+
+  // Both ways a window can go while its own first load is still running: the
+  // close button somebody presses, which takes the window's web contents down
+  // a tick before the window itself, and the destroy every close of a running
+  // app goes through, see `closeApp`.
+  for (const wayOut of ['closed', 'destroyed'] as const) {
+    test(`${wayOut} while it is still starting, it ends rather than reporting a failed start`, async ({
+      cloudUrl,
+    }, testInfo) => {
+      const launched = await launchApp(testInfo, { cloudUrl });
+      // Held while the app is up, since a closed app answers nothing anymore.
+      const appProcess = launched.process();
+      const reportedFailures: string[] = [];
+      launched.on('console', (message) => {
+        if (message.text().includes('Failed to initialize the app')) {
+          reportedFailures.push(message.text());
+        }
+      });
+      await launched.firstWindow();
+
+      try {
+        // The window goes while its own first load is still running, which is
+        // what closing the app right after it launched does. That rejects the
+        // load, and a rejection taken for a failed start would put a modal box
+        // on screen for somebody who is already closing the app.
+        const wentWhileLoading = await launched.evaluate(
+          ({ BrowserWindow }, how) => {
+            const [window] = BrowserWindow.getAllWindows();
+
+            if (
+              window === undefined ||
+              window.webContents.isLoading() === false
+            ) {
+              return false;
+            }
+
+            if (how === 'closed') {
+              window.close();
+            } else {
+              window.destroy();
+            }
+
+            return true;
+          },
+          wayOut
+        );
+        expect(wentWhileLoading).toBe(true);
+      } finally {
+        // Nobody is here to answer that box, so an app that took the rejection
+        // for a failed start would hold its process for good and this close
+        // would never return.
+        await closeApp(launched);
+      }
+
+      expect({
+        reportedFailures,
+        ended: appProcess.exitCode !== null || appProcess.signalCode !== null,
+      }).toEqual({ reportedFailures: [], ended: true });
+
+      // Launched here, so the data dirs are this spec's to drop, best effort
+      // like the fixture's. Left behind on a failure, like every other spec's,
+      // since the artifact ships them.
+      const { dataDir } = testDataDirs(testInfo);
+      await rm(path.dirname(dataDir), { recursive: true, force: true }).catch(
+        () => {}
+      );
+    });
+  }
 
   test.describe('activated while it is still starting', () => {
     // The start is held by replacing the User file with a named pipe, which the

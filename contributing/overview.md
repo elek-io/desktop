@@ -52,7 +52,12 @@ The order in step 4 matters: the renderer issues IPC calls as soon as it mounts,
 
 The handlers are registered once for the process and hold no window of their own. A handler that drives a window asks `windowOf(event)` which window the call came from, because `activate` creates a window again after the last one was closed, and a window held from registration is destroyed by then.
 
-If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. One rejection is not a failed start: Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing, and `loadWindow()` logs a warning and carries on. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
+If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. A rejected load is not always a failed start, and `loadWindow()` logs a warning and carries on where it is not:
+
+- The window was closed while its load was still running, which rejects that load. Nothing is left to load into, and the box would ask somebody who is already closing the app to acknowledge it. It is a modal native box, so where nobody answers it, such as a test run, it holds the app open for good.
+- Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing.
+
+See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
 
 Other lifecycle events: `activate` (macOS dock click) waits for the start above to finish and then recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS. The wait is what keeps the app at one window: an activation that lands while the start is still running would otherwise count the windows before the start created its own, and the second window it made would claim the same unsaved-changes state, so a clean window's answer could clear what the edited one claimed.
 
