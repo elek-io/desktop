@@ -53,8 +53,8 @@ function isMarkActive(state: EditorState, type: MarkType): boolean {
 }
 
 /**
- * Reports which inline formats are on whenever the document or the selection
- * changes, through ProseMirror's own view update rather than a poll.
+ * Reports which inline formats are on whenever that answer changes, through
+ * ProseMirror's own view update rather than a poll.
  *
  * It is handed the field's features, because a format the field does not allow
  * has no mark type to ask about.
@@ -78,19 +78,25 @@ export function markFormatsPlugin(
         }),
         noActiveMarkFormats
       );
+    const isSame = (a: ActiveMarkFormats, b: ActiveMarkFormats): boolean =>
+      types.every(({ format }) => a[format] === b[format]);
 
     return new Plugin({
       view: (view) => {
-        onChange(read(view.state));
+        let reported = read(view.state);
+        onChange(reported);
         return {
-          update: (updatedView, previousState) => {
-            if (
-              updatedView.state.doc.eq(previousState.doc) &&
-              updatedView.state.selection.eq(previousState.selection)
-            ) {
+          update: (updatedView) => {
+            // The reading itself is what a report is skipped on, rather than
+            // the document and the selection: turning a format on at a
+            // collapsed cursor changes neither of those, only the marks the
+            // next typed text takes, and the toolbar has to follow that.
+            const formats = read(updatedView.state);
+            if (isSame(formats, reported)) {
               return;
             }
-            onChange(read(updatedView.state));
+            reported = formats;
+            onChange(formats);
           },
         };
       },

@@ -71,6 +71,9 @@ export interface MarkdownToolbarProps {
  * that format is on, so somebody can see and hear what the text already is.
  * Every button runs on click, so the keyboard reaches it, and prevents the
  * default of the mouse press before it, so the editor's selection survives.
+ *
+ * Both kinds are the same square, since ci gives every button of the bar one
+ * size.
  */
 export const MarkdownToolbar = ({
   fieldDefinition,
@@ -105,7 +108,7 @@ export const MarkdownToolbar = ({
       key={label}
       type="button"
       variant="ghost"
-      size="icon"
+      size="icon-sm"
       disabled={disabled}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onRun}
@@ -132,6 +135,9 @@ export const MarkdownToolbar = ({
       key={label}
       type="button"
       size="sm"
+      // The same square as the plain buttons beside it, which hold nothing but
+      // an icon either.
+      className="px-0"
       disabled={disabled}
       pressed={isPressed}
       onMouseDown={(event) => event.preventDefault()}
@@ -172,7 +178,7 @@ export const MarkdownToolbar = ({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-sm"
                 disabled={disabled}
               />
             }

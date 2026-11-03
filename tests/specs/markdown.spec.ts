@@ -114,11 +114,21 @@ test.describe('The markdown field', () => {
       (node) => getComputedStyle(node).boxShadow
     );
 
-    // Typed text, selected, then Bold from the keyboard, which is the whole
-    // point of a button that acts like a toggle.
+    // ci gives every button of the bar one size, so a toggle and a button that
+    // inserts something measure the same square.
+    const toggleBox = await bold.boundingBox();
+    const insertBox = await mainWindow
+      .getByRole('button', { name: 'Reference an Asset' })
+      .boundingBox();
+    expect({
+      width: toggleBox?.width,
+      height: toggleBox?.height,
+    }).toEqual({ width: insertBox?.width, height: insertBox?.height });
+
+    // Bold from the keyboard with nothing selected, which turns the format on
+    // for whatever is typed next. Neither the text nor the selection changes
+    // there, so this is the state a toolbar watching those two misses.
     await editor.click();
-    await mainWindow.keyboard.type('Longer evenings');
-    await mainWindow.keyboard.press('ControlOrMeta+a');
     await bold.focus();
     await mainWindow.keyboard.press('Enter');
 
@@ -128,13 +138,33 @@ test.describe('The markdown field', () => {
     await expect(italic).toHaveAttribute('aria-pressed', 'false');
     await expectRingOf(bold).not.toBe(unpressedRing);
     await expectRingOf(bold).not.toBe('none');
-    await expect(editor.locator('strong')).toHaveText('Longer evenings');
 
-    // Pressing it again turns the format off, and the button with it.
+    // What the cursor carried is what the text comes out as, and the button
+    // stays pressed inside it.
+    await expect(editor).toBeFocused();
+    await mainWindow.keyboard.type('Longer evenings');
+    await expect(editor.locator('strong')).toHaveText('Longer evenings');
+    await expect(bold).toHaveAttribute('aria-pressed', 'true');
+
+    // Pressing it again at the cursor behind the text turns the format off for
+    // what comes next, and the button with it, while the text keeps its own.
     await bold.focus();
     await mainWindow.keyboard.press('Enter');
     await expect(bold).toHaveAttribute('aria-pressed', 'false');
     await expectRingOf(bold).toBe(unpressedRing);
+    await expect(editor.locator('strong')).toHaveText('Longer evenings');
+
+    // Over a selection the button says what that text is, and pressing it
+    // takes the format off the text itself.
+    await editor.click();
+    await mainWindow.keyboard.press('ControlOrMeta+a');
+    await expect(bold).toHaveAttribute('aria-pressed', 'true');
+    await bold.focus();
+    await mainWindow.keyboard.press('Enter');
+    await expect(bold).toHaveAttribute('aria-pressed', 'false');
+    await expectRingOf(bold).toBe(unpressedRing);
+    await expect(editor.locator('strong')).toHaveCount(0);
+    await expect(editor).toHaveText('Longer evenings');
   });
 
   test('says what it needs on the element that takes focus', async ({
