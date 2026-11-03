@@ -38,6 +38,13 @@ test.describe('A pane that is still reading', () => {
     await stubCoreHang(electronApp, 'core:projects:history');
     await navigate(mainWindow, `#/projects/${project.id}/history`);
 
+    // The probe below reads the document once, so it waits for the pane to
+    // have drawn its rows rather than racing the render: `navigate` returns as
+    // soon as the app is on the route, which is before the pane renders.
+    await expect(
+      mainWindow.locator('[data-slot="skeleton"]').first()
+    ).toBeVisible();
+
     const measured = await mainWindow.evaluate(() => {
       const skeletons = Array.from(
         document.querySelectorAll('[data-slot="skeleton"]')
