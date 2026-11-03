@@ -272,6 +272,13 @@ test.describe('A form while its own save runs', () => {
 
     const url = mainWindow.getByLabel('Remote URL', { exact: true });
 
+    // The form fills from its query, so it holds every field read-only until
+    // the Project has been read. The read is stubbed to hang below, so this
+    // waits for the first one to have landed rather than racing it: a stub put
+    // in place while it is still in flight would leave the form read-only for
+    // the reason this spec is not about.
+    await expect(url).toBeEditable();
+
     // The save answers at once and stores nothing, so what holds the form after
     // it is the read it asks for, and no Project ends up pointing at a remote
     // this spec would have to reach.

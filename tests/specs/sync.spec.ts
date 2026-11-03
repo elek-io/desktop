@@ -13,7 +13,7 @@ import {
   referenceFieldDefinition,
   textFieldDefinition,
 } from '../helpers/collection.js';
-import { dismissDialog } from '../helpers/dialog.js';
+import { dismissAlertDialog } from '../helpers/dialog.js';
 import {
   createEntryViaIpc,
   referenceValue,
@@ -26,6 +26,7 @@ import {
 } from '../helpers/ipc.js';
 import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import {
+  projectCard,
   projectSidebar,
   verifyCurrentRouteHash,
 } from '../helpers/navigation.js';
@@ -56,11 +57,6 @@ import {
   resizeWindow,
   waitForLayout,
 } from '../helpers/window.js';
-
-/** The Project card at the top of the sidebar, which Sync and its states sit in. */
-function projectCard(page: Page): Locator {
-  return page.locator('[data-slot="project-card"]');
-}
 
 /**
  * The dialog that answers a failed sync.
@@ -242,7 +238,7 @@ test.describe('Sync', () => {
     // Dismissing the dialog leaves the app usable, as the Project is untouched,
     // and the card keeps one line about the failure with the way back into the
     // dialog.
-    await dismissDialog(mainWindow);
+    await dismissAlertDialog(mainWindow);
     await expect(synchronize).toBeEnabled();
     const card = projectCard(mainWindow);
     await expect(card.getByText('Sync failed')).toBeVisible();
@@ -364,7 +360,7 @@ test.describe('Sync', () => {
 
     // Dismissing the dialog leaves the app usable (not crashed or mid-rebase):
     // the dashboard and its sidebar still render.
-    await dismissDialog(mainWindow);
+    await dismissAlertDialog(mainWindow);
     await expect(synchronize).toBeVisible();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/${project.id}/dashboard`)

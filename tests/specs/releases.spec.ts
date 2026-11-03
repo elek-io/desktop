@@ -22,6 +22,7 @@ import {
   stubCoreResolve,
 } from '../helpers/ipc.js';
 import {
+  projectCard,
   projectSidebar,
   verifyCurrentRouteHash,
 } from '../helpers/navigation.js';
@@ -151,8 +152,10 @@ test.describe('Releases', () => {
         .getByRole('listitem')
         .filter({ hasText: '0.1.0' })
     ).toBeVisible();
+    // The Project card names the Release it is now at, so the version Core
+    // wrote shows beside the Project rather than only in the list.
     await expect(
-      mainWindow.getByRole('button', { name: 'Test Project 0.1.0' })
+      projectCard(mainWindow).getByText('Release 0.1.0')
     ).toBeVisible();
     const { list, total } = await listReleasesViaIpc(mainWindow, {
       projectId: project.id,

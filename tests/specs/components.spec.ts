@@ -1201,8 +1201,10 @@ test.describe('Components', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeVisible();
+    // The message as its own sentence on the screen, not the copy of it inside
+    // the stack the error screen also shows.
     await expect(
-      mainWindow.getByText('E2E injected Internal failure')
+      mainWindow.getByText('E2E injected Internal failure', { exact: true })
     ).toBeVisible();
     await expect(
       mainWindow.getByText('Could not save this Component')

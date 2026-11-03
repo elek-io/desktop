@@ -6,6 +6,14 @@ export function projectSidebar(page: Page): Locator {
 }
 
 /**
+ * The Project card at the top of the sidebar: the switcher, what state the
+ * Project is in, its last Release and Sync.
+ */
+export function projectCard(page: Page): Locator {
+  return page.locator('[data-slot="project-card"]');
+}
+
+/**
  * The main panel, which is what a screen itself draws.
  *
  * Anything a screen shows is looked for in here rather than in the window,
