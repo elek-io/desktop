@@ -42,6 +42,11 @@ msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 
+#: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+msgid "{type}, {size}"
+msgstr "{type}, {size}"
+
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "A Collection"
 msgstr "A Collection"
@@ -347,14 +352,6 @@ msgstr "Asset saved to your computer"
 msgid "Assets"
 msgstr "Assets"
 
-#: src/renderer/components/fields/asset/control.tsx
-msgid "At least {assetMinimum} required."
-msgstr "At least {assetMinimum} required."
-
-#: src/renderer/components/fields/entry/control.tsx
-msgid "At least {entryMinimum} required."
-msgstr "At least {entryMinimum} required."
-
 #: src/renderer/lib/fieldRules.ts
 msgid "at least {min}"
 msgstr "at least {min}"
@@ -425,9 +422,9 @@ msgstr "Bytes"
 
 #: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/forms/project-form.tsx
-#: src/renderer/components/markdown/asset-reference-picker.tsx
-#: src/renderer/components/markdown/entry-reference-picker.tsx
 #: src/renderer/components/markdown/link-dialog.tsx
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+#: src/renderer/components/pickers/entry-picker-dialog.tsx
 #: src/renderer/components/report-dialog.tsx
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
@@ -459,6 +456,23 @@ msgstr "Changing your preferred language will attempt to translate everything yo
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Checkboxes inside lists. Requires lists."
 msgstr "Checkboxes inside lists. Requires lists."
+
+#: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/fields/entry/control.tsx
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+#: src/renderer/components/pickers/entry-picker-dialog.tsx
+msgid "Choose"
+msgstr "Choose"
+
+#: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/fields/entry/control.tsx
+msgid "Choose {label}"
+msgstr "Choose {label}"
+
+#: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/fields/entry/control.tsx
+msgid "Choose {label}, Required"
+msgstr "Choose {label}, Required"
 
 #: src/renderer/components/user-dropdown.tsx
 msgid "Choose a different port on your profile to start the local API."
@@ -905,8 +919,6 @@ msgstr "Disabled"
 msgid "Docs"
 msgstr "Docs"
 
-#: src/renderer/components/fields/asset/control.tsx
-#: src/renderer/components/fields/entry/control.tsx
 #: src/renderer/components/ui/translatable-field.tsx
 msgid "Done"
 msgstr "Done"
@@ -1024,6 +1036,22 @@ msgstr "Fill out your information below and watch it influence how your future c
 #: src/renderer/components/entry-table.tsx
 msgid "Filter {collectionName}"
 msgstr "Filter {collectionName}"
+
+#: src/renderer/components/pickers/entry-picker-dialog.tsx
+msgid "Filter {onlyCollectionName}"
+msgstr "Filter {onlyCollectionName}"
+
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+msgid "Filter Assets"
+msgstr "Filter Assets"
+
+#: src/renderer/components/pickers/entry-picker-dialog.tsx
+msgid "Filter Entries"
+msgstr "Filter Entries"
+
+#: src/renderer/components/fields/select/control.tsx
+msgid "Filter options"
+msgstr "Filter options"
 
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Footnote references and definitions."
@@ -1348,20 +1376,28 @@ msgid "Next"
 msgstr "Next"
 
 #: src/renderer/components/fields/asset/control.tsx
-msgid "No assets available. Add assets to the project first."
-msgstr "No assets available. Add assets to the project first."
+msgid "No Asset chosen"
+msgstr "No Asset chosen"
+
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+msgid "No Asset matches the filter."
+msgstr "No Asset matches the filter."
+
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+msgid "No Asset of a type this field takes yet. It takes {allowedMimeTypes}."
+msgstr "No Asset of a type this field takes yet. It takes {allowedMimeTypes}."
 
 #: src/renderer/components/forms/asset-mime-type-picker.tsx
 msgid "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 msgstr "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 
-#: src/renderer/components/fields/asset/control.tsx
-msgid "No assets of an allowed type available. This Field accepts {allowedMimeTypes}."
-msgstr "No assets of an allowed type available. This Field accepts {allowedMimeTypes}."
-
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "No Assets yet"
 msgstr "No Assets yet"
+
+#: src/renderer/components/pickers/asset-picker-dialog.tsx
+msgid "No Assets yet. Add one on the Assets screen first."
+msgstr "No Assets yet. Add one on the Assets screen first."
 
 #: src/renderer/components/project-sidebar.tsx
 msgid "No change reached the Git repository. It may hold something besides this Project, it may not be able to store Assets, or the same text may have been changed here and somewhere else. Your changes on this computer are safe. Ask whoever set up this Project."
@@ -1389,20 +1425,24 @@ msgid "No Components yet"
 msgstr "No Components yet"
 
 #: src/renderer/components/fields/entry/control.tsx
-msgid "No entries available. Create entries in the allowed collections first."
-msgstr "No entries available. Create entries in the allowed collections first."
+msgid "No Entry chosen"
+msgstr "No Entry chosen"
 
-#: src/renderer/components/markdown/entry-reference-picker.tsx
-msgid "No Entries available. Create Entries in the allowed Collections first."
-msgstr "No Entries available. Create Entries in the allowed Collections first."
+#: src/renderer/components/pickers/entry-picker-dialog.tsx
+msgid "No Entry matches the filter."
+msgstr "No Entry matches the filter."
+
+#: src/renderer/components/pickers/entry-picker-dialog.tsx
+msgid "No Entry yet in the Collections this field allows. Create one first."
+msgstr "No Entry yet in the Collections this field allows. Create one first."
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "No languages found."
 msgstr "No languages found."
 
-#: src/renderer/components/markdown/asset-reference-picker.tsx
-msgid "No matching Assets available. Add Assets to the project first."
-msgstr "No matching Assets available. Add Assets to the project first."
+#: src/renderer/components/fields/select/control.tsx
+msgid "No option matches the filter."
+msgstr "No option matches the filter."
 
 #: src/renderer/routes/projects/index.tsx
 msgid "No Projects yet"
@@ -1425,7 +1465,6 @@ msgid "No text based Fields to generate from yet. Add one first or leave this em
 msgstr "No text based Fields to generate from yet. Add one first or leave this empty."
 
 #: src/renderer/components/fields/select/control.tsx
-#: src/renderer/components/fields/select/definition.tsx
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "None"
 msgstr "None"
@@ -1710,6 +1749,10 @@ msgstr "Remote URL"
 msgid "Remote URL saved"
 msgstr "Remote URL saved"
 
+#: src/renderer/components/fields/entry/control.tsx
+msgid "Remove"
+msgstr "Remove"
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Remove {language}"
 msgstr "Remove {language}"
@@ -1719,12 +1762,12 @@ msgid "Remove {languagePendingRemoval} from this Project?"
 msgstr "Remove {languagePendingRemoval} from this Project?"
 
 #: src/renderer/components/fields/asset/control.tsx
-msgid "Remove {name}"
-msgstr "Remove {name}"
+msgid "Remove {name} from {label}"
+msgstr "Remove {name} from {label}"
 
 #: src/renderer/components/fields/entry/control.tsx
-msgid "Remove {title}"
-msgstr "Remove {title}"
+msgid "Remove {title} from {label}"
+msgstr "Remove {title} from {label}"
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "Remove language"
@@ -1745,6 +1788,22 @@ msgstr "Remove the {name} section"
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Remove this Project?"
 msgstr "Remove this Project?"
+
+#: src/renderer/components/fields/asset/control.tsx
+msgid "Replace"
+msgstr "Replace"
+
+#: src/renderer/components/fields/asset/control.tsx
+msgid "Replace {label}"
+msgstr "Replace {label}"
+
+#: src/renderer/components/fields/asset/control.tsx
+msgid "Replace {label}, Required"
+msgstr "Replace {label}, Required"
+
+#: src/renderer/components/fields/asset/control.tsx
+msgid "Replace {name} in {label}"
+msgstr "Replace {name} in {label}"
 
 #: src/renderer/components/asset-teaser.tsx
 msgid "Replace file"
@@ -1838,37 +1897,13 @@ msgstr "Select a replacement file"
 msgid "Select Asset to add"
 msgstr "Select Asset to add"
 
-#: src/renderer/components/fields/asset/control.tsx
-msgid "Select Assets"
-msgstr "Select Assets"
-
 #: src/renderer/components/ui/date-picker.tsx
 msgid "Select date"
 msgstr "Select date"
 
-#: src/renderer/components/fields/entry/control.tsx
-msgid "Select Entries"
-msgstr "Select Entries"
-
-#: src/renderer/components/fields/asset/control.tsx
-msgid "Select one or more assets."
-msgstr "Select one or more assets."
-
-#: src/renderer/components/fields/entry/control.tsx
-msgid "Select one or more entries."
-msgstr "Select one or more entries."
-
 #: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet."
 msgstr "Select the Components to allow as well. The ones allowed already are listed rather than offered, since taking one away is not possible yet."
-
-#: src/renderer/components/fields/asset/control.tsx
-msgid "Select up to {assetMaximum, plural, one {# asset} other {# assets}}."
-msgstr "Select up to {assetMaximum, plural, one {# asset} other {# assets}}."
-
-#: src/renderer/components/fields/entry/control.tsx
-msgid "Select up to {entryMaximum, plural, one {# entry} other {# entries}}."
-msgstr "Select up to {entryMaximum, plural, one {# entry} other {# entries}}."
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "Select which languages this Projects content has to be translated into. Adding one means every existing Collection and Entry needs a translation for it before it can be saved again, and removing one orphans the content already translated into it."
@@ -2018,6 +2053,10 @@ msgstr "The action does not delete this Project from other devices - just\n"
 msgid "The Asset is inserted at the cursor position."
 msgstr "The Asset is inserted at the cursor position."
 
+#: src/renderer/components/fields/asset/control.tsx
+msgid "The Assets this field takes."
+msgstr "The Assets this field takes."
+
 #: src/renderer/routes/projects/$projectId/history.tsx
 msgid "the changes of this Project"
 msgstr "the changes of this Project"
@@ -2049,6 +2088,10 @@ msgstr "The default language changed"
 #: src/renderer/components/forms/project-form.tsx
 msgid "The default language of this Project. Needs to be one of the supported languages."
 msgstr "The default language of this Project. Needs to be one of the supported languages."
+
+#: src/renderer/components/fields/entry/control.tsx
+msgid "The Entries this field allows."
+msgstr "The Entries this field allows."
 
 #: src/renderer/components/fields/text/index.tsx
 #: src/renderer/components/fields/textarea/index.tsx
@@ -2223,6 +2266,10 @@ msgstr "The name of each Entry inside your new Collection. Choose a short name i
 #: src/renderer/components/forms/collection-form.tsx
 msgid "The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. \"Blogposts\"."
 msgstr "The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. \"Blogposts\"."
+
+#: src/renderer/components/fields/asset/control.tsx
+msgid "The one you choose replaces {replacedName}."
+msgstr "The one you choose replaces {replacedName}."
 
 #: src/renderer/components/fields/select/definition.tsx
 msgid "The options a user can choose between. The label is what users see, the value is what gets stored."
