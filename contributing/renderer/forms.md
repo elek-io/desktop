@@ -81,9 +81,11 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   map is the single source of the "expected" set, never a blanket
   `throwOnError: false`. Unhandled failures reach the root error boundary. See
   [error-handling.md](../error-handling.md).
-- **No validator's own words reach a field.** One zod error map words every
-  refusal zod raises, and the field type a refusal Core worded itself lands on
-  words that one. An issue code without words fails the type check. See
+- **No validator's own words reach an Entry's fields.** One zod error map words
+  every refusal zod raises, and the field type a refusal Core worded itself
+  lands on words that one. An issue code without words fails the type check. A
+  Collection's and a Component's settings are the exception, where a
+  hand-written field shows a refusal of a field definition as Core wrote it. See
   [The words a refused Value is explained in](#the-words-a-refused-value-is-explained-in).
 
 ## Writing a form
@@ -237,7 +239,8 @@ English. Those are worded by the field type they land on, through
 code. Core gives them no code, so a module matches the opening of the text,
 which [`components/fields/core-refusals.ts`](../../src/renderer/components/fields/core-refusals.ts)
 holds in one place. A refusal no module knows gets one sentence of its own, so a
-message a Core release rewords falls to that rather than reaching a field.
+message a Core release rewords falls to that rather than showing Core's English
+in the field.
 `refusal-words.spec.ts` triggers each of them against the installed Core, so a
 reword fails there instead.
 

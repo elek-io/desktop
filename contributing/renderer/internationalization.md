@@ -128,12 +128,14 @@ function SyncButton({ label }: { label: string }): ReactElement {
 
 ### The words a refused Value is explained in
 
-A validator writes English of its own, and none of it reaches a field. zod's
-goes through one error map, [`lib/refusedValueText.ts`](../../src/renderer/lib/refusedValueText.ts),
+A validator writes English of its own, and none of it reaches an Entry's
+fields. zod's goes through one error map, [`lib/refusedValueText.ts`](../../src/renderer/lib/refusedValueText.ts),
 which [`app.tsx`](../../src/renderer/app.tsx) installs once when the renderer
 starts and which words every issue code through the catalog. Core's own, which
 zod lets outrank every map, is worded by the field type the refusal lands on.
-The whole mechanism is in [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
+A hand-written field passes no such words, so a Collection's and a Component's
+settings still show what Core wrote about a field definition. The whole
+mechanism is in [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
 
 Two things follow for the catalog. A sentence that counts something, such as how
 many characters a field takes, is one `plural` message rather than a sentence
