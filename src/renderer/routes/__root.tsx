@@ -25,6 +25,7 @@ import { Button } from '@renderer/components/ui/button';
 import { ScrollArea, ScrollBar } from '@renderer/components/ui/scroll-area';
 import { Toaster } from '@renderer/components/ui/sonner';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
+import { UnsavedChangesProvider } from '@renderer/providers/UnsavedChangesProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
 
 export interface RouterContext {}
@@ -227,10 +228,15 @@ function RootComponent(): ReactElement {
       <HeadContent />
       <UserProvider>
         <BreadcrumbProvider>
-          <AppHeader trail={<HeaderTrail />} user={<HeaderUser />} />
-          <AppGround>
-            <Outlet />
-          </AppGround>
+          {/* Above the route, so leaving a page and closing the window ask the
+          same question in the same dialog, and so the main process is told
+          about every form on screen at once. */}
+          <UnsavedChangesProvider>
+            <AppHeader trail={<HeaderTrail />} user={<HeaderUser />} />
+            <AppGround>
+              <Outlet />
+            </AppGround>
+          </UnsavedChangesProvider>
           <Toaster />
           <TanStackRouterDevtools
             position="bottom-right"

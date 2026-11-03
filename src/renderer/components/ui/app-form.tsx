@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro';
+import { useBlocker } from '@tanstack/react-router';
 import {
   createContext,
   useCallback,
@@ -33,6 +34,7 @@ import {
   FieldWarning,
 } from '@renderer/components/ui/field';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
+import { Spinner } from '@renderer/components/ui/spinner';
 import {
   AppFormContext,
   useAppFormId,
@@ -41,6 +43,10 @@ import {
   useErrorTarget,
   type AppFormContextValue,
 } from '@renderer/hooks/useAppFormContext';
+import {
+  useUnsavedChanges,
+  useUnsavedChangesClaim,
+} from '@renderer/hooks/useUnsavedChanges';
 import {
   alsoRequired,
   fieldRules,
@@ -54,6 +60,7 @@ import {
   isAtOrBelow,
   type FieldErrorMessage,
 } from '@renderer/lib/formErrors';
+import { isLeavingThePage } from '@renderer/lib/leaveGuard';
 import { cn } from '@renderer/lib/utils';
 
 // The form layer: the one <form>, the one submit control, the one field shell
@@ -355,6 +362,10 @@ interface FormActionsContextValue {
   isDirty: boolean;
   isSubmitting: boolean;
   isDisabled: boolean;
+  /** Why the form cannot be saved yet, or `undefined` while it can be. */
+  blockedBy: string | undefined;
+  /** The id of the line that says it, which Save points at. */
+  blockedById: string | undefined;
 }
 
 const FormActionsContext = createContext<FormActionsContextValue | null>(null);
@@ -386,6 +397,23 @@ export interface AppFormProps<
    * component without a second read-only code path.
    */
   mode?: 'edit' | 'view';
+  /**
+   * Why this form cannot be saved yet, such as a required Value a language is
+   * still missing. While it is set, the submit is ignored, so Enter in a field
+   * saves nothing either and nothing reaches Core.
+   *
+   * The same reason goes to the `FormActions` that holds this form's Save,
+   * which is what puts it on screen below the button. Both are given it,
+   * because the button sits outside the form's own subtree, see
+   * [Save's block](../../../../contributing/renderer/forms.md#saves-block).
+   */
+  blockedBy?: string | undefined;
+  /**
+   * The page's own title, which turns the leave guard on and names it in the
+   * question: "Discard your changes to <title>?". A form that passes none asks
+   * nothing, which every form but a page form does.
+   */
+  unsavedChangesTitle?: string | undefined;
   className?: string;
   /**
    * Classes for the `<fieldset>` AppForm wraps its children in. Needed because
@@ -400,8 +428,9 @@ export interface AppFormProps<
 
 /**
  * The only place a <form> element is written in the app. It owns noValidate, the
- * handleSubmit wiring, the id a detached SubmitButton associates with, and the
- * view-only mode. See contributing/renderer/forms.md.
+ * handleSubmit wiring, the id a detached SubmitButton associates with, the
+ * view-only mode, a blocked submit and the guard that asks before unsaved
+ * changes are lost. See contributing/renderer/forms.md.
  */
 export function AppForm<
   TFieldValues extends FieldValues,
@@ -412,6 +441,8 @@ export function AppForm<
   schema,
   id,
   mode = 'edit',
+  blockedBy,
+  unsavedChangesTitle,
   className,
   fieldsetClassName,
   children,
@@ -462,6 +493,57 @@ export function AppForm<
     }
   }, [unsurfacedErrors]);
 
+  // Whether this form holds something nobody saved. A form fills from its query
+  // through `values`, which does not dirty it, so this is what somebody typed,
+  // see loading-and-updating-data.md.
+  const { isDirty } = useFormState({ control: form.control });
+  // Whether the submit that is running right now is this form's own. A ref
+  // rather than `formState.isSubmitting`, because the navigation a submit ends
+  // in happens inside the awaited handler, before React has rendered the new
+  // state, and the guard below is read at that moment.
+  const isSubmittingRef = useRef(false);
+  const guardId = useId();
+  const unsavedChanges = useUnsavedChanges();
+  const isGuarded = unsavedChangesTitle !== undefined && mode === 'edit';
+
+  // What the question before the window closes is about, which only the one
+  // place that asks can know, since this form is not the only one on screen.
+  useUnsavedChangesClaim(
+    guardId,
+    isGuarded ? unsavedChangesTitle : undefined,
+    isDirty
+  );
+
+  // Leaving the page this form is on. The route is compared rather than the
+  // whole address, because every push and replace runs the router's blockers,
+  // a change of nothing but the search params included, and the language a form
+  // edits lives there. `enableBeforeUnload` stays off: closing the window is
+  // held in the main process instead, which is the only process that can tell
+  // the renderer about it, see src/main/index.ts.
+  const leaveGuard = useBlocker({
+    disabled: isGuarded === false || isDirty === false,
+    enableBeforeUnload: false,
+    withResolver: true,
+    shouldBlockFn: (navigation) =>
+      isLeavingThePage(navigation) && isSubmittingRef.current === false,
+  });
+
+  useEffect(() => {
+    if (
+      leaveGuard.status !== 'blocked' ||
+      unsavedChanges === null ||
+      unsavedChangesTitle === undefined
+    ) {
+      return;
+    }
+    const { proceed, reset } = leaveGuard;
+    unsavedChanges.ask({
+      title: unsavedChangesTitle,
+      onKeepEditing: reset,
+      onDiscard: proceed,
+    });
+  }, [leaveGuard, unsavedChanges, unsavedChangesTitle]);
+
   const context = useMemo<AppFormContextValue>(
     // The schema is rebuilt each render where it is built from the Project's
     // languages, so this memo only holds while that form is not rendering
@@ -503,18 +585,32 @@ export function AppForm<
     // without this a nested AppForm also submits its parent. handleSubmit already
     // calls preventDefault.
     event.stopPropagation();
-    if (mode === 'view') {
+    // A blocked form saves nothing, however the submit was raised. Save is
+    // `aria-disabled` rather than disabled, so it stays in the tab order and
+    // takes a click, and Enter in a field raises a submit of its own, so the
+    // one place both arrive is here. See contributing/renderer/forms.md.
+    if (mode === 'view' || blockedBy !== undefined) {
       event.preventDefault();
       return;
     }
     setUnsurfacedErrors((previous) => (previous.length === 0 ? previous : []));
+    // The navigation this submit may end in is the form's own, so the leave
+    // guard lets it through. Set before the submit rather than read off
+    // `formState`, which React has not rendered yet by then.
+    isSubmittingRef.current = true;
     // handleSubmit re-throws whatever onSubmit rejected with, after awaiting it.
     // Nothing is left to catch that by then, so hold it and re-throw it during
     // render, where the root error boundary sees it. A CoreError handled in place
     // never gets here, since that recipe catches inside onSubmit.
-    void submit(event).catch((error: unknown) => {
-      setSubmitError(error instanceof Error ? error : new Error(String(error)));
-    });
+    void submit(event)
+      .catch((error: unknown) => {
+        setSubmitError(
+          error instanceof Error ? error : new Error(String(error))
+        );
+      })
+      .finally(() => {
+        isSubmittingRef.current = false;
+      });
   };
 
   if (submitError !== null) {
@@ -637,6 +733,16 @@ export interface FormActionsProps<
    * is enough when the button sits inside the form's own subtree.
    */
   id?: string | undefined;
+  /**
+   * Why the form cannot be saved yet, in the words the person reads, such as
+   * "de is missing 1 Value". It stands below Save on a row of its own, and Save
+   * points at it.
+   *
+   * The same reason goes to the `AppForm`, which is what makes the submit a
+   * no-op. Both are given it, because this area sits outside the form's own
+   * subtree, see [Save's block](../../../../contributing/renderer/forms.md#saves-block).
+   */
+  blockedBy?: string | undefined;
   children: ReactNode;
 }
 
@@ -645,6 +751,9 @@ export interface FormActionsProps<
  * sheet footer) and makes the form's reactive gating available to it. It
  * subscribes through `useFormState`, so the enclosed button re-renders when the
  * form dirties or starts submitting.
+ *
+ * Where the form is blocked it also draws the reason below the button, which is
+ * where ci puts what keeps a form from saving.
  */
 export function FormActions<
   TFieldValues extends FieldValues,
@@ -652,6 +761,7 @@ export function FormActions<
 >({
   form,
   id,
+  blockedBy,
   children,
 }: FormActionsProps<TFieldValues, TTransformedValues>): ReactNode {
   const {
@@ -661,10 +771,32 @@ export function FormActions<
   } = useFormState({ control: form.control });
   const appFormId = useAppFormId();
   const formId = id ?? appFormId ?? undefined;
+  const generatedId = useId();
+  const blockedById = blockedBy === undefined ? undefined : generatedId;
 
   return (
-    <FormActionsContext value={{ formId, isDirty, isSubmitting, isDisabled }}>
-      {children}
+    <FormActionsContext
+      value={{
+        formId,
+        isDirty,
+        isSubmitting,
+        isDisabled,
+        blockedBy,
+        blockedById,
+      }}
+    >
+      {/* Only a blocked form gains an element of its own, so the row of
+      buttons every other form renders here is laid out exactly as before. */}
+      {blockedBy === undefined ? (
+        children
+      ) : (
+        <div className="flex flex-col items-end gap-1.5">
+          {children}
+          <FieldWarning id={blockedById} data-slot="form-blocked-reason">
+            {blockedBy}
+          </FieldWarning>
+        </div>
+      )}
     </FormActionsContext>
   );
 }
@@ -694,9 +826,15 @@ export interface SubmitButtonProps extends Omit<
 }
 
 /**
- * The only submit control. It always disables while the form is submitting or
- * still filling from its query, and additionally on a pristine form when
- * `requireDirty` is set. All three read the enclosing FormActions.
+ * The only submit control. It blocks while the form is submitting, while it is
+ * still filling from its query, while the form gave a reason it cannot be
+ * saved, and on a pristine form when `requireDirty` is set. All four read the
+ * enclosing FormActions.
+ *
+ * Blocked means `aria-disabled`, not `disabled`: the control keeps its place in
+ * the tab order, so it can be reached and read out with the reason it points
+ * at, which is what ci draws. The click it then still takes is stopped here,
+ * and `AppForm` ignores a blocked submit however else it arrives.
  * See contributing/renderer/forms.md.
  */
 export function SubmitButton({
@@ -704,6 +842,8 @@ export function SubmitButton({
   requireDirty = false,
   disabled,
   isLoading,
+  Icon,
+  onClick,
   children,
   ...props
 }: SubmitButtonProps): ReactNode {
@@ -717,10 +857,12 @@ export function SubmitButton({
   // defaults over what is stored. Its fields are disabled, so this is the same
   // fact said once more for the control that sits outside them.
   const isDisabled = actions?.isDisabled ?? false;
-  const gatedDisabled =
+  const isBusy = isLoading ?? isSubmitting;
+  const isBlocked =
     disabled === true ||
-    isSubmitting ||
+    isBusy ||
     isDisabled ||
+    actions?.blockedBy !== undefined ||
     (requireDirty && isDirty === false);
 
   return (
@@ -730,9 +872,26 @@ export function SubmitButton({
       {...props}
       type="submit"
       form={formId}
-      disabled={gatedDisabled}
-      isLoading={isLoading ?? isSubmitting}
+      {...(isBlocked ? { 'aria-disabled': true } : {})}
+      {...(actions?.blockedById === undefined
+        ? {}
+        : { 'aria-describedby': actions.blockedById })}
+      onClick={(event) => {
+        if (isBlocked) {
+          // Stops the submit a click on a submit button would raise, without
+          // taking the control out of the tab order the way `disabled` would.
+          event.preventDefault();
+          return;
+        }
+        onClick?.(event);
+      }}
+      // The spinner is rendered here rather than through `Button`'s own
+      // `isLoading`, which sets the native `disabled` this control must not
+      // carry. It is what `Button` draws for a waiting button, hidden from the
+      // accessible name the same way.
+      {...(isBusy || Icon === undefined ? {} : { Icon })}
     >
+      {isBusy ? <Spinner aria-hidden="true" /> : null}
       {children}
     </Button>
   );
