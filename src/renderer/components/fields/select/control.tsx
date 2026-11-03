@@ -34,8 +34,8 @@ import type {
  * How many options still read as a list of radio buttons.
  *
  * ci draws every select as a list of radio buttons and sets no bound for a long
- * one, so Nils decided this one: up to seven options stay a list, and more show
- * as a dropdown with a filter, which is what a list of 86 would need.
+ * one, so the bound is Desktop's: up to seven options stay a list, and more
+ * show as a dropdown with a filter, which is what a list of 86 would need.
  */
 const RADIO_LIST_LIMIT = 7;
 

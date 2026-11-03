@@ -282,7 +282,7 @@ Their definition forms add type-specific options:
 A select field takes one Value out of a named list, and ci draws that list rather than a menu. `OptionChoice` ([`fields/select/control.tsx`](../../src/renderer/components/fields/select/control.tsx)) is the one control for it:
 
 - **Up to seven options are a list of radio buttons**, named by the field's label through `aria-label`, since a radio group takes no name from the buttons inside it. Its role is one of those that do take `aria-required`.
-- **More than seven are a combobox with a filter**, because ci's own example of a long list is 86 Entries. Nils decided the bound.
+- **More than seven are a combobox with a filter**, because ci's own example of a long list is 86 Entries. ci sets no bound for a long list, so this one is Desktop's.
 - **None leads the list wherever the Value may stay empty**: an optional field, and a Default Value in a field's settings, which is the same control.
 
 An option is keyed by its place in the list, because an option's own value can be the empty string, which no item value may be. What the field stores is the option's own string or number, unchanged from what the menu stored before.
