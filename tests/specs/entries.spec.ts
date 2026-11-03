@@ -1,10 +1,11 @@
 import { expect, type Page } from '@playwright/test';
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Collection } from '@elek-io/core';
+import type { Collection, MdAstRoot } from '@elek-io/core';
 
 import { test, testDataDirs } from '../fixtures/electronApp.js';
+import { relaunchApp } from '../helpers/app.js';
 import {
   createAssetViaIpc,
   deleteAssetViaIpc,
@@ -20,6 +21,7 @@ import {
   dynamicFieldDefinition,
   emailFieldDefinition,
   ipv4FieldDefinition,
+  markdownFieldDefinition,
   navigateToCollection,
   numberFieldDefinition,
   rangeFieldDefinition,
@@ -42,6 +44,8 @@ import {
   createEntryViaIpc,
   fillEntryForm,
   listEntriesViaIpc,
+  markdownEditorSurface,
+  markdownValue,
   navigateToEntryCreate,
   navigateToEntryUpdate,
   referenceValue,
@@ -550,6 +554,176 @@ test.describe('Entries', () => {
     expect(shown).not.toContain('canonical');
   });
 
+  test('says how many blocks a markdown field is short of or over', async ({
+    mainWindow,
+  }) => {
+    // Core counts a markdown field's blocks on the tree inside the Value, so
+    // both of these refusals land below the path the field binds. They are the
+    // two an editor reaches by writing, and one submit refuses both.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        markdownFieldDefinition({ isRequired: true, min: 2 }),
+        markdownFieldDefinition({
+          slug: 'teaser',
+          label: { en: 'Teaser' },
+          isRequired: true,
+          max: 1,
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring service' });
+    const editors = markdownEditorSurface(mainWindow);
+    await editors.first().click();
+    await mainWindow.keyboard.type('One block, where the field asks for two');
+    await editors.last().click();
+    await mainWindow.keyboard.type('First block');
+    await mainWindow.keyboard.press('Enter');
+    await mainWindow.keyboard.type('Second block, where the field takes one');
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+
+    // Both fields say what they need and mark their editor, rather than the
+    // press doing nothing at all.
+    await expectErrorOf(mainWindow, 'Body').toBe(
+      'This field needs at least 2.'
+    );
+    expect(await errorOf(mainWindow, 'Teaser')).toBe(
+      'This field takes up to 1.'
+    );
+    await expect(editors.first()).toHaveAttribute('aria-invalid', 'true');
+    await expect(editors.last()).toHaveAttribute('aria-invalid', 'true');
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
+    );
+  });
+
+  test("says what an Entry's fields need for a refusal Core worded itself", async ({
+    electronApp,
+    mainWindow,
+  }, testInfo) => {
+    // A reference to an Entry of a Collection the field does not allow, on an
+    // Entry field and inside a markdown tree. Core refuses to write either, so
+    // both are put into the Project's file and the app restarted, which is how
+    // a Project a pull or another client changed arrives. The restart is also
+    // what clears Core's file cache, which a write from outside cannot.
+    //
+    // Slow on purpose: two app launches, and the editor parses the tree it is
+    // given before the form can be submitted.
+    test.slow();
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // The one Collection both fields allow, and the Entry below belongs to
+    // another one, so its reference to itself is one they do not take.
+    const allowed = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Note' }, plural: { en: 'Notes' } },
+      slug: { singular: 'note', plural: 'notes' },
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        referenceFieldDefinition({ ofCollections: [allowed.id] }),
+        markdownFieldDefinition({
+          ofCollections: [allowed.id],
+          features: {
+            ...markdownFieldDefinition().features,
+            entryReferences: true,
+          },
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Spring service' }),
+        related: referenceValue(),
+        body: markdownValue({ en: null }),
+      },
+    });
+
+    const file = join(
+      testDataDirs(testInfo).dataDir,
+      'projects',
+      project.id,
+      'collections',
+      collection.id,
+      `${entry.id}.json`
+    );
+    const stored = JSON.parse(readFileSync(file, 'utf8')) as {
+      values: Record<string, Record<string, unknown>>;
+    };
+    const tree: MdAstRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            { type: 'text', value: 'See ' },
+            {
+              type: 'entryReference',
+              collectionId: collection.id,
+              entryId: entry.id,
+              children: [{ type: 'text', value: 'this' }],
+            },
+          ],
+        },
+      ],
+    };
+    stored.values['related'] = {
+      ...stored.values['related'],
+      content: {
+        en: [
+          { objectType: 'entry', id: entry.id, collectionId: collection.id },
+        ],
+      },
+    };
+    stored.values['body'] = {
+      ...stored.values['body'],
+      content: { en: tree },
+    };
+    writeFileSync(file, JSON.stringify(stored, null, 2));
+
+    const { app, window } = await relaunchApp(testInfo, electronApp);
+    try {
+      await navigateToEntryUpdate(window, {
+        projectId: project.id,
+        collectionId: collection.id,
+        entryId: entry.id,
+      });
+      await window
+        .getByLabel('Title', { exact: true })
+        .fill('Spring service, edited');
+      await window.getByRole('button', { name: 'Update Article' }).click();
+
+      // Each field says it in its own type's words, which is the one thing the
+      // error map cannot do: Core's message arrives with the issue and outranks
+      // every map.
+      await expectErrorOf(window, 'Related').toBe(
+        "One Entry here is from a Collection this field doesn't take. Choose another one."
+      );
+      await expectErrorOf(window, 'Body').toBe(
+        "One Entry in this text is from a Collection this field doesn't take. Point it somewhere else."
+      );
+
+      // And Core's own English is nowhere on the page.
+      const shown = await window.locator('body').innerText();
+      expect(shown).not.toContain('must belong to one of the allowed');
+    } finally {
+      // The relaunched app is not covered by the fixture teardown, so close it.
+      await app.close();
+    }
+  });
+
   test('lists entries with the expected table chrome', async ({
     mainWindow,
   }) => {
@@ -718,9 +892,7 @@ test.describe('Entries', () => {
     await translationsTrigger.click();
     const languages = mainWindow.getByRole('dialog', { name: 'Title' });
     await expect(languages).toBeVisible();
-    await expect(
-      languages.getByText('Fill in this field.')
-    ).toBeVisible();
+    await expect(languages.getByText('Fill in this field.')).toBeVisible();
   });
 
   test('formats temporal fields and relative columns per the user language', async ({
@@ -1393,9 +1565,7 @@ test.describe('Entries', () => {
     // The inner field says what is wrong and is marked invalid, while the
     // field holding the sections says nothing and is not.
     await expect(headline).toHaveAttribute('aria-invalid', 'true');
-    await expectErrorOf(mainWindow, 'Headline').toBe(
-      'Fill in this field.'
-    );
+    await expectErrorOf(mainWindow, 'Headline').toBe('Fill in this field.');
     expect(await errorOf(mainWindow, 'Sections')).toBeNull();
     await expect(
       mainWindow.getByRole('button', { name: 'Add section' })

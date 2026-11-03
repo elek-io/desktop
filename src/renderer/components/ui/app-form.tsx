@@ -15,7 +15,6 @@ import {
   FormProvider,
   useFormState,
   type ControllerRenderProps,
-  type FieldError as RhfFieldError,
   type FieldPath,
   type FieldValues,
   type SubmitErrorHandler,
@@ -38,6 +37,7 @@ import {
   AppFormContext,
   useAppFormId,
   useAppFormSchema,
+  useDeeperErrorTarget,
   useErrorTarget,
   type AppFormContextValue,
 } from '@renderer/hooks/useAppFormContext';
@@ -50,6 +50,7 @@ import {
 } from '@renderer/lib/fieldRules';
 import {
   collectFieldErrorMessages,
+  fieldErrorMessage,
   isAtOrBelow,
   type FieldErrorMessage,
 } from '@renderer/lib/formErrors';
@@ -62,28 +63,7 @@ import { cn } from '@renderer/lib/utils';
 // See contributing/renderer/forms.md.
 
 /**
- * The error a field's message renders: the one at its own path, or the one
- * react-hook-form nested under `root`.
- *
- * `@hookform/resolvers` nests an error reported on an array itself under `root`
- * as soon as any path inside that array is a registered field name, which a
- * dynamic field's sections are the moment one has been mounted. Without this
- * the message on the array (a required field whose last section was just
- * removed, say) would sit at a path nothing reads, so the submit would say
- * nothing at all. A nested error object without a `root` is returned unchanged,
- * so a field holding only errors below it still renders no message of its own.
- */
-function messageError(
-  error: RhfFieldError | undefined
-): RhfFieldError | undefined {
-  if (error === undefined || typeof error.message === 'string') {
-    return error;
-  }
-  return error.root ?? error;
-}
-
-/**
- * The sentence the field shows for the error it holds, if any.
+ * The sentence the field shows for the message it renders, if any.
  *
  * Every refusal zod raises arrives already worded, through the error map
  * `lib/refusedValueText.ts` installs. The exception is an issue Core raised
@@ -94,26 +74,29 @@ function messageError(
  * `custom` is handed on.
  */
 function fieldErrorText(
-  error: RhfFieldError | undefined,
+  found: FieldErrorMessage | undefined,
   content: unknown,
   coreRefusalText: ((refusal: FieldRefusal) => string) | undefined
 ): string | undefined {
-  if (error?.message === undefined) {
+  if (found === undefined) {
     return undefined;
   }
 
-  const message = String(error.message);
-  if (error.type !== 'custom' || coreRefusalText === undefined) {
-    return message;
+  if (found.type !== 'custom' || coreRefusalText === undefined) {
+    return found.message;
   }
-  return coreRefusalText({ message, content });
+  return coreRefusalText({ message: found.message, content });
 }
 
 /** One refusal Core wrote its own English for, as a field type is handed it. */
 export interface FieldRefusal {
   /** Core's own English, which is never shown. */
   message: string;
-  /** The content that was refused, which is this field's own value. */
+  /**
+   * This field's own value, which is what the refusal is about. A refusal of
+   * one part of it, such as one reference of a list, carries the whole value
+   * here, since that is what the field type can read.
+   */
   content: unknown;
 }
 
@@ -315,6 +298,9 @@ export function AppField<
   // Claimed whether or not a message is on screen right now, so AppForm's
   // backstop never reports an error this field would show.
   useErrorTarget(name);
+  // What this field leaves to the fields inside it, so a field holding sections
+  // says nothing for a refusal one of those sections shows.
+  const hasDeeperErrorTarget = useDeeperErrorTarget();
   // The Core schema this form checks against, so a hand-written field never
   // repeats a limit Core sets. A field definition's own rules win over it,
   // because the schema a generated field is checked by is built from that
@@ -335,7 +321,9 @@ export function AppField<
       name={name}
       render={({ field, fieldState }) => {
         const error = fieldErrorText(
-          messageError(fieldState.error),
+          fieldErrorMessage(fieldState.error, name, (path) =>
+            hasDeeperErrorTarget(path, name)
+          ),
           field.value,
           coreRefusalText
         );
@@ -449,6 +437,19 @@ export function AppForm<
       }
     };
   }, []);
+  // Which of the paths above is between a field and one of its own messages. A
+  // target at `name` itself is not one, since a translatable field and the same
+  // language inside its dialog claim one path and both show its message.
+  const hasDeeperErrorTarget = useCallback(
+    (path: string, name: string): boolean =>
+      [...errorTargets.current.keys()].some(
+        (target) =>
+          target !== name &&
+          isAtOrBelow(target, name) &&
+          isAtOrBelow(path, target)
+      ),
+    []
+  );
   const [unsurfacedErrors, setUnsurfacedErrors] = useState<FieldErrorMessage[]>(
     []
   );
@@ -465,8 +466,14 @@ export function AppForm<
     // The schema is rebuilt each render where it is built from the Project's
     // languages, so this memo only holds while that form is not rendering
     // anyway.
-    () => ({ id: formId, mode, schema, registerErrorTarget }),
-    [formId, mode, schema, registerErrorTarget]
+    () => ({
+      id: formId,
+      mode,
+      schema,
+      registerErrorTarget,
+      hasDeeperErrorTarget,
+    }),
+    [formId, mode, schema, registerErrorTarget, hasDeeperErrorTarget]
   );
 
   // A validation error nothing renders would make the submit a silent no-op, so

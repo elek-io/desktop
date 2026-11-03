@@ -235,14 +235,15 @@ One refusal the map cannot reach: zod lets a message that arrives with an issue
 outrank every error map, and Core raises several of its own with their own
 English. Those are worded by the field type they land on, through
 `FieldTypeModule.coreRefusalText`, which `FieldFromDefinition` passes to
-`AppField` and `AppField` applies to a message that arrives under zod's `custom`
-code. Core gives them no code, so a module matches the opening of the text,
+`AppField` and `AppField` applies to the message it shows where that message
+arrives under zod's `custom` code, at the field's own path or below it. Core gives them no code, so a module matches the opening of the text,
 which [`components/fields/core-refusals.ts`](../../src/renderer/components/fields/core-refusals.ts)
 holds in one place. A refusal no module knows gets one sentence of its own, so a
 message a Core release rewords falls to that rather than showing Core's English
 in the field.
 `refusal-words.spec.ts` triggers each of them against the installed Core, so a
-reword fails there instead.
+reword fails there instead, and `entries.spec.ts` drives one of each type
+through a field and reads what that field says.
 
 The map is global, so a refusal zod raises reads the same under a hand-written
 field as under a generated one. What a hand-written field does not pass is
@@ -286,25 +287,28 @@ renders every message at or below that path and claims the subtree:
 <FieldSubtreeError form={form} name="fieldDefinitions" />
 ```
 
-An `AppField` cannot serve there, because it only shows the message sitting at
-its own path, and a nested refinement never leaves one there.
+An `AppField` cannot serve there, because the field definitions are drawn as
+previews rather than as one field, so there is no field shell for a message to
+sit in, and a refinement on the array reports several at once.
 
-One case looks nested and is not. `@hookform/resolvers` moves an error reported
-on an array itself under `root` as soon as any path inside that array is a
+**A field shows a refusal of a part of its own Value.** `AppField` reads the
+errors at its path and below it and shows the first one, because Core measures a
+part of a Value where the Value is a tree or a list: the blocks of a markdown
+field land on `content.en.children` and one reference of an Entry field on
+`content.en.0`, neither of which is the path the field binds. Before that they
+sat where nothing read them, so Save did nothing and no field said why.
+[`lib/formErrors.ts`](../../src/renderer/lib/formErrors.ts) holds the rule, and
+`@hookform/resolvers`' `root` needs no case of its own: an error reported on an
+array itself moves under `root` as soon as any path inside that array is a
 registered field name, which a dynamic field's sections are the moment one has
-been mounted. So a required dynamic field whose last section was just removed
-reported `values.sections.content.root`, which the field's own message did not
-show and `AppForm`'s backstop counted as covered, and the submit said nothing at
-all. `AppField` reads that `root` error as the field's own, so the message lands
-on the field it belongs to.
+been mounted, and `root` is then a key below the field like any other.
 
-**A nested error marks only the field it belongs to.** An error object without a
-`root` is left alone, so a field holding only errors below it renders no message
-and is not marked invalid either: a required field left empty inside a section
-is answered by that field, and the dynamic field around it says nothing, since
-pointing at the list of sections would not say which field to fill.
-[`entries.spec.ts`](../../tests/specs/entries.spec.ts) drives both halves of
-that.
+**A nested error marks only the field it belongs to.** What a field leaves alone
+is a message an error target mounted below it renders, so a required field left
+empty inside a section is answered by that field and the dynamic field around it
+says nothing, since pointing at the list of sections would not say which field
+to fill. [`entries.spec.ts`](../../tests/specs/entries.spec.ts) drives both
+halves of that.
 
 The UX follows the rest of the app: nothing is disabled to express "invalid",
 validation runs on the submit click, and the error appears then.

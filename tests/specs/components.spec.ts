@@ -563,9 +563,7 @@ test.describe('Components', () => {
     // validator measured.
     const addSection = mainWindow.getByRole('button', { name: 'Add section' });
     await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(
-      mainWindow.getByText('Fill in this field.')
-    ).toBeVisible();
+    await expect(mainWindow.getByText('Fill in this field.')).toBeVisible();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/[^/]+/${entry.id}/update$`)
     );
@@ -596,9 +594,7 @@ test.describe('Components', () => {
       .click();
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
     await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(
-      mainWindow.getByText('Fill in this field.')
-    ).toBeVisible();
+    await expect(mainWindow.getByText('Fill in this field.')).toBeVisible();
   });
 
   test('authors a dynamic Field on a Collection through the Add Field sheet', async ({

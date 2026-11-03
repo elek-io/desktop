@@ -377,9 +377,16 @@ reads: one zod error map words every refusal zod raises, keyed by the issue code
 and by what that code measures, and the field type a refusal Core wrote its own
 English for words that one through its `coreRefusalText`. `FieldFromDefinition`
 reads it off the type's module and hands it to `AppField`, so no form branches on
-a field type to word anything. The whole mechanism, the one sentence for a
-refusal nothing knows included, is in
-[forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
+a field type to word anything.
+
+Where the message lands is the field's to show. Core measures a part of a Value
+where the Value is a tree or a list, so a markdown field's blocks are refused at
+`content.en.children` and one reference of an Entry field at `content.en.0`,
+below the path the field binds. `AppField` shows the first message at its path
+or below it, see
+[When an error has no field to land on](./forms.md#when-an-error-has-no-field-to-land-on).
+The whole mechanism, the one sentence for a refusal nothing knows included, is
+in [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
 
 ### Submitting the form
 

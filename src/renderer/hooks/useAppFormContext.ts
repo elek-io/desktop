@@ -24,6 +24,12 @@ export interface AppFormContextValue {
    * from one that would otherwise make Save a silent no-op.
    */
   registerErrorTarget: (name: string) => () => void;
+  /**
+   * Whether an error at `path` is rendered by an error target mounted below
+   * `name`. A field reads it to leave a message to the field inside it, see
+   * `lib/formErrors.ts`.
+   */
+  hasDeeperErrorTarget: (path: string, name: string) => boolean;
 }
 
 export const AppFormContext = createContext<AppFormContextValue | null>(null);
@@ -50,6 +56,21 @@ export function useAppFormMode(): 'edit' | 'view' {
  */
 export function useAppFormSchema(): unknown {
   return useContext(AppFormContext)?.schema;
+}
+
+/** Stable, so a field outside an AppForm does not re-render on every parent. */
+const NOTHING_DEEPER = (): boolean => false;
+
+/**
+ * Whether an error at a path is rendered by something mounted below a field, so
+ * that field leaves the message to it. Outside an AppForm nothing is claimed,
+ * so a field shows what it holds.
+ */
+export function useDeeperErrorTarget(): (
+  path: string,
+  name: string
+) => boolean {
+  return useContext(AppFormContext)?.hasDeeperErrorTarget ?? NOTHING_DEEPER;
 }
 
 /**
