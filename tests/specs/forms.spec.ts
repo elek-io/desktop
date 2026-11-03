@@ -83,7 +83,12 @@ async function describedPartsOf(
   labelText: string
 ): Promise<{
   labelLeadsControl: boolean;
-  parts: { slot: string | null; followsControl: boolean; text: string }[];
+  parts: {
+    id: string;
+    slot: string | null;
+    followsControl: boolean;
+    text: string;
+  }[];
 }> {
   return page.evaluate((text) => {
     const label = Array.from(
@@ -114,6 +119,7 @@ async function describedPartsOf(
             throw new Error(`"${text}" is described by the missing id ${id}`);
           }
           return {
+            id,
             slot: node.getAttribute('data-slot'),
             followsControl: follows(node),
             text: (node.textContent ?? '').trim(),
@@ -464,7 +470,13 @@ test.describe('A form filled from its query', () => {
     await expect(mainWindow.getByLabel('Title', { exact: true })).toBeVisible();
     const clean = await describedPartsOf(mainWindow, 'Title');
     expect(clean.labelLeadsControl).toBe(true);
-    expect(clean.parts).toEqual([
+    expect(
+      clean.parts.map(({ slot, followsControl, text }) => ({
+        slot,
+        followsControl,
+        text,
+      }))
+    ).toEqual([
       {
         slot: 'field-rules',
         followsControl: false,
@@ -605,14 +617,22 @@ test.describe('A form filled from its query', () => {
     expect(described.parts[0]?.text).toBe('Required, 2 to 80 characters');
     expect(described.parts[0]?.followsControl).toBe(false);
 
-    // A field whose role takes no `aria-required`, the Asset field's picker
-    // button here, says the word in the rules its control names instead.
+    // A field whose buttons take no `aria-required`, the Asset field here,
+    // says the word in the rules its container names and in the accessible
+    // name of the button that fills it.
     const cover = await describedPartsOf(mainWindow, 'Cover');
     expect(cover.parts[0]?.slot).toBe('field-rules');
     expect(cover.parts[0]?.text).toBe('Required, images only');
-    await expect(
-      mainWindow.getByRole('button', { name: 'Cover' })
-    ).not.toHaveAttribute('aria-required');
+    const chooseCover = mainWindow.getByRole('button', {
+      name: 'Choose Cover, Required',
+    });
+    await expect(chooseCover).not.toHaveAttribute('aria-required');
+    // Read out with the button, so somebody who cannot see the rules beside
+    // the label still hears them.
+    await expect(chooseCover).toHaveAttribute(
+      'aria-describedby',
+      cover.parts.map((part) => part.id).join(' ')
+    );
     // A field that always holds a Value says nothing either way: no rule
     // beside the label, and no state on the control.
     await expect(
@@ -964,12 +984,11 @@ test.describe('A form filled from its query', () => {
       projectId: project.id,
       collectionId: article.id,
     });
-    // The trigger carries its field's label as its accessible name, which is
-    // what the shell's label points at.
-    await mainWindow.getByRole('button', { name: 'Related' }).click();
-    const picker = mainWindow.getByRole('dialog', { name: 'Select Entries' });
+    // Choose names the field it fills, and so does the dialog it opens.
+    await mainWindow.getByRole('button', { name: 'Choose Related' }).click();
+    const picker = mainWindow.getByRole('dialog', { name: 'Choose Related' });
     await expect(picker.getByText('Ada Lovelace')).toBeVisible();
-    await picker.getByRole('button', { name: 'Done' }).click();
+    await picker.getByRole('button', { name: 'Cancel' }).click();
     await expect(picker).toBeHidden();
 
     // The markdown editor's own picker, reached from the toolbar of a markdown
@@ -981,7 +1000,7 @@ test.describe('A form filled from its query', () => {
       name: 'Reference an Entry',
     });
     await expect(
-      markdownPicker.getByRole('button', { name: 'Ada Lovelace' })
+      markdownPicker.getByRole('radio', { name: 'Ada Lovelace' })
     ).toBeVisible();
   });
 });

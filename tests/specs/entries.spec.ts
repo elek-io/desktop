@@ -21,6 +21,7 @@ import {
   numberFieldDefinition,
   rangeFieldDefinition,
   referenceFieldDefinition,
+  selectFieldDefinition,
   textFieldDefinition,
   timeFieldDefinition,
   updateCollectionViaIpc,
@@ -44,6 +45,11 @@ import { stubCoreReject, stubCoreRejectWithType } from '../helpers/ipc.js';
 import { reloadWindow } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  windowSize,
+} from '../helpers/window.js';
 
 /**
  * The message one field shows below itself, or `null` where it shows none.
@@ -300,14 +306,16 @@ test.describe('Entries', () => {
     });
     await fillEntryForm(mainWindow, { Title: 'Referring article' });
 
-    // Drive the real picker rather than seeding the value. The trigger carries
-    // the field's label as its accessible name ("Select Entries" is only its
-    // text), which is what associates the control with its label.
-    await mainWindow.getByRole('button', { name: 'Related' }).click();
-    const picker = mainWindow.getByRole('dialog', { name: 'Select Entries' });
+    // Drive the real picker rather than seeding the value. Choose names the
+    // field it fills, as every button of a reference field does, and the
+    // dialog it opens is called the same.
+    await mainWindow.getByRole('button', { name: 'Choose Related' }).click();
+    const picker = mainWindow.getByRole('dialog', { name: 'Choose Related' });
     await expect(picker).toBeVisible();
-    await picker.getByRole('button', { name: 'Ada Lovelace' }).click();
-    await mainWindow.keyboard.press('Escape');
+    // One Entry, so each row carries a radio button, and the choice reaches
+    // the field when Choose is pressed.
+    await picker.getByRole('radio', { name: 'Ada Lovelace' }).click();
+    await picker.getByRole('button', { name: 'Choose', exact: true }).click();
     await expect(picker).toBeHidden();
 
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
@@ -829,16 +837,15 @@ test.describe('Entries', () => {
     });
     await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
 
-    // The field's label names its trigger, since the label points at the
-    // button that opens the picker. The Asset in it is named after the file it
-    // was added from.
-    await mainWindow.getByRole('button', { name: 'Cover' }).click();
+    // Choose names the field it fills, and the Asset in the picker is named
+    // after the file it was added from.
+    await mainWindow.getByRole('button', { name: 'Choose Cover' }).click();
     const picker = mainWindow.getByRole('dialog');
     await expect(
-      picker.getByRole('heading', { name: 'Select Assets' })
+      picker.getByRole('heading', { name: 'Choose Cover' })
     ).toBeVisible();
-    await picker.getByRole('button', { name: /showroom/ }).click();
-    await picker.getByRole('button', { name: 'Done' }).click();
+    await picker.getByRole('radio', { name: /showroom/ }).click();
+    await picker.getByRole('button', { name: 'Choose', exact: true }).click();
     await expect(picker).toBeHidden();
 
     // Somebody else removes the Asset while this Entry is still being written.
@@ -1175,5 +1182,447 @@ test.describe('Entries', () => {
     // Clearing the filter restores the full first page.
     await filter.fill('');
     await expect(mainWindow.getByRole('row')).toHaveCount(11);
+  });
+
+  test('chooses one Asset from the keyboard and names every button after its field', async ({
+    mainWindow,
+  }, testInfo) => {
+    // A required Asset field that takes one Asset, which is the shape ci draws
+    // with Replace on its row.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // Core keeps an Asset's name as a slug, so the names the field and the
+    // picker show are read back from what it wrote.
+    const showroom = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+      name: 'Showroom',
+    });
+    const serviceTeam = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'service-team.jpg', jpegBytes),
+      name: 'Service team',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        assetFieldDefinition({ slug: 'cover', label: { en: 'Cover' } }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+
+    // Nothing chosen yet, so the field says so and offers Choose, whose name
+    // carries its field's label and the word the role of a button cannot.
+    await expect(mainWindow.getByText('No Asset chosen')).toBeVisible();
+    const choose = mainWindow.getByRole('button', {
+      name: 'Choose Cover, Required',
+      exact: true,
+    });
+    await choose.focus();
+    await mainWindow.keyboard.press('Enter');
+
+    // One Asset, so each card carries a radio button, and the choice reaches
+    // the field only once Choose is pressed.
+    const picker = mainWindow.getByRole('dialog', { name: 'Choose Cover' });
+    await expect(picker).toBeVisible();
+    // shadcn's dialog and radio group on Base UI, not markup of our own.
+    await expect(picker).toHaveAttribute('data-slot', 'dialog-content');
+    await expect(
+      picker.getByRole('radiogroup', { name: 'Choose Cover' })
+    ).toHaveAttribute('data-slot', 'radio-group');
+    // Named by the Asset and what it is, with its preview out of the way.
+    const radio = picker.getByRole('radio', {
+      name: `${showroom.name} PNG, 70 Bytes`,
+      exact: true,
+    });
+    await expect(radio).toHaveAttribute('data-slot', 'radio-group-item');
+    await radio.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(radio).toHaveAttribute('aria-checked', 'true');
+    const confirm = picker.getByRole('button', { name: 'Choose', exact: true });
+    await confirm.focus();
+    await mainWindow.keyboard.press('Enter');
+    await expect(picker).toBeHidden();
+
+    // The row ci draws: the Asset's name, its type and its size, with Replace
+    // and Remove named after the field.
+    await expect(
+      mainWindow.getByText(showroom.name, { exact: true })
+    ).toBeVisible();
+    await expect(mainWindow.getByText('PNG, 70 Bytes')).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: 'Replace Cover, Required',
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: `Remove ${showroom.name} from Cover`,
+        exact: true,
+      })
+    ).toBeVisible();
+    // The field holds one Asset and takes one, so Choose is gone.
+    await expect(choose).toBeHidden();
+
+    // Replace opens the picker on the Asset it would replace, and swaps it.
+    const replace = mainWindow.getByRole('button', {
+      name: 'Replace Cover, Required',
+      exact: true,
+    });
+    await replace.focus();
+    await mainWindow.keyboard.press('Enter');
+    const replacePicker = mainWindow.getByRole('dialog', {
+      name: 'Replace Cover',
+    });
+    await expect(
+      replacePicker.getByText(`The one you choose replaces ${showroom.name}.`)
+    ).toBeVisible();
+    await expect(
+      replacePicker.getByRole('radio', { name: showroom.name })
+    ).toHaveAttribute('aria-checked', 'true');
+    const other = replacePicker.getByRole('radio', {
+      name: serviceTeam.name,
+    });
+    await other.focus();
+    await mainWindow.keyboard.press('Space');
+    await replacePicker
+      .getByRole('button', { name: 'Choose', exact: true })
+      .click();
+    await expect(replacePicker).toBeHidden();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: `Remove ${serviceTeam.name} from Cover`,
+        exact: true,
+      })
+    ).toBeVisible();
+
+    // What the field holds is what Core stores: one reference to the Asset
+    // that was chosen last.
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const [entry] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(entry?.values['cover']?.content).toEqual({
+      en: [{ id: expect.any(String), objectType: 'asset' }],
+    });
+  });
+
+  test('chooses several Entries from the keyboard and holds the field at its maximum', async ({
+    mainWindow,
+  }) => {
+    // An Entry field that takes up to two Entries out of three, which is the
+    // shape ci draws with a checkbox per row.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const team = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Author' }, plural: { en: 'Team' } },
+      description: { en: 'Authors created by the E2E tests' },
+      slug: { singular: 'author', plural: 'team' },
+    });
+    for (const name of ['Mara Klein', 'Jonas Brandt', 'Lena Vogt']) {
+      await createEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: team.id,
+        values: { title: stringValue({ en: name }) },
+      });
+    }
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        referenceFieldDefinition({
+          slug: 'authors',
+          label: { en: 'Authors' },
+          ofCollections: [team.id],
+          max: 2,
+        }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+
+    await expect(mainWindow.getByText('No Entry chosen')).toBeVisible();
+    const choose = mainWindow.getByRole('button', {
+      name: 'Choose Authors',
+      exact: true,
+    });
+    await choose.focus();
+    await mainWindow.keyboard.press('Enter');
+
+    // Several Entries, so each row carries a checkbox, and its filter is named
+    // after the one Collection the field allows.
+    const picker = mainWindow.getByRole('dialog', { name: 'Choose Authors' });
+    await expect(
+      picker.getByRole('textbox', { name: 'Filter Team' })
+    ).toBeVisible();
+    const mara = picker.getByRole('checkbox', { name: 'Mara Klein' });
+    const jonas = picker.getByRole('checkbox', { name: 'Jonas Brandt' });
+    const lena = picker.getByRole('checkbox', { name: 'Lena Vogt' });
+    // shadcn's checkbox on Base UI, not markup of our own.
+    await expect(mara).toHaveAttribute('data-slot', 'checkbox');
+    await mara.focus();
+    await mainWindow.keyboard.press('Space');
+    await jonas.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(mara).toHaveAttribute('aria-checked', 'true');
+    await expect(jonas).toHaveAttribute('aria-checked', 'true');
+
+    // The maximum holds in the picker: the third Entry cannot be ticked while
+    // two are, so the field can never come back holding more than it takes.
+    await expect(lena).toBeDisabled();
+    await lena.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(lena).toHaveAttribute('aria-checked', 'false');
+
+    await picker.getByRole('button', { name: 'Choose', exact: true }).click();
+    await expect(picker).toBeHidden();
+
+    // A row per chosen Entry, each with its Collection's name and a Remove
+    // named after the Entry and the field, and Choose is gone at the maximum.
+    await expect(
+      mainWindow.getByRole('button', {
+        name: 'Remove Mara Klein from Authors',
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: 'Remove Jonas Brandt from Authors',
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(mainWindow.getByText('Author').first()).toBeVisible();
+    await expect(choose).toBeHidden();
+
+    // Removing one brings Choose back, since the field allows another again.
+    await mainWindow
+      .getByRole('button', { name: 'Remove Jonas Brandt from Authors' })
+      .click();
+    await expect(choose).toBeVisible();
+
+    // Core wants a Collection beside each Entry reference, so a save that goes
+    // through is what proves the picker built them.
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const [entry] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(entry?.values['authors']?.content).toEqual({
+      en: [
+        {
+          id: expect.any(String),
+          objectType: 'entry',
+          collectionId: team.id,
+        },
+      ],
+    });
+  });
+
+  test('shows a select field as radio buttons led by None, and saves the option it stored before', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition(), selectFieldDefinition()],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+
+    // The options stand on screen as radio buttons rather than behind a menu,
+    // in one group named after the field, and None leads them because the
+    // Value of an optional field may stay empty.
+    const group = mainWindow.getByRole('radiogroup', { name: 'Style' });
+    await expect(group).toBeVisible();
+    // shadcn's radio group on Base UI, not markup of our own.
+    await expect(group).toHaveAttribute('data-slot', 'radio-group');
+    await expect(group.getByRole('radio').first()).toHaveAttribute(
+      'data-slot',
+      'radio-group-item'
+    );
+    await expect(group.getByRole('radio')).toHaveCount(3);
+    // Each radio button is named by the label beside it, and None leads them.
+    await expect(group.locator('label[data-slot="label"]')).toHaveText([
+      'None',
+      'Primary',
+      'Outline',
+    ]);
+    await expect(group.getByRole('radio', { name: 'None' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    const primary = group.getByRole('radio', { name: 'Primary' });
+    await primary.focus();
+    await mainWindow.keyboard.press('Space');
+    await expect(primary).toHaveAttribute('aria-checked', 'true');
+
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // The option's own value, which is what the menu stored before it became a
+    // list of radio buttons.
+    const [entry] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(entry?.values['style']?.content).toEqual({ en: 'primary' });
+  });
+
+  test('shows a select field with more options than fit as a dropdown with a filter', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // Seven options still read as a list, so eight is the first that does not.
+    const many = Array.from({ length: 8 }, (_, index) => ({
+      value: `option-${String(index + 1)}`,
+      label: { en: `Option ${String(index + 1)}` },
+    }));
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        selectFieldDefinition({ isRequired: true, options: many }),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, { Title: 'Spring opening hours' });
+
+    // No list of radio buttons at this length, but the one control whose role
+    // carries both the field's name and that it has to be filled.
+    await expect(
+      mainWindow.getByRole('radiogroup', { name: 'Style' })
+    ).toBeHidden();
+    const trigger = mainWindow.getByRole('combobox', { name: 'Style' });
+    // shadcn's combobox on Base UI, not markup of our own.
+    await expect(trigger).toHaveAttribute('data-slot', 'combobox-trigger');
+    await expect(trigger).toHaveAttribute('aria-required', 'true');
+    await trigger.focus();
+    await mainWindow.keyboard.press('Enter');
+
+    // The filter inside the popup narrows the options, and a required field
+    // offers no None at all.
+    const filter = mainWindow.getByRole('combobox', { name: 'Filter options' });
+    await expect(filter).toBeVisible();
+    await expect(mainWindow.getByRole('option', { name: 'None' })).toBeHidden();
+    await filter.fill('Option 7');
+    await expect(mainWindow.getByRole('option')).toHaveCount(1);
+    await mainWindow.getByRole('option', { name: 'Option 7' }).click();
+
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const [entry] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(entry?.values['style']?.content).toEqual({ en: 'option-7' });
+  });
+
+  test("keeps a picker's body scrolling and its buttons in view at the smallest window", async ({
+    electronApp,
+    mainWindow,
+  }, testInfo) => {
+    // Enough Assets that the grid is taller than the window, which is what a
+    // dialog with no scrolling body would push its buttons out of.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    for (let index = 1; index <= 12; index++) {
+      await createAssetViaIpc(mainWindow, {
+        projectId: project.id,
+        filePath: makeTempFile(
+          testInfo,
+          `asset-${String(index)}.png`,
+          pngBytes
+        ),
+        name: `Asset ${String(index)}`,
+      });
+    }
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        assetFieldDefinition({
+          slug: 'cover',
+          label: { en: 'Cover' },
+          isRequired: false,
+          min: null,
+          max: null,
+        }),
+      ],
+    });
+
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await mainWindow.getByRole('button', { name: 'Choose Cover' }).click();
+    const picker = mainWindow.getByRole('dialog', { name: 'Choose Cover' });
+    await expect(picker).toBeVisible();
+
+    // The body is what scrolls, so the dialog itself fits the window and both
+    // buttons stay inside it.
+    const measured = await mainWindow.evaluate(() => {
+      const dialog = document.querySelector('[data-slot="dialog-content"]');
+      // The body is a scroll area, so what scrolls is its viewport rather
+      // than the element the dialog lays out.
+      const body = document.querySelector(
+        '[data-slot="dialog-body"] [data-slot="scroll-area-viewport"]'
+      );
+      const footer = document.querySelector('[data-slot="dialog-footer"]');
+      if (dialog === null || body === null || footer === null) {
+        throw new Error('The picker draws no dialog with a body and a footer');
+      }
+      return {
+        viewport: window.innerHeight,
+        dialogBottom: dialog.getBoundingClientRect().bottom,
+        dialogTop: dialog.getBoundingClientRect().y,
+        footerBottom: footer.getBoundingClientRect().bottom,
+        bodyScrolls: body.scrollHeight > body.clientHeight,
+      };
+    });
+    expect(measured.bodyScrolls).toBe(true);
+    expect(measured.dialogTop).toBeGreaterThanOrEqual(0);
+    expect(measured.dialogBottom).toBeLessThanOrEqual(measured.viewport);
+    expect(measured.footerBottom).toBeLessThanOrEqual(measured.viewport);
+    await expect(
+      picker.getByRole('button', { name: 'Choose', exact: true })
+    ).toBeInViewport();
+    await expect(
+      picker.getByRole('button', { name: 'Cancel' })
+    ).toBeInViewport();
+    expect(await windowSize(electronApp)).toEqual(MINIMUM_WINDOW_SIZE);
   });
 });

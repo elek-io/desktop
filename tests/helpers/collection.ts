@@ -13,6 +13,7 @@ import {
   type MarkdownFieldDefinition,
   type NumberFieldDefinition,
   type RangeFieldDefinition,
+  type StringSelectFieldDefinition,
   type ReferenceFieldDefinition,
   type SupportedLanguage,
   type TextFieldDefinition,
@@ -122,6 +123,36 @@ export function toggleFieldDefinition(
     valueType: 'boolean',
     fieldType: 'toggle',
     defaultValue: false,
+    ...overrides,
+  };
+}
+
+/**
+ * Build an optional string select FieldDefinition with a caller-supplied id.
+ *
+ * A select's options are what the control draws: up to seven of them as a list
+ * of radio buttons, and more as a dropdown with a filter. An optional one may
+ * stay empty, so None leads its list. Pass `options` to drive either shape.
+ */
+export function selectFieldDefinition(
+  overrides: Partial<StringSelectFieldDefinition> = {}
+): StringSelectFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'style',
+    label: { en: 'Style' },
+    description: null,
+    isRequired: false,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'select',
+    defaultValue: null,
+    options: [
+      { value: 'primary', label: { en: 'Primary' } },
+      { value: 'outline', label: { en: 'Outline' } },
+    ],
     ...overrides,
   };
 }
