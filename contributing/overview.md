@@ -54,6 +54,14 @@ If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a
 
 Other lifecycle events: `activate` (macOS dock click) recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS.
 
+**Closing with unsaved changes.** A window that still holds something nobody saved is held open until the question in it is answered, so a close never loses what was typed:
+
+1. The renderer tells the main process whenever that changes, over `electron:window:setUnsavedChanges`, which takes one boolean and is parsed with zod like the title bar theme.
+2. The window's own `close` event is held with `event.preventDefault()` while that is true, and the main process sends `electron:window:askBeforeClose` instead. A quit goes through the same event, since it closes every window, and `before-quit` is what tells the two apart.
+3. The renderer shows the app's own discard dialog, named by the page, and answers `discard` or `keep` over `electron:window:answerClose`. On `discard` the main process closes the window, or quits where a quit is what was closing it.
+
+The question is drawn in the window rather than in a native box, because a box could neither name the page nor draw the app's own buttons. A close is only ever held on the renderer's own claim, so a crashed renderer holds nothing and a fresh document starts with nothing unsaved. See [forms.md](./renderer/forms.md#leaving-unsaved-changes), which also covers why the document's `beforeunload` is left alone.
+
 **Window management** (`createWindow()` / `loadWindow()`):
 
 - The window is **frameless**: `frame: false`, `titleBarStyle: 'hidden'`. The header is drawn in the renderer, so the native frame is intentionally removed.
@@ -122,7 +130,9 @@ All Core methods are asynchronous in the renderer even when they are synchronous
 > [!NOTE]
 > The two `electron:dialog:*` channels are special-cased in the registration loop: the main `BrowserWindow` is injected as the first argument before the bound handler is called. Every `core:*` channel is called with the renderer's arguments unchanged.
 
-`electron:window:setTheme` is the one channel outside the map, registered on its own in the same method, because it drives the window rather than Core. A channel that does that **parses what it is given**: this one takes a theme name and nothing else, through [`windowTheme.ts`](/src/shared/windowTheme.ts), so no color and no `BrowserWindow` option can reach Electron from the renderer. Anything else rejects the call and is logged like the other refusals in the main process.
+Three channels sit outside the map, registered on their own in the same method, because they drive the window rather than Core: `electron:window:setTheme`, `electron:window:setUnsavedChanges` and `electron:window:answerClose`. A channel that does that **parses what it is given**, through [`windowTheme.ts`](/src/shared/windowTheme.ts) and [`windowClose.ts`](/src/shared/windowClose.ts), so each takes one named value and no color and no `BrowserWindow` option can reach Electron from the renderer. Anything else rejects the call and is logged like the other refusals in the main process, by the one `fromRenderer` parse all three go through.
+
+`electron:window:askBeforeClose` is the one channel the main process sends on. The preload writes its name itself and hands the renderer a listener registration, so the renderer can listen to that one thing and to nothing else.
 
 **Error serialization at the handler loop:** the same single `ipcMain.handle` wrapper also try/catches the handler call. A structured clone across the IPC boundary drops the `CoreError` subclass and its custom `type`/`statusCode` fields, reducing the error to the plain `Error` shape (message and stack). To preserve the reason a Core operation failed with, the wrapper catches a thrown `CoreError` and re-throws `new Error(serializeCoreError(error.type, error.message, error.stack, error.cause))`, which packs the `type`, Core's own origin stack and the forwardable part of the cause into the message behind a sentinel. Everything that is not a `CoreError` propagates unchanged. The renderer decodes it with `parseIpcError` from the shared module [`src/shared/ipcError.ts`](/src/shared/ipcError.ts), which is bundled into both processes. The full story, including which causes cross and how the renderer maps the decoded `type` to reason-specific copy, is in [Error Handling](./error-handling.md).
 

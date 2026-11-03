@@ -32,8 +32,19 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
 - **Every form is an `AppForm`.** It is the only place a `<form>` element is
   written. It owns `noValidate`, the `handleSubmit` wiring, the `id` a detached
   button associates with, `stopPropagation` (so a nested form cannot cross-submit
-  its parent), and the view-only `mode`. A lint rule bans a raw `<form>` anywhere
+  its parent), the view-only `mode`, a blocked submit and the guard that asks
+  before unsaved changes are lost. A lint rule bans a raw `<form>` anywhere
   else.
+- **A form that cannot be saved says why, and ignores the submit.** While a page
+  passes `blockedBy`, Save is `aria-disabled` with the reason below it rather
+  than `disabled`, so it keeps its place in the tab order, and `AppForm` ignores
+  a submit however it was raised, so Enter in a field saves nothing either. See
+  [Save's block](#saves-block).
+- **A page form that edits something asks before changes are lost.** It passes
+  its own title as `unsavedChangesTitle`, and one dialog asks for leaving the
+  page, closing the window and quitting alike. The form's own Save never asks,
+  nor does a way out the page takes on purpose. See
+  [Leaving unsaved changes](#leaving-unsaved-changes).
 - **Every submit control is a `SubmitButton`.** It sets `type="submit"` and the
   form association structurally, so a submit button can never silently do nothing.
   `SubmitButtonProps` omits `type` and `render`, so neither can be passed, and
@@ -175,17 +186,64 @@ there. **`FormActions`** bridges that gap. Wrap the header or footer area in
 `<FormActions form={form} id={formId}>` and the enclosed `SubmitButton` gets the
 form id plus reactive gating:
 
-- **Pending gating is always on.** The button disables and shows a loading state
+- **Pending gating is always on.** The button blocks and shows a loading state
   while `isSubmitting` is true, which spans the awaited `mutateAsync` inside the
   submit handler.
 - **Dirty gating is opt-in** per form, through `requireDirty` on the button.
-  Update forms use it so Save stays disabled until something changes. Create forms
+  Update forms use it so Save stays blocked until something changes. Create forms
   do not, so the button is available immediately and validation happens on click.
+- **A reason the form cannot be saved** comes in through `blockedBy`, see
+  [Save's block](#saves-block). It is the only one of the four that puts words on
+  screen.
 
-Do not disable a submit button to express "the form is invalid". Validation runs
-on submit and reports through the field's own error and `aria-invalid`. A form
-that is still filling from its query is the one other thing that disables Save,
-see [loading-and-updating-data.md](./loading-and-updating-data.md#filling-a-form-from-its-query).
+Do not block a submit button to express "the form is invalid". Validation runs
+on submit and reports through the field's own error and `aria-invalid`. What
+blocks Save is the three facts above plus a form still filling from its query,
+see [loading-and-updating-data.md](./loading-and-updating-data.md#gating-save).
+
+## Save's block
+
+A form that cannot be saved yet says so, rather than letting somebody press Save
+and find out. ci's rule is one line under the button in the warning color, which
+Save points at, and the button blocked but still reachable.
+
+Both halves are passed the same string, because the button sits outside the
+form's own subtree and the two things that have to happen are on either side of
+that line:
+
+```tsx
+const blockedBy = missing === 0 ? undefined : t`...`;
+
+// In the page header, where Save is.
+<FormActions form={form} id={formId} blockedBy={blockedBy}>
+  <SubmitButton requireDirty Icon={Check}>Update Article</SubmitButton>
+</FormActions>
+
+// In the page body, where the form is.
+<EntryForm id={formId} entryForm={form} blockedBy={blockedBy} ... />
+```
+
+- **`FormActions` draws the line** below the button, as a `FieldWarning` with the
+  id Save names in `aria-describedby`. A form with no reason gains no element at
+  all here, so every other form's row of buttons is laid out as before.
+- **`SubmitButton` is `aria-disabled`, never `disabled`.** An `aria-disabled`
+  control keeps its place in the tab order, so it can be reached and read out
+  together with the reason it points at, which a `disabled` button cannot be.
+  That is why the pending and the `requireDirty` gates say it the same way,
+  though neither of them has words. The look comes from `aria-disabled:opacity-50`
+  in `buttonVariants`, and the press animation is suppressed for it.
+- **The click is stopped in `SubmitButton`** and **`AppForm` ignores a blocked
+  submit**, because a control that still takes a click still raises one, and
+  Enter in a field raises a submit of the form itself. So nothing reaches the
+  mutation however the submit arrived, and the validator does not even run: a
+  blocked form shows no field error from a press, which is what tells it apart
+  from a form that is checked on submit.
+- **The words are the page's**, never the form layer's. What is missing is
+  something only the page knows, and ci's example is a required Value a language
+  does not hold: `missingRequiredValues` in
+  [`components/fields/missing-values.ts`](../../src/renderer/components/fields/missing-values.ts)
+  answers that per language of the Project, without a validator, so it is cheap
+  on every change.
 
 ## View-only forms and diffs
 
@@ -310,8 +368,10 @@ says nothing, since pointing at the list of sections would not say which field
 to fill. [`entries.spec.ts`](../../tests/specs/entries.spec.ts) drives both
 halves of that.
 
-The UX follows the rest of the app: nothing is disabled to express "invalid",
-validation runs on the submit click, and the error appears then.
+The UX follows the rest of the app: nothing is blocked to express "invalid",
+validation runs on the submit click, and the error appears then. What does block
+Save is a reason the page gives it, which is on screen before anything is
+pressed, see [Save's block](#saves-block).
 
 **A rejection thrown after the awaited `onSubmit`.** `handleSubmit` re-throws
 whatever `onSubmit` rejected with, after awaiting it. By then the submit event is
@@ -381,6 +441,72 @@ the log.
 
 Most forms do not need this. A plain `useMutation` sends every failure to the
 boundary, which is the right default.
+
+## Leaving unsaved changes
+
+A page form that edits something asks before what was typed into it is lost:
+leaving the page, closing the window, or quitting the app. It is one question in
+one dialog, "Discard your changes to \<title\>?", with Keep editing as a ghost
+button and a red Discard, which is the pair ci draws for an answer that cannot be
+taken back. Dismissing the dialog any other way keeps editing.
+
+A page opts in by passing its own title:
+
+```tsx
+<AppForm form={form} onSubmit={onSave} unsavedChangesTitle={title}>
+```
+
+The five page forms that edit something do: the Entry, a Collection's settings, a
+Component, the Project's settings and the Profile. A form that passes no title
+asks nothing, which is every dialog, sheet and create form.
+
+**The parts**
+
+| Where                                                                               | What it does                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppForm`                                                                           | Owns the guard per form: `useBlocker` with `withResolver`, and the claim that this page holds something unsaved while it is dirty                                                                  |
+| [`UnsavedChangesProvider`](../../src/renderer/providers/UnsavedChangesProvider.tsx) | Mounted above the route in `__root.tsx`. Holds the dirty forms by their page's title, renders the one dialog, tells the main process whether anything is unsaved, and answers the question it asks |
+| [`lib/leaveGuard.ts`](../../src/renderer/lib/leaveGuard.ts)                         | Which navigations count as leaving the page                                                                                                                                                        |
+| `src/main/index.ts`                                                                 | Holds the window's own `close` while the renderer says something is unsaved, and closes or quits once Discard is pressed                                                                           |
+
+**What does not ask**
+
+- **The form's own Save.** `AppForm` sets a ref before it submits and the guard
+  reads it when the router asks, because the navigation a submit ends in happens
+  inside the awaited handler, before React has rendered `isSubmitting`.
+- **A way out the page takes on purpose**, such as Delete. Those navigations pass
+  TanStack Router's own `ignoreBlocker: true`, since the page and everything
+  typed into it are gone either way.
+- **A change of nothing but the search params.** The router runs its blockers on
+  every push and replace, and a form keeps the language it edits in the search
+  params, so `isLeavingThePage` compares the route rather than the address.
+- **A reload.** It is not a close, so nothing holds it, which is what lets the
+  error screen's Reload work and what most of the suite arranges a route with.
+
+**Why the main process holds the close**
+
+A renderer cannot stop its own window from closing, and a native box could draw
+neither ci's buttons nor the page's name. So the window's `close` event is held
+in the main process while the renderer says there is something unsaved, over
+`electron:window:setUnsavedChanges`, and the renderer is asked for the question
+over `electron:window:askBeforeClose`. It answers `discard` or `keep` over
+`electron:window:answerClose`, and on `discard` the main process closes the
+window, or quits where a quit is what was closing it.
+
+Three things follow from holding `close` rather than the document's
+`beforeunload`:
+
+- **TanStack Router's `enableBeforeUnload` stays off.** `close` is emitted before
+  the document's unload events, so a `beforeunload` that cancels would stop the
+  close again after the main process let it through, and with no
+  `will-prevent-unload` handler nobody would be told. The window would silently
+  stay open.
+- **A close is only ever held on the renderer's own claim**, which only a living
+  renderer makes and which it withdraws when it unmounts. A crashed renderer can
+  show no question, so `webContents.isCrashed()` holds nothing either, and a
+  fresh document starts with nothing unsaved.
+- **A test that leaves a form changed needs a teardown that destroys the window**,
+  since a held close cannot be answered by one. The `electronApp` fixture does.
 
 ## Form typing
 
@@ -707,6 +833,21 @@ fire on an intentional violation.
   `ComboboxInput` draw.
   [`field-registry.spec.ts`](../../tests/specs/field-registry.spec.ts) drives
   all of them, see [Placeholder text](#placeholder-text).
+- **A test asserts a blocked Save saves nothing and stays reachable.**
+  [`unsaved-changes.spec.ts`](../../tests/specs/unsaved-changes.spec.ts) empties
+  the one required Value of an Entry, then presses Save and Enter in a field
+  with the `core:entries:update` channel recorded, and checks that neither
+  reached it, that no field was marked either (so the submit was ignored rather
+  than run), and that Save carries `aria-disabled` and names the reason while
+  carrying no `disabled`.
+- **A test asserts each question before changes are lost.** The same spec drives
+  leaving with Keep editing and with Discard, a save that asks nothing, a Delete
+  that asks nothing, all five page forms, and closing the window and quitting
+  the app both ways. A reload and a run that ends with a form left changed are
+  in there too, since both go through the close the main process holds.
+  [`leave-guard.spec.ts`](../../tests/specs/leave-guard.spec.ts) drives which
+  navigations count as leaving, including the search-only change a language
+  switch makes, which no route takes yet.
 
 Every lint rule lives in [`eslint.config.mjs`](../../eslint.config.mjs). A
 rule's options replace rather than merge with an earlier config block's, so the

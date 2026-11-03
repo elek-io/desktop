@@ -343,16 +343,29 @@ state.
 ### Gating Save
 
 Every mutation Save/Update button is a `SubmitButton` inside a `FormActions`,
-which disables it while the form is submitting and while the form is still
-filling from its query. `requireDirty` adds the third gate per form: an update
-form uses it, so Save stays disabled until something changes, because an
-unchanged form has nothing to commit and Core would reject an empty change.
-Create forms do not, so the button is available immediately and validation
-happens on click.
+which blocks it while the form is submitting and while the form is still filling
+from its query. `requireDirty` adds the third gate per form: an update form uses
+it, so Save stays blocked until something changes, because an unchanged form has
+nothing to commit and Core would reject an empty change. Create forms do not, so
+the button is available immediately and validation happens on click.
+
+Blocked means `aria-disabled` rather than `disabled`, so Save keeps its place in
+the tab order. The fourth gate is a reason the page gives the form, which is the
+only one with words on screen, see
+[forms.md](./forms.md#saves-block).
 
 This is distinct from validation. Validation is surfaced on click through the
-field's own error, not by keeping the button disabled, so an invalid but changed
-form still shows its Save button enabled and reports the errors when submitted.
+field's own error, not by keeping the button blocked, so an invalid but changed
+form still shows its Save button available and reports the errors when submitted.
+
+**A form that stays open after it saved resets to what it saved.** `isDirty` is
+what both `requireDirty` and the guard that asks before unsaved changes are lost
+read, and neither a mutation nor a refetch clears it: `values` fills the form
+with `keepDirtyValues`, which keeps a dirty field dirty on purpose. So a form
+whose submit does not navigate away calls `form.reset(values)` after the
+mutation resolved, inside the submit handler. The Project's settings is the one
+page of them. Without it Save would stay available with nothing to save, and
+leaving would ask about changes that are already saved.
 
 ### Mutation Metadata
 
