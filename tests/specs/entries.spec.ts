@@ -639,6 +639,14 @@ test.describe('Entries', () => {
             entryReferences: true,
           },
         }),
+        markdownFieldDefinition({
+          slug: 'notes',
+          label: { en: 'Notes' },
+          features: {
+            ...markdownFieldDefinition().features,
+            blockquotes: true,
+          },
+        }),
       ],
     });
     const entry = await createEntryViaIpc(mainWindow, {
@@ -648,6 +656,7 @@ test.describe('Entries', () => {
         title: stringValue({ en: 'Spring service' }),
         related: referenceValue(),
         body: markdownValue({ en: null }),
+        notes: markdownValue({ en: null }),
       },
     });
 
@@ -691,6 +700,19 @@ test.describe('Entries', () => {
       ...stored.values['body'],
       content: { en: tree },
     };
+    // And a tree nested deeper than Core walks, which is the other refusal Core
+    // words itself on a markdown field.
+    let deepest: MdAstRoot['children'][number] = {
+      type: 'paragraph',
+      children: [{ type: 'text', value: 'Deep' }],
+    };
+    for (let level = 0; level < 110; level += 1) {
+      deepest = { type: 'blockquote', children: [deepest] };
+    }
+    stored.values['notes'] = {
+      ...stored.values['notes'],
+      content: { en: { type: 'root', children: [deepest] } },
+    };
     writeFileSync(file, JSON.stringify(stored, null, 2));
 
     const { app, window } = await relaunchApp(testInfo, electronApp);
@@ -714,10 +736,14 @@ test.describe('Entries', () => {
       await expectErrorOf(window, 'Body').toBe(
         "One Entry in this text is from a Collection this field doesn't take. Point it somewhere else."
       );
+      await expectErrorOf(window, 'Notes').toBe(
+        'This text has too many levels inside it. Take some out to save.'
+      );
 
       // And Core's own English is nowhere on the page.
       const shown = await window.locator('body').innerText();
       expect(shown).not.toContain('must belong to one of the allowed');
+      expect(shown).not.toContain('maximum nesting depth');
     } finally {
       // The relaunched app is not covered by the fixture teardown, so close it.
       await app.close();
