@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { ESLint } from 'eslint';
-import { execFile } from 'node:child_process';
 import { rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
-const run = promisify(execFile);
+import { typeCheck } from '../helpers/checks.js';
+
 const root = path.resolve(import.meta.dirname, '../..');
 
 /**
@@ -17,38 +16,6 @@ const root = path.resolve(import.meta.dirname, '../..');
  * type. Both are driven here with a probe file, the way the catalog's seam is,
  * see contributing/testing.md.
  */
-
-/** Type-checks the renderer and answers with its exit code and output. */
-async function typeCheck(): Promise<{ code: number; output: string }> {
-  try {
-    const { stdout, stderr } = await run(
-      process.execPath,
-      [
-        path.join(root, 'node_modules/typescript/bin/tsc'),
-        '--noEmit',
-        '-p',
-        'tsconfig.web.json',
-        '--composite',
-        'false',
-      ],
-      { cwd: root }
-    );
-    return { code: 0, output: `${stdout}${stderr}` };
-  } catch (error) {
-    const failure = error as {
-      code?: unknown;
-      stdout?: string;
-      stderr?: string;
-    };
-    if (typeof failure.code !== 'number') {
-      throw error;
-    }
-    return {
-      code: failure.code,
-      output: `${failure.stdout ?? ''}${failure.stderr ?? ''}`,
-    };
-  }
-}
 
 test.describe('The field registry', () => {
   test('a field type without a folder fails the type check', async () => {

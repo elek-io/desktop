@@ -10,16 +10,20 @@ import {
   type DynamicFieldDefinition,
   type EmailFieldDefinition,
   type FieldType,
+  type Ipv4FieldDefinition,
   type MarkdownFieldDefinition,
   type NumberFieldDefinition,
   type RangeFieldDefinition,
+  type SlugFieldDefinition,
   type StringSelectFieldDefinition,
   type ReferenceFieldDefinition,
   type SupportedLanguage,
+  type TelephoneFieldDefinition,
   type TextFieldDefinition,
   type TimeFieldDefinition,
   type ToggleFieldDefinition,
   type UpdateCollectionProps,
+  type UrlFieldDefinition,
 } from '@elek-io/core';
 
 import { navigate } from './navigation.js';
@@ -123,6 +127,107 @@ export function toggleFieldDefinition(
     valueType: 'boolean',
     fieldType: 'toggle',
     defaultValue: false,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required url FieldDefinition with a caller-supplied id. Mirrors
+ * `emailFieldDefinition`, with `fieldType` "url", so a spec can drive the
+ * refusal of text that is not a web address.
+ */
+export function urlFieldDefinition(
+  overrides: Partial<UrlFieldDefinition> = {}
+): UrlFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'homepage',
+    label: { en: 'Homepage' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'url',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required ipv4 FieldDefinition with a caller-supplied id. Mirrors
+ * `urlFieldDefinition` with `fieldType` "ipv4".
+ */
+export function ipv4FieldDefinition(
+  overrides: Partial<Ipv4FieldDefinition> = {}
+): Ipv4FieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'server',
+    label: { en: 'Server' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'ipv4',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required telephone FieldDefinition with a caller-supplied id. Mirrors
+ * `urlFieldDefinition` with `fieldType` "telephone". Core checks it against
+ * E.164, which takes a leading plus, a country code and no spaces.
+ */
+export function telephoneFieldDefinition(
+  overrides: Partial<TelephoneFieldDefinition> = {}
+): TelephoneFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'hotline',
+    label: { en: 'Hotline' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'telephone',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required slug FieldDefinition with a caller-supplied id.
+ *
+ * Core pins a slug to unique and to no default Value, and takes the form it
+ * has to be in from `separator`, `lowercase` and `decamelize`. With no
+ * `ofFieldDefinitions` it stands on its own rather than following other fields.
+ */
+export function slugFieldDefinition(
+  overrides: Partial<SlugFieldDefinition> = {}
+): SlugFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'handle',
+    label: { en: 'Handle' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: true,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'slug',
+    defaultValue: null,
+    separator: '-',
+    lowercase: true,
+    decamelize: true,
+    ofFieldDefinitions: [],
     ...overrides,
   };
 }

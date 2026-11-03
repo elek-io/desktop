@@ -19,14 +19,18 @@ import {
   datetimeFieldDefinition,
   dynamicFieldDefinition,
   emailFieldDefinition,
+  ipv4FieldDefinition,
   navigateToCollection,
   numberFieldDefinition,
   rangeFieldDefinition,
   referenceFieldDefinition,
   selectFieldDefinition,
+  slugFieldDefinition,
+  telephoneFieldDefinition,
   textFieldDefinition,
   timeFieldDefinition,
   updateCollectionViaIpc,
+  urlFieldDefinition,
 } from '../helpers/collection.js';
 import {
   createComponentViaIpc,
@@ -405,6 +409,129 @@ test.describe('Entries', () => {
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
+  });
+
+  test("says in an editor's words what each field needs", async ({
+    mainWindow,
+  }) => {
+    // One field per refusal an Entry's fields can produce by typing: a length
+    // from both ends, a number from both ends, each format a field type asks
+    // for, a Value left out and a list left empty. Everything is refused in
+    // one submit, so what every field says is read from one form.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ min: 3, max: 200 }),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          max: 10,
+        }),
+        numberFieldDefinition({ min: 2, max: 200 }),
+        numberFieldDefinition({
+          slug: 'score',
+          label: { en: 'Score' },
+          min: null,
+          max: 8,
+        }),
+        emailFieldDefinition(),
+        urlFieldDefinition(),
+        ipv4FieldDefinition(),
+        telephoneFieldDefinition(),
+        textFieldDefinition({ slug: 'note', label: { en: 'Note' } }),
+        assetFieldDefinition(),
+      ],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await fillEntryForm(mainWindow, {
+      Title: 'Ab',
+      Subtitle: 'Far too long for ten',
+      Rating: '1',
+      Score: '99',
+      Email: 'nobody',
+      Homepage: 'nowhere',
+      Server: 'nowhere',
+      Hotline: 'nobody',
+    });
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+
+    await expectErrorOf(mainWindow, 'Title').toBe('Use at least 3 characters.');
+    expect(await errorOf(mainWindow, 'Subtitle')).toBe(
+      'Use up to 10 characters.'
+    );
+    expect(await errorOf(mainWindow, 'Rating')).toBe('Use 2 or more.');
+    expect(await errorOf(mainWindow, 'Score')).toBe('Use 8 or less.');
+    expect(await errorOf(mainWindow, 'Email')).toBe(
+      'Enter an email address, such as name@example.com.'
+    );
+    expect(await errorOf(mainWindow, 'Homepage')).toBe(
+      'Enter a web address, such as https://elek.io.'
+    );
+    expect(await errorOf(mainWindow, 'Server')).toBe(
+      'Enter an IPv4 address, such as 192.168.0.1.'
+    );
+    expect(await errorOf(mainWindow, 'Hotline')).toBe(
+      'Enter a phone number with its country code, such as +4930123456.'
+    );
+    // A Value nobody filled in, and a list nothing was chosen from, which Core
+    // measures as a count rather than as a missing Value.
+    expect(await errorOf(mainWindow, 'Note')).toBe('This field needs a Value.');
+    expect(await errorOf(mainWindow, 'Logo')).toBe('This field needs a Value.');
+
+    // And nothing zod wrote is anywhere on the screen, which is what every
+    // one of these fields showed before.
+    const shown = await mainWindow.locator('body').innerText();
+    for (const word of ['expected', 'Too small', 'Too big', '>=', '<=']) {
+      expect(shown).not.toContain(word);
+    }
+  });
+
+  test('says what a slug field needs rather than what Core wrote', async ({
+    mainWindow,
+  }) => {
+    // The two refusals Core words itself that land on a slug field. Submitted
+    // with Enter rather than with Save, because the control puts a slug in
+    // form when the field is left, so clicking Save would fix the Value on the
+    // way out and nothing would be refused.
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition(), slugFieldDefinition()],
+    });
+
+    await navigateToEntryCreate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const handle = mainWindow.getByLabel('Handle', { exact: true });
+    await fillEntryForm(mainWindow, { Title: 'Spring service' });
+
+    // Text that is a slug once it is in form says which form, worked out with
+    // Core's own helper rather than read out of Core's message.
+    await handle.fill('Not A Slug');
+    await handle.press('Enter');
+    await expectErrorOf(mainWindow, 'Handle').toBe(
+      'This field needs "not-a-slug" instead.'
+    );
+
+    // And text that holds nothing a slug can be made of says what to use.
+    await handle.fill('???');
+    await handle.press('Enter');
+    await expectErrorOf(mainWindow, 'Handle').toBe(
+      'Use letters or numbers, so this can be part of a web address.'
+    );
+
+    // Neither of Core's two sentences reached the screen.
+    const shown = await mainWindow.locator('body').innerText();
+    expect(shown).not.toContain('URL-safe');
+    expect(shown).not.toContain('canonical');
   });
 
   test('lists entries with the expected table chrome', async ({
