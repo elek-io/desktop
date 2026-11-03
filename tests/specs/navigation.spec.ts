@@ -373,6 +373,12 @@ test.describe("A Project's sidebar", () => {
     await expect(search).toHaveAttribute('aria-disabled', 'true');
     await expect(search).toHaveText('Search comes later');
 
+    // Still reachable, which is what carrying `aria-disabled` rather than
+    // `disabled` is for: a control taken out of the tab order would leave the
+    // sentence that says why unread.
+    await search.focus();
+    await expect(search).toBeFocused();
+
     // What filters inside a screen is untouched by it.
     await expect(
       mainWindow.getByRole('cell', { name: 'Spring opening hours' })
