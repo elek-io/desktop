@@ -30,6 +30,21 @@ const { formatDatetime } = useUser();
 const { relative, absolute } = formatDatetime({ datetime: entry.updated });
 ```
 
+## The shortest words for how long ago (`formatRelativeShort`)
+
+`formatRelativeShort` comes from the same provider and answers how long ago a moment was in the fewest words the User's language has for it, such as "2 min. ago" in English and "vor 2 Min." in German. It takes `Intl.RelativeTimeFormat` with `style: 'short'` rather than date-fns, which writes "less than a minute ago" in full, and picks the largest unit the distance fills.
+
+It answers `null` under a minute, because every language words that as something other than a count, so the caller says it in a sentence of its own from the catalog. The sentence it goes into is one message with a placeholder, the same way `formatDatetime`'s relative words are:
+
+```tsx
+const { formatRelativeShort } = useProject();
+const ago = formatRelativeShort(checkedAt);
+
+return <span>{ago === null ? t`Checked just now` : t`Checked ${ago}`}</span>;
+```
+
+The one caller today is the Project card, whose line that says when it last checked the Git repository has 206 px. See [loading-and-updating-data.md](./loading-and-updating-data.md#what-the-project-card-reads).
+
 ## Formatting field values (`formatInUserLocale`)
 
 `formatInUserLocale` is provided by the same `UserProvider` and read through `useUser()` or `useProject()`. It takes a `Date` and a date-fns pattern and answers with the formatted string in the current user's locale. Like `formatDatetime`, it falls back to date-fns's en-US default until the user's locale chunk loads. Unlike `formatDatetime` it shows no `-` placeholder, because a stored field value always exists and should be displayed rather than hidden while the user data loads.

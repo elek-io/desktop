@@ -174,6 +174,7 @@ The [`ProjectProvider`](../../src/renderer/providers/ProjectProvider.tsx) wraps 
 - `projectQuery: UseQueryResultNoError<Project>` - The current project query result
 - `userQuery: UseQueryResultNoError<User | null>` - The current user query result (inherited from UserProvider)
 - `formatDatetime: (props: FormatDatetimeProps) => { relative: string; absolute: string }` - Datetime formatter (inherited from UserProvider)
+- `formatRelativeShort: (datetime) => string | null` - How long ago a moment was, in the shortest words the User's language has for it, or `null` under a minute (inherited from UserProvider)
 - `translateContent: (props: TranslateContentProps) => string` - Translates user-defined content to the current user's language, falling back to the project's default language, then English
 
 **Example:** See [`components/project-sidebar.tsx`](../../src/renderer/components/project-sidebar.tsx)
@@ -244,10 +245,27 @@ A query failure is not fatal to the view. The pane that read it keeps its place 
 
 Two rules follow for a screen:
 
-- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does.
+- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does. One read is the exception, below.
 - **Read inside the pane that shows the data.** A boundary catches only what is thrown below it, so a read in a layout above two panes takes both of them. That is right when both depend on it, and wrong when one does.
 
 A failed write and a component that throws are not a read: they still replace the whole view with the root error screen, which offers Report an issue. How the two are told apart, and what a pane's name in the sentence comes from, is in [Error Handling](../error-handling.md#a-read-that-failed-the-pane-says-so).
+
+### The one read a screen catches: the Project card's check
+
+The sidebar's Project card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app with `throwOnError: false`, it retries nothing, and the card reads it with a plain `useQuery` rather than `useQueryNoError`. What that buys, and what it logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-one-read-a-screen-catches-the-project-cards-check).
+
+### What the Project card reads
+
+| Line                  | Where it comes from                                                                                                                                |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Changes not synced    | `projects.getChanges().ahead`, the same read the History groups its changes by, so both show one number                                            |
+| Incoming changes      | `projects.getChanges().behind`                                                                                                                     |
+| Everything synced     | Both of the above empty, which is a state of its own rather than two lines saying zero                                                             |
+| The last Release      | `releases.list`, the newest item of type `release`. A preview Release tags `draft` without publishing it, so it is not the Release a Project is at |
+| When it last checked  | `dataUpdatedAt` of the check, worded by `formatRelativeShort` and re-read on a clock of its own every 30 seconds                                   |
+| Can't reach / refused | The check's own failure, by its `CoreError` type                                                                                                   |
+
+The check refetches every three minutes, as it did before the card drew it, and Check now refetches at once. Nothing else reads that query.
 
 ### Error Handling - Prefer useQueryNoError
 
@@ -457,7 +475,7 @@ The wrapper awaits the `onSuccess` it is given, so a mutation resolves only once
 
 All mutations in the [`options/`](../../src/renderer/queries/options/) directory include `onSuccess` handlers that automatically update the cache. This ensures the UI reflects changes immediately without requiring refetches.
 
-A query that fetches something another query owns writes its answer there too. `releases.prepare` has to fetch `origin` before it diffs, which `prepare()` itself never does, so it calls `fetchProjectChanges` from [`projectOptions.ts`](../../src/renderer/queries/options/projectOptions.ts) and puts the result into the `['projects', projectId, 'current', 'changes']` cache from its `queryFn`'s `client`. That is the count behind the sidebar's Synchronize, which otherwise refreshes only every three minutes and would stay disabled right after the dialog told the editor to synchronize. It is written only when the call succeeded, and the fetch itself stays outside the shared query. A failure belongs to the dialog, which answers it in place, while running the fetch as the shared query retries it three times first and leaves the dialog on its skeleton for the whole schedule.
+A query that fetches something another query owns writes its answer there too. `releases.prepare` has to fetch `origin` before it diffs, which `prepare()` itself never does, so it calls `fetchProjectChanges` from [`projectOptions.ts`](../../src/renderer/queries/options/projectOptions.ts) and puts the result into the `['projects', projectId, 'current', 'changes']` cache from its `queryFn`'s `client`. That is the count behind the Project card's Sync, which otherwise refreshes only every three minutes and would stay disabled right after the dialog told the editor to synchronize. It is written only when the call succeeded, and the fetch itself stays outside the shared query. A failure belongs to the dialog, which answers it in place, while running the fetch as the shared query retries it three times first and leaves the dialog on its skeleton for the whole schedule.
 
 ### The `mergeListWithObject` Helper
 
@@ -608,7 +626,7 @@ Data loading and mutations lean on the app's error handling defaults:
 
 - `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the nearest error boundary. For a read that is the pane it was read in, and for everything else the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
 - All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. That is the only sink, and nothing it writes leaves the machine.
-- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete and sync-conflict modals do this today.
+- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete dialog and the sync dialog do this today.
 - One query does the same in its own layer. `releases.prepare` catches the `CoreError` types the Release dialog can explain inside its `queryFn` and returns them as a `refused` outcome, re-throwing everything else so its `throwOnError: true` still reaches the boundary. The caught set is the same map the dialog's copy comes from, so the two cannot drift apart.
 
 The full picture, including how `CoreError.type` survives IPC, the step-by-step guide to handling an expected error in place with those worked examples, and exactly where and when things are logged, lives in the dedicated [Error Handling](../error-handling.md) doc.

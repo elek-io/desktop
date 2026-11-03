@@ -36,7 +36,10 @@ The `stack` is what fills the technical detail block on the error screen and the
 
 Anything with a prototype of its own goes the same way, because it does not survive JSON as structured data either: a `Date` would arrive as a string, a `Map` or a `Set` as `{}`.
 
-What is left is the issue list Core attaches to a `Conflict` it raises for a field definition change it cannot carry out alone (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). Each element of an array cause that carries Core's `issue` key crosses as the four fields a screen needs and nothing else, `forwardedIssueKeys` in `ipcError.ts`. `transformedValues` and `currentValue` stay in the main process, because those are the content somebody wrote: `transformedValues` holds every Value of the Entry, so a refused change in a large Collection would otherwise pack the content of each affected Entry into one message. One typed reader reads what arrives, `entryIssuesOf` in [`lib/schemaChange.ts`](/src/renderer/lib/schemaChange.ts), which validates it rather than trusting the payload.
+Two causes are left, and both are arrays of ids, with one typed reader each that validates what arrives rather than trusting the payload:
+
+- **The issue list Core attaches to a `Conflict` it raises for a field definition change it cannot carry out alone** (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). Each element of an array cause that carries Core's `issue` key crosses as the four fields a screen needs and nothing else, `forwardedIssueKeys` in `ipcError.ts`. `transformedValues` and `currentValue` stay in the main process, because those are the content somebody wrote: `transformedValues` holds every Value of the Entry, so a refused change in a large Collection would otherwise pack the content of each affected Entry into one message. Read by `entryIssuesOf` in [`lib/schemaChange.ts`](/src/renderer/lib/schemaChange.ts).
+- **The dangling references Core attaches to the `Conflict` it raises for a sync it would integrate them with.** Those elements carry no `issue` key, so they cross as Core wrote them, which is ids only: the Collection, the Entry, the field's slug, which carrier held the id, the chain of Components down to it, and what the missing target was. Read by `syncConflictReferencesOf` in [`lib/sync.ts`](/src/renderer/lib/sync.ts), which keeps the three the sync dialog shows.
 
 **No cause reaches a log record.** `errorLogAttributes` ([`shared/logError.ts`](/src/shared/logError.ts)) reads the decoded `type`, `message` and `stack` and nothing else, which is what keeps an Entry's content and a git remote's URL out of a log file. Nothing renders a cause raw either.
 
@@ -64,8 +67,19 @@ A query failure is not fatal to the view. It belongs to the one pane that read i
 
 Two rules follow for a screen:
 
-- **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it.
+- **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it. The one exception is below.
 - **A read belongs inside the pane that shows it.** A boundary only catches what is thrown below it, so a read in a layout above two panes takes both of them, which is right when both depend on it and wrong when one does. Read in the component that shows the data.
+
+### The one read a screen catches: the Project card's check
+
+The Project card in [`project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) is the one place that answers a failed read itself, rather than leaving it to a boundary. It stands in the sidebar, which is above every pane, and what it reads is a state of the Project it has to show: whether the Git repository can be reached at all.
+
+- `projects.getChanges` ([`projectOptions.ts`](/src/renderer/queries/options/projectOptions.ts)) is the only query with `throwOnError: false`, and it retries nothing. So a repository that cannot be reached, or one that refused access, becomes a state line in the card at once instead of three retries of waiting and then the root error screen, which is what used to leave the counts blank with no word about it.
+- The card reads the failure with a plain `useQuery`, not `useQueryNoError`, which throws on `isError` by design.
+- **It logs what it caught the way a pane's boundary does**, through `errorLogAttributes`, with the message `Project card check error: ...`, from an effect so a re-render does not write the same record again. So a repository that stopped answering is in the log file with its type, message and stack either way.
+- Which line it shows comes from `checkRefusal` in [`lib/sync.ts`](/src/renderer/lib/sync.ts): `Unauthorized` is a repository that answered and refused, which gets its own line, and everything else is one that could not be reached. Sync and Check now are the retry, so nothing else has to offer one.
+
+Nothing else reads that query. A screen that needs the same check later shows its failure as a state the same way, rather than catching a read of its own.
 
 ### Expected errors: handled in place
 
@@ -122,15 +136,28 @@ A `type` handled this way is intentionally invisible to the standard logging (se
 
 Every mutation below is built with `useAppMutation`, so the "predicate returns false only for X" behavior described in each is what the helper derives from that site's `handled` map. One read does the same thing in the query layer, where there is no mutation to hold the map, see the Release example.
 
-### Example: sync conflict
+### Example: a sync that failed
 
-[`components/project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`, most notably Core's sync time integrity gate rejecting a rebase that would push a dangling reference. The Synchronize mutation `handles` `Conflict` and `PreconditionFailed` in place, so `useAppMutation`'s predicate returns false only for those two. The `onClick` catches the rejection and calls `handleError(error)`, which for those two reasons stores it with `setSyncError(error)` and opens the "Could not synchronize this Project" dialog; any other failure propagates to the boundary. The dialog description calls `describeCoreError` with a small overrides map and a generic sentence as the fallback. The title stays generic, so it still covers the handled reasons, while the description is reason specific.
+The Project card in [`project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) catches a failed `synchronize`. The mutation `handles` the four types in `SYNC_REFUSAL_TYPES` ([`lib/sync.ts`](/src/renderer/lib/sync.ts)), so `useAppMutation`'s predicate returns false only for those four, and every other type still reaches the root error screen. The `onClick` catches the rejection and calls `handleError(error)`, which stores it with `setSyncError(error)` and then answers it in one of two places.
 
-Each override names only what Core raises that type for while synchronizing, read off Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#synchronizing):
+**Where the answer goes depends on where focus is**, which is ci's rule for a failure somebody is waiting for:
 
-- `Conflict` is the integrity gate alone, so the text names a reference whose target is gone from the integrated tree and what to do about it.
+- While `document.activeElement` is still the Sync button, the [sync dialog](/src/renderer/components/sync-dialog.tsx) opens. It carries `role="alertdialog"`, takes focus and gives it back to Sync when it closes.
+- Once focus has moved on, a toast with Retry answers instead, because a dialog would take the keyboard from whatever the editor moved to.
+- Either way the card keeps one "Sync failed" line until a sync succeeds, with Show why, which opens the dialog. A toast disappears and cannot hold a lasting state.
+
+Sync stays focusable while it waits (`focusableWhenDisabled`, so `aria-disabled` rather than `disabled`), which is also what keeps focus on it long enough for the refusal to land there.
+
+The dialog's sentence comes from `describeCoreError` with `SYNC_REFUSALS`, and each one names only what Core raises that type for while synchronizing, read off Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#synchronizing):
+
+- `Conflict` is the integrity scan alone. Core attaches its `DanglingReference[]` as the cause, so the dialog lists every Entry and field it named, read through `syncConflictReferencesOf`. Each row links the Entry by the title `entryTitle` gives it and names the field by its own label, never by the ids Core sent.
 - `PreconditionFailed` has several causes, and the text names the three an editor meets: a repository holding something besides the Project, a repository whose Git LFS endpoint will not take the Assets, and a textual rebase conflict.
-- An unreachable repository is neither of the two types. The git command exits non-zero and Core raises `Internal`, or `Unauthorized` when the remote refused the credentials, so no override covers it and it reaches the root error boundary.
+- `Unauthorized` is a repository that refused the credentials.
+- `Internal` is a git command that failed at all, most often a repository nothing can reach.
+
+Handling `Internal` in place is the exception to make on purpose, the same one the Release dialog makes: every failure of this one call has the same, true, actionable answer, and it is what keeps Core's raw message off the screen, since a Git repository's address can carry a credential.
+
+Core unwinds a refused sync before the error arrives, so the dialog says once that nothing was synced and the changes stay on this computer, and pressing Sync again retries.
 
 ### Example: a clone Core refuses
 
@@ -318,6 +345,7 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 | ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
 | A read fails inside a pane                | One sentence and Try again, in the pane       | Pane error log plus the `onCaughtError` log                           |
 | A read fails above every pane             | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
+| The Project card's check of the remote    | A state line in the card, Sync as the retry   | `Project card check error` log                                        |
 | Unexpected mutation error                 | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
 | Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page | None by default                                                       |
 | Handled `type` whose cause names no field | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
