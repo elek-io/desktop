@@ -258,14 +258,16 @@ The sidebar's Project card runs the one check of the Git repository, `projects.g
 
 | Line                  | Where it comes from                                                                                                                                |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Changes not synced    | `projects.getChanges().ahead`, the same read the History groups its changes by, so both show one number                                            |
+| Changes not synced    | `projects.getChanges().ahead`                                                                                                                      |
 | Incoming changes      | `projects.getChanges().behind`                                                                                                                     |
 | Everything synced     | Both of the above empty, which is a state of its own rather than two lines saying zero                                                             |
 | The last Release      | `releases.list`, the newest item of type `release`. A preview Release tags `draft` without publishing it, so it is not the Release a Project is at |
 | When it last checked  | `dataUpdatedAt` of the check, worded by `formatRelativeShort` and re-read on a clock of its own every 30 seconds                                   |
 | Can't reach / refused | The check's own failure, by its `CoreError` type                                                                                                   |
 
-The check refetches every three minutes, as it did before the card drew it, and Check now refetches at once. Nothing else reads that query.
+The check refetches every three minutes, as it did before the card drew it, and Check now refetches at once.
+
+**The card is the only reader of that query.** The History reads neither `getChanges` nor `ahead` and `behind`, and it lists the Project's commits with no group for what is not synced, so there is no second number to agree with today. A History that marks what is synced and what is not is to read this same query, so that both show one number.
 
 ### Error Handling - Prefer useQueryNoError
 
