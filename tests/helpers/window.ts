@@ -186,6 +186,68 @@ export async function recordedTitleBarOverlays(
 }
 
 /**
+ * Record every claim about unsaved changes the window makes, as the main
+ * process takes it.
+ *
+ * The claim is what the main process decides on before it closes a window, and
+ * it only travels one way: the renderer says so over
+ * `electron:window:setUnsavedChanges` whenever a guarded form turns dirty or
+ * clean. It is still on its way while the spec goes on, so a close driven
+ * right behind the typing can be taken before the claim is, and then it is
+ * correctly not held and the window goes with what was typed in it. A spec
+ * that drives a close waits for the claim rather than for the clock, see
+ * `waitForUnsavedChangesClaim`.
+ *
+ * Watched here rather than in the window, because the bridge the renderer
+ * calls is frozen and cannot be wrapped. The app's own handler is called first
+ * and its answer handed back, so the channel does what it did, which is what
+ * sets `stubCore*` apart: those replace a handler, this one wraps it.
+ */
+export async function recordUnsavedChangesClaims(
+  app: ElectronApplication
+): Promise<void> {
+  await app.evaluate(({ ipcMain }) => {
+    const channel = 'electron:window:setUnsavedChanges';
+    const handlers = ipcMain._invokeHandlers;
+    const handler = handlers?.get(channel);
+
+    // Asked before anything is set up, so a helper that cannot watch leaves
+    // no record of its own behind to read as an empty one.
+    if (handlers === undefined || handler === undefined) {
+      throw new Error(
+        `No handler of "${channel}" to watch, so nothing would be recorded`
+      );
+    }
+
+    globalThis.unsavedChangesClaims = [];
+    handlers.set(channel, async (event, ...args) => {
+      const answer: unknown = await Promise.resolve(handler(event, ...args));
+      globalThis.unsavedChangesClaims?.push(args[0]);
+      return answer;
+    });
+  });
+}
+
+/**
+ * Wait until the main process has taken the claim the window was going to
+ * make, so what it decides a close on is in place.
+ */
+export async function waitForUnsavedChangesClaim(
+  app: ElectronApplication,
+  claim: boolean
+): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        app.evaluate(() => globalThis.unsavedChangesClaims?.at(-1) ?? null),
+      {
+        message: `the window never claimed unsaved changes to be ${claim}`,
+      }
+    )
+    .toBe(claim);
+}
+
+/**
  * Hand the window theme channel a value and say what the main process did
  * with it.
  *

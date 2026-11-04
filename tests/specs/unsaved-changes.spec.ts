@@ -29,6 +29,10 @@ import {
 } from '../helpers/project.js';
 import { setupRemote } from '../helpers/remote.js';
 import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
+import {
+  recordUnsavedChangesClaims,
+  waitForUnsavedChangesClaim,
+} from '../helpers/window.js';
 
 /**
  * What keeps a form from saving, as it stands below Save.
@@ -572,8 +576,12 @@ test.describe('Closing the window with changes nobody saved', () => {
   }) => {
     const ids = await projectWithEntry(mainWindow);
     await navigateToEntryUpdate(mainWindow, ids);
+    await recordUnsavedChangesClaims(electronApp);
     const title = mainWindow.getByLabel('Title', { exact: true });
     await title.fill('A title nobody saved');
+    // The main process holds a close on the claim the window sends while this
+    // goes on, so each close below waits for the claim rather than racing it.
+    await waitForUnsavedChangesClaim(electronApp, true);
 
     const askToClose = async (): Promise<void> => {
       await electronApp.evaluate(({ BrowserWindow }) => {
@@ -640,9 +648,15 @@ test.describe('Closing the window with changes nobody saved', () => {
     const pageErrors: string[] = [];
     reopened.on('pageerror', (error) => pageErrors.push(error.message));
 
+    // A document that finished loading has saved nothing yet, which the main
+    // process takes as the claim of a fresh window. Waited for before
+    // anything is typed, so it cannot land on top of the claim below.
+    await reopened.waitForLoadState('load');
+    await recordUnsavedChangesClaims(electronApp);
     await navigateToEntryUpdate(reopened, ids);
     const title = reopened.getByLabel('Title', { exact: true });
     await title.fill('A title nobody saved');
+    await waitForUnsavedChangesClaim(electronApp, true);
 
     await electronApp.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.close();
@@ -671,9 +685,11 @@ test.describe('Closing the window with changes nobody saved', () => {
   }) => {
     const ids = await projectWithEntry(mainWindow);
     await navigateToEntryUpdate(mainWindow, ids);
+    await recordUnsavedChangesClaims(electronApp);
     await mainWindow
       .getByLabel('Title', { exact: true })
       .fill('A title nobody saved');
+    await waitForUnsavedChangesClaim(electronApp, true);
 
     // A quit closes every window, so the question comes up for this one and
     // holds the quit until it is answered.

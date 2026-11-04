@@ -169,6 +169,14 @@ declare var openedExternally: string[] | undefined;
 declare var recordedCoreCalls: string[] | undefined;
 
 /**
+ * Every claim about unsaved changes the window made, in the order the main
+ * process took them, kept in the main process the same way. A spec waits on it
+ * before it drives a close. See tests/helpers/window.ts.
+ */
+// eslint-disable-next-line no-var
+declare var unsavedChangesClaims: unknown[] | undefined;
+
+/**
  * Every file the window asked for while its first load is held and answered
  * with nothing, kept in the main process the same way. A spec reads it to tell
  * a load the hold has from one that never reached it. See
