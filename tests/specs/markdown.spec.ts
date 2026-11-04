@@ -549,10 +549,38 @@ test.describe('The markdown field', () => {
     // the same buttons is what the first spec above drives.
     const bar = (label: string, name: string): Locator =>
       field(label).getByRole('button', { name, exact: true });
+    // The caret behind everything the field holds, which is where the next
+    // block or word goes in. The selection is set rather than a key pressed,
+    // because every shortcut that reaches the end of a document belongs to one
+    // platform: `Control+End` moves nothing in Chromium on macOS, which leaves
+    // each format after the first one where the click before it had put the
+    // caret, so the next word typed replaces the text that click had selected.
+    // ProseMirror reads the selection back out of the DOM when the browser
+    // says it changed, and the listener it registered for that is older than
+    // the one below, so it runs first and the editor has taken the caret in by
+    // the time this resolves.
     const atEnd = async (label: string): Promise<void> => {
       await surface(label).focus();
       await expect(surface(label)).toBeFocused();
-      await mainWindow.keyboard.press('ControlOrMeta+End');
+      await surface(label).evaluate(
+        async (node) =>
+          new Promise<void>((resolve) => {
+            const ownerDocument = node.ownerDocument;
+            ownerDocument.addEventListener(
+              'selectionchange',
+              () => {
+                resolve();
+              },
+              { once: true }
+            );
+            const range = ownerDocument.createRange();
+            range.selectNodeContents(node);
+            range.collapse(false);
+            const selection = ownerDocument.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+          })
+      );
     };
     const select = async (characters: number): Promise<void> => {
       for (let step = 0; step < characters; step += 1) {
