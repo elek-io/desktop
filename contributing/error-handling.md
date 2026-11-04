@@ -41,7 +41,9 @@ Two causes are left, and both are arrays of ids, with one typed reader each that
 - **The issue list Core attaches to a `Conflict` it raises for a field definition change it cannot carry out alone** (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). Each element of an array cause that carries Core's `issue` key crosses as the four fields a screen needs and nothing else, `forwardedIssueKeys` in `ipcError.ts`. `transformedValues` and `currentValue` stay in the main process, because those are the content somebody wrote: `transformedValues` holds every Value of the Entry, so a refused change in a large Collection would otherwise pack the content of each affected Entry into one message. Read by `entryIssuesOf` in [`lib/schemaChange.ts`](/src/renderer/lib/schemaChange.ts).
 - **The dangling references Core attaches to the `Conflict` it raises for a sync it would integrate them with.** Those elements carry no `issue` key, so they cross as Core wrote them, which is ids only: the Collection, the Entry, the field's slug, which carrier held the id, the chain of Components down to it, and what the missing target was. Read by `syncConflictReferencesOf` in [`lib/sync.ts`](/src/renderer/lib/sync.ts), which keeps the three the sync dialog shows.
 
-**No cause reaches a log record.** `errorLogAttributes` ([`shared/logError.ts`](/src/shared/logError.ts)) reads the decoded `type`, `message` and `stack` and nothing else, which is what keeps an Entry's content and a git remote's URL out of a log file. Nothing renders a cause raw either.
+**No cause reaches a log record.** `errorLogAttributes` ([`shared/logError.ts`](/src/shared/logError.ts)) reads the decoded `type`, `message` and `stack` and nothing else, which is what keeps a cause's own fields, such as an Entry's content or a git remote's URL, out of a log file. Nothing renders a cause raw either.
+
+**A message is not safe by itself.** An error whose own message carries content somebody wrote logs through `errorLogAttributesWithoutMessage` from the same module, which leaves the message out and keeps the frames of the stack only, since a stack starts with the message it was thrown with. Milkdown's parser and serializer are such an error: each puts the whole node it could not match into what it throws, and for a markdown Value that node is the text itself, see [markdown-editor.md](./renderer/markdown-editor.md#when-a-stored-value-cannot-be-read).
 
 An error Core raised without a cause encodes and decodes exactly as it did before the cause was carried: `JSON.stringify` omits the key, so the decoded result has no `cause` and the message is unchanged.
 
@@ -246,20 +248,22 @@ There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC
 
 ### What an error record carries
 
-A log file is the only thing we get from a user who zips their logs instead of sending a report, so the shape of an error record is a contract rather than a detail. Every site that logs an error, in either process, builds its attributes with `errorLogAttributes` from [`shared/logError.ts`](/src/shared/logError.ts), so they cannot drift apart. In the main process a CoreError arrives as the instance itself rather than encoded by IPC, so its type is read off it.
+A log file is the only thing we get from a user who zips their logs instead of sending a report, so the shape of an error record is a contract rather than a detail. Every site that logs an error, in either process, builds its attributes with `errorLogAttributes` from [`shared/logError.ts`](/src/shared/logError.ts), or with its `errorLogAttributesWithoutMessage` where the thrown message itself carries content, so they cannot drift apart. In the main process a CoreError arrives as the instance itself rather than encoded by IPC, so its type is read off it.
 
 Attributes are flat dotted keys, the same convention Core follows for its own records (see Core's `logAttributeNames`). The point is that one query answers a question across both sources: a grep for `exception.stacktrace` finds every stack in a file, whoever wrote it.
 
-| Attribute                         | What it holds                                                               |
-| --------------------------------- | --------------------------------------------------------------------------- |
-| `error.type`                      | The `CoreError` type. Absent for an error that never came from Core         |
-| `exception.type`                  | The JavaScript class, which is what tells a `TypeError` from a `RangeError` |
-| `exception.message`               | The decoded message, never the raw sentinel payload                         |
-| `exception.stacktrace`            | Core's origin stack for a `CoreError`, the error's own stack otherwise      |
-| `elek.react.component_stack`      | React's component stack, on the root callbacks only                         |
-| `elek.method`, `elek.object.type` | Which mutation, on the mutation wrapper's records                           |
+| Attribute                         | What it holds                                                                                             |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `error.type`                      | The `CoreError` type. Absent for an error that never came from Core                                       |
+| `exception.type`                  | The JavaScript class, which is what tells a `TypeError` from a `RangeError`                               |
+| `exception.message`               | The decoded message, never the raw sentinel payload. Absent where that message carries content, see below |
+| `exception.stacktrace`            | Core's origin stack for a `CoreError`, the error's own stack otherwise                                    |
+| `elek.react.component_stack`      | React's component stack, on the root callbacks only                                                       |
+| `elek.method`, `elek.object.type` | Which mutation, on the mutation wrapper's records                                                         |
 
 **A stack is always present.** It used to be absent for anything that was not a `CoreError`, because `parseIpcError` returned the decoded stack or nothing, and only the root boundary fell back to `error.stack`. So an ordinary renderer bug, the one class you cannot reproduce from a description, reached the log with no frames at all. `parseIpcError` now falls back to the error's own stack in its no-sentinel branch. The fallback is deliberately not in the malformed-payload branch, where `error.stack` still holds the encoded form and returning it would leak the sentinel onto the error screen.
+
+**A message is left out where it carries content.** The markdown editor is the one site that logs with `errorLogAttributesWithoutMessage`, so its record holds no `exception.message` and its `exception.stacktrace` holds the frames alone, since a stack starts with the message it was thrown with, see [What the `cause` carries](#what-the-cause-carries-and-what-it-does-not).
 
 **What is deliberately not logged.** The mutation wrapper logs neither `variables` nor `context`. `context` holds the QueryClient, whose functions and circular references would fail the structured clone and lose the log silently. `variables` is the mutation payload, which for an Entry is the content the user wrote, and Core never writes that to a log file. A `CoreError`'s `cause` is left out for the same reason, see [What the `cause` carries](#what-the-cause-carries-and-what-it-does-not).
 

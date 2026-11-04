@@ -45,10 +45,10 @@ A tree the bridge cannot turn into a document is one the editor has no node for,
 
 - **Nothing is emitted.** The editor only sends a tree to the form once it has taken a Value in, so the empty box a failed load leaves behind never reaches `field.onChange`. Without that, leaving the field would flush an empty document, which the bridge turns into `null`, and the next save would store nothing in place of the text.
 - **The box takes no edit.** ProseMirror is told the document is not editable and the element says `aria-readonly`, so nothing typed can look like it will be saved. It keeps a `tabindex`, which a document that is no longer editable would otherwise lose, so the sentence below can still be reached and heard.
-- **One sentence from the catalog says what it means for the text**, named in the editable element's `aria-describedby`. What was thrown says nothing an editor asked about and carries the stored text itself, so it goes to the log file instead, with `errorLogAttributes` the way a pane's boundary writes one.
+- **One sentence from the catalog says what it means for the text and for the Entry**, named in the editable element's `aria-describedby` and carrying `role="alert"`, since it appears after the page was presented rather than with it. What was thrown says nothing an editor asked about, so it goes to the log file instead, the way a pane's boundary writes one, but without its message: Milkdown's parser puts the whole node it could not match into what it throws, and for a markdown Value that node is the text somebody wrote. So this one record logs through `errorLogAttributesWithoutMessage`, which keeps the type, the Core type and the frames of the stack, see [error-handling.md](../error-handling.md#what-the-cause-carries-and-what-it-does-not).
 - **The save is refused rather than silent.** The form still holds the stored tree, so the generated entry schema refuses it and the field says so in its own words, see [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
 
-A document the bridge cannot serialize is answered the same way, with a sentence of its own: the form keeps the last tree that crossed, rather than a partial one.
+A document the bridge cannot serialize is answered the same way, with a sentence of its own: the form keeps the last tree that crossed, rather than a partial one. Its message is kept out of the log file too, because Milkdown's serializer stringifies its node exactly as the parser does.
 
 ## Feature gating
 

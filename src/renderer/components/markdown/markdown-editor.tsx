@@ -12,14 +12,14 @@ import type { Node } from '@milkdown/kit/prose/model';
 import '@milkdown/kit/prose/tables/style/tables.css';
 import '@milkdown/kit/prose/view/style/prosemirror.css';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { errorLogAttributes } from '@root/src/shared/logError';
+import { errorLogAttributesWithoutMessage } from '@root/src/shared/logError';
 import { CircleAlertIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactElement } from 'react';
 
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import { cn } from '@renderer/lib/utils';
 
-import { z, type MarkdownFieldDefinition, type MdAstRoot } from '@elek-io/core';
+import { type MarkdownFieldDefinition, type MdAstRoot } from '@elek-io/core';
 
 import './markdown-editor.css';
 import { MarkdownToolbar } from './markdown-toolbar';
@@ -44,20 +44,6 @@ type BridgeDirection = 'read' | 'write';
 interface BridgeFailure {
   direction: BridgeDirection;
   error: unknown;
-}
-
-/**
- * What the log record says, which is the only place the thrown message goes.
- *
- * Zod stringifies its whole issue list as the message, so only the first
- * issue's own sentence is taken. Nothing of this reaches a screen, see the
- * message below the editor.
- */
-function bridgeErrorMessage(error: unknown): string {
-  if (error instanceof z.ZodError) {
-    return error.issues[0]?.message ?? error.message;
-  }
-  return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -275,23 +261,24 @@ const MarkdownEditorInner = ({
     });
   }, [loading, get, value]);
 
-  // What the bridge threw reaches the log file with its type, message and
-  // stack, the way a pane's boundary writes one, since the field itself says
-  // none of it. From an effect rather than the render body, so a re-render
-  // does not write the same record again.
+  // What the bridge threw reaches the log file with its type and its frames,
+  // the way a pane's boundary writes one, since the field itself says none of
+  // it. Without its own message, in either direction: Milkdown's parser and
+  // serializer put the node they could not match into what they throw, and
+  // for a markdown Value that node is the text somebody wrote. From an effect
+  // rather than the render body, so a re-render does not write the same record
+  // again.
   useEffect(() => {
     if (failure === null) {
       return;
     }
-    const message = bridgeErrorMessage(failure.error);
-
     void window.ipc.core.logger.error({
       source: 'desktop',
       message:
         failure.direction === 'read'
-          ? `Markdown editor could not read the stored Value: ${message}`
-          : `Markdown editor could not store its content: ${message}`,
-      meta: errorLogAttributes(failure.error),
+          ? 'Markdown editor could not read the stored Value'
+          : 'Markdown editor could not store its content',
+      meta: errorLogAttributesWithoutMessage(failure.error),
     });
   }, [failure]);
 
@@ -328,8 +315,12 @@ const MarkdownEditorInner = ({
         /* What was thrown says nothing an editor asked about, so it goes to
         the log file and this says what it means for the text instead. The icon
         stands beside the words, as ci's Messages table draws one, so the color
-        is not the only thing that says it. */
+        is not the only thing that says it. `role="alert"` because the message
+        appears after the page was presented, which is when a re-read refills
+        the form and when a document cannot be stored, and it is also named in
+        `aria-describedby`, the way the shell's own field error is. */
         <p
+          role="alert"
           data-slot="markdown-message"
           id={messageId}
           className="flex gap-1.5 border-t border-border p-2 text-sm text-error"
@@ -338,7 +329,8 @@ const MarkdownEditorInner = ({
           <span className="flex-1">
             {isValueUnreadable ? (
               <Trans>
-                Desktop can&apos;t show this text. It stays saved as it is.
+                Desktop can&apos;t show this text. It stays saved as it is, and
+                this Entry can&apos;t be saved until it is fixed.
               </Trans>
             ) : (
               <Trans>

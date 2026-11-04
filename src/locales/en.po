@@ -973,8 +973,8 @@ msgid "Desktop can't save this text. Please report it, so we can fix it."
 msgstr "Desktop can't save this text. Please report it, so we can fix it."
 
 #: src/renderer/components/markdown/markdown-editor.tsx
-msgid "Desktop can't show this text. It stays saved as it is."
-msgstr "Desktop can't show this text. It stays saved as it is."
+msgid "Desktop can't show this text. It stays saved as it is, and this Entry can't be saved until it is fixed."
+msgstr "Desktop can't show this text. It stays saved as it is, and this Entry can't be saved until it is fixed."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Disabled"

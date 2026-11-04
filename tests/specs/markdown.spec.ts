@@ -830,16 +830,18 @@ test.describe('The markdown field', () => {
       });
       const editor = await settledEditor(window);
 
-      // The field says what it means for the text, in its own words, and the
-      // element that takes focus is described by that sentence.
-      await expect(bridgeMessage(window)).toHaveText(
-        "Desktop can't show this text. It stays saved as it is."
-      );
+      // The field says what it means for the text and for the Entry, in its
+      // own words, and the element that takes focus is described by that
+      // sentence. It is also a live region, since it appears after the page
+      // was presented: nothing navigated to it, the form was refilled under
+      // it.
+      const unreadableMessage =
+        "Desktop can't show this text. It stays saved as it is, and this " +
+        "Entry can't be saved until it is fixed.";
+      await expect(bridgeMessage(window)).toHaveText(unreadableMessage);
+      await expect(bridgeMessage(window)).toHaveAttribute('role', 'alert');
       expect(await describedPartsOf(window, editor)).toEqual([
-        {
-          slot: 'markdown-message',
-          text: "Desktop can't show this text. It stays saved as it is.",
-        },
+        { slot: 'markdown-message', text: unreadableMessage },
       ]);
       // Nothing of what was thrown is on the screen, and that includes the
       // stored text itself, which the thrown message carries.
@@ -889,8 +891,10 @@ test.describe('The markdown field', () => {
         en: unreadable,
       });
 
-      // What the editor could not read reached the log file, with the type,
-      // the message and the stack a pane's boundary writes.
+      // What the editor could not read reached the log file, with the type
+      // and the frames a pane's boundary writes, and with none of the text:
+      // Milkdown puts the whole node it could not read into the message it
+      // throws, and a stack starts with that message, so neither crosses.
       const logs = await recordedLogs(app);
       const record = logs.find((entry) =>
         entry.message.startsWith('Markdown editor could not read')
@@ -899,6 +903,8 @@ test.describe('The markdown field', () => {
       expect(record?.source).toBe('desktop');
       expect(record?.meta['exception.type']).toBe('MilkdownError');
       expect(record?.meta['exception.stacktrace']).toBeDefined();
+      expect(JSON.stringify(record)).not.toContain('const a = 1;');
+      expect(JSON.stringify(record)).not.toContain('Cannot match');
     } finally {
       // The relaunched app is not covered by the fixture teardown, so close it.
       await closeApp(app);
