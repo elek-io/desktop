@@ -140,6 +140,9 @@ const MarkdownEditorInner = ({
   // The Value the editor could not read, so it is not read again on every
   // render, and so the failure is logged once rather than once per render.
   const unreadableRef = useRef<string | null>(null);
+  // The document as the editor drew the stored Value, so drawing it can be
+  // told from editing it.
+  const drawnDocRef = useRef<Node | null>(null);
   const [failure, setFailure] = useState<BridgeFailure | null>(null);
   const [activeFormats, setActiveFormats] =
     useState<ActiveMarkFormats>(noActiveMarkFormats);
@@ -165,6 +168,14 @@ const MarkdownEditorInner = ({
     if (isHydratedRef.current === false) {
       return;
     }
+    // Nor does the document the editor drew the stored Value as. Milkdown's
+    // schema can ask for more than a tree holds, such as the body row a table
+    // of nothing but a header row is drawn with, so what comes back out of the
+    // document is not always what went in. Drawing a Value is no edit of it,
+    // so it stays as it is until something in the document changes.
+    if (drawnDocRef.current?.eq(doc) === true) {
+      return;
+    }
     try {
       const root = docToMdast(ctx, doc);
       const key = JSON.stringify(root);
@@ -172,6 +183,7 @@ const MarkdownEditorInner = ({
         return;
       }
       lastEmittedRef.current = key;
+      drawnDocRef.current = null;
       setFailure(null);
       onChangeRef.current(root);
     } catch (error) {
@@ -185,6 +197,7 @@ const MarkdownEditorInner = ({
     (root) => {
       // A rebuild (disabled toggled) starts from an empty document again
       isHydratedRef.current = false;
+      drawnDocRef.current = null;
       return Editor.make()
         .config((ctx) => {
           ctx.set(rootCtx, root);
@@ -250,6 +263,7 @@ const MarkdownEditorInner = ({
         view.dispatch(transaction.setMeta('addToHistory', false));
         isHydratedRef.current = true;
         lastEmittedRef.current = key;
+        drawnDocRef.current = view.state.doc;
         unreadableRef.current = null;
         setFailure(null);
       } catch (error) {

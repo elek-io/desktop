@@ -796,6 +796,87 @@ test.describe('The markdown field', () => {
     expect(saved?.values['body']?.content).toEqual({ en: tree });
   });
 
+  test('saves a tree the toolbar would not write as it opened it', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        markdownFieldDefinition({ features: everyFeature }),
+      ],
+    });
+    // A table of nothing but a header row, whose columns say nothing about how
+    // they line up. The toolbar writes neither: it draws a table with a body
+    // row and left-aligns every column. Another tool, a later version of
+    // elek.io or a hand edit can store one, and Core takes it.
+    const outside: MdAstRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'table',
+          align: [null, null],
+          children: [
+            {
+              type: 'tableRow',
+              children: [
+                {
+                  type: 'tableCell',
+                  children: [{ type: 'text', value: 'Head A' }],
+                },
+                {
+                  type: 'tableCell',
+                  children: [{ type: 'text', value: 'Head B' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Seeded from outside' }),
+        body: markdownValue({ en: outside }),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    const editor = await settledEditor(mainWindow);
+    // Both columns are there to read, and nothing says anything went wrong.
+    // Milkdown's schema asks for a body row, so the editor draws one the tree
+    // does not hold, which is exactly what must not reach the Value.
+    await expect(editor.locator('table th')).toHaveText(['Head A', 'Head B']);
+    await expect(editor.locator('table tr')).toHaveCount(2);
+    await expect(bridgeMessage(mainWindow)).toHaveCount(0);
+
+    // Saved without touching the text, as above: the Title carries the change
+    // and the text has to come back as it went in, down to the row the editor
+    // added and the alignment it filled in.
+    await editor.click();
+    await fillEntryForm(mainWindow, { Title: 'Seeded from outside, renamed' });
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const storedAfter = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(
+      storedAfter.find((candidate) => candidate.id === entry.id)?.values['body']
+        ?.content
+    ).toEqual({ en: outside });
+  });
+
   test('keeps a Value it cannot read, and says so in words of its own', async ({
     electronApp,
     mainWindow,
