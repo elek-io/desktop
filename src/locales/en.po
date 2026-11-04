@@ -2452,10 +2452,6 @@ msgstr "The slug is generated from the selected Fields while creating an Entry, 
 msgid "The smallest value the user can enter."
 msgstr "The smallest value the user can enter."
 
-#: src/renderer/lib/sync.ts
-msgid "The synchronization stopped before anything reached the Git repository. Please try again."
-msgstr "The synchronization stopped before anything reached the Git repository. Please try again."
-
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "The technical key this Field's Values are stored under. It is generated from the label until edited manually."
 msgstr "The technical key this Field's Values are stored under. It is generated from the label until edited manually."

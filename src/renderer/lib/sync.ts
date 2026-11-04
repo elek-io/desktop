@@ -63,12 +63,6 @@ export const SYNC_REFUSALS: Record<SyncRefusalType, MessageDescriptor> = {
 };
 
 /**
- * The sentence for a refusal that carries no type Desktop could read, which
- * only a payload the IPC encoding could not decode leaves behind.
- */
-export const SYNC_REFUSAL_FALLBACK = msg`The synchronization stopped before anything reached the Git repository. Please try again.`;
-
-/**
  * The `handled` map of the synchronize mutation: every type above answered the
  * same way, which is the dialog while focus is still on Sync and a toast with
  * Retry once it has moved on.
@@ -89,14 +83,44 @@ export function syncRefusalHandlers(
  * One reference a sync would have integrated whose target is gone.
  *
  * Deliberately narrower than Core's `DanglingReference`, which also carries
- * which carrier held the id, the chain of Components down to the field and what
+ * which carrier held the id, every hop of the chain down to the field and what
  * the missing target was. The dialog names the Entry to open and the field
- * inside it, so those three are what it reads.
+ * inside it, so it reads those and the one hop that says where the field is
+ * defined.
  */
 export interface SyncConflictReference {
   collectionId: string;
   entryId: string;
   fieldSlug: string;
+  /**
+   * The Component whose own field definitions hold the field, or `null` where
+   * the field is one of the Collection's own.
+   */
+  componentId: string | null;
+}
+
+/**
+ * The Component a reference's chain of hops ends in, or `null` for a field the
+ * Collection itself defines.
+ *
+ * Core walks a reference inside a `dynamic` field as a chain of hops, each
+ * naming the Component of the item it stepped into. Only the last one defines
+ * the leaf field, so only the last one's Component carries its label.
+ */
+function innermostComponentId(componentPath: unknown): string | null {
+  if (Array.isArray(componentPath) === false) {
+    return null;
+  }
+
+  const innermost: unknown = (componentPath as unknown[]).at(-1);
+
+  if (typeof innermost !== 'object' || innermost === null) {
+    return null;
+  }
+
+  const { componentId } = innermost as { componentId?: unknown };
+
+  return typeof componentId === 'string' ? componentId : null;
 }
 
 /**
@@ -108,9 +132,11 @@ export interface SyncConflictReference {
  * of plain objects as it is. Every other error answers an empty list, so the
  * dialog shows its sentence alone rather than an empty list under it.
  *
- * Two records can name the same Entry and the same field, once per carrier
- * Core found the id in, so the list is deduplicated: the dialog offers one way
- * into each field rather than one per broken id.
+ * Two records can name the same field of the same Entry, once per carrier Core
+ * found the id in and once per item of a Component that holds it, so the list
+ * is deduplicated: the dialog offers one way into each field rather than one
+ * per broken id. A leaf slug two Components both define stays two rows, since
+ * each is named by its own Component's label.
  */
 export function syncConflictReferencesOf(
   error: unknown
@@ -128,9 +154,8 @@ export function syncConflictReferencesOf(
     if (typeof candidate !== 'object' || candidate === null) {
       continue;
     }
-    const { collectionId, entryId, fieldSlug } = candidate as Partial<
-      Record<keyof SyncConflictReference, unknown>
-    >;
+    const { collectionId, entryId, fieldSlug, componentPath } =
+      candidate as Partial<Record<string, unknown>>;
     if (
       typeof collectionId !== 'string' ||
       typeof entryId !== 'string' ||
@@ -138,12 +163,13 @@ export function syncConflictReferencesOf(
     ) {
       continue;
     }
-    const key = `${collectionId}/${entryId}/${fieldSlug}`;
+    const componentId = innermostComponentId(componentPath);
+    const key = `${collectionId}/${entryId}/${componentId ?? ''}/${fieldSlug}`;
     if (seen.has(key)) {
       continue;
     }
     seen.add(key);
-    references.push({ collectionId, entryId, fieldSlug });
+    references.push({ collectionId, entryId, fieldSlug, componentId });
   }
 
   return references;

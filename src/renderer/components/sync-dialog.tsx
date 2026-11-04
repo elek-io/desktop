@@ -21,13 +21,16 @@ import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import {
   syncConflictReferencesOf,
-  SYNC_REFUSAL_FALLBACK,
   SYNC_REFUSALS,
   type SyncConflictReference,
 } from '@renderer/lib/sync';
 import { queryOptions } from '@renderer/queries';
 
-import { flattenFieldDefinitions, type Collection } from '@elek-io/core';
+import {
+  flattenFieldDefinitions,
+  type Collection,
+  type Component,
+} from '@elek-io/core';
 
 /**
  * What stopped a synchronization the editor started, and what to do about it.
@@ -70,7 +73,13 @@ export function SyncDialog({
             <Trans>Sync failed</Trans>
           </DialogTitle>
           <DialogDescription>
-            {describeCoreError(type, SYNC_REFUSALS, SYNC_REFUSAL_FALLBACK)}
+            {/*
+              No fallback sentence, because there is no type to need one: the
+              dialog opens from the mutation's `handled` map alone, which
+              `SYNC_REFUSAL_TYPES` fills and `SYNC_REFUSALS` is exhaustive
+              over, and every other type reaches the error screen instead.
+            */}
+            {describeCoreError(type, SYNC_REFUSALS)}
           </DialogDescription>
         </DialogHeader>
 
@@ -105,8 +114,9 @@ export function SyncDialog({
  * The Entry is named the way every other place names one, through
  * `entryTitle`, rather than by the id Core sent, so the row reads as the Entry
  * somebody wrote. Its Collection carries the field definitions that naming
- * needs and the field's own label, so both come out of the one list of
- * Collections the sidebar already reads.
+ * needs, and the field's own label comes from wherever the field is defined:
+ * the Collection for a field of its own, and the Component for a field inside
+ * a Component item.
  */
 function SyncConflictList({
   references,
@@ -120,6 +130,8 @@ function SyncConflictList({
   } = useProject();
   const { data: collectionList, isPending: isListingCollections } =
     useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
+  const { data: componentList, isPending: isListingComponents } =
+    useQueryNoError(queryOptions.components.list({ projectId, limit: 0 }));
   const entryQueries = useQueriesNoError(
     references.map((reference) =>
       queryOptions.entries.read({
@@ -139,6 +151,15 @@ function SyncConflictList({
           (candidate) => candidate.id === reference.collectionId
         );
 
+  const componentOf = (
+    reference: SyncConflictReference
+  ): Component | undefined =>
+    isListingComponents || reference.componentId === null
+      ? undefined
+      : componentList.list.find(
+          (candidate) => candidate.id === reference.componentId
+        );
+
   return (
     <ul className="grid border-t">
       {references.map((reference, index) => {
@@ -148,16 +169,25 @@ function SyncConflictList({
           entryQuery === undefined || entryQuery.isPending
             ? undefined
             : entryQuery.data;
-        const fieldDefinitions =
+        const collectionDefinitions =
           collection === undefined
             ? []
             : flattenFieldDefinitions(collection.fieldDefinitions);
+        // Where the field is defined: a field inside a Component item by that
+        // Component, whose own list Core's component file holds flat, and a
+        // field of the Collection's own by the Collection.
+        const component = componentOf(reference);
+        const fieldDefinitions =
+          reference.componentId === null
+            ? collectionDefinitions
+            : (component?.fieldDefinitions ?? []);
         const fieldDefinition = fieldDefinitions.find(
           (candidate) => candidate.slug === reference.fieldSlug
         );
-        // The field by the label somebody gave it, and by the slug a site
-        // reads its Value under where the Collection no longer has the field,
-        // which is what a reference into a field that was just removed leaves.
+        // The field by the label somebody gave it. It falls back to the slug a
+        // site reads the Value under while the definitions are still being
+        // read, and where the field is no longer defined at all, which is what
+        // a field removed between the write and the sync leaves.
         const field =
           fieldDefinition === undefined
             ? reference.fieldSlug
@@ -167,15 +197,20 @@ function SyncConflictList({
               });
         // Named the way every other place names an Entry, and left as the
         // field's own row while the Entry is still being read, so the row
-        // never shows an id of its own.
+        // never shows an id of its own. An Entry is named by its Collection's
+        // fields, whichever field the broken reference sits in.
         const title =
           entry === undefined || user === null || user === undefined
             ? undefined
-            : entryTitle({ entry, fieldDefinitions, language: user.language });
+            : entryTitle({
+                entry,
+                fieldDefinitions: collectionDefinitions,
+                language: user.language,
+              });
 
         return (
           <li
-            key={`${reference.entryId}/${reference.fieldSlug}`}
+            key={`${reference.entryId}/${reference.componentId ?? ''}/${reference.fieldSlug}`}
             className="flex min-h-9 items-center gap-3 border-b py-1"
           >
             {title === undefined ? (
