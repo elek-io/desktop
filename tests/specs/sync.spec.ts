@@ -7,14 +7,19 @@ import {
 import { format } from 'date-fns';
 import { join } from 'node:path';
 
+import { uuid } from '@elek-io/core';
+
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import {
   createCollectionViaIpc,
+  dynamicFieldDefinition,
   referenceFieldDefinition,
   textFieldDefinition,
 } from '../helpers/collection.js';
+import { createComponentViaIpc } from '../helpers/component.js';
 import { dismissAlertDialog } from '../helpers/dialog.js';
 import {
+  componentValue,
   createEntryViaIpc,
   referenceValue,
   stringValue,
@@ -23,6 +28,7 @@ import {
   stubCoreHang,
   stubCoreReject,
   stubCoreRejectWithType,
+  stubCoreRejectWithTypeOnce,
 } from '../helpers/ipc.js';
 import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import {
@@ -547,26 +553,163 @@ test.describe('Sync', () => {
     ).toBeVisible();
   });
 
-  test('names each field Core named once, and by its slug where the Collection no longer has it', async ({
+  test('syncs again when Retry in the toast is pressed', async ({
+    mainWindow,
+    electronApp,
+  }, testInfo) => {
+    // Two synchronizations, one of them a real push, and the invalidation each
+    // one awaits.
+    test.slow();
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const synchronize = await arrangeSyncableProject(
+      mainWindow,
+      testInfo,
+      project.id
+    );
+
+    // The first sync is refused late enough to move focus off Sync, which is
+    // what answers in a toast, and every sync after it reaches Core, so Retry
+    // has something that can go through.
+    await stubCoreRejectWithTypeOnce(
+      electronApp,
+      'core:projects:synchronize',
+      'Unauthorized',
+      { delayMs: 1500 }
+    );
+
+    await synchronize.click();
+    await expect(synchronize).toBeFocused();
+    await projectSidebar(mainWindow)
+      .getByRole('link', { name: 'Dashboard' })
+      .focus();
+
+    const retry = mainWindow.getByRole('button', { name: 'Retry' });
+    await expect(retry).toBeVisible({ timeout: 20000 });
+
+    await retry.click();
+
+    // Retry starts the synchronization again rather than only closing the
+    // toast: this one goes through, so the Project ends up level with its Git
+    // repository and the card holds no failure any more. The failure goes last,
+    // because the card clears it only once the reads the sync invalidated have
+    // come back.
+    const card = projectCard(mainWindow);
+    await expect(card.getByText('Everything synced')).toBeVisible({
+      timeout: 20000,
+    });
+    await expect(synchronize).toBeDisabled();
+    await expect(card.getByText('Sync failed')).toBeHidden({ timeout: 20000 });
+  });
+
+  test('keeps the Sync failed line with Show why until a sync goes through', async ({
+    mainWindow,
+    electronApp,
+  }, testInfo) => {
+    // Two synchronizations, one of them a real push, and the invalidation each
+    // one awaits.
+    test.slow();
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const synchronize = await arrangeSyncableProject(
+      mainWindow,
+      testInfo,
+      project.id
+    );
+
+    // One refusal and then a Core that answers as usual, so the line the card
+    // holds can be watched across a sync that goes through.
+    await stubCoreRejectWithTypeOnce(
+      electronApp,
+      'core:projects:synchronize',
+      'Unauthorized'
+    );
+
+    await synchronize.click();
+    await expect(
+      syncDialog(mainWindow).getByRole('heading', { name: 'Sync failed' })
+    ).toBeVisible();
+    await dismissAlertDialog(mainWindow);
+
+    // The dialog is gone and the card still says what happened, with the way
+    // back into it.
+    const card = projectCard(mainWindow);
+    const failed = card.getByText('Sync failed');
+    const showWhy = card.getByRole('button', { name: 'Show why' });
+    await expect(failed).toBeVisible();
+    await expect(showWhy).toBeVisible();
+
+    // The line is announced, since it arrives while the editor may be looking
+    // somewhere else, and it is told by its word and its icon rather than by
+    // its color.
+    const told = await mainWindow.evaluate(() => {
+      const line = Array.from(
+        document.querySelectorAll('[data-slot="project-card"] [role="status"]')
+      ).find(
+        (candidate) => candidate.textContent?.includes('Sync failed') === true
+      );
+      if (line === undefined) {
+        throw new Error('The card says nothing about the failed sync');
+      }
+      return {
+        role: line.getAttribute('role'),
+        icons: line.querySelectorAll('svg').length,
+      };
+    });
+    expect(told.role).toBe('status');
+    expect(told.icons).toBe(1);
+
+    // A sync that goes through ends it: neither the line nor Show why outlives
+    // the failure it is about.
+    await expect(synchronize).toBeEnabled();
+    await synchronize.click();
+    await expect(failed).toBeHidden({ timeout: 20000 });
+    await expect(showWhy).toHaveCount(0);
+  });
+
+  test('names each field Core named once, by its own label inside a Component item and by its slug where the field is gone', async ({
     mainWindow,
     electronApp,
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
+    // A Component whose own reference field carries the slug the Collection
+    // uses too, which is what tells the two labels apart: a field inside a
+    // Component item is defined by the Component, not by the Collection.
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        referenceFieldDefinition({ label: { en: 'Hero image' } }),
+      ],
+    });
     // Its own slug, since the arrangement below adds a Collection of its own
     // and Core refuses a second one under the same slug.
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       name: { singular: { en: 'Blog post' }, plural: { en: 'Blog posts' } },
       slug: { singular: 'blog-post', plural: 'blog-posts' },
-      fieldDefinitions: [textFieldDefinition(), referenceFieldDefinition()],
+      fieldDefinitions: [
+        textFieldDefinition(),
+        referenceFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
     });
+    const section = uuid();
     const entry = await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
       values: {
         title: stringValue({ en: 'Spring opening hours' }),
         related: referenceValue(),
+        sections: componentValue([
+          {
+            id: section,
+            componentId: component.id,
+            values: { related: referenceValue() },
+          },
+        ]),
       },
     });
     const synchronize = await arrangeSyncableProject(
@@ -577,8 +720,10 @@ test.describe('Sync', () => {
 
     // The set of references Core can name that no local repository can be
     // arranged into: the same field reached through both carriers it stores a
-    // reference in, and one in a field the Collection no longer has, which is
-    // what a field removed between the write and the sync leaves.
+    // reference in, one inside a Component item, which Core names with the
+    // chain of hops down to it, and one in a field the Collection no longer
+    // has, which is what a field removed between the write and the sync
+    // leaves.
     await stubCoreRejectWithType(
       electronApp,
       'core:projects:synchronize',
@@ -608,6 +753,22 @@ test.describe('Sync', () => {
           {
             collectionId: collection.id,
             entryId: entry.id,
+            fieldSlug: 'related',
+            via: 'reference',
+            componentPath: [
+              {
+                fieldSlug: 'sections',
+                itemId: section,
+                componentId: component.id,
+              },
+            ],
+            targetKind: 'entry',
+            targetId: entry.id,
+            targetCollectionId: collection.id,
+          },
+          {
+            collectionId: collection.id,
+            entryId: entry.id,
             fieldSlug: 'a-field-that-went',
             via: 'reference',
             componentPath: [],
@@ -625,13 +786,20 @@ test.describe('Sync', () => {
     // way into each field.
     const dialog = syncDialog(mainWindow);
     const rows = dialog.getByRole('listitem');
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(3);
     await expect(
       rows.filter({ hasText: 'Related' }).getByRole('link')
     ).toHaveText('Spring opening hours');
 
-    // A field the Collection no longer has is named by the slug a site reads
-    // its Value under, since there is no label left to read.
+    // The field inside the Component item keeps a row of its own, named by the
+    // label that Component gave it rather than by the Collection's label for
+    // the same slug, or by the slug itself.
+    const nested = rows.filter({ hasText: 'Hero image' });
+    await expect(nested).toHaveCount(1);
+    await expect(nested.getByRole('link')).toHaveText('Spring opening hours');
+
+    // A field no longer defined at all is named by the slug a site reads its
+    // Value under, since there is no label left to read.
     await expect(rows.filter({ hasText: 'a-field-that-went' })).toHaveCount(1);
   });
 
@@ -773,6 +941,50 @@ test.describe('The Project card', () => {
     );
     await card.getByRole('button', { name: 'Check now' }).click();
     await expect(card.getByText('3 incoming changes')).toBeVisible({
+      timeout: 20000,
+    });
+  });
+
+  test('checks the Git repository again on its own, with nothing pressed', async ({
+    mainWindow,
+  }, testInfo) => {
+    // The card keeps checking on a clock of its own, which is driven here by
+    // taking the window's clock over: three minutes of it pass in one step
+    // rather than in real time. It is installed before the Project is opened,
+    // so the app loads with it in place and time keeps flowing until the jump,
+    // which is what keeps the window from getting stuck while it loads.
+    await mainWindow.clock.install();
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const projectPath = join(
+      testDataDirs(testInfo).dataDir,
+      'projects',
+      project.id
+    );
+    const remote = setupRemote(testInfo, { mirror: projectPath });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: remote.url,
+    });
+
+    await navigateToProjectDashboard(mainWindow, project.id);
+    const card = projectCard(mainWindow);
+    await expect(card.getByText('Everything synced')).toBeVisible();
+
+    // One Core-shaped commit on the remote, which nothing but another check
+    // can find.
+    commitFileOnRemote(
+      testInfo,
+      remote.path,
+      { relPath: 'note.txt', content: 'from another computer' },
+      { method: 'update', reference: { objectType: 'project', id: project.id } }
+    );
+
+    // Nobody presses Sync or Check now: the three minutes the card waits on
+    // its own are all that passes.
+    await mainWindow.clock.fastForward('03:10');
+
+    await expect(card.getByText('1 incoming change')).toBeVisible({
       timeout: 20000,
     });
   });
@@ -994,7 +1206,14 @@ test.describe('The Project card', () => {
       await navigateToProjectDashboard(mainWindow, project.id);
       await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
       await waitForLayout(mainWindow);
-      await expect(projectCard(mainWindow)).toBeVisible();
+      // The filled card, not the skeleton that stands in for it while the
+      // Project is still being read: both draw the card's own slot, so waiting
+      // on that alone lets the probe below run against a card that has no
+      // initials to measure yet. The switcher named after the Project is drawn
+      // by the filled card alone.
+      await expect(
+        projectCard(mainWindow).getByRole('button', { name: project.name })
+      ).toBeVisible();
 
       const lockup = await mainWindow
         .getByRole('banner')
