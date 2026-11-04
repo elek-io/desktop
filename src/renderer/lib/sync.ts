@@ -4,7 +4,11 @@ import { parseIpcError } from '@root/src/shared/ipcError';
 
 import { type CoreErrorHandlers } from '@renderer/hooks/useAppMutation';
 
-import { type CoreErrorType } from '@elek-io/core';
+import {
+  type CoreErrorType,
+  type DanglingReference,
+  type ReferenceComponentPathSegment,
+} from '@elek-io/core';
 
 /**
  * Everything Desktop says about a synchronization that did not go through, and
@@ -118,7 +122,9 @@ function innermostComponentId(componentPath: unknown): string | null {
     return null;
   }
 
-  const { componentId } = innermost as { componentId?: unknown };
+  const { componentId } = innermost as Partial<
+    Record<keyof ReferenceComponentPathSegment, unknown>
+  >;
 
   return typeof componentId === 'string' ? componentId : null;
 }
@@ -155,7 +161,7 @@ export function syncConflictReferencesOf(
       continue;
     }
     const { collectionId, entryId, fieldSlug, componentPath } =
-      candidate as Partial<Record<string, unknown>>;
+      candidate as Partial<Record<keyof DanglingReference, unknown>>;
     if (
       typeof collectionId !== 'string' ||
       typeof entryId !== 'string' ||
