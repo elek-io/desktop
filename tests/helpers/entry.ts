@@ -64,15 +64,17 @@ export function markdownValue(
 }
 
 /**
- * The markdown field's editable surface, the ProseMirror `contenteditable` the
- * Milkdown editor renders inside the wrapper `MarkdownEditor` draws.
+ * The markdown field's editable surface, the ProseMirror document the Milkdown
+ * editor renders inside the wrapper `MarkdownEditor` draws.
  *
- * Located by class rather than by role on purpose: what a spec asserts here is
- * whether it is editable at all, and a disabled editor deliberately stops
- * exposing the textbox role, so a role locator could not find it to check.
+ * Located by ProseMirror's own class rather than by role and name, so a spec
+ * reaches the document itself, and every markdown field a form draws, rather
+ * than one field by what it is called. `[contenteditable]` would match every
+ * atom node inside the document too, such as a reference chip, which draws
+ * itself as `contenteditable="false"`.
  */
 export function markdownEditorSurface(page: Page): Locator {
-  return page.locator('.markdown-editor [contenteditable]');
+  return page.locator('.markdown-editor .ProseMirror');
 }
 
 /**
