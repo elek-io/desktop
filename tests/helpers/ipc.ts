@@ -56,6 +56,33 @@ export async function stubCoreReject(
 }
 
 /**
+ * The message a `CoreError` of `type` arrives in, as the main process encodes
+ * one.
+ *
+ * The main process encodes a `CoreError`'s type into the message with a
+ * sentinel, which the renderer decodes back out (see `shared/ipcError.ts`), so
+ * an injected failure throws the same encoded shape the real handler would. It
+ * is written here rather than in the main process, because
+ * `electronApp.evaluate` can only take plain data.
+ *
+ * The stack is a stand-in for Core's own origin stack, because Core raises
+ * every `CoreError` with one and the renderer logs whatever arrives. Without it
+ * a spec that reads the log record could not tell a stack the app dropped from
+ * one that was never sent.
+ */
+function injectedCoreErrorMessage(
+  type: CoreErrorType,
+  cause?: unknown
+): string {
+  return serializeCoreError(
+    type,
+    `E2E injected ${type} failure`,
+    `CoreError: E2E injected ${type} failure\n    at injectedCoreErrorMessage (tests/helpers/ipc.ts)`,
+    cause
+  );
+}
+
+/**
  * Replace a Core IPC handler so its next call rejects with a `CoreError` of
  * `type`, to drive a failure the app routes by type without arranging the
  * conditions Core raises it for. Used for a type no local git repository can
@@ -76,11 +103,7 @@ export async function stubCoreReject(
  * be arranged into, such as the same field reached through two carriers.
  *
  * Mirrors `stubCoreReject`, including why it has to run in the main process.
- * The one difference is the message: the main process encodes a `CoreError`'s
- * type into the message with a sentinel, which the renderer decodes back out
- * (see `shared/ipcError.ts`), so the replacement throws the same encoded shape
- * the real handler would. The message is written here rather than in the main
- * process, because `electronApp.evaluate` can only take plain data.
+ * The one difference is the message, see `injectedCoreErrorMessage`.
  */
 export async function stubCoreRejectWithType(
   electronApp: ElectronApplication,
@@ -100,20 +123,61 @@ export async function stubCoreRejectWithType(
         throw new Error(stub.message);
       });
     },
-    {
-      channel,
-      delayMs,
-      // A stand-in origin stack beside the type, because Core raises every
-      // `CoreError` with one and the renderer logs whatever arrives. Without
-      // it a spec that reads the log record could not tell a stack the app
-      // dropped from one that was never sent.
-      message: serializeCoreError(
-        type,
-        `E2E injected ${type} failure`,
-        `CoreError: E2E injected ${type} failure\n    at stubCoreRejectWithType (tests/helpers/ipc.ts)`,
-        cause
-      ),
-    }
+    { channel, delayMs, message: injectedCoreErrorMessage(type, cause) }
+  );
+}
+
+/**
+ * Wrap a Core IPC handler so its next call rejects with a `CoreError` of
+ * `type` and every call after it reaches Core as usual.
+ *
+ * A flow that has to fail and then go through is driven this way, which
+ * `stubCoreRejectWithType` cannot do, because it drops the real handler for
+ * good. The sync is the case: the card holds a failed sync as a state until a
+ * sync succeeds, and the toast's Retry is what starts that second one.
+ *
+ * It takes the same `delayMs` and `cause` as `stubCoreRejectWithType`, and the
+ * same encoded message. Unlike every other stub here it wraps the registered
+ * handler rather than replacing it, which needs Electron's own handler map, the
+ * way `recordUnsavedChangesClaims` does, see `tests/electron-internals.d.ts`.
+ */
+export async function stubCoreRejectWithTypeOnce(
+  electronApp: ElectronApplication,
+  channel: string,
+  type: CoreErrorType,
+  options: { delayMs?: number; cause?: unknown } = {}
+): Promise<void> {
+  const { delayMs = 0, cause } = options;
+
+  await electronApp.evaluate(
+    ({ ipcMain }, stub) => {
+      const handlers = ipcMain._invokeHandlers;
+      const handler = handlers?.get(stub.channel);
+
+      // Asked before the app registered the channel, so a stub that cannot
+      // wrap says so instead of leaving the call to fail every time.
+      if (handlers === undefined || handler === undefined) {
+        throw new Error(
+          `No handler of "${stub.channel}" to wrap, so nothing would reject`
+        );
+      }
+
+      let rejected = false;
+      handlers.set(stub.channel, async (event, ...args) => {
+        if (rejected) {
+          return handler(event, ...args);
+        }
+
+        rejected = true;
+
+        if (stub.delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, stub.delayMs));
+        }
+
+        throw new Error(stub.message);
+      });
+    },
+    { channel, delayMs, message: injectedCoreErrorMessage(type, cause) }
   );
 }
 
