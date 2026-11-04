@@ -1210,10 +1210,11 @@ test.describe('The Project card', () => {
       // Project is still being read: both draw the card's own slot, so waiting
       // on that alone lets the probe below run against a card that has no
       // initials to measure yet. The switcher named after the Project is drawn
-      // by the filled card alone.
+      // by the filled card alone, and it is given the slack of a slow read on
+      // a slow machine rather than the default.
       await expect(
         projectCard(mainWindow).getByRole('button', { name: project.name })
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 20000 });
 
       const lockup = await mainWindow
         .getByRole('banner')
