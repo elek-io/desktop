@@ -167,3 +167,12 @@ declare var openedExternally: string[] | undefined;
  */
 // eslint-disable-next-line no-var
 declare var recordedCoreCalls: string[] | undefined;
+
+/**
+ * Every file the window asked for while its first load is held and answered
+ * with nothing, kept in the main process the same way. A spec reads it to tell
+ * a load the hold has from one that never reached it. See
+ * tests/specs/app-initialization.spec.ts.
+ */
+// eslint-disable-next-line no-var
+declare var heldFileRequests: string[] | undefined;
