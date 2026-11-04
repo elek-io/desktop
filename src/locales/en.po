@@ -968,6 +968,14 @@ msgstr "Description"
 msgid "Desktop can't read {name}."
 msgstr "Desktop can't read {name}."
 
+#: src/renderer/components/markdown/markdown-editor.tsx
+msgid "Desktop can't save this text. Please report it, so we can fix it."
+msgstr "Desktop can't save this text. Please report it, so we can fix it."
+
+#: src/renderer/components/markdown/markdown-editor.tsx
+msgid "Desktop can't show this text. It stays saved as it is."
+msgstr "Desktop can't show this text. It stays saved as it is."
+
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Disabled"
 msgstr "Disabled"
@@ -2199,10 +2207,6 @@ msgstr "the changes of this Project"
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "The character placed between words of the slug."
 msgstr "The character placed between words of the slug."
-
-#: src/renderer/components/markdown/markdown-editor.tsx
-msgid "The content could not be read from the editor: {bridgeError}"
-msgstr "The content could not be read from the editor: {bridgeError}"
 
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "The Dashboard gives you an overview of your project."
