@@ -2413,10 +2413,6 @@ msgstr "The label is displayed above the input Field and should indicate what th
 msgid "The label users see for this option."
 msgstr "The label users see for this option."
 
-#: src/renderer/components/forms/project-form.tsx
-msgid "The language every other one is translated from. It has to be one of the Project's languages."
-msgstr "The language every other one is translated from. It has to be one of the Project's languages."
-
 #: src/renderer/components/fields/number/index.tsx
 msgid "The largest value the user can enter."
 msgstr "The largest value the user can enter."

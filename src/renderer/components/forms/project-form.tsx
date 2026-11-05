@@ -438,12 +438,6 @@ export function ProjectForm({
                 form={projectForm}
                 name="settings.language.default"
                 label={<Trans>Default language</Trans>}
-                description={
-                  <Trans>
-                    The language every other one is translated from. It has to
-                    be one of the Project&apos;s languages.
-                  </Trans>
-                }
               >
                 {({ field, controlProps, disabled, readOnly }) => {
                   const availableOptions = supportedLanguages.filter(
