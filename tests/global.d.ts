@@ -63,8 +63,9 @@ interface ProbedAnimation {
   readonly animationName?: string;
 }
 
-/** The computed properties the branding spec measures. */
+/** The computed properties the specs measure. */
 interface ProbedStyle {
+  readonly transform: string;
   readonly animationName: string;
   readonly backgroundColor: string;
   readonly bottom: string;
@@ -77,9 +78,20 @@ interface ProbedStyle {
   readonly flexShrink: string;
   readonly overflowY: string;
   readonly borderTopColor: string;
+  readonly borderTopWidth: string;
+  readonly borderBottomWidth: string;
+  readonly borderLeftWidth: string;
+  readonly borderTopLeftRadius: string;
   readonly boxShadow: string;
   readonly color: string;
+  readonly columnGap: string;
+  readonly flexWrap: string;
   readonly fontFamily: string;
+  readonly fontSize: string;
+  readonly fontWeight: string;
+  readonly gridTemplateColumns: string;
+  readonly lineHeight: string;
+  readonly padding: string;
   readonly outlineColor: string;
   readonly outlineOffset: string;
   readonly outlineStyle: string;

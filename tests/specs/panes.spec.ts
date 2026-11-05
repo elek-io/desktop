@@ -180,16 +180,32 @@ test.describe('A pane whose read fails', () => {
       mainWindow.getByRole('link', { name: 'elek.io Desktop, Projects' })
     ).toBeVisible();
 
-    // Try again takes the color of the surface it sits on rather than a fill
-    // of its own, which would be the ground's color on the lighter panel.
-    const fill = await mainWindow.evaluate(() => {
+    // ci draws the sentence in the muted color and Try again in its small
+    // role of 28 px, and neither carries a fill or a shadow of its own: an
+    // outline button takes the color of the surface it sits on, which is the
+    // lighter panel rather than the ground.
+    const drawn = await mainWindow.evaluate(() => {
       const button = document.querySelector('[role="alert"] button');
-      if (button === null) {
+      const sentence = document.querySelector('[role="alert"] p');
+      if (button === null || sentence === null) {
         throw new Error('The sentence comes without Try again');
       }
-      return getComputedStyle(button).backgroundColor;
+      return {
+        fill: getComputedStyle(button).backgroundColor,
+        shadow: getComputedStyle(button).boxShadow,
+        height: Math.round(button.getBoundingClientRect().height),
+        sentence: getComputedStyle(sentence).color,
+        muted: getComputedStyle(document.documentElement).getPropertyValue(
+          '--color-muted-foreground'
+        ),
+      };
     });
-    expect(parseColor(fill).a).toBe(0);
+    expect(parseColor(drawn.fill).a).toBe(0);
+    expect(drawn.shadow).toBe('none');
+    expect(drawn.height).toBe(28);
+    expect(toBytes(parseColor(drawn.sentence))).toEqual(
+      toBytes(parseColor(drawn.muted))
+    );
 
     // It is logged the way the root error screen logs, so a read that failed
     // inside a pane is in the log file with its type, message and stack.

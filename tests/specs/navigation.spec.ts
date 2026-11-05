@@ -121,8 +121,11 @@ test.describe('Navigation', () => {
     for (const label of versionRows) {
       const row = mainWindow.getByRole('menuitem', { name: label });
       await expect(row).toBeVisible();
-      // Each row appends a non-empty "v…" value; "v" only occurs in that value.
-      await expect(row).toContainText(/v\S/);
+      // Each row appends its version, in Geist Mono and as the number alone,
+      // which is what ci draws.
+      await expect(
+        row.locator('[data-slot="dropdown-menu-add-on"]')
+      ).toHaveText(/^\d+\.\d+\.\d+/);
     }
     // The documentation opens in the browser. The main process denies a
     // hostname outside the ones it allows, so an address that reaches the
@@ -508,11 +511,13 @@ test.describe("A Project's sidebar", () => {
 
         return {
           row: getComputedStyle(active).backgroundColor,
-          // Tailwind draws a ring as a box shadow, which it composes in this
-          // property, so the hairline's width is read from it rather than from
-          // the composed shadow a transparent one also writes to.
-          hairline:
-            getComputedStyle(active).getPropertyValue('--tw-ring-shadow'),
+          // The hairline is one layer of the row's own box shadow, beside the
+          // raised shadow ci draws with it, so an inset layer of 1 px is what
+          // says it is there.
+          hairline: getComputedStyle(active)
+            .boxShadow.split(/,(?![^(]*\))/)
+            .map((layer) => layer.trim())
+            .filter((layer) => layer.endsWith('0px 0px 0px 1px inset')),
           ground: getComputedStyle(ground).backgroundColor,
         };
       });
@@ -532,7 +537,7 @@ test.describe("A Project's sidebar", () => {
       // Light mode adds the hairline, because the row's surface is white on an
       // almost white ground. Dark mode has none, as ci draws it, where the
       // muted surface already stands out from the ground.
-      expect(surfaces.hairline.includes('1px'), theme).toBe(theme === 'light');
+      expect(surfaces.hairline.length, theme).toBe(theme === 'light' ? 1 : 0);
     }
 
     // The ring is drawn inside the row, because the list it sits in would clip

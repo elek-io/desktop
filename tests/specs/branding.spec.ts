@@ -477,15 +477,19 @@ test.describe('Branding', () => {
     });
 
     // The chosen segment carries a 1 px ring in the input color on top of the
-    // muted surface, so the choice is not color alone.
+    // muted surface, so the choice is not color alone. ci draws that ring
+    // inside the control's edge, where an outside one would push against
+    // whatever sits beside it.
     const input = toBytes(parseColor(colors.light['input'].oklch));
     const ringLayer = segments.pressed.boxShadow
       .split(/,(?![^(]*\))/)
       .map((layer) => layer.trim())
-      .find((layer) => layer.endsWith('0px 0px 0px 1px'));
+      .find((layer) => layer.endsWith('0px 0px 0px 1px inset'));
     expect(ringLayer).toBeDefined();
     expect(
-      toBytes(parseColor((ringLayer ?? '').replace(' 0px 0px 0px 1px', '')))
+      toBytes(
+        parseColor((ringLayer ?? '').replace(' 0px 0px 0px 1px inset', ''))
+      )
     ).toStrictEqual(input);
     expect(segments.unpressed.boxShadow).not.toContain('0px 0px 0px 1px');
     expect(segments.pressed.background).not.toBe(segments.unpressed.background);

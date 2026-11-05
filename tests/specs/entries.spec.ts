@@ -53,7 +53,7 @@ import {
   temporalValue,
 } from '../helpers/entry.js';
 import { stubCoreReject, stubCoreRejectWithType } from '../helpers/ipc.js';
-import { reloadWindow } from '../helpers/navigation.js';
+import { mainPanel, reloadWindow } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import {
@@ -2136,11 +2136,13 @@ test.describe('Entries', () => {
         exact: true,
       })
     ).toBeVisible();
-    // Each row names the Collection its Entry belongs to, by the Collection's
-    // own singular, which is not the field's label beside it.
-    await expect(mainWindow.getByText('Author', { exact: true })).toHaveCount(
-      2
-    );
+    // Each row names the Collection its Entry belongs to, by that Collection's
+    // own plural, which is how every list of the app names a Collection and
+    // which is not the field's label beside it. Scoped to the panel, because
+    // the sidebar lists the same Collection.
+    await expect(
+      mainPanel(mainWindow).getByText('Team', { exact: true })
+    ).toHaveCount(2);
     await expect(choose).toBeHidden();
 
     // Removing one brings Choose back, since the field allows another again.
@@ -2243,13 +2245,14 @@ test.describe('Entries', () => {
     await expect(picker).toBeHidden();
 
     // The row ci draws: the Entry's title, the Collection it belongs to by
-    // that Collection's own singular, and Remove named after both.
+    // that Collection's own plural, and Remove named after both. Scoped to the
+    // panel, because the sidebar lists the same Collection.
     await expect(
       mainWindow.getByText('Mara Klein', { exact: true })
     ).toBeVisible();
-    await expect(mainWindow.getByText('Author', { exact: true })).toHaveCount(
-      1
-    );
+    await expect(
+      mainPanel(mainWindow).getByText('Team', { exact: true })
+    ).toHaveCount(1);
     await expect(
       mainWindow.getByRole('button', {
         name: 'Remove Mara Klein from Lead author',
