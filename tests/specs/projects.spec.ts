@@ -475,6 +475,83 @@ test.describe('Projects', () => {
     );
   });
 
+  test('keeps a card inside its cell however many languages a Project has', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    // Every language Core supports that the probe needs, which is more than ci
+    // ever draws on a card: the codes have to give way to the name and the
+    // description rather than push them out of the card.
+    await createProjectViaIpc(mainWindow, {
+      name: 'Every language',
+      description: 'A Project in a dozen languages',
+      settings: {
+        language: {
+          default: 'en',
+          supported: [
+            'en',
+            'de',
+            'fr',
+            'es',
+            'it',
+            'nl',
+            'pt',
+            'pl',
+            'cs',
+            'da',
+            'sv',
+            'fi',
+          ],
+        },
+      },
+    });
+    await createProjectViaIpc(mainWindow, {
+      name: 'One language',
+      description: 'A Project in one language',
+      settings: { language: { default: 'en', supported: ['en'] } },
+    });
+    // The check never runs, so the card is measured without waiting on a
+    // network.
+    await stubCoreHang(electronApp, 'core:projects:getChanges');
+    await navigate(mainWindow, '#/projects');
+    await expect(projectCardOf(mainWindow, 'Every language')).toBeVisible();
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+
+    const measured = await mainWindow.evaluate(() => {
+      const cards = Array.from(
+        document.querySelectorAll('a[href*="dashboard"]')
+      );
+
+      return cards.map((card) => {
+        const name = card.querySelector('.text-label');
+        const codes = card.querySelector('ul');
+
+        return {
+          name: name?.textContent ?? '',
+          // What the cell holds against what it shows, which says whether
+          // anything is cut off, and how wide the name and the codes ended up.
+          overflow: card.scrollWidth - card.clientWidth,
+          nameWidth: Math.round(name?.getBoundingClientRect().width ?? 0),
+          codesWidth: Math.round(codes?.getBoundingClientRect().width ?? 0),
+          codesRight: Math.round(codes?.getBoundingClientRect().right ?? 0),
+          cardRight: Math.round(card.getBoundingClientRect().right),
+        };
+      });
+    });
+
+    for (const card of measured) {
+      // Nothing of the card is cut off, the codes end inside it, and the name
+      // keeps a width to be read in.
+      expect(card.overflow, `${card.name} overflows`).toBe(0);
+      expect(
+        card.codesRight,
+        `${card.name} keeps its codes inside`
+      ).toBeLessThanOrEqual(card.cardRight);
+      expect(card.nameWidth, `${card.name} keeps its name`).toBeGreaterThan(40);
+    }
+  });
+
   test('shows the page at once while the checks are still running', async ({
     electronApp,
     mainWindow,

@@ -84,7 +84,13 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
             {project.description}
           </span>
         </div>
-        <ul className="ml-auto flex flex-none flex-wrap justify-end gap-1 self-start">
+        {/*
+          The codes stand at the card's right edge, as ci draws them, and give
+          way to the name and the description rather than pushing them out: a
+          Project with many languages wraps its codes onto another row, which
+          is what keeps every card inside its cell.
+        */}
+        <ul className="ml-auto flex flex-wrap justify-end gap-1 self-start">
           {project.settings.language.supported.map((language) => (
             <li key={language}>
               <LanguageTag language={language} />
