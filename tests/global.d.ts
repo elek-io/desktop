@@ -85,6 +85,7 @@ interface ProbedStyle {
   readonly boxShadow: string;
   readonly color: string;
   readonly columnGap: string;
+  readonly rowGap: string;
   readonly flexWrap: string;
   readonly fontFamily: string;
   readonly fontSize: string;

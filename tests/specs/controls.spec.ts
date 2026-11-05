@@ -10,10 +10,11 @@ import {
   markdownFieldDefinition,
   referenceFieldDefinition,
   selectFieldDefinition,
+  slugFieldDefinition,
   textFieldDefinition,
   toggleFieldDefinition,
 } from '../helpers/collection.js';
-import { parseColor, toBytes } from '../helpers/color.js';
+import { parseColor, toBytes, type Rgb } from '../helpers/color.js';
 import {
   assetReferenceValue,
   createEntryViaIpc,
@@ -46,10 +47,18 @@ import { MINIMUM_WINDOW_SIZE, resizeWindow } from '../helpers/window.js';
 const CONTROL = 32;
 const CONTROL_SMALL = 28;
 
-/** What the app is given to measure: a Project with an Entry of every control. */
+/**
+ * What the app is given to measure: a Project with an Entry of every control.
+ *
+ * `assets` is how many Assets the Project holds, one by default, which is what
+ * the Entry's Cover points at. A measurement that needs more than one row of
+ * them in the picker asks for more, and they are made before the screen opens,
+ * so the list the picker reads holds them.
+ */
 async function anEntryOfEveryControl(
   page: Page,
-  testInfo: Parameters<typeof makeTempFile>[0]
+  testInfo: Parameters<typeof makeTempFile>[0],
+  { assets = 1 }: { assets?: number } = {}
 ): Promise<void> {
   await setUserViaIpc(page);
   const project = await createProjectViaIpc(page);
@@ -58,6 +67,13 @@ async function anEntryOfEveryControl(
     filePath: makeTempFile(testInfo, 'cover.png', pngBytes),
     name: 'Showroom',
   });
+  for (let index = 1; index < assets; index += 1) {
+    await createAssetViaIpc(page, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, `more-${String(index)}.png`, pngBytes),
+      name: `More ${String(index)}`,
+    });
+  }
   const team = await createCollectionViaIpc(page, {
     projectId: project.id,
     name: { singular: { en: 'Team member' }, plural: { en: 'Team' } },
@@ -67,6 +83,13 @@ async function anEntryOfEveryControl(
     projectId: project.id,
     collectionId: team.id,
     values: { title: stringValue({ en: 'Mara Klein' }) },
+  });
+  // A second one the field does not hold, so the Entry picker lists more than
+  // one row and the rule between two rows can be told from the last row's.
+  await createEntryViaIpc(page, {
+    projectId: project.id,
+    collectionId: team.id,
+    values: { title: stringValue({ en: 'Jonas Brandt' }) },
   });
   const collection = await createCollectionViaIpc(page, {
     projectId: project.id,
@@ -89,6 +112,13 @@ async function anEntryOfEveryControl(
       }),
       selectFieldDefinition({ slug: 'style', label: { en: 'Style' } }),
       toggleFieldDefinition({ slug: 'featured', label: { en: 'Featured' } }),
+      // Last, so the first input and the first button of a field stay the
+      // Title's and the Cover's, which the measurements above read.
+      slugFieldDefinition({
+        slug: 'handle',
+        label: { en: 'Handle' },
+        isRequired: false,
+      }),
     ],
   });
   const entry = await createEntryViaIpc(page, {
@@ -105,6 +135,7 @@ async function anEntryOfEveryControl(
         valueType: 'boolean',
         content: { en: true },
       },
+      handle: stringValue({ en: 'spring-opening-hours' }),
     },
   });
 
@@ -137,6 +168,33 @@ function layers(boxShadow: string): string[] {
 }
 
 /**
+ * One shadow layer, as its color and the lengths beside it.
+ *
+ * A computed box shadow names its color first and a token names it last, so
+ * the two notations of one shadow are compared by their parts rather than as
+ * strings. Throws on a layer with no color, so a notation this cannot read
+ * never passes for a match.
+ */
+function shadowLayers(boxShadow: string): { color: Rgb; lengths: string }[] {
+  return boxShadow === 'none'
+    ? []
+    : boxShadow
+        .split(/,(?![^(]*\))/)
+        .map((layer) => layer.trim())
+        .filter((layer) => layer !== '')
+        .map((layer) => {
+          const color = /(?:oklch|oklab|rgba?|color)\([^)]*\)/.exec(layer);
+          if (color === null) {
+            throw new Error(`A shadow layer names no color: ${layer}`);
+          }
+          return {
+            color: parseColor(color[0]),
+            lengths: layer.replace(color[0], '').trim().split(/\s+/).join(' '),
+          };
+        });
+}
+
+/**
  * Wait until an overlay has finished the animation it opens with, so its box
  * is its own rather than the 95% it grows from.
  */
@@ -158,16 +216,19 @@ test.describe('Every control', () => {
     await anEntryOfEveryControl(mainWindow, testInfo);
 
     const measured = await mainWindow.evaluate(() => {
-      const height = (selector: string): number | null => {
+      // A selector that matches nothing measures nothing, so it throws rather
+      // than reporting a control that is not on the screen as correct.
+      const one = (selector: string): ProbedElement => {
         const element = document.querySelector(selector);
-        return element === null
-          ? null
-          : Math.round(element.getBoundingClientRect().height);
+        if (element === null) {
+          throw new Error(`Nothing matches ${selector}`);
+        }
+        return element;
       };
-      const shadow = (selector: string): string | null => {
-        const element = document.querySelector(selector);
-        return element === null ? null : getComputedStyle(element).boxShadow;
-      };
+      const height = (selector: string): number =>
+        Math.round(one(selector).getBoundingClientRect().height);
+      const shadow = (selector: string): string =>
+        getComputedStyle(one(selector)).boxShadow;
 
       return {
         heights: {
@@ -175,12 +236,18 @@ test.describe('Every control', () => {
           primary: height('[data-slot="button"][type="submit"]'),
           // Replace and Remove inside a field are ci's small role.
           small: height('[data-slot="field"] [data-slot="button"]'),
+          // Every button of a field rather than its first one, so a control
+          // further along the row is measured too.
+          fieldButtons: Array.from(
+            document.querySelectorAll(
+              '[data-slot="field"] [data-slot="button"]'
+            )
+          ).map((button) => Math.round(button.getBoundingClientRect().height)),
           toolbar: height('.markdown-editor [data-slot="toggle"]'),
         },
         shadows: {
           input: shadow('[data-slot="input"]'),
           outline: shadow('[data-slot="field"] [data-slot="button"]'),
-          checkbox: shadow('[data-slot="checkbox"]'),
           switch: shadow('[data-slot="switch"]'),
           editor: shadow('.markdown-editor'),
           radio: shadow('[data-slot="radio-group-item"]'),
@@ -195,11 +262,14 @@ test.describe('Every control', () => {
     expect(measured.heights.primary).toBe(CONTROL);
     expect(measured.heights.small).toBe(CONTROL_SMALL);
     expect(measured.heights.toolbar).toBe(CONTROL_SMALL);
+    expect(Array.from(new Set(measured.heights.fieldButtons))).toEqual([
+      CONTROL_SMALL,
+    ]);
 
     // Buttons and inputs get no shadow, although shadcn gives an outline
     // button and an input one.
     for (const [part, shadow] of Object.entries(measured.shadows)) {
-      expect(layers(shadow ?? 'none'), part).toEqual([]);
+      expect(layers(shadow), part).toEqual([]);
     }
   });
 
@@ -220,7 +290,7 @@ test.describe('Every control', () => {
 
     const read = async (
       selector: string,
-      property: 'backgroundColor' | 'borderTopColor'
+      property: 'backgroundColor' | 'borderTopColor' | 'boxShadow'
     ): Promise<string> =>
       mainWindow.evaluate(
         ([element, read]) => {
@@ -228,9 +298,11 @@ test.describe('Every control', () => {
           if (found === null) {
             throw new Error(`Nothing matches ${element ?? ''}`);
           }
-          return read === 'borderTopColor'
-            ? getComputedStyle(found).borderTopColor
-            : getComputedStyle(found).backgroundColor;
+          const style = getComputedStyle(found);
+          if (read === 'borderTopColor') {
+            return style.borderTopColor;
+          }
+          return read === 'boxShadow' ? style.boxShadow : style.backgroundColor;
         },
         [selector, property]
       );
@@ -263,6 +335,27 @@ test.describe('Every control', () => {
     );
     expect(parseColor(fill).a).toBe(0);
     expect(toBytes(parseColor(fill))).not.toEqual(brand);
+
+    // A checkbox stands where more than one thing can be chosen, which is a
+    // picker's list, so the one the Authors field already holds is read there.
+    // A ticked box is an ink square, never cyan, and draws no shadow either.
+    await mainWindow.getByRole('button', { name: /^Choose Authors/ }).click();
+    await expect(
+      mainWindow.getByRole('dialog', { name: 'Choose Authors' })
+    ).toBeVisible();
+    const ticked = '[data-slot="checkbox"][aria-checked="true"]';
+    await expect
+      .poll(
+        async () => toBytes(parseColor(await read(ticked, 'backgroundColor'))),
+        {
+          message: ticked,
+        }
+      )
+      .toEqual(ink);
+    expect(
+      toBytes(parseColor(await read(ticked, 'backgroundColor')))
+    ).not.toEqual(brand);
+    expect(layers(await read(ticked, 'boxShadow'))).toEqual([]);
   });
 
   test('draws a switch that is off as a ring with a muted thumb', async ({
@@ -352,11 +445,21 @@ test.describe('Every control', () => {
       const input = document.querySelector(
         '[data-slot="input"][aria-invalid="true"]'
       );
-      if (input === null) {
+      const error = document.querySelector('[data-slot="field-error"]');
+      if (input === null || error === null) {
         throw new Error('No field was refused');
       }
       const style = getComputedStyle(input);
-      return { border: style.borderTopColor, shadow: style.boxShadow };
+      const errorStyle = getComputedStyle(error);
+      return {
+        border: style.borderTopColor,
+        shadow: style.boxShadow,
+        error: {
+          size: errorStyle.fontSize,
+          line: errorStyle.lineHeight,
+          color: errorStyle.color,
+        },
+      };
     });
 
     // ci marks a refused field with its border in the error color and nothing
@@ -365,6 +468,14 @@ test.describe('Every control', () => {
       toBytes(parseColor(colors.light.error.oklch))
     );
     expect(layers(measured.shadow)).toEqual([]);
+
+    // What it says is ci's small role in the error color, like the field's
+    // description beside it rather than a size of its own.
+    expect(measured.error.size).toBe('12px');
+    expect(measured.error.line).toBe('16px');
+    expect(toBytes(parseColor(measured.error.color))).toEqual(
+      toBytes(parseColor(colors.light.error.oklch))
+    );
   });
 
   test('fills its field with a row, an editor and the rules of the field', async ({
@@ -402,10 +513,39 @@ test.describe('Every control', () => {
           ? null
           : getComputedStyle(description);
 
+      const assetRow = rowOf('Cover');
+      const entryRow = rowOf('Authors');
+      // The box an Asset's preview is drawn in, rather than the image inside
+      // it, because the box is what gives the row its height. The Entry row
+      // beside it holds its Collection's icon in a box of the same size.
+      const preview = assetRow?.querySelector('img')?.parentElement;
+      const icon = entryRow?.querySelector('span[aria-hidden="true"]');
+      // A field is an item of the form's own grid, so what stands between two
+      // fields is that grid's row gap.
+      const grid = title.parentElement;
+      if (
+        assetRow === null ||
+        assetRow === undefined ||
+        entryRow === null ||
+        entryRow === undefined ||
+        preview === null ||
+        preview === undefined ||
+        icon === null ||
+        icon === undefined ||
+        grid === null
+      ) {
+        throw new Error('The form draws no Asset row, Entry row or grid');
+      }
+      const gridStyle = getComputedStyle(grid);
+      const box = (element: ProbedElement): { w: number; h: number } => ({
+        w: Math.round(element.getBoundingClientRect().width),
+        h: Math.round(element.getBoundingClientRect().height),
+      });
+
       return {
         field: width(fieldOf('Cover')),
-        asset: width(rowOf('Cover')),
-        entry: width(rowOf('Authors')),
+        asset: width(assetRow),
+        entry: width(entryRow),
         editor: width(document.querySelector('.markdown-editor')),
         label: { size: labelStyle.fontSize, line: labelStyle.lineHeight },
         description:
@@ -415,6 +555,11 @@ test.describe('Every control', () => {
                 size: descriptionStyle.fontSize,
                 line: descriptionStyle.lineHeight,
               },
+        preview: box(preview),
+        icon: box(icon),
+        assetRow: box(assetRow),
+        entryRow: box(entryRow),
+        fields: { display: gridStyle.display, rowGap: gridStyle.rowGap },
       };
     });
 
@@ -428,6 +573,57 @@ test.describe('Every control', () => {
     // A field's label is ci's label role and its description the small one.
     expect(measured.label).toEqual({ size: '14px', line: '20px' });
     expect(measured.description).toEqual({ size: '12px', line: '16px' });
+
+    // ci's row holds a 64 by 40 px box, and an Asset's preview and an Entry's
+    // icon are the same box, so the two rows of one Entry read alike. With
+    // 8 px of padding and its border that makes the row 58 px.
+    expect(measured.preview).toEqual({ w: 64, h: 40 });
+    expect(measured.icon).toEqual(measured.preview);
+    expect(measured.assetRow.h).toBe(58);
+    expect(measured.entryRow.h).toBe(58);
+
+    // The fields stand 16 px apart, where they used to stand 32 px apart.
+    expect(measured.fields).toEqual({ display: 'grid', rowGap: '16px' });
+  });
+
+  test('sets a slug in Geist Mono and stands its options on ci’s rows', async ({
+    mainWindow,
+  }, testInfo) => {
+    await anEntryOfEveryControl(mainWindow, testInfo);
+
+    const measured = await mainWindow.evaluate(() => {
+      const slug = document.querySelector('[data-slot="input-group-control"]');
+      const options = document.querySelector('[data-slot="radio-group"]');
+      if (slug === null || options === null) {
+        throw new Error('The form draws no slug or no list of options');
+      }
+      const rows = Array.from(options.querySelectorAll('label')).map((row) =>
+        row.getBoundingClientRect()
+      );
+
+      return {
+        slug: getComputedStyle(slug).fontFamily,
+        rowHeights: Array.from(
+          new Set(rows.map((row) => Math.round(row.height)))
+        ),
+        pitch: Array.from(
+          new Set(
+            rows
+              .slice(1)
+              .map((row, index) => Math.round(row.y - (rows[index]?.y ?? 0)))
+          )
+        ),
+      };
+    });
+
+    // A slug is a value that is code, so it is set in Geist Mono like every
+    // other one.
+    expect(measured.slug).toContain('Geist Mono');
+
+    // ci lists a select field's options as rows of its own text height, 8 px
+    // apart, so the pitch of the list is 28 px.
+    expect(measured.rowHeights).toEqual([20]);
+    expect(measured.pitch).toEqual([28]);
   });
 });
 
@@ -479,6 +675,11 @@ test.describe('A menu and a dialog', () => {
         borderWidth: Math.round(parseFloat(style.borderTopWidth)),
         border: style.borderTopColor,
         shadow: style.boxShadow,
+        // ci's own overlay shadow, read off the token the brand package sets,
+        // so the expectation is the package's rather than written out here.
+        overlay: getComputedStyle(document.documentElement).getPropertyValue(
+          '--shadow-overlay'
+        ),
         trigger: Math.round(trigger.getBoundingClientRect().height),
         offset: Math.round(
           menu.getBoundingClientRect().y -
@@ -494,7 +695,9 @@ test.describe('A menu and a dialog', () => {
     // ci gives every menu and dialog, 8 px below the button that opens it.
     expect(measured.radius).toBe('8px');
     expect(measured.borderWidth).toBe(1);
-    expect(measured.shadow).not.toBe('none');
+    expect(shadowLayers(measured.shadow)).toEqual(
+      shadowLayers(measured.overlay)
+    );
     expect(measured.offset).toBe(8);
 
     // Help itself is a control of ci's own height, like back and forward
@@ -526,7 +729,10 @@ test.describe('A menu and a dialog', () => {
         '[data-slot="dialog-description"]'
       );
       const footer = document.querySelector('[data-slot="dialog-footer"]');
-      const row = document.querySelector('[data-slot="dialog-body"] label');
+      const rows = Array.from(
+        document.querySelectorAll('[data-slot="dialog-body"] label')
+      );
+      const row = rows[0] ?? null;
       if (
         dialog === null ||
         head === null ||
@@ -544,6 +750,9 @@ test.describe('A menu and a dialog', () => {
         radius: style.borderTopLeftRadius,
         borderWidth: Math.round(parseFloat(style.borderTopWidth)),
         shadow: style.boxShadow,
+        overlay: getComputedStyle(document.documentElement).getPropertyValue(
+          '--shadow-overlay'
+        ),
         head: getComputedStyle(head).padding,
         headRule: getComputedStyle(head).borderBottomWidth,
         title: {
@@ -562,6 +771,11 @@ test.describe('A menu and a dialog', () => {
         rowRadius: getComputedStyle(row).borderTopLeftRadius,
         rowHeight: Math.round(row.getBoundingClientRect().height),
         rowWidth: Math.round(row.getBoundingClientRect().width),
+        // The rule below each row, which the last one drops so it does not
+        // stand against the footer's.
+        rowRules: rows.map(
+          (listed) => getComputedStyle(listed).borderBottomWidth
+        ),
         bodyWidth: Math.round(
           (
             document.querySelector('[data-slot="dialog-body"]') ?? row
@@ -572,7 +786,9 @@ test.describe('A menu and a dialog', () => {
 
     expect(measured.radius).toBe('8px');
     expect(measured.borderWidth).toBe(1);
-    expect(measured.shadow).not.toBe('none');
+    expect(shadowLayers(measured.shadow)).toEqual(
+      shadowLayers(measured.overlay)
+    );
 
     // ci's dialog head is 20 px in with 4 px below its description and no rule
     // under it, and its buttons sit on 12 by 20 px.
@@ -599,17 +815,24 @@ test.describe('A menu and a dialog', () => {
     // dialog rather than inset as a card.
     expect(measured.rowHeight).toBe(59);
     expect(measured.rowWidth).toBe(measured.bodyWidth);
+
+    // Every row keeps that rule but the last, which ci leaves to the footer.
+    expect(measured.rowRules).toEqual(['1px', '0px']);
   });
 
   test('draws the Asset picker as ci’s four columns', async ({
     mainWindow,
   }, testInfo) => {
-    await anEntryOfEveryControl(mainWindow, testInfo);
+    // Five Assets, so the grid holds a full row and a second one. The rule
+    // between two rows is the one the last row must not repeat against the
+    // footer.
+    await anEntryOfEveryControl(mainWindow, testInfo, { assets: 5 });
 
     await mainWindow.getByRole('button', { name: /^Replace Cover/ }).click();
     const picker = mainWindow.getByRole('dialog', { name: 'Replace Cover' });
     await expect(picker).toBeVisible();
     await opened(mainWindow, '[data-slot="dialog-content"]');
+    await expect(picker.getByRole('radio')).toHaveCount(5);
 
     const measured = await mainWindow.evaluate(() => {
       const dialog = document.querySelector('[data-slot="dialog-content"]');
@@ -620,21 +843,148 @@ test.describe('A menu and a dialog', () => {
       if (dialog === null || grid === null) {
         throw new Error('The picker draws no grid');
       }
+      const style = getComputedStyle(grid);
+      // A column of the grid is 213.5 px wide, so a box is read to the tenth
+      // rather than rounded to a pixel it does not sit on.
+      const tenth = (value: number): number => Math.round(value * 10) / 10;
+      const cards = Array.from(grid.querySelectorAll('label')).map((card) => {
+        const cardStyle = getComputedStyle(card);
+        return {
+          width: tenth(card.getBoundingClientRect().width),
+          top: cardStyle.borderTopWidth,
+          bottom: cardStyle.borderBottomWidth,
+        };
+      });
       return {
         width: Math.round(dialog.getBoundingClientRect().width),
-        columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+        tracks: style.gridTemplateColumns.split(' '),
+        gaps: { column: style.columnGap, row: style.rowGap },
+        cards,
+        // The box the preview is drawn in, which fills the card between its
+        // 24 px of padding.
         preview:
-          preview === null
+          preview === null || preview.parentElement === null
             ? null
-            : Math.round(preview.getBoundingClientRect().height),
+            : {
+                w: tenth(preview.parentElement.getBoundingClientRect().width),
+                h: tenth(preview.parentElement.getBoundingClientRect().height),
+              },
       };
     });
 
     // 856 px wide with four columns, whatever the window does, which is the
     // grid ci draws and the width that keeps each name beside its control.
     expect(measured.width).toBe(856);
-    expect(measured.columns).toBe(4);
-    expect(measured.preview).toBe(112);
+    expect(measured.tracks).toHaveLength(4);
+    expect(Array.from(new Set(measured.tracks))).toHaveLength(1);
+
+    // ci's cards stand on each other, their rule drawn by the card itself, so
+    // the grid keeps no gap where a radio group would bring the registry's.
+    expect(measured.gaps).toEqual({ column: '0px', row: '0px' });
+
+    // The rule between two rows is the lower row's own top border, and the
+    // last row draws none, so no rule stands against the footer's.
+    expect(measured.cards).toHaveLength(5);
+    expect(measured.cards.slice(0, 4).map((card) => card.top)).toEqual([
+      '0px',
+      '0px',
+      '0px',
+      '0px',
+    ]);
+    expect(measured.cards[4]?.top).toBe('1px');
+    expect(
+      Array.from(new Set(measured.cards.map((card) => card.bottom)))
+    ).toEqual(['0px']);
+
+    // ci's preview is a 112 px box filling the first card between its 24 px of
+    // padding, which is 165.5 px of ci's own 213.5 px column.
+    expect(measured.preview?.h).toBe(112);
+    expect(measured.preview?.w).toBe(
+      Math.round(((measured.cards[0]?.width ?? 0) - 48) * 10) / 10
+    );
+  });
+});
+
+test.describe('The header', () => {
+  test('stands back and forward apart and the user on ci’s row', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    await navigate(mainWindow, '#/projects');
+    await expect(
+      mainWindow.getByRole('button', { name: 'Go back' })
+    ).toBeVisible();
+
+    const measured = await mainWindow.evaluate(() => {
+      const named = (label: string): ProbedElement => {
+        const found = Array.from(
+          document.querySelectorAll('[data-slot="button"]')
+        ).find((button) => button.textContent?.trim() === label);
+        if (found === undefined) {
+          throw new Error(`The header draws no ${label}`);
+        }
+        return found;
+      };
+      const box = (
+        element: ProbedElement
+      ): { x: number; y: number; w: number; h: number } => {
+        const rect = element.getBoundingClientRect();
+        return {
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          w: Math.round(rect.width),
+          h: Math.round(rect.height),
+        };
+      };
+
+      const back = named('Go back');
+      const forward = named('Go forward');
+      // The user's own trigger rather than Help's, which is the one holding an
+      // avatar.
+      const avatar = document.querySelector('[data-slot="avatar"]');
+      const user = avatar?.closest('[data-slot="dropdown-menu-trigger"]');
+      const chevron = user?.querySelector(':scope > svg');
+      if (
+        avatar === null ||
+        user === null ||
+        user === undefined ||
+        chevron === null ||
+        chevron === undefined
+      ) {
+        throw new Error('The header draws no user');
+      }
+
+      return {
+        back: box(back),
+        forward: box(forward),
+        // Two separate controls, where they used to be one joined group.
+        joined: back.closest('[data-slot="button-group"]') !== null,
+        user: Math.round(user.getBoundingClientRect().height),
+        avatar: box(avatar),
+        chevron: box(chevron),
+      };
+    });
+
+    // Back and forward are two controls of ci's own height standing flush,
+    // rather than one group of two halves.
+    expect(measured.joined).toBe(false);
+    expect({ w: measured.back.w, h: measured.back.h }).toEqual({
+      w: CONTROL,
+      h: CONTROL,
+    });
+    expect({ w: measured.forward.w, h: measured.forward.h }).toEqual({
+      w: CONTROL,
+      h: CONTROL,
+    });
+    expect(measured.forward.x - measured.back.x).toBe(CONTROL);
+    expect(measured.forward.y).toBe(measured.back.y);
+
+    // Without elek.io Cloud the user button is one line of ci's own height,
+    // where it used to be two lines of 40 px, with a 24 px avatar and a 12 px
+    // chevron.
+    expect(measured.user).toBe(CONTROL);
+    expect(measured.avatar).toMatchObject({ w: 24, h: 24 });
+    expect(measured.chevron).toMatchObject({ w: 12, h: 12 });
   });
 });
 
@@ -731,6 +1081,32 @@ test.describe('The trail', () => {
     const page = mainWindow.locator('[data-slot="breadcrumb-page"]');
     await page.focus();
     await expect(page).toBeFocused();
+  });
+
+  test('drops a step that opens nothing of its own', async ({ mainWindow }) => {
+    await setUserViaIpc(mainWindow);
+    // `#/user` settles on the Profile, so the trail is the Profile alone: the
+    // step above it opens no page and ci's trail holds only what opens.
+    await navigate(mainWindow, '#/user/profile');
+    await expect(
+      mainWindow.getByRole('heading', { name: 'User profile' })
+    ).toBeVisible();
+
+    const trail = await mainWindow.evaluate(() => {
+      const list = document.querySelector('[data-slot="breadcrumb-list"]');
+      if (list === null) {
+        throw new Error('The header draws no trail');
+      }
+      return {
+        crumbs: Array.from(list.querySelectorAll('li'))
+          .map((item) => item.textContent?.trim() ?? '')
+          .filter((crumb) => crumb !== ''),
+        links: Array.from(list.querySelectorAll('a')).length,
+      };
+    });
+
+    expect(trail.crumbs).toEqual(['Profile']);
+    expect(trail.links).toBe(0);
   });
 });
 
