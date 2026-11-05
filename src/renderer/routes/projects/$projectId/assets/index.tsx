@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Plus } from 'lucide-react';
+import { Images, Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 
@@ -26,8 +26,8 @@ import {
 } from '@renderer/components/ui/dialog';
 import {
   Empty,
+  EmptyActions,
   EmptyDescription,
-  EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
@@ -76,17 +76,13 @@ function ProjectAssetsPage(): React.JSX.Element {
     );
   }
 
-  function Actions(): React.JSX.Element {
+  // The empty state carries this button while there is no Asset, so the two
+  // never repeat each other, see ci's rule for an empty state.
+  function AddAction(): React.JSX.Element {
     return (
-      <>
-        <Button
-          variant="default"
-          Icon={Plus}
-          onClick={async () => onAddAsset()}
-        >
-          <Trans>Add Asset</Trans>
-        </Button>
-      </>
+      <Button variant="default" Icon={Plus} onClick={async () => onAddAsset()}>
+        <Trans>Add Asset</Trans>
+      </Button>
     );
   }
 
@@ -124,42 +120,51 @@ function ProjectAssetsPage(): React.JSX.Element {
 
   return (
     <>
-      <Page
-        title={t`Assets`}
-        description={<Description />}
-        actions={<Actions />}
-      >
-        {isListingAssets ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <AssetTeaserSkeleton key={i} />
-            ))}
-          </div>
-        ) : assets.total === 0 ? (
-          <Empty className="border border-dashed">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Plus />
-              </EmptyMedia>
-              <EmptyTitle>
-                <Trans>No Assets yet</Trans>
-              </EmptyTitle>
-              <EmptyDescription>
-                <Trans>
-                  You haven&apos;t added any Assets yet. Get started by adding
-                  an Asset by clicking the button in the top right corner.
-                </Trans>
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
-            {assets.list.map((asset) => (
-              <AssetTeaser key={asset.id} {...asset} projectId={projectId} />
-            ))}
-          </div>
-        )}
-      </Page>
+      {/*
+        The empty state takes the whole pane, head and all, so nothing repeats
+        the action it offers, see ci's rule for an empty state. The dialog that
+        adds an Asset stays mounted either way, since that is what the state's
+        own button opens.
+      */}
+      {isListingAssets === false && assets.total === 0 ? (
+        <Empty>
+          <EmptyMedia>
+            <Images />
+          </EmptyMedia>
+          <EmptyTitle>
+            <Trans>No Assets yet</Trans>
+          </EmptyTitle>
+          <EmptyDescription>
+            <Trans>
+              An Asset is a file an Entry can point at, such as an image or a
+              PDF. Add the first one to use it in a Collection&apos;s fields.
+            </Trans>
+          </EmptyDescription>
+          <EmptyActions>
+            <AddAction />
+          </EmptyActions>
+        </Empty>
+      ) : (
+        <Page
+          title={t`Assets`}
+          description={<Description />}
+          actions={<>{isListingAssets ? null : <AddAction />}</>}
+        >
+          {isListingAssets ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <AssetTeaserSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
+              {assets.list.map((asset) => (
+                <AssetTeaser key={asset.id} {...asset} projectId={projectId} />
+              ))}
+            </div>
+          )}
+        </Page>
+      )}
 
       <Dialog
         open={isAddAssetDialogOpen}

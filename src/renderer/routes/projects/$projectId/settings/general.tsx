@@ -9,10 +9,7 @@ import { Check, Trash } from 'lucide-react';
 import { type ReactElement, useId, useState } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 
-import {
-  ProjectForm,
-  type ProjectFormValues,
-} from '@renderer/components/forms/project-form';
+import { ProjectForm } from '@renderer/components/forms/project-form';
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
@@ -32,9 +29,15 @@ import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
+import {
+  newProjectFormValues,
+  projectFormSchema,
+  projectFormValuesOf,
+  type ProjectFormValues,
+} from '@renderer/lib/projectForm';
 import { queryOptions } from '@renderer/queries';
 
-import { createProjectSchema, type CoreErrorType } from '@elek-io/core';
+import { type CoreErrorType } from '@elek-io/core';
 
 export const Route = createFileRoute('/projects/$projectId/settings/general')({
   component: ProjectSettingsGeneralPage,
@@ -64,31 +67,13 @@ function ProjectSettingsGeneralPage(): ReactElement {
   // not into a field, so the create and the update form are the same shape and
   // check against the same Core schema.
   const updateProjectForm = useAppForm<ProjectFormValues>({
-    resolver: zodResolver(createProjectSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      settings: {
-        // Language codes, which are the same in every language.
-        /* eslint-disable lingui/no-unlocalized-strings */
-        language: {
-          default: 'en',
-          supported: ['en'],
-        },
-        /* eslint-enable lingui/no-unlocalized-strings */
-      },
-    },
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: newProjectFormValues(),
     // Filled from the query, so a refetch never overwrites what is being typed
-    // and the form needs no reset of its own.
-    ...(isReadingProject
-      ? {}
-      : {
-          values: {
-            name: project.name,
-            description: project.description,
-            settings: project.settings,
-          },
-        }),
+    // and the form needs no reset of its own. Where the Project is kept comes
+    // along, because this page shows no field for it and so keeps it as it is:
+    // the address itself is changed on the Sync page.
+    ...(isReadingProject ? {} : { values: projectFormValuesOf(project) }),
     disabled: isReadingProject,
   });
 
@@ -141,7 +126,12 @@ function ProjectSettingsGeneralPage(): ReactElement {
   }
 
   const onUpdate: SubmitHandler<ProjectFormValues> = async (values) => {
-    await updateProject({ ...values, id: projectId });
+    await updateProject({
+      id: projectId,
+      name: values.name,
+      description: values.description,
+      settings: values.settings,
+    });
     // This page stays open after it saved, so the form is made pristine again
     // with what went in. Without it Save would stay available and leaving would
     // ask about changes that are already saved.
@@ -180,7 +170,7 @@ function ProjectSettingsGeneralPage(): ReactElement {
       actions={<Actions />}
     >
       <ProjectForm
-        schema={createProjectSchema}
+        schema={projectFormSchema}
         id={formId}
         projectForm={updateProjectForm}
         onFormSubmit={onUpdate}

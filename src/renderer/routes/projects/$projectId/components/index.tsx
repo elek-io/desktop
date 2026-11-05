@@ -8,9 +8,8 @@ import { Page } from '@renderer/components/page';
 import { Button } from '@renderer/components/ui/button';
 import {
   Empty,
-  EmptyContent,
+  EmptyActions,
   EmptyDescription,
-  EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
@@ -62,13 +61,27 @@ function ProjectComponentsPage(): ReactElement {
     );
   }
 
-  function Actions(): ReactElement {
+  // The empty state takes the whole pane, head and all, so nothing repeats the
+  // action it offers, see ci's rule for an empty state.
+  if (isListingComponents === false && components.total === 0) {
     return (
-      <>
-        {isListingComponents || components.total === 0 ? null : (
+      <Empty>
+        <EmptyMedia>
+          <Blocks />
+        </EmptyMedia>
+        <EmptyTitle>
+          <Trans>No Components yet</Trans>
+        </EmptyTitle>
+        <EmptyDescription>
+          <Trans>
+            Nothing in this Project is built from Components yet. Create one to
+            give a Collection a field whose sections an editor fills in.
+          </Trans>
+        </EmptyDescription>
+        <EmptyActions>
           <CreateAction />
-        )}
-      </>
+        </EmptyActions>
+      </Empty>
     );
   }
 
@@ -76,7 +89,7 @@ function ProjectComponentsPage(): ReactElement {
     <Page
       title={t`Components`}
       description={<Description />}
-      actions={<Actions />}
+      actions={<>{isListingComponents ? null : <CreateAction />}</>}
     >
       {isListingComponents ? (
         <div className="grid gap-2">
@@ -84,26 +97,6 @@ function ProjectComponentsPage(): ReactElement {
             <Skeleton key={key} className="h-16 w-full rounded" />
           ))}
         </div>
-      ) : components.total === 0 ? (
-        <Empty className="border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Blocks />
-            </EmptyMedia>
-            <EmptyTitle>
-              <Trans>No Components yet</Trans>
-            </EmptyTitle>
-            <EmptyDescription>
-              <Trans>
-                Nothing in this Project is built from Components yet. Create one
-                to give a Collection a field whose sections an editor fills in.
-              </Trans>
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <CreateAction />
-          </EmptyContent>
-        </Empty>
       ) : (
         <ul className="grid gap-2">
           {components.list.map((component) => (

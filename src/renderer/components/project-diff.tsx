@@ -5,19 +5,18 @@ import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
-import {
-  ProjectForm,
-  type ProjectFormValues,
-} from '@renderer/components/forms/project-form';
+import { ProjectForm } from '@renderer/components/forms/project-form';
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import {
+  newProjectFormValues,
+  projectFormSchema,
+  projectFormValuesOf,
+  type ProjectFormValues,
+} from '@renderer/lib/projectForm';
 import { queryOptions } from '@renderer/queries';
 
-import {
-  createProjectSchema,
-  type GitCommit,
-  type Project,
-} from '@elek-io/core';
+import { type GitCommit, type Project } from '@elek-io/core';
 
 export function ProjectDiff({
   project,
@@ -80,30 +79,12 @@ export function ProjectDiff({
     });
 
   const projectFormBefore = useAppForm<ProjectFormValues>({
-    resolver: zodResolver(createProjectSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      settings: {
-        // Language codes, which are the same in every language.
-        /* eslint-disable lingui/no-unlocalized-strings */
-        language: {
-          default: 'en',
-          supported: ['en'],
-        },
-        /* eslint-enable lingui/no-unlocalized-strings */
-      },
-    },
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: newProjectFormValues(),
     // Filled from the query rather than reset in an effect.
     ...(isReadingProjectBefore
       ? {}
-      : {
-          values: {
-            name: projectBefore.name,
-            description: projectBefore.description,
-            settings: projectBefore.settings,
-          },
-        }),
+      : { values: projectFormValuesOf(projectBefore) }),
     disabled: isReadingProjectBefore,
   });
 
@@ -117,29 +98,12 @@ export function ProjectDiff({
     });
 
   const projectFormAfter = useAppForm<ProjectFormValues>({
-    resolver: zodResolver(createProjectSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      settings: {
-        /* eslint-disable lingui/no-unlocalized-strings */
-        language: {
-          default: 'en',
-          supported: ['en'],
-        },
-        /* eslint-enable lingui/no-unlocalized-strings */
-      },
-    },
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: newProjectFormValues(),
     // Filled from the query rather than reset in an effect.
     ...(isReadingProjectAfter
       ? {}
-      : {
-          values: {
-            name: projectAfter.name,
-            description: projectAfter.description,
-            settings: projectAfter.settings,
-          },
-        }),
+      : { values: projectFormValuesOf(projectAfter) }),
     disabled: isReadingProjectAfter,
   });
 
@@ -168,7 +132,7 @@ export function ProjectDiff({
     return (
       <DiffContainer type="create" commit={commitAfter}>
         <ProjectForm
-          schema={createProjectSchema}
+          schema={projectFormSchema}
           projectForm={projectFormAfter}
           isViewOnly
         />
@@ -181,7 +145,7 @@ export function ProjectDiff({
     return (
       <DiffContainer type="delete" commit={commitBefore}>
         <ProjectForm
-          schema={createProjectSchema}
+          schema={projectFormSchema}
           projectForm={projectFormBefore}
           isViewOnly
         />
@@ -195,7 +159,7 @@ export function ProjectDiff({
       <>
         <DiffContainer type="before" commit={commitBefore}>
           <ProjectForm
-            schema={createProjectSchema}
+            schema={projectFormSchema}
             projectForm={projectFormBefore}
             isViewOnly
           />
@@ -203,7 +167,7 @@ export function ProjectDiff({
 
         <DiffContainer type="after" commit={commitAfter}>
           <ProjectForm
-            schema={createProjectSchema}
+            schema={projectFormSchema}
             projectForm={projectFormAfter}
             isViewOnly
           />

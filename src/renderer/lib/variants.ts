@@ -163,17 +163,24 @@ export const itemMediaVariants = cva(
   }
 );
 
+/*
+  What an empty state leads with. `icon` is ci's framed icon of what is
+  missing: 48 px on the pane's own surface with its border and the raised
+  shadow, so it reads as a card on the gradient. `mark` is the elek.io mark at
+  64 px, which the Welcome screen leads with instead, and which carries no
+  frame.
+*/
 export const emptyMediaVariants = cva(
-  'mb-2 flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  "flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-6",
   {
     variants: {
       variant: {
-        default: 'bg-transparent',
-        icon: "flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground [&_svg:not([class*='size-'])]:size-6",
+        icon: 'size-12 rounded-lg border bg-card text-foreground shadow-raised',
+        mark: 'size-16',
       },
     },
     defaultVariants: {
-      variant: 'default',
+      variant: 'icon',
     },
   }
 );

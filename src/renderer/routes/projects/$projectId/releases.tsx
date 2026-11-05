@@ -9,9 +9,8 @@ import { Badge } from '@renderer/components/ui/badge';
 import { Button } from '@renderer/components/ui/button';
 import {
   Empty,
-  EmptyContent,
+  EmptyActions,
   EmptyDescription,
-  EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
@@ -70,13 +69,27 @@ function ProjectReleasesPage(): ReactElement {
     );
   }
 
-  // The empty state carries the action while there is no Release, so the two
-  // never repeat each other, see ci's rule for an empty state.
-  function Actions(): ReactElement {
+  // The empty state takes the whole pane, head and all, so nothing repeats the
+  // action it offers, see ci's rule for an empty state.
+  if (isListingReleases === false && releases.total === 0) {
     return (
-      <>
-        {isListingReleases || releases.total === 0 ? null : <ReleaseAction />}
-      </>
+      <Empty>
+        <EmptyMedia>
+          <Rocket />
+        </EmptyMedia>
+        <EmptyTitle>
+          <Trans>No Releases yet</Trans>
+        </EmptyTitle>
+        <EmptyDescription>
+          <Trans>
+            Nothing has been published from this Project yet. A Release takes
+            everything saved here and gives it a version.
+          </Trans>
+        </EmptyDescription>
+        <EmptyActions>
+          <ReleaseAction />
+        </EmptyActions>
+      </Empty>
     );
   }
 
@@ -85,7 +98,7 @@ function ProjectReleasesPage(): ReactElement {
       <Page
         title={t`Releases`}
         description={<Description />}
-        actions={<Actions />}
+        actions={<>{isListingReleases ? null : <ReleaseAction />}</>}
       >
         {isListingReleases ? (
           <div className="grid gap-2">
@@ -93,26 +106,6 @@ function ProjectReleasesPage(): ReactElement {
               <Skeleton key={key} className="h-16 w-full rounded" />
             ))}
           </div>
-        ) : releases.total === 0 ? (
-          <Empty className="border border-dashed">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Rocket />
-              </EmptyMedia>
-              <EmptyTitle>
-                <Trans>No Releases yet</Trans>
-              </EmptyTitle>
-              <EmptyDescription>
-                <Trans>
-                  Nothing has been published from this Project yet. A Release
-                  takes everything saved here and gives it a version.
-                </Trans>
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <ReleaseAction />
-            </EmptyContent>
-          </Empty>
         ) : (
           <ul className="grid gap-2">
             {releases.list.map((release) => (

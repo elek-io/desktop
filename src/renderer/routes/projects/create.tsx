@@ -1,95 +1,237 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg, plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
+import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { Check } from 'lucide-react';
-import { type ReactElement, useId } from 'react';
+import { ArrowRight, Plus } from 'lucide-react';
+import { type ReactElement, useId, useState } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 
 import { ProjectForm } from '@renderer/components/forms/project-form';
 import { Page } from '@renderer/components/page';
 import { Pane, Panel } from '@renderer/components/pane';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
+import { Button } from '@renderer/components/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@renderer/components/ui/dialog';
 import { useAppForm } from '@renderer/hooks/useAppForm';
+import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
+import { describeCoreError } from '@renderer/lib/coreErrorText';
+import {
+  missingProjectValues,
+  newProjectFormValues,
+  projectFormSchema,
+  type ProjectFormValues,
+} from '@renderer/lib/projectForm';
+import { syncRefusalHandlers } from '@renderer/lib/sync';
 import { queryOptions } from '@renderer/queries';
 
-import { type CreateProjectProps, createProjectSchema } from '@elek-io/core';
+import { type CoreErrorType } from '@elek-io/core';
 
 export const Route = createFileRoute('/projects/create')({
   component: CreateProjectPage,
 });
 
+/**
+ * Why the Git repository did not take the new Project, per `CoreError` type.
+ *
+ * The Project itself is already on this computer by then, so each sentence says
+ * what to check rather than what was lost. None of them shows Core's own
+ * message, which can carry the address with a password in it, see
+ * contributing/error-handling.md.
+ */
+const SYNC_FAILURES: Partial<Record<CoreErrorType, MessageDescriptor>> = {
+  PreconditionFailed: msg`The Git repository may already hold something, or it may not be able to store the Assets. Ask whoever set it up.`,
+  Unauthorized: msg`The Git repository refused access, so ask whoever set it up.`,
+  Internal: msg`The Git repository could not be reached, so check your connection and the address.`,
+};
+
+const SYNC_FAILURE_FALLBACK = msg`Check the address with whoever set the Git repository up.`;
+
 function CreateProjectPage(): ReactElement {
   const { t } = useLingui();
 
   const router = useRouter();
-  useBreadcrumb(Route, t`Create`);
-  const createProjectForm = useAppForm<CreateProjectProps>({
-    resolver: zodResolver(createProjectSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      settings: {
-        // Language codes, which are the same in every language.
-        /* eslint-disable lingui/no-unlocalized-strings */
-        language: {
-          default: 'en',
-          supported: ['en'],
-        },
-        /* eslint-enable lingui/no-unlocalized-strings */
-      },
-    },
+  const title = t`Create Project`;
+  useBreadcrumb(Route, title);
+  const createProjectForm = useAppForm<ProjectFormValues>({
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: newProjectFormValues(),
   });
-  const { mutateAsync: createProject, isPending: isCreatingProject } =
-    useMutation(queryOptions.projects.create);
+  const { mutateAsync: createProject } = useMutation(
+    queryOptions.projects.create
+  );
+  // Both calls that put the Project on a Git repository answer the same way,
+  // because the Project is created by then and the editor has to be told that
+  // it is here, not sent to the error screen. Every type a sync can be refused
+  // with is answered in place, `Internal` among them, which is the exception
+  // error-handling.md allows where every failure of one call has the same true
+  // answer. A type outside that set still reaches the root error screen.
+  const [syncFailure, setSyncFailure] = useState<unknown>(null);
+  const handled = syncRefusalHandlers(setSyncFailure);
+  const {
+    mutateAsync: setRemoteOriginUrl,
+    handleError: handleRemoteOriginUrlError,
+  } = useAppMutation(queryOptions.projects.setRemoteOriginUrl, { handled });
+  const { mutateAsync: synchronizeProject, handleError: handleSyncError } =
+    useAppMutation(queryOptions.projects.synchronize, { handled });
   const formId = useId();
+  // The Project Core made, held so the dialog below can open it once the editor
+  // has read why it is not synced yet.
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+
+  const values = createProjectForm.watch();
+  const missing = missingProjectValues(values);
+  const blockedBy =
+    missing === 0
+      ? undefined
+      : t`${plural(missing, {
+          one: '# field is still empty',
+          other: '# fields are still empty',
+        })}`;
 
   function Description(): ReactElement {
-    return (
-      <Trans>
-        New Projects start with no history or data.
-        <br />
-        Read more about <a href="#">Projects in the documentation</a>.
-      </Trans>
-    );
+    return <Trans>A new Project starts with no content and no history.</Trans>;
   }
 
   function Actions(): ReactElement {
     return (
-      <FormActions form={createProjectForm} id={formId}>
-        <SubmitButton Icon={Check}>
+      <FormActions form={createProjectForm} id={formId} blockedBy={blockedBy}>
+        <SubmitButton Icon={Plus}>
           <Trans>Create Project</Trans>
         </SubmitButton>
       </FormActions>
     );
   }
 
-  const onCreate: SubmitHandler<CreateProjectProps> = async (project) => {
-    const newProject = await createProject(project);
+  const openProject = async (projectId: string): Promise<void> => {
     await router.navigate({
       to: '/projects/$projectId',
-      params: { projectId: newProject.id },
+      params: { projectId },
     });
   };
 
+  const onCreate: SubmitHandler<ProjectFormValues> = async (values) => {
+    const newProject = await createProject({
+      name: values.name,
+      description: values.description,
+      settings: values.settings,
+    });
+
+    // Core's create takes no remote, so a Project on another Git host takes two
+    // more calls: the address, then the first sync that puts it there.
+    if (values.keptOn === 'git-host' && values.remoteOriginUrl !== null) {
+      setCreatedProjectId(newProject.id);
+      try {
+        await setRemoteOriginUrl({
+          id: newProject.id,
+          url: values.remoteOriginUrl,
+        });
+      } catch (error) {
+        handleRemoteOriginUrlError(error);
+        return;
+      }
+      try {
+        await synchronizeProject({ id: newProject.id });
+      } catch (error) {
+        handleSyncError(error);
+        return;
+      }
+    }
+
+    await openProject(newProject.id);
+  };
+
+  const { type: syncFailureType } = parseIpcError(syncFailure);
+  const projectName = values.name;
+
   return (
-    <Panel>
-      <Pane name={t`what this screen shows`}>
-        <Page
-          title={t`Create a new Project`}
-          description={<Description />}
-          actions={<Actions />}
-        >
-          <ProjectForm
-            schema={createProjectSchema}
-            id={formId}
-            projectForm={createProjectForm}
-            isViewOnly={isCreatingProject}
-            onFormSubmit={onCreate}
-          />
-        </Page>
-      </Pane>
-    </Panel>
+    <>
+      <Panel>
+        <Pane name={t`what this screen shows`}>
+          <Page
+            title={title}
+            description={<Description />}
+            actions={<Actions />}
+          >
+            <ProjectForm
+              schema={projectFormSchema}
+              id={formId}
+              projectForm={createProjectForm}
+              asksWhereToKeepIt
+              blockedBy={blockedBy}
+              unsavedChangesTitle={title}
+              onFormSubmit={onCreate}
+            />
+          </Page>
+        </Pane>
+      </Panel>
+
+      {/*
+        The Project is on this computer whatever the Git repository answered, so
+        this says so and opens it, rather than leaving the editor on a form that
+        would create a second one. It has room for the cause, which is where ci
+        puts a failure somebody is waiting for.
+      */}
+      <Dialog
+        open={syncFailure !== null}
+        onOpenChange={(isOpen) => {
+          if (isOpen === false) {
+            setSyncFailure(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>{projectName} was created, but not synced</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <Trans>
+                Everything you entered is on this computer. Nothing was synced
+                with the Git repository yet.
+              </Trans>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="text-small text-muted-foreground">
+            <p>
+              {describeCoreError(
+                syncFailureType,
+                SYNC_FAILURES,
+                SYNC_FAILURE_FALLBACK
+              )}
+            </p>
+            <p className="mt-2">
+              <Trans>
+                You can set the address again in the Project&apos;s Sync
+                settings, and sync from the sidebar.
+              </Trans>
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              Icon={ArrowRight}
+              onClick={() => {
+                if (createdProjectId !== null) {
+                  void openProject(createdProjectId);
+                }
+              }}
+            >
+              <Trans>Open the Project</Trans>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

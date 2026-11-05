@@ -24,7 +24,7 @@ msgstr "{count, plural, one {# Entry} other {# Entries}}"
 msgid "{fieldCount, plural, one {# field} other {# fields}}"
 msgstr "{fieldCount, plural, one {# field} other {# fields}}"
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "{incoming, plural, one {# incoming change} other {# incoming changes}}"
 msgstr "{incoming, plural, one {# incoming change} other {# incoming changes}}"
 
@@ -52,6 +52,10 @@ msgstr "{min} to {max}"
 msgid "{min} to {max} characters"
 msgstr "{min} to {max} characters"
 
+#: src/renderer/routes/projects/create.tsx
+msgid "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
+msgstr "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
+
 #: src/renderer/components/component-impact.tsx
 msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
@@ -60,9 +64,13 @@ msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "{notSynced, plural, one {# change not synced} other {# changes not synced}}"
 msgstr "{notSynced, plural, one {# change not synced} other {# changes not synced}}"
+
+#: src/renderer/routes/projects/create.tsx
+msgid "{projectName} was created, but not synced"
+msgstr "{projectName} was created, but not synced"
 
 #: src/renderer/lib/refusedValueText.ts
 msgid "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
@@ -85,6 +93,10 @@ msgstr "A Collection holds information about how your content is structured."
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again."
 msgstr "A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again."
+
+#: src/renderer/routes/projects/$projectId/collections/index.tsx
+msgid "A Collection says which fields each of its Entries holds, such as a title, a date and a cover. Create the first one to start writing."
+msgstr "A Collection says which fields each of its Entries holds, such as a title, a date and a cover. Create the first one to start writing."
 
 #: src/renderer/lib/release.ts
 msgid "A Collection was added"
@@ -172,9 +184,17 @@ msgstr "A lowercase version without any special characters of the Collection nam
 msgid "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
 msgstr "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
 
+#: src/renderer/routes/projects/create.tsx
+msgid "A new Project starts with no content and no history."
+msgstr "A new Project starts with no content and no history."
+
 #: src/renderer/routes/projects/index.tsx
-msgid "A Project ...<0/>Read more about <1>Projects in the documentation</1>."
-msgstr "A Project ...<0/>Read more about <1>Projects in the documentation</1>."
+msgid "A Project holds the content of one website or app. It is a folder of files on this computer, and you can work on it offline."
+msgstr "A Project holds the content of one website or app. It is a folder of files on this computer, and you can work on it offline."
+
+#: src/renderer/routes/projects/index.tsx
+msgid "A Project on GitHub, GitLab or any other Git host, to work on it on this computer."
+msgstr "A Project on GitHub, GitLab or any other Git host, to work on it on this computer."
 
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "A Projects remote is a place that makes it accessible for other users. By adding a remote you are able to work with multiple others together on the same Project."
@@ -244,6 +264,11 @@ msgstr "Add section"
 msgid "Add to Assets"
 msgstr "Add to Assets"
 
+#: src/renderer/components/forms/project-form.tsx
+#: src/renderer/routes/projects/index.tsx
+msgid "Address"
+msgstr "Address"
+
 #: src/renderer/components/diff-container.tsx
 msgid "After"
 msgstr "After"
@@ -273,6 +298,10 @@ msgid "Also send my logs"
 msgstr "Also send my logs"
 
 #: src/renderer/routes/projects/$projectId/assets/index.tsx
+msgid "An Asset is a file an Entry can point at, such as an image or a PDF. Add the first one to use it in a Collection's fields."
+msgstr "An Asset is a file an Entry can point at, such as an image or a PDF. Add the first one to use it in a Collection's fields."
+
+#: src/renderer/routes/projects/$projectId/assets/index.tsx
 msgid "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
 msgstr "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
 
@@ -295,6 +324,10 @@ msgstr "An Asset's file was replaced"
 #: src/renderer/lib/release.ts
 msgid "An Asset's name or description changed"
 msgstr "An Asset's name or description changed"
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "An empty repository that supports Git LFS."
+msgstr "An empty repository that supports Git LFS."
 
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "An Entry this field points at no longer exists. Choose another one."
@@ -324,6 +357,11 @@ msgstr "Another Component in this Project already uses this slug. Choose another
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "Another Entry already uses this Value. Change it to save."
 msgstr "Another Entry already uses this Value. Change it to save."
+
+#: src/renderer/components/forms/project-form.tsx
+#: src/renderer/lib/gitHost.ts
+msgid "Another Git host"
+msgstr "Another Git host"
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "Any content already translated into {languagePendingRemoval} stays in the Collection and Entry files but is no longer reachable, and saving does not remove it for you. This is a breaking change for anything consuming this Project's content. You can still discard it by leaving without saving."
@@ -398,10 +436,6 @@ msgstr "Before"
 msgid "Before we start you need to set up a local User first. Don't worry, you are not creating an account and this information is only saved locally on this device! Read more about <0>local Users in our documentation</0> if you have questions about this step."
 msgstr "Before we start you need to set up a local User first. Don't worry, you are not creating an account and this information is only saved locally on this device! Read more about <0>local Users in our documentation</0> if you have questions about this step."
 
-#: src/renderer/components/project-card.tsx
-msgid "Billing"
-msgstr "Billing"
-
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Block features"
 msgstr "Block features"
@@ -446,7 +480,7 @@ msgstr "By enabling the local API it will start whenever elek.io Desktop is open
 msgid "Bytes"
 msgstr "Bytes"
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "Can't reach the Git repository"
 msgstr "Can't reach the Git repository"
 
@@ -460,6 +494,7 @@ msgstr "Can't reach the Git repository"
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
+#: src/renderer/routes/projects/index.tsx
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -491,15 +526,19 @@ msgstr "Changing your preferred language will attempt to translate everything yo
 msgid "Check now"
 msgstr "Check now"
 
+#: src/renderer/routes/projects/create.tsx
+msgid "Check the address with whoever set the Git repository up."
+msgstr "Check the address with whoever set the Git repository up."
+
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Checkboxes inside lists. Requires lists."
 msgstr "Checkboxes inside lists. Requires lists."
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "Checked {ago}"
 msgstr "Checked {ago}"
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "Checked just now"
 msgstr "Checked just now"
 
@@ -539,18 +578,6 @@ msgstr "Choose a different port on your profile to start the local API."
 #: src/renderer/lib/refusedValueText.ts
 msgid "Choose a time."
 msgstr "Choose a time."
-
-#: src/renderer/routes/projects/index.tsx
-msgid "Clone"
-msgstr "Clone"
-
-#: src/renderer/routes/projects/index.tsx
-msgid "Clone a Project by URL"
-msgstr "Clone a Project by URL"
-
-#: src/renderer/routes/projects/index.tsx
-msgid "Clone Project"
-msgstr "Clone Project"
 
 #: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/release-dialog.tsx
@@ -658,10 +685,6 @@ msgstr "Convert the slug to lowercase."
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
 msgid "Core {coreVersion}"
 msgstr "Core {coreVersion}"
-
-#: src/renderer/components/project-card.tsx
-msgid "Core version: {coreVersion}"
-msgstr "Core version: {coreVersion}"
 
 #: src/renderer/queries/options/assetOptions.ts
 msgid "Could not add the Asset"
@@ -794,7 +817,6 @@ msgstr "Could not stop the local API"
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 #: src/renderer/routes/projects/$projectId/components/create.tsx
-#: src/renderer/routes/projects/create.tsx
 msgid "Create"
 msgstr "Create"
 
@@ -815,16 +837,13 @@ msgstr "Create a new Collection"
 msgid "Create a new Component"
 msgstr "Create a new Component"
 
-#: src/renderer/routes/projects/create.tsx
-msgid "Create a new Project"
-msgstr "Create a new Project"
-
 #: src/renderer/components/release-dialog.tsx
 msgid "Create a Release"
 msgstr "Create a Release"
 
 #: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
+#: src/renderer/routes/projects/$projectId/collections/index.tsx
 msgid "Create Collection"
 msgstr "Create Collection"
 
@@ -845,6 +864,10 @@ msgstr "Create Project"
 #: src/renderer/components/release-dialog.tsx
 msgid "Create Release"
 msgstr "Create Release"
+
+#: src/renderer/routes/projects/index.tsx
+msgid "Create your first Project"
+msgstr "Create your first Project"
 
 #: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/diff-container.tsx
@@ -879,8 +902,8 @@ msgid "Decamelize"
 msgstr "Decamelize"
 
 #: src/renderer/components/forms/project-form.tsx
-msgid "Default"
-msgstr "Default"
+msgid "Default language"
+msgstr "Default language"
 
 #: src/renderer/components/fields/date/index.tsx
 #: src/renderer/components/fields/datetime/index.tsx
@@ -960,6 +983,7 @@ msgstr "Describe what to input into this field. This text will be displayed unde
 #: src/renderer/components/forms/collection-form.tsx
 #: src/renderer/components/forms/component-form.tsx
 #: src/renderer/components/forms/default-field-definition-form.tsx
+#: src/renderer/components/forms/project-form.tsx
 msgid "Description"
 msgstr "Description"
 
@@ -998,6 +1022,14 @@ msgstr "Done"
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Dot (.)"
 msgstr "Dot (.)"
+
+#: src/renderer/routes/projects/index.tsx
+msgid "Download"
+msgstr "Download"
+
+#: src/renderer/routes/projects/index.tsx
+msgid "Download from another Git host"
+msgstr "Download from another Git host"
 
 #: src/renderer/components/drag-and-drop.tsx
 msgid "Drag to reorder"
@@ -1097,13 +1129,21 @@ msgstr "Entry-Slug"
 msgid "Error"
 msgstr "Error"
 
+#: src/renderer/routes/projects/index.tsx
+msgid "Every change is saved on this computer first."
+msgstr "Every change is saved on this computer first."
+
 #: src/renderer/components/fields/dynamic/definition.tsx
 msgid "Every Component of this Project is allowed already, so there is nothing to add."
 msgstr "Every Component of this Project is allowed already, so there is nothing to add."
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "Everything synced"
 msgstr "Everything synced"
+
+#: src/renderer/routes/projects/create.tsx
+msgid "Everything you entered is on this computer. Nothing was synced with the Git repository yet."
+msgstr "Everything you entered is on this computer. Nothing was synced with the Git repository yet."
 
 #: src/renderer/routes/user/profile.tsx
 msgid "Example change"
@@ -1153,6 +1193,10 @@ msgstr "Filter Entries"
 msgid "Filter options"
 msgstr "Filter options"
 
+#: src/renderer/routes/projects/index.tsx
+msgid "Filter Projects"
+msgstr "Filter Projects"
+
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Footnote references and definitions."
 msgstr "Footnote references and definitions."
@@ -1189,6 +1233,10 @@ msgstr "Generate from Fields"
 #: src/renderer/components/fields/slug/control.tsx
 msgid "Generate from the source Fields"
 msgstr "Generate from the source Fields"
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "GitHub, GitLab or any other. Desktop syncs the Project with it."
+msgstr "GitHub, GitLab or any other. Desktop syncs the Project with it."
 
 #: src/renderer/components/app-header.tsx
 msgid "Go back"
@@ -1322,8 +1370,8 @@ msgid "Label"
 msgstr "Label"
 
 #: src/renderer/components/forms/project-form.tsx
-msgid "Language"
-msgstr "Language"
+msgid "Languages"
+msgstr "Languages"
 
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Latest changes"
@@ -1372,10 +1420,6 @@ msgstr "Loading this Project's Components"
 #: src/renderer/components/diff-container.tsx
 msgid "Loading..."
 msgstr "Loading..."
-
-#: src/renderer/components/remote-origin-badge.tsx
-msgid "Local"
-msgstr "Local"
 
 #: src/renderer/components/user-dropdown.tsx
 #: src/renderer/routes/user/profile.tsx
@@ -1454,10 +1498,7 @@ msgstr "Move the {name} section up"
 msgid "Multi line code with an optional language."
 msgstr "Multi line code with an optional language."
 
-#: src/renderer/components/project-card.tsx
-msgid "My Account"
-msgstr "My Account"
-
+#: src/renderer/components/forms/project-form.tsx
 #: src/renderer/components/report-dialog.tsx
 msgid "Name"
 msgstr "Name"
@@ -1469,10 +1510,6 @@ msgstr "needs a Value for this Field, which is now required and has no default"
 #: src/renderer/components/asset-teaser.tsx
 msgid "New file: {newFileName}"
 msgstr "New file: {newFileName}"
-
-#: src/renderer/routes/projects/create.tsx
-msgid "New Projects start with no history or data.<0/>Read more about <1>Projects in the documentation</1>."
-msgstr "New Projects start with no history or data.<0/>Read more about <1>Projects in the documentation</1>."
 
 #: src/renderer/components/ui/pagination.tsx
 msgid "Next"
@@ -1544,8 +1581,12 @@ msgid "No option matches the filter."
 msgstr "No option matches the filter."
 
 #: src/renderer/routes/projects/index.tsx
-msgid "No Projects yet"
-msgstr "No Projects yet"
+msgid "No Project matches the filter."
+msgstr "No Project matches the filter."
+
+#: src/renderer/components/project-card.tsx
+msgid "No Release yet"
+msgstr "No Release yet"
 
 #: src/renderer/routes/projects/$projectId/releases.tsx
 msgid "No Releases yet"
@@ -1630,9 +1671,17 @@ msgstr "Number fields cannot be unique."
 msgid "Object changes"
 msgstr "Object changes"
 
+#: src/renderer/routes/projects/index.tsx
+msgid "Offline"
+msgstr "Offline"
+
 #: src/renderer/components/forms/project-form.tsx
 msgid "Ok"
 msgstr "Ok"
+
+#: src/renderer/routes/projects/index.tsx
+msgid "On this computer"
+msgstr "On this computer"
 
 #: src/renderer/components/fields/entry/index.tsx
 msgid "One Entry here is from a Collection this field doesn't take. Choose another one."
@@ -1651,6 +1700,10 @@ msgstr "Only Assets of the selected file types can be referenced. If none are se
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Only Entries from the selected Collections can be referenced. If none are selected, Entries from all Collections are available."
 msgstr "Only Entries from the selected Collections can be referenced. If none are selected, Entries from all Collections are available."
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "Only here. You can set up sync later in its Settings."
+msgstr "Only here. You can set up sync later in its Settings."
 
 #: src/renderer/components/report-dialog.tsx
 msgid "Only so we can come back to you about this feedback. Both are yours to change. Leave them empty to send this anonymously."
@@ -1671,6 +1724,10 @@ msgstr "Open"
 #: src/renderer/components/report-dialog.tsx
 msgid "Open an issue on GitHub"
 msgstr "Open an issue on GitHub"
+
+#: src/renderer/routes/projects/create.tsx
+msgid "Open the Project"
+msgstr "Open the Project"
 
 #: src/renderer/components/fields/select/definition.tsx
 msgid "Option {position}"
@@ -1740,7 +1797,6 @@ msgstr "Preview {version}"
 msgid "Previous"
 msgstr "Previous"
 
-#: src/renderer/components/project-card.tsx
 #: src/renderer/components/user-dropdown.tsx
 #: src/renderer/routes/user/profile.tsx
 msgid "Profile"
@@ -1769,14 +1825,6 @@ msgstr "Project {name} saved"
 #: src/renderer/queries/options/projectOptions.ts
 msgid "Project deleted"
 msgstr "Project deleted"
-
-#: src/renderer/components/forms/project-form.tsx
-msgid "Project description"
-msgstr "Project description"
-
-#: src/renderer/components/forms/project-form.tsx
-msgid "Project name"
-msgstr "Project name"
 
 #: src/renderer/components/project-switcher.tsx
 #: src/renderer/routes/projects.tsx
@@ -1828,10 +1876,11 @@ msgid "Reference fields cannot be unique."
 msgstr "Reference fields cannot be unique."
 
 #: src/renderer/routes/projects/$projectId/releases.tsx
+#: src/renderer/routes/projects/index.tsx
 msgid "Release"
 msgstr "Release"
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
 msgid "Release {version}"
 msgstr "Release {version}"
@@ -2062,9 +2111,9 @@ msgstr "Set up sync in Settings"
 msgid "Settings"
 msgstr "Settings"
 
-#: src/renderer/components/forms/project-form.tsx
-msgid "Settings related to the languages used in this Project"
-msgstr "Settings related to the languages used in this Project"
+#: src/renderer/routes/projects/index.tsx
+msgid "Share changes with everyone on the Project."
+msgstr "Share changes with everyone on the Project."
 
 #: src/renderer/components/report-dialog.tsx
 msgid "Share feedback"
@@ -2077,6 +2126,10 @@ msgstr "Show why"
 #: src/renderer/components/entry-table.tsx
 msgid "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
 msgstr "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "Shown below the name on the Projects page."
+msgstr "Shown below the name on the Projects page."
 
 #: src/renderer/components/asset-teaser.tsx
 msgid "Size"
@@ -2123,15 +2176,8 @@ msgstr "Strong"
 msgid "Struck through text."
 msgstr "Struck through text."
 
-#: src/renderer/components/project-card.tsx
-msgid "Subscription"
-msgstr "Subscription"
-
-#: src/renderer/components/forms/project-form.tsx
-msgid "Supported"
-msgstr "Supported"
-
 #: src/renderer/components/project-sidebar.tsx
+#: src/renderer/routes/projects/index.tsx
 msgid "Sync"
 msgstr "Sync"
 
@@ -2164,10 +2210,6 @@ msgstr "Tables with aligned columns."
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Task list items"
 msgstr "Task list items"
-
-#: src/renderer/components/project-card.tsx
-msgid "Team"
-msgstr "Team"
 
 #: src/renderer/components/report-dialog.tsx
 msgid "Tell us what happened, in a sentence or two."
@@ -2218,10 +2260,6 @@ msgstr "The default language can't be deleted. Please select another language as
 #: src/renderer/lib/release.ts
 msgid "The default language changed"
 msgstr "The default language changed"
-
-#: src/renderer/components/forms/project-form.tsx
-msgid "The default language of this Project. Needs to be one of the supported languages."
-msgstr "The default language of this Project. Needs to be one of the supported languages."
 
 #: src/renderer/components/fields/entry/control.tsx
 msgid "The Entries this field allows."
@@ -2308,18 +2346,30 @@ msgstr "The Field {slug} was turned on or off"
 msgid "The Field {slug} writes its Values differently"
 msgstr "The Field {slug} writes its Values differently"
 
+#: src/renderer/routes/projects/create.tsx
+msgid "The Git repository could not be reached, so check your connection and the address."
+msgstr "The Git repository could not be reached, so check your connection and the address."
+
 #: src/renderer/lib/release.ts
 #: src/renderer/lib/sync.ts
 msgid "The Git repository could not be reached, so check your connection and try again."
 msgstr "The Git repository could not be reached, so check your connection and try again."
 
+#: src/renderer/routes/projects/create.tsx
+msgid "The Git repository may already hold something, or it may not be able to store the Assets. Ask whoever set it up."
+msgstr "The Git repository may already hold something, or it may not be able to store the Assets. Ask whoever set it up."
+
 #: src/renderer/lib/sync.ts
 msgid "The Git repository may hold something besides this Project, it may not be able to store the Assets, or the same text may have been changed here and somewhere else. Ask whoever set up this Project."
 msgstr "The Git repository may hold something besides this Project, it may not be able to store the Assets, or the same text may have been changed here and somewhere else. Ask whoever set up this Project."
 
-#: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "The Git repository refused access"
 msgstr "The Git repository refused access"
+
+#: src/renderer/routes/projects/create.tsx
+msgid "The Git repository refused access, so ask whoever set it up."
+msgstr "The Git repository refused access, so ask whoever set it up."
 
 #: src/renderer/lib/release.ts
 #: src/renderer/lib/sync.ts
@@ -2353,6 +2403,10 @@ msgstr "The label is displayed above the input Field and should indicate what th
 #: src/renderer/components/fields/select/definition.tsx
 msgid "The label users see for this option."
 msgstr "The label users see for this option."
+
+#: src/renderer/components/forms/project-form.tsx
+msgid "The language every other one is translated from. It has to be one of the Project's languages."
+msgstr "The language every other one is translated from. It has to be one of the Project's languages."
 
 #: src/renderer/components/fields/number/index.tsx
 msgid "The largest value the user can enter."
@@ -2527,7 +2581,12 @@ msgstr "This Component could not be saved. Please review your changes and try ag
 msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
 
+#: src/renderer/components/forms/project-form.tsx
+msgid "This computer"
+msgstr "This computer"
+
 #: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/project-state.tsx
 msgid "This computer only"
 msgstr "This computer only"
 
@@ -2692,10 +2751,6 @@ msgstr "unique"
 msgid "Unique"
 msgstr "Unique"
 
-#: src/renderer/components/remote-origin-badge.tsx
-msgid "unknown"
-msgstr "unknown"
-
 #. placeholder {0}: fieldDefinition.max
 #: src/renderer/components/fields/asset/control.tsx
 msgid "Up to {0, plural, one {# Asset} other {# Assets}}."
@@ -2728,7 +2783,6 @@ msgid "Upgrading this Project did not work."
 msgstr "Upgrading this Project did not work."
 
 #: src/renderer/components/markdown/link-dialog.tsx
-#: src/renderer/routes/projects/index.tsx
 msgid "URL"
 msgstr "URL"
 
@@ -2776,6 +2830,10 @@ msgstr "Version Control"
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Version Control Settings"
 msgstr "Version Control Settings"
+
+#: src/renderer/routes/projects/index.tsx
+msgid "Version the whole Project for your site."
+msgstr "Version the whole Project for your site."
 
 #: src/renderer/components/fields/asset/kind.ts
 msgid "videos only"
@@ -2855,6 +2913,10 @@ msgstr "What you did just before it happened, roughly when, and what you expecte
 msgid "What you were looking for could not be found."
 msgstr "What you were looking for could not be found."
 
+#: src/renderer/components/forms/project-form.tsx
+msgid "Where to keep it"
+msgstr "Where to keep it"
+
 #: src/renderer/components/fields/select/definition.tsx
 msgid "Whether the options of this Field hold text or number values."
 msgstr "Whether the options of this Field hold text or number values."
@@ -2870,6 +2932,10 @@ msgstr "Who this feedback is from."
 #: src/renderer/components/report-dialog.tsx
 msgid "Who this report is from."
 msgstr "Who this report is from."
+
+#: src/renderer/routes/projects/index.tsx
+msgid "Whoever set the Project up sends you this address."
+msgstr "Whoever set the Project up sends you this address."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Width"
@@ -2903,17 +2969,9 @@ msgstr "You are about to delete the Project from this device."
 msgid "You are about to delete this Asset"
 msgstr "You are about to delete this Asset"
 
-#: src/renderer/routes/projects/index.tsx
-msgid "You can clone an existing Project by providing the URL. Make sure you have the necessary permissions to access the Project."
-msgstr "You can clone an existing Project by providing the URL. Make sure you have the necessary permissions to access the Project."
-
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
-msgid "You haven't added any Assets yet. Get started by adding an Asset by clicking the button in the top right corner."
-msgstr "You haven't added any Assets yet. Get started by adding an Asset by clicking the button in the top right corner."
-
-#: src/renderer/routes/projects/index.tsx
-msgid "You haven't created any Projects yet. Get started by creating a new or cloning an existing Project."
-msgstr "You haven't created any Projects yet. Get started by creating a new or cloning an existing Project."
+#: src/renderer/routes/projects/create.tsx
+msgid "You can set the address again in the Project's Sync settings, and sync from the sidebar."
+msgstr "You can set the address again in the Project's Sync settings, and sync from the sidebar."
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "You need to set up a user before doing this."

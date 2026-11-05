@@ -63,7 +63,15 @@ export function StateLine({
         className
       )}
     >
-      <span className="grid w-[7px] flex-none place-items-center">{lead}</span>
+      {/*
+        One column for the marker and the 12 px icon alike, so every line's
+        words start on the same edge. ci sets its width per surface, 7 px in
+        the sidebar's card and 12 px on a card of the Projects page, which is
+        what `--state-lead` carries.
+      */}
+      <span className="grid w-[var(--state-lead,7px)] flex-none place-items-center">
+        {lead}
+      </span>
       {children}
     </div>
   );
