@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 
+import { colors } from '@elek-io/branding';
+
 import { test } from '../fixtures/electronApp.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
@@ -7,6 +9,7 @@ import { stubCoreHang, stubCoreReject } from '../helpers/ipc.js';
 import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import {
   MINIMUM_WINDOW_SIZE,
@@ -157,6 +160,7 @@ test.describe('A pane whose read fails', () => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
+    await setTheme(mainWindow, 'light');
     await recordLogsViaIpc(electronApp);
     await stubCoreReject(electronApp, 'core:projects:history');
     await navigate(mainWindow, `#/projects/${project.id}/history`);
@@ -195,16 +199,13 @@ test.describe('A pane whose read fails', () => {
         shadow: getComputedStyle(button).boxShadow,
         height: Math.round(button.getBoundingClientRect().height),
         sentence: getComputedStyle(sentence).color,
-        muted: getComputedStyle(document.documentElement).getPropertyValue(
-          '--color-muted-foreground'
-        ),
       };
     });
     expect(parseColor(drawn.fill).a).toBe(0);
     expect(drawn.shadow).toBe('none');
     expect(drawn.height).toBe(28);
     expect(toBytes(parseColor(drawn.sentence))).toEqual(
-      toBytes(parseColor(drawn.muted))
+      toBytes(parseColor(colors.light['muted-foreground'].oklch))
     );
 
     // It is logged the way the root error screen logs, so a read that failed

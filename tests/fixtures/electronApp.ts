@@ -112,10 +112,19 @@ export async function launchApp(
 
   // No main script argument on purpose, packaged builds load their bundled
   // app on their own. Playwright adds --no-sandbox on Linux itself, so
-  // unpacked builds without the SUID sandbox helper run fine on CI
+  // unpacked builds without the SUID sandbox helper run fine on CI.
+  //
+  // The window runs at one device pixel per CSS pixel whatever the display
+  // says. Every size a spec reads is in CSS pixels at 100% zoom, from the
+  // smallest window the app supports to a focus ring's 2 px offset, and on a
+  // display that reports a fractional scale, as a HiDPI laptop does, Chromium
+  // snaps each of them to whole device pixels: the window keeps 1169 by 562
+  // where a spec asked for 1168 by 560, and an offset of 2 px computes to
+  // 1.91. CI runs at 1x, so without this the suite is green there and red on
+  // the machine it was written on.
   const app = await electron.launch({
     executablePath: appInfo.executable,
-    args: [`--user-data-dir=${userDataDir}`],
+    args: [`--user-data-dir=${userDataDir}`, '--force-device-scale-factor=1'],
     env,
   });
 

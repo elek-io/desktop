@@ -840,11 +840,15 @@ test.describe('Sync', () => {
 
     // The dialog took focus, and gives it back to Sync when it closes. While
     // it is open the rest of the window is inert, so where focus is is read
-    // off the document rather than through a role outside the dialog.
-    const focusedInDialog = await mainWindow.evaluate(
-      () => document.activeElement?.closest('[role="alertdialog"]') !== null
-    );
-    expect(focusedInDialog).toBe(true);
+    // off the document rather than through a role outside the dialog. Polled,
+    // because the dialog moves focus a frame after it is on screen.
+    await expect
+      .poll(async () =>
+        mainWindow.evaluate(
+          () => document.activeElement?.closest('[role="alertdialog"]') !== null
+        )
+      )
+      .toBe(true);
     await dialog.getByRole('button', { name: 'Close' }).first().click();
     await expect(dialog).toBeHidden();
     await expect(synchronize).toBeFocused();
