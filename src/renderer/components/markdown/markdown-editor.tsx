@@ -160,6 +160,13 @@ const MarkdownEditorInner = ({
   // taking edits the moment its Value turns out to be unreadable.
   const isValueUnreadableRef = useRef(isValueUnreadable);
   isValueUnreadableRef.current = isValueUnreadable;
+  // And the same for whether the form is taking edits at all, so the editor is
+  // built once. Rebuilding it on that flag raced its own teardown: a form
+  // fills from its query disabled and frees itself the moment the Value
+  // arrives, and a rebuild that starts before the first editor is destroyed
+  // leaves two contenteditable boxes in the one root.
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
 
   const emit = (ctx: Ctx, doc: Node): void => {
     // Nothing leaves a document that never took the stored Value in: the empty
@@ -195,14 +202,12 @@ const MarkdownEditorInner = ({
 
   const { get, loading } = useEditor(
     (root) => {
-      // A rebuild (disabled toggled) starts from an empty document again
-      isHydratedRef.current = false;
-      drawnDocRef.current = null;
       return Editor.make()
         .config((ctx) => {
           ctx.set(rootCtx, root);
           ctx.set(editorViewOptionsCtx, {
-            editable: () => !disabled && !isValueUnreadableRef.current,
+            editable: () =>
+              !disabledRef.current && !isValueUnreadableRef.current,
             // A function, so every state update puts the field's current
             // attributes on the editable element again.
             attributes: () => attributesRef.current,
@@ -225,8 +230,9 @@ const MarkdownEditorInner = ({
           })
         );
     },
-    // Rebuilding on disabled changes is fine, content re-hydrates from value
-    [disabled]
+    // Built once. Everything it reads that changes goes through a ref, and
+    // the effect below asks the view for it again, so nothing needs a rebuild.
+    []
   );
 
   // Hydrate the editor once created, and again whenever the value changes
@@ -309,7 +315,7 @@ const MarkdownEditorInner = ({
     get()?.action((ctx) => {
       ctx.get(editorViewCtx).setProps({});
     });
-  }, [loading, get, attributes]);
+  }, [loading, get, attributes, disabled]);
 
   return (
     <div
