@@ -30,6 +30,14 @@ export type PendingRelease =
   | { status: 'refused'; errorType: CoreErrorType };
 
 export const releaseOptions = {
+  /**
+   * The Releases of one Project.
+   *
+   * A failed read belongs to the pane it happened in, which is why
+   * `throwOnError` is on. A Project card is the exception and opts its own read
+   * out of it, because the Projects page reads this once per card, see
+   * contributing/error-handling.md.
+   */
   list: (props: ListReleasesProps) =>
     queryOptions({
       queryKey: ['projects', props.projectId, 'current', 'releases', 'list'],

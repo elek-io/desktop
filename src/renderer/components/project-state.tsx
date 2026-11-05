@@ -277,6 +277,51 @@ export function SyncStateLines({
 }
 
 /**
+ * The Release a Project is at, on a card of the Projects page: its last one
+ * with the gray marker, that it has none yet, or that the Releases could not be
+ * read.
+ *
+ * The gray marker rather than the brand one, because a list has one highlight
+ * at most, see ci's docs/color.md. A failed read says so in the warning color
+ * with `triangle-alert`, as the stopped check does, so the card says what it
+ * does not know rather than saying there is no Release. It is a read the card
+ * answers itself, see contributing/error-handling.md.
+ */
+export function LastReleaseLine({
+  state,
+}: {
+  state: ProjectState;
+}): React.ReactNode {
+  const { releasesError, lastRelease } = state;
+
+  if (releasesError !== null) {
+    return (
+      <StateLine
+        announce
+        className="text-warning"
+        lead={<StateIcon icon={TriangleAlert} />}
+      >
+        <Trans>Can&apos;t read the Releases</Trans>
+      </StateLine>
+    );
+  }
+
+  if (lastRelease === undefined) {
+    return (
+      <StateLine lead={<StateMarker variant="none" />}>
+        <Trans>No Release yet</Trans>
+      </StateLine>
+    );
+  }
+
+  return (
+    <StateLine lead={<StateMarker variant="release-muted" />}>
+      <ReleaseLine release={lastRelease} />
+    </StateLine>
+  );
+}
+
+/**
  * What stopped the check, where it was stopped: a Git repository nothing could
  * reach, or one that answered and refused access.
  *

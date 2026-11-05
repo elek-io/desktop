@@ -17,8 +17,8 @@ import {
  * A sync the editor started is answered in the sync dialog for the four types
  * below and reaches the root error screen for every other one, see
  * [`contributing/error-handling.md`](../../../contributing/error-handling.md).
- * A failed check is answered as a state line in the Project card, which is the
- * one read a screen catches itself.
+ * A failed check is answered as a state line in the Project card, which is one
+ * of the two reads a screen catches itself.
  *
  * Every sentence is a message of the catalog, held as a `MessageDescriptor` so
  * a map at module scope is not read before a catalog is active, and rendered

@@ -182,6 +182,58 @@ export async function stubCoreRejectWithTypeOnce(
 }
 
 /**
+ * Wrap a Core IPC handler so a call whose props match rejects with a
+ * `CoreError` of `type`, and every other call reaches Core as usual.
+ *
+ * A screen that reads the same channel once per thing it shows is driven this
+ * way: one of those reads fails and the rest answer, which is what shows
+ * whether a failure stays where it happened. The Projects page is the case,
+ * where every card reads the Releases of its own Project.
+ *
+ * The match is plain data, because `electronApp.evaluate` takes nothing else,
+ * and every entry of it has to equal the same key of the call's first argument.
+ * It wraps the registered handler rather than replacing it, like
+ * `stubCoreRejectWithTypeOnce`, which needs Electron's own handler map, see
+ * `tests/electron-internals.d.ts`.
+ */
+export async function stubCoreRejectWithTypeWhere(
+  electronApp: ElectronApplication,
+  channel: string,
+  type: CoreErrorType,
+  match: Record<string, string>
+): Promise<void> {
+  await electronApp.evaluate(
+    ({ ipcMain }, stub) => {
+      const handlers = ipcMain._invokeHandlers;
+      const handler = handlers?.get(stub.channel);
+
+      if (handlers === undefined || handler === undefined) {
+        throw new Error(
+          `No handler of "${stub.channel}" to wrap, so nothing would reject`
+        );
+      }
+
+      handlers.set(stub.channel, (event, ...args) => {
+        const [props] = args;
+        const matches =
+          typeof props === 'object' &&
+          props !== null &&
+          Object.entries(stub.match).every(
+            ([key, value]) => (props as Record<string, unknown>)[key] === value
+          );
+
+        if (matches === false) {
+          return handler(event, ...args);
+        }
+
+        throw new Error(stub.message);
+      });
+    },
+    { channel, match, message: injectedCoreErrorMessage(type) }
+  );
+}
+
+/**
  * Replace a Core IPC handler so its next call never settles, to make the
  * in-flight window of a mutation stable to assert instead of racing a fast
  * resolve. A control that waits while its call is in flight is observed this

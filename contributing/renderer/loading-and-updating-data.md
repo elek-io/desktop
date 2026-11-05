@@ -245,16 +245,16 @@ A query failure is not fatal to the view. The pane that read it keeps its place 
 
 Two rules follow for a screen:
 
-- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does. One read is the exception, below.
+- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does. The Project card's own reads are the exception, below.
 - **Read inside the pane that shows the data.** A boundary catches only what is thrown below it, so a read in a layout above two panes takes both of them. That is right when both depend on it, and wrong when one does.
 
 A failed write and a component that throws are not a read: they still replace the whole view with the root error screen, which offers Report an issue. How the two are told apart, and what a pane's name in the sentence comes from, is in [Error Handling](../error-handling.md#a-read-that-failed-the-pane-says-so).
 
-### The one read a screen catches: a Project card's check
+### The reads a screen catches: a Project card's own
 
-A Project's card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app with `throwOnError: false`, it retries nothing, and a card reads it with a plain `useQuery` rather than `useQueryNoError`. What that buys, and what it logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-one-read-a-screen-catches-a-project-cards-check).
+A Project's card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app whose own options carry `throwOnError: false`, it retries nothing, and a card reads it with a plain `useQuery` rather than `useQueryNoError`. The card's read of the Releases is answered the same way, opted out for that read alone, since every other screen leaves a failed `releases.list` to its boundary. What that buys, and what each of them logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-reads-a-screen-catches-a-project-cards-own).
 
-Two cards draw it, the sidebar's for the open Project and one per Project on the Projects page, and both read it through [`useProjectState`](../../src/renderer/hooks/useProjectState.ts), which is also where that log is written. Each card runs its own, so a slow or failing Git repository holds up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder.
+Two cards draw it, the sidebar's for the open Project and one per Project on the Projects page, and both read it through [`useProjectState`](../../src/renderer/hooks/useProjectState.ts), which is also where that log is written. Each card runs its own, so a slow or failing read holds up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder, and one Project whose Releases cannot be read leaves every other card standing.
 
 ### What a Project card reads
 

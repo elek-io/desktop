@@ -69,26 +69,27 @@ A query failure is not fatal to the view. It belongs to the one pane that read i
 
 Two rules follow for a screen:
 
-- **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it. The one exception is below.
+- **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it. The one exception is the Project card below.
 - **A read belongs inside the pane that shows it.** A boundary only catches what is thrown below it, so a read in a layout above two panes takes both of them, which is right when both depend on it and wrong when one does. Read in the component that shows the data.
 
-### The one read a screen catches: a Project card's check
+### The reads a screen catches: a Project card's own
 
-A Project's card answers a failed read itself, rather than leaving it to a boundary. What it reads is a state of the Project it has to show, whether the Git repository can be reached at all, and the sidebar's card stands above every pane anyway. Two screens draw such a card and both read the check through [`useProjectState`](/src/renderer/hooks/useProjectState.ts), so neither writes an `isError` branch of its own:
+A Project's card answers its own failed reads itself, rather than leaving them to a boundary. What it reads is a state of the Project it has to show, whether the Git repository can be reached at all and which Release it is at, and the sidebar's card stands above every pane anyway. Two screens draw such a card and both read through [`useProjectState`](/src/renderer/hooks/useProjectState.ts), so neither writes an `isError` branch of its own:
 
 | Card               | Where                                                                                              | Shows                                                                                                         |
 | ------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | The open Project's | The sidebar, in [`project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx)              | Every state line, plus when it last checked and a sync of its own that failed                                 |
 | One per Project    | Each cell of the Projects page, in [`project-card.tsx`](/src/renderer/components/project-card.tsx) | The same state lines, without the check's own line and without a failed sync, which only the open Project has |
 
-Each card runs its own check, which is what lets a slow or failing Git repository hold up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder.
+Each card runs its own two reads, which is what lets a slow or failing one hold up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder. It matters most on that page, which draws one card per Project, so a read left to the boundary would empty the page of every Project because one of them could not be read.
 
-- `projects.getChanges` ([`projectOptions.ts`](/src/renderer/queries/options/projectOptions.ts)) is the only query with `throwOnError: false`, and it retries nothing. So a repository that cannot be reached, or one that refused access, becomes a state line in the card at once instead of three retries of waiting and then the root error screen, which is what used to leave the counts blank with no word about it.
-- The card reads the failure with a plain `useQuery`, not `useQueryNoError`, which throws on `isError` by design.
-- **It logs what it caught the way a pane's boundary does**, through `errorLogAttributes`, with the message `Project card check error: ...`, from an effect so a re-render does not write the same record again. So a repository that stopped answering is in the log file with its type, message and stack either way.
-- Which line it shows comes from `checkRefusal` in [`lib/sync.ts`](/src/renderer/lib/sync.ts): `Unauthorized` is a repository that answered and refused, which gets its own line, and everything else is one that could not be reached. Sync and Check now are the retry, so nothing else has to offer one.
+- `projects.getChanges` ([`projectOptions.ts`](/src/renderer/queries/options/projectOptions.ts)) is the only query that carries `throwOnError: false` in its own options, and it retries nothing. So a repository that cannot be reached, or one that refused access, becomes a state line in the card at once instead of three retries of waiting and then the root error screen, which is what used to leave the counts blank with no word about it.
+- `releases.list` is read by the Releases screen and the sidebar's navigation too, which both leave a failure to their boundary, so the card opts out for its own read rather than in the query's options. It keeps the retries, so its line arrives once the read has given up.
+- The card reads both with a plain `useQuery`, not `useQueryNoError`, which throws on `isError` by design.
+- **It logs what it caught the way a pane's boundary does**, through `errorLogAttributes`, with the message `Project card check error: ...` or `Project card Releases error: ...`, from an effect so a re-render does not write the same record again. So a repository that stopped answering is in the log file with its type, message and stack either way.
+- Which line the check shows comes from `checkRefusal` in [`lib/sync.ts`](/src/renderer/lib/sync.ts): `Unauthorized` is a repository that answered and refused, which gets its own line, and everything else is one that could not be reached. Sync and Check now are the retry, so nothing else has to offer one. A failed Releases read says so where the last Release stands.
 
-Nothing else reads that query. A screen that needs the same check later shows its failure as a state the same way, through `useProjectState`, rather than catching a read of its own.
+Nothing else reads the check. A screen that needs it later shows its failure as a state the same way, through `useProjectState`, rather than catching a read of its own.
 
 ### Expected errors: handled in place
 
@@ -367,6 +368,7 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 | A read fails inside a pane                | One sentence and Try again, in the pane       | Pane error log plus the `onCaughtError` log                           |
 | A read fails above every pane             | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
 | A Project card's check of the remote      | A state line in the card, Sync as the retry   | `Project card check error` log                                        |
+| A Project card's read of the Releases     | A state line where the last Release stands    | `Project card Releases error` log                                     |
 | Unexpected mutation error                 | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
 | Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page | None by default                                                       |
 | Handled `type` whose cause names no field | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |

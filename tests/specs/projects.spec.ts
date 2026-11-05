@@ -1,18 +1,24 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { join } from 'node:path';
 
+import { colors } from '@elek-io/branding';
+
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
+import { parseColor, toBytes } from '../helpers/color.js';
 import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
 import {
   recordedCoreCalls,
   stubCoreHang,
   stubCoreRecord,
   stubCoreReject,
+  stubCoreRejectWithType,
+  stubCoreRejectWithTypeWhere,
 } from '../helpers/ipc.js';
 import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import {
   navigate,
+  projectSidebar,
   reloadWindow,
   verifyCurrentRouteHash,
 } from '../helpers/navigation.js';
@@ -23,18 +29,22 @@ import {
   downloadProject,
   fillProjectForm,
   navigateToProjectCreate,
+  navigateToProjectDashboard,
   navigateToProjectSettings,
   navigateToVersionControl,
   openDownloadDialog,
   projectCardOf,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
+import { createReleaseViaIpc } from '../helpers/release.js';
 import { renameBranchesOnRemote, setupRemote } from '../helpers/remote.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import { MINIMUM_WINDOW_SIZE, resizeWindow } from '../helpers/window.js';
 
 /** What keeps a form from saving, as it stands below Save. */
-function blockedReason(page: Page): Locator {
-  return page.locator('[data-slot="form-blocked-reason"]');
+function blockedReason(scope: Page | Locator): Locator {
+  return scope.locator('[data-slot="form-blocked-reason"]');
 }
 
 /** The state lines of one Project's card, in the words they say. */
@@ -366,6 +376,103 @@ test.describe('Projects', () => {
     expect(logged.length).toBeGreaterThan(0);
     expect(logged[0]?.level).toBe('error');
     expect(logged[0]?.meta['error.type']).toBeDefined();
+  });
+
+  test("fills each card on its own when one Project's Releases cannot be read", async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await recordLogsViaIpc(electronApp);
+    await setUserViaIpc(mainWindow);
+    const readable = await createProjectViaIpc(mainWindow, {
+      name: 'Readable',
+    });
+    const unreadable = await createProjectViaIpc(mainWindow, {
+      name: 'Unreadable',
+    });
+
+    // One Project whose Releases Core refuses, every other call untouched. The
+    // page reads them once per card, so this is the read that would take the
+    // whole page with it.
+    await stubCoreRejectWithTypeWhere(
+      electronApp,
+      'core:releases:list',
+      'PreconditionFailed',
+      { projectId: unreadable.id }
+    );
+    await navigate(mainWindow, '#/projects');
+
+    // Every card is still on the page, and the one whose read failed says so
+    // where its Release would stand rather than claiming it has none. It takes
+    // the retries of its own query to get there, which is why it waits.
+    await expect(projectCardOf(mainWindow, 'Readable')).toBeVisible();
+    await expect(
+      projectCardOf(mainWindow, 'Readable').getByText('No Release yet')
+    ).toBeVisible();
+    await expect(
+      projectCardOf(mainWindow, 'Unreadable').getByText(
+        "Can't read the Releases"
+      )
+    ).toBeVisible({ timeout: 20000 });
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeHidden();
+    await expect(
+      mainWindow.getByText("Desktop can't read your Projects.")
+    ).toBeHidden();
+    expect(readable.id).not.toBe(unreadable.id);
+
+    // The failure is in the log file with its type, the way a pane's boundary
+    // writes one, so a read the card answered itself is never only on screen.
+    const logged = (await recordedLogs(electronApp)).filter((record) =>
+      record.message.startsWith('Project card Releases error:')
+    );
+    expect(logged.length).toBeGreaterThan(0);
+    expect(logged[0]?.level).toBe('error');
+    expect(logged[0]?.meta['error.type']).toBe('PreconditionFailed');
+  });
+
+  test('names the Release a Project is at, with the gray marker a list gives it', async ({
+    mainWindow,
+  }) => {
+    await setTheme(mainWindow, 'light');
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Used cars',
+    });
+    // One Collection added since the Project was created, which is what Core
+    // works the version out from.
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+    const release = await createReleaseViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    expect(release.version).toBe('0.1.0');
+
+    await navigate(mainWindow, '#/projects');
+    const line = projectCardOf(mainWindow, 'Used cars').locator(
+      '[data-slot="project-state-line"]',
+      { hasText: 'Release 0.1.0' }
+    );
+    // The version Core wrote and the day it went out.
+    await expect(line).toHaveText(/^Release 0\.1\.0.*\d{4}$/);
+
+    const onTheCard = await markerColorOf(line);
+    // Gray on the card, because a list has one highlight at most.
+    expect(toBytes(parseColor(onTheCard))).toEqual(
+      toBytes(parseColor(colors.light['muted-foreground'].oklch))
+    );
+
+    // The open Project's own card marks the same Release in the brand color,
+    // which is that one highlight.
+    await navigateToProjectDashboard(mainWindow, project.id);
+    const sidebarLine = projectSidebar(mainWindow).locator(
+      '[data-slot="project-state-line"]',
+      { hasText: 'Release 0.1.0' }
+    );
+    await expect(sidebarLine).toBeVisible();
+    expect(toBytes(parseColor(await markerColorOf(sidebarLine)))).toEqual(
+      toBytes(parseColor(colors.light['brand'].oklch))
+    );
   });
 
   test('shows the page at once while the checks are still running', async ({

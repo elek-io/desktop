@@ -480,6 +480,10 @@ msgstr "Bytes"
 msgid "Can't reach the Git repository"
 msgstr "Can't reach the Git repository"
 
+#: src/renderer/components/project-state.tsx
+msgid "Can't read the Releases"
+msgstr "Can't read the Releases"
+
 #: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/forms/project-form.tsx
 #: src/renderer/components/markdown/link-dialog.tsx
@@ -1589,7 +1593,7 @@ msgstr "No option matches the filter."
 msgid "No Project matches the filter."
 msgstr "No Project matches the filter."
 
-#: src/renderer/components/project-card.tsx
+#: src/renderer/components/project-state.tsx
 msgid "No Release yet"
 msgstr "No Release yet"
 

@@ -1,11 +1,8 @@
-import { Trans } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
 
 import {
   CheckFailureLine,
-  ReleaseLine,
-  StateLine,
-  StateMarker,
+  LastReleaseLine,
   SyncStateLines,
   WhereItSyncs,
 } from '@renderer/components/project-state';
@@ -61,10 +58,11 @@ function LanguageTag({
  * The whole card opens the Project, so there is one way in and the focus ring
  * is drawn inside the cell, which the grid would otherwise clip.
  *
- * Each card runs the check of its own Git repository and draws what that check
- * says through the lines every card shares, so a slow or failing repository
- * holds up nothing but its own card. Its last Release takes the gray marker,
- * because a list has one highlight at most, see ci's docs/color.md.
+ * Each card runs the check of its own Git repository and the read of its own
+ * Releases, and draws what each of them says through the lines every card
+ * shares, so a slow or failing read holds up nothing but its own card. Its
+ * last Release takes the gray marker, because a list has one highlight at
+ * most, see ci's docs/color.md.
  */
 function ProjectCard({ project }: { project: Project }): React.JSX.Element {
   const state = useProjectState(project);
@@ -104,15 +102,7 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
         <WhereItSyncs remoteOriginUrl={project.remoteOriginUrl} />
         <SyncStateLines state={state} />
         <CheckFailureLine state={state} />
-        {state.lastRelease === undefined ? (
-          <StateLine lead={<StateMarker variant="none" />}>
-            <Trans>No Release yet</Trans>
-          </StateLine>
-        ) : (
-          <StateLine lead={<StateMarker variant="release-muted" />}>
-            <ReleaseLine release={state.lastRelease} />
-          </StateLine>
-        )}
+        <LastReleaseLine state={state} />
       </div>
     </Link>
   );

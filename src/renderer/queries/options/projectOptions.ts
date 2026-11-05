@@ -214,13 +214,14 @@ export const projectOptions = {
    * The check of the Git repository the Project card runs, on its own every
    * three minutes and at once when Check now is pressed.
    *
-   * The one read a screen answers itself. `throwOnError` is off and nothing
-   * retries, so a repository that cannot be reached or refused access becomes a
-   * state line in the card at once, rather than three retries of waiting and
-   * then the root error screen. The card logs the failure the way a pane's
-   * boundary logs one, so it still reaches the log file, and Sync and Check now
-   * are the retry. It is the one exception to the rule that a screen does not
-   * catch a failed read, see contributing/error-handling.md.
+   * A read the card answers itself. `throwOnError` is off here rather than at
+   * the card, because nothing else reads it, and nothing retries, so a
+   * repository that cannot be reached or refused access becomes a state line in
+   * the card at once, rather than three retries of waiting and then the root
+   * error screen. The card logs the failure the way a pane's boundary logs one,
+   * so it still reaches the log file, and Sync and Check now are the retry. The
+   * card's reads are the exception to the rule that a screen does not catch a
+   * failed read, see contributing/error-handling.md.
    */
   getChanges: (project?: Project) =>
     queryOptions({

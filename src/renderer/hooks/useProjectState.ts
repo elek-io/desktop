@@ -3,7 +3,6 @@ import { errorLogAttributes } from '@root/src/shared/logError';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
 import { type ProjectChanges } from '@renderer/queries/options/projectOptions';
 
@@ -30,33 +29,43 @@ export interface ProjectState {
   hasGitRepository: boolean;
   notSynced: number;
   incoming: number;
-  /** Its last published Release, or nothing while the Releases are read. */
+  /**
+   * Its last published Release, or nothing while the Releases are being read
+   * and where that read failed.
+   */
   lastRelease: ReleaseListItem | undefined;
+  /** What stopped the Releases from being read, or `null` while nothing did. */
+  releasesError: Error | null;
 }
 
 /**
  * The one check of a Project's Git repository, and the Releases beside it.
  *
- * The check is the one read a screen answers itself rather than leaving to the
- * boundary of the pane it sits in, so this logs its failure the way a pane's
- * boundary logs one and hands the error back for the card to draw as a state
- * line. Every card reads it through this hook, so no screen writes an
- * `isError` branch or a `throwOnError` of its own. See
- * contributing/error-handling.md.
+ * Both are reads a card answers itself rather than leaving to the boundary of
+ * the pane it sits in, so this logs each failure the way a pane's boundary logs
+ * one and hands the error back for the card to draw as a state line. Every card
+ * reads them through this hook, so no screen writes an `isError` branch of its
+ * own. See contributing/error-handling.md.
  *
  * Each card runs its own, which is what lets a slow or failing Git repository
- * hold up nothing but its own lines.
+ * hold up nothing but its own lines. The Releases are caught here for the same
+ * reason: the Projects page reads them once per card, so one Project whose
+ * Releases cannot be read would otherwise empty the page of every Project.
  */
 export function useProjectState(project: Project): ProjectState {
   const check = useQuery(queryOptions.projects.getChanges(project));
-  const { data: releases, isPending: isListingReleases } = useQueryNoError(
-    queryOptions.releases.list({ projectId: project.id })
-  );
-  const { error: checkError } = check;
+  const releases = useQuery({
+    ...queryOptions.releases.list({ projectId: project.id }),
+    throwOnError: false,
+  });
 
-  // The failed check reaches the log file with its type, message and stack, as
-  // a pane's boundary writes one. From an effect rather than the render body,
-  // so a re-render does not write the same record again.
+  const { error: checkError } = check;
+  const { error: releasesError } = releases;
+
+  // Each read the card answers itself reaches the log file with its type,
+  // message and stack, as a pane's boundary writes one. One effect each, so a
+  // re-render does not write the same record again and neither failure
+  // re-logs because the other arrived.
   useEffect(() => {
     if (checkError === null) {
       return;
@@ -69,13 +78,27 @@ export function useProjectState(project: Project): ProjectState {
     });
   }, [checkError]);
 
+  useEffect(() => {
+    if (releasesError === null) {
+      return;
+    }
+
+    void window.ipc.core.logger.error({
+      source: 'desktop',
+      message: `Project card Releases error: ${parseIpcError(releasesError).message}`,
+      meta: errorLogAttributes(releasesError),
+    });
+  }, [releasesError]);
+
   return {
     check,
     hasGitRepository: project.remoteOriginUrl !== null,
     notSynced: check.data?.ahead.length ?? 0,
     incoming: check.data?.behind.length ?? 0,
-    lastRelease: isListingReleases
-      ? undefined
-      : lastPublishedRelease(releases.list),
+    lastRelease:
+      releases.data === undefined
+        ? undefined
+        : lastPublishedRelease(releases.data.list),
+    releasesError,
   };
 }
