@@ -33,7 +33,6 @@ import { Button } from '@renderer/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupAction,
   SidebarGroupContent,
@@ -80,11 +79,10 @@ function ProjectSearch(): React.JSX.Element {
   return (
     <Button
       variant="outline"
-      size="sm"
       disabled
       focusableWhenDisabled
       Icon={Search}
-      className="w-full justify-start gap-2 bg-muted text-muted-foreground aria-disabled:opacity-100"
+      className="w-full justify-start gap-2 bg-muted font-normal text-muted-foreground aria-disabled:opacity-100"
     >
       <Trans>Search comes later</Trans>
     </Button>
@@ -127,7 +125,7 @@ function NavigationRow({
     <SidebarMenuItem className="shrink-0">
       <SidebarMenuButton
         render={link}
-        className="px-[11px] text-muted-foreground data-active:bg-background data-active:text-foreground data-active:ring-1 data-active:shadow-raised data-active:ring-border dark:data-active:bg-muted dark:data-active:ring-0"
+        className="px-[11px] text-muted-foreground data-active:bg-background data-active:text-foreground data-active:shadow-[var(--shadow-raised),inset_0_0_0_1px_var(--color-border)] dark:data-active:bg-muted dark:data-active:shadow-none"
       >
         <Icon />
         <span className="truncate">{label}</span>
@@ -245,7 +243,7 @@ function ProjectNavigation(): React.JSX.Element {
         is the way to add the first Collection.
       */}
       <SidebarGroup className="shrink-0 p-0">
-        <SidebarGroupLabel className="mt-3 mb-1 justify-between px-[11px]">
+        <SidebarGroupLabel className="h-auto justify-between px-[11px] pt-3 pb-1">
           <span id={collectionsLabelId}>
             <Trans>Collections</Trans>
           </span>
@@ -256,7 +254,7 @@ function ProjectNavigation(): React.JSX.Element {
             label's own row, so the positioning the registry gives it goes.
           */}
           <SidebarGroupAction
-            className="relative top-auto right-auto -mr-1 size-6 text-muted-foreground"
+            className="relative top-auto right-auto -my-1 -mr-1 size-6 text-muted-foreground"
             render={
               <Link
                 to="/projects/$projectId/collections/create"
@@ -772,7 +770,6 @@ export function ProjectSidebar(): React.JSX.Element {
       <SidebarContent className="gap-0 [&>*]:shrink-0">
         <ProjectNavigation />
       </SidebarContent>
-      <SidebarFooter />
     </Sidebar>
   );
 }
@@ -794,7 +791,6 @@ export function ProjectSidebarSkeleton(): React.JSX.Element {
       <SidebarContent className="gap-0 [&>*]:shrink-0">
         <ProjectNavigation />
       </SidebarContent>
-      <SidebarFooter />
     </Sidebar>
   );
 }
