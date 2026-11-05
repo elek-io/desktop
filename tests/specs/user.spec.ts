@@ -17,6 +17,7 @@ import {
   closeReportDialog,
   openReportDialogFromHeader,
 } from '../helpers/report.js';
+import { setTheme } from '../helpers/theme.js';
 import {
   completeFirstStart,
   navigateToFirstStart,
@@ -74,23 +75,44 @@ appTest.describe('The first start', () => {
 
       // One card of 360 px on the gradient, which carries the dark mode colors
       // in both modes, while the card takes the light ones back in light mode.
-      const measured = await mainWindow.evaluate(() => {
-        const surface = document.querySelector('[data-slot="gradient-pane"]');
-        const card = document.querySelector('.on-plate');
+      const onTheGradient = async (): Promise<{
+        gradient: string;
+        isDark: boolean;
+        cardWidth: number;
+        surfaceColor: string;
+        cardColor: string;
+      }> =>
+        mainWindow.evaluate(() => {
+          const surface = document.querySelector('[data-slot="gradient-pane"]');
+          const card = document.querySelector('.on-plate');
 
-        if (surface === null || card === null) {
-          throw new Error('The first start has no card on the gradient');
-        }
+          if (surface === null || card === null) {
+            throw new Error('The first start has no card on the gradient');
+          }
 
-        return {
-          gradient: getComputedStyle(surface).backgroundImage,
-          isDark: surface.classList.contains('dark'),
-          cardWidth: Math.round(card.getBoundingClientRect().width),
-        };
-      });
-      expect(measured.gradient).toContain('linear-gradient');
-      expect(measured.isDark).toBe(true);
-      expect(measured.cardWidth).toBe(360);
+          return {
+            gradient: getComputedStyle(surface).backgroundImage,
+            isDark: surface.classList.contains('dark'),
+            cardWidth: Math.round(card.getBoundingClientRect().width),
+            surfaceColor: getComputedStyle(surface).color,
+            cardColor: getComputedStyle(card).color,
+          };
+        });
+
+      await setTheme(mainWindow, 'light');
+      const inLight = await onTheGradient();
+      expect(inLight.gradient).toContain('linear-gradient');
+      expect(inLight.isDark).toBe(true);
+      expect(inLight.cardWidth).toBe(360);
+      // The card declares the light colors again, so in light mode its text is
+      // not the near-white the gradient around it carries.
+      expect(inLight.cardColor).not.toBe(inLight.surfaceColor);
+
+      // In dark mode there is nothing to take back, so both are the same.
+      await setTheme(mainWindow, 'dark');
+      const inDark = await onTheGradient();
+      expect(inDark.cardColor).toBe(inDark.surfaceColor);
+      await setTheme(mainWindow, 'light');
 
       // Both fields say what they need before anybody presses Continue.
       await expect(
