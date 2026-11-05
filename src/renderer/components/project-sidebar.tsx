@@ -1,8 +1,5 @@
 import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { parseIpcError } from '@root/src/shared/ipcError';
-import { errorLogAttributes } from '@root/src/shared/logError';
-import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
   Blocks,
@@ -12,18 +9,25 @@ import {
   Images,
   History,
   type LucideIcon,
-  ArrowDown,
   CircleAlert,
   HardDrive,
   RefreshCw,
   Tag,
-  TriangleAlert,
   Plus,
   Search,
 } from 'lucide-react';
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+  CheckFailureLine,
+  LastChecked,
+  ReleaseLine,
+  StateIcon,
+  StateLine,
+  StateMarker,
+  SyncStateLines,
+} from '@renderer/components/project-state';
 import {
   ProjectSwitcher,
   ProjectSwitcherSkeleton,
@@ -44,16 +48,16 @@ import {
   SidebarMenuSkeleton,
   SidebarSeparator,
 } from '@renderer/components/ui/sidebar';
-import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useProject } from '@renderer/hooks/useProject';
+import { useProjectState } from '@renderer/hooks/useProjectState';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { checkRefusal, syncRefusalHandlers } from '@renderer/lib/sync';
+import { syncRefusalHandlers } from '@renderer/lib/sync';
 import { cn } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
-import { type Project, type ReleaseListItem } from '@elek-io/core';
+import { type Project } from '@elek-io/core';
 
 /** ci's link: the text color with the 2 px underline of the way forward. */
 const CARD_LINK = cn(
@@ -368,136 +372,6 @@ function ProjectNavigation(): React.JSX.Element {
 }
 
 /**
- * One line of the Project's state, in ci's own geometry: a 7 px column for the
- * marker or the icon that says the state, then what it says in words.
- *
- * Every line says its state in words, so none of them is told by its color or
- * its marker alone. A line that appears because something went wrong carries
- * `announce`, which puts it in a live region: a Git repository that stopped
- * answering, or a sync that failed, arrives while the editor is looking
- * somewhere else. The counts and the check do not, since they change on their
- * own every three minutes and nobody needs to hear that.
- */
-function StateLine({
-  lead,
-  announce = false,
-  className,
-  children,
-}: {
-  /** The marker or the 12 px icon that stands in the line's own column. */
-  lead: React.ReactNode;
-  announce?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <div
-      {...(announce ? { role: 'status' } : {})}
-      className={cn(
-        'flex h-[22px] items-center gap-2 text-small whitespace-nowrap',
-        className
-      )}
-    >
-      <span className="grid w-[7px] flex-none place-items-center">{lead}</span>
-      {children}
-    </div>
-  );
-}
-
-/**
- * The 7 px square ci marks a state with: hollow for a change that is not
- * synced, filled for one that is, and the brand color for a Release.
- *
- * It is hidden from a screen reader, because the words of its line already say
- * which state it marks.
- */
-function StateMarker({
-  variant,
-}: {
-  variant: 'not-synced' | 'synced' | 'release';
-}): React.JSX.Element {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'size-[7px] flex-none rounded-[1.5px]',
-        variant === 'not-synced' && 'border-[1.5px] border-foreground bg-card',
-        variant === 'synced' && 'bg-muted-foreground',
-        variant === 'release' && 'bg-brand'
-      )}
-    />
-  );
-}
-
-/** A 12 px icon centered in the same 7 px column as a marker. */
-const STATE_ICON = cn('size-3 -mx-[2.5px]');
-
-/**
- * The Release this Project last published, with the day it went out.
- *
- * The newest Release Core lists that a site can build from. A preview Release
- * tags `draft` without publishing it, so it is not the Release a Project is
- * at, and Desktop cannot make one anyway, see
- * contributing/not-yet-implemented.md.
- */
-function lastPublishedRelease(
-  releases: ReleaseListItem[]
-): ReleaseListItem | undefined {
-  return releases.find((release) => release.type === 'release');
-}
-
-/** Its version, and the day it went out in the User's own locale. */
-function ReleaseLine({
-  release,
-}: {
-  release: ReleaseListItem;
-}): React.JSX.Element {
-  const { t } = useLingui();
-  const { formatInUserLocale } = useProject();
-  const { version } = release;
-
-  return (
-    <>
-      {t`Release ${version}`}
-      <span className="text-muted-foreground">
-        {formatInUserLocale(new Date(release.datetime), 'PP')}
-      </span>
-    </>
-  );
-}
-
-/**
- * When the Git repository was last checked, re-read on a clock of its own.
- *
- * The check runs every three minutes, so a line that only followed the check
- * would say "just now" for three minutes at a time. This re-renders every 30
- * seconds instead, which is the shortest step the words it shows have.
- */
-function LastChecked({ at }: { at: number }): React.JSX.Element {
-  const { t } = useLingui();
-  const { formatRelativeShort } = useProject();
-  const [, setTick] = useState(0);
-
-  useEffect(() => {
-    const clock = window.setInterval(() => {
-      setTick((previous) => previous + 1);
-    }, 30000);
-
-    return () => {
-      window.clearInterval(clock);
-    };
-  }, []);
-
-  const ago = formatRelativeShort(at);
-
-  return (
-    <span className="text-muted-foreground">
-      {ago === null ? t`Checked just now` : t`Checked ${ago}`}
-    </span>
-  );
-}
-
-/**
  * The Project card: the switcher, what state the Project is in, and Sync.
  *
  * It is the first thing in the sidebar and stands on the sidebar's own column,
@@ -507,27 +381,25 @@ function LastChecked({ at }: { at: number }): React.JSX.Element {
  * full width, since the Releases row leads to a Release and no button beside
  * Sync has to.
  *
- * The card runs the one check of the Git repository and answers its failure
- * itself, as a state line, which is the one read a screen catches rather than
- * leaving to the boundary of the pane it sits in. It logs that failure the way
- * a pane's boundary logs one, so a repository that stopped answering is in the
- * log file either way. See contributing/error-handling.md.
+ * Its state lines are the ones every card draws, from
+ * `components/project-state.tsx`, and it adds the two only the open Project
+ * has: when the Git repository was last checked, and a sync of its own that
+ * failed. See ci's Sync table.
  */
 function ProjectCard({ project }: { project: Project }): React.JSX.Element {
   const { t } = useLingui();
   const { projectId } = useProject();
 
+  // The check of the Git repository, which this card answers itself, and the
+  // Releases beside it. See contributing/error-handling.md.
+  const state = useProjectState(project);
   const {
-    data: changes,
     error: checkError,
     isPending: isCheckingFirstTime,
     isFetching: isChecking,
     dataUpdatedAt: checkedAt,
     refetch: checkNow,
-  } = useQuery(queryOptions.projects.getChanges(project));
-  const { data: releases, isPending: isListingReleases } = useQueryNoError(
-    queryOptions.releases.list({ projectId })
-  );
+  } = state.check;
 
   const [syncError, setSyncError] = useState<unknown>(null);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
@@ -575,27 +447,7 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
     handled: syncRefusalHandlers(answerSyncRefusal),
   });
 
-  // The failed check reaches the log file with its type, message and stack, as
-  // a pane's boundary writes one. From an effect rather than the render body,
-  // so a re-render does not write the same record again.
-  useEffect(() => {
-    if (checkError === null) {
-      return;
-    }
-
-    void window.ipc.core.logger.error({
-      source: 'desktop',
-      message: `Project card check error: ${parseIpcError(checkError).message}`,
-      meta: errorLogAttributes(checkError),
-    });
-  }, [checkError]);
-
-  const hasGitRepository = project.remoteOriginUrl !== null;
-  const notSynced = changes?.ahead.length ?? 0;
-  const incoming = changes?.behind.length ?? 0;
-  const lastRelease = isListingReleases
-    ? undefined
-    : lastPublishedRelease(releases.list);
+  const { hasGitRepository, notSynced, incoming, lastRelease } = state;
   // Sync is the retry of a check that failed, so it stays usable then. What
   // keeps it from being pressed is a sync already running, a first check that
   // has not answered, and a check that answered with nothing to sync.
@@ -611,37 +463,11 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
 
       <div className="flex flex-col gap-1 border-t px-2.5 pt-2 pb-2.5">
         {hasGitRepository === false ? (
-          <StateLine lead={<HardDrive className={STATE_ICON} />}>
+          <StateLine lead={<StateIcon icon={HardDrive} />}>
             <Trans>This computer only</Trans>
           </StateLine>
-        ) : isCheckingFirstTime ? (
-          <>
-            <Skeleton className="h-[14px] w-32 rounded" />
-            <Skeleton className="h-[14px] w-24 rounded" />
-          </>
-        ) : checkError !== null ? null : notSynced === 0 && incoming === 0 ? (
-          <StateLine lead={<StateMarker variant="synced" />}>
-            <Trans>Everything synced</Trans>
-          </StateLine>
         ) : (
-          <>
-            {notSynced === 0 ? null : (
-              <StateLine lead={<StateMarker variant="not-synced" />}>
-                {t`${plural(notSynced, {
-                  one: '# change not synced',
-                  other: '# changes not synced',
-                })}`}
-              </StateLine>
-            )}
-            {incoming === 0 ? null : (
-              <StateLine lead={<ArrowDown className={STATE_ICON} />}>
-                {t`${plural(incoming, {
-                  one: '# incoming change',
-                  other: '# incoming changes',
-                })}`}
-              </StateLine>
-            )}
-          </>
+          <SyncStateLines state={state} />
         )}
 
         {lastRelease === undefined ? null : (
@@ -650,25 +476,13 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
           </StateLine>
         )}
 
-        {checkError === null ? null : (
-          <StateLine
-            announce
-            className="text-warning"
-            lead={<TriangleAlert className={STATE_ICON} />}
-          >
-            {checkRefusal(checkError) === 'refused' ? (
-              <Trans>The Git repository refused access</Trans>
-            ) : (
-              <Trans>Can&apos;t reach the Git repository</Trans>
-            )}
-          </StateLine>
-        )}
+        <CheckFailureLine state={state} />
 
         {syncError === null ? null : (
           <StateLine
             announce
             className="text-error"
-            lead={<CircleAlert className={STATE_ICON} />}
+            lead={<StateIcon icon={CircleAlert} />}
           >
             <Trans>Sync failed</Trans>
             <Button
