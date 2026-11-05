@@ -44,6 +44,41 @@ async function stateLinesOf(page: Page, name: string): Promise<string[]> {
     .allInnerTexts();
 }
 
+/**
+ * Assert the state lines of one Project's card.
+ *
+ * Polled, because `allInnerTexts` is one read of the DOM and every line arrives
+ * with the read that fills it: the cards are not there at all until
+ * `projects.list` has answered, which on a slow machine is after the page head
+ * and the section are.
+ */
+async function expectStateLines(
+  page: Page,
+  name: string,
+  lines: string[]
+): Promise<void> {
+  await expect
+    .poll(async () => stateLinesOf(page, name), {
+      message: `the state lines of ${name}`,
+      // Room for the list, the check and the Releases to answer, each of which
+      // is a Core call on a cold Git repository.
+      timeout: 15000,
+    })
+    .toEqual(lines);
+}
+
+/**
+ * The color of the marker a state line leads with.
+ *
+ * The marker says nothing on its own, so it carries `aria-hidden` and is read
+ * from the DOM rather than through a role.
+ */
+async function markerColorOf(line: Locator): Promise<string> {
+  return line
+    .locator('span[aria-hidden="true"]')
+    .evaluate((marker) => getComputedStyle(marker).backgroundColor);
+}
+
 test.describe('Projects', () => {
   test('creates a project through the form and shows it in the list', async ({
     mainWindow,
@@ -104,6 +139,11 @@ test.describe('Projects', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'On this computer', level: 2 })
     ).toBeVisible();
+    // The count is of the cards, so it is read once they are there. Everything
+    // above is true of the page while the Projects are still being read, which
+    // is what used to make this a one-shot read of a '0' on a slow machine.
+    await expect(projectCardOf(mainWindow, 'Used cars')).toBeVisible();
+    await expect(projectCardOf(mainWindow, 'Service app')).toBeVisible();
     const grid = await mainWindow.evaluate(() => {
       const head = Array.from(document.querySelectorAll('h2')).find(
         (candidate) => candidate.textContent === 'On this computer'
@@ -166,7 +206,7 @@ test.describe('Projects', () => {
     // A Project with no Git repository says so and has no state line, since
     // Core counts what is not synced against a remote only. It still says
     // whether it has a Release.
-    expect(await stateLinesOf(mainWindow, 'Only here')).toEqual([
+    await expectStateLines(mainWindow, 'Only here', [
       'This computer only',
       'No Release yet',
     ]);
