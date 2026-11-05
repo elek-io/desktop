@@ -210,7 +210,7 @@ function PaneReadFailed({ error, reset }: ErrorComponentProps): ReactElement {
   return (
     <div
       role="alert"
-      className="flex flex-col items-start gap-3 px-(--pane-edge) py-4"
+      className="flex flex-col items-start gap-3 px-(--pane-edge) py-4 text-muted-foreground"
     >
       <p>
         <Trans>Desktop can&apos;t read {name}.</Trans>

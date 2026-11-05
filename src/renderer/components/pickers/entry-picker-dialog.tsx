@@ -48,6 +48,15 @@ export interface PickableEntry {
   title: string;
 }
 
+/**
+ * One row of the list a picker shows: ci's row of 10 by 16 px with a rule
+ * below it, edge to edge, and the control that chooses it on the title's line.
+ * A chosen row is marked by that control alone, as ci asks.
+ */
+const ENTRY_ROW = cn(
+  'flex items-start gap-2.5 border-b border-border px-4 py-2.5 font-normal has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-4 has-[:focus-visible]:outline-ring'
+);
+
 export interface EntryPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -225,15 +234,19 @@ export function EntryPickerDialog({
         key={pickable.entry.id}
         htmlFor={id}
         className={cn(
-          'flex items-center gap-3 rounded-md border border-border px-3 py-2 font-normal',
-          'has-data-checked:border-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
+          ENTRY_ROW,
           isChosen === false && maxReached ? 'opacity-50' : null
         )}
       >
         {takesOne ? (
-          <RadioGroupItem id={id} value={pickable.entry.id} />
+          <RadioGroupItem
+            className="mt-0.5"
+            id={id}
+            value={pickable.entry.id}
+          />
         ) : (
           <Checkbox
+            className="mt-0.5"
             id={id}
             checked={isChosen}
             disabled={isChosen === false && maxReached}
@@ -241,7 +254,7 @@ export function EntryPickerDialog({
           />
         )}
         <span className="flex min-w-0 flex-col">
-          <span className="truncate text-sm">{pickable.title}</span>
+          <span className="truncate text-label">{pickable.title}</span>
           <span className="text-small text-muted-foreground">
             {translateContent({
               key: 'collection.name.singular',
@@ -254,11 +267,11 @@ export function EntryPickerDialog({
   }
 
   const list = shownGroups.map((group) => (
-    <div key={group.collection.id} className="flex flex-col gap-1">
+    <div key={group.collection.id} className="flex flex-col">
       {/* A heading per Collection only where more than one of them meets, so a
       field that allows one does not repeat its name above every row. */}
       {allowedCollections.length > 1 ? (
-        <h3 className="text-label text-muted-foreground">
+        <h3 className="px-4 pt-2.5 pb-1.5 text-small text-muted-foreground">
           {translateContent({
             key: 'collection.name.plural',
             record: group.collection.name.plural,
@@ -271,38 +284,49 @@ export function EntryPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      {/* The filter stands above the list rather than scrolling with it, and
+      the rows run to the dialog's own edges, as ci draws them. */}
+      <DialogContent className="grid-rows-[auto_auto_minmax(0,1fr)_auto]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{describesTheChoice}</DialogDescription>
         </DialogHeader>
 
-        <DialogBody>
+        <div className="flex gap-2 px-5 py-3">
           <FilterInput
+            className="flex-1"
             name={filterName}
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
+        </div>
+
+        <DialogBody flush className="border-t">
           {isReadingCollections || isReadingEntries ? (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col">
               {Array.from({ length: 6 }).map((_, index) => {
                 const key = `skeleton-${String(index)}`;
-                return <Skeleton key={key} className="h-10" />;
+                return (
+                  <div key={key} className={ENTRY_ROW}>
+                    <Skeleton className="h-9.5 w-full" />
+                  </div>
+                );
               })}
             </div>
           ) : everyEntry.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-4 py-2.5 text-sm text-muted-foreground">
               <Trans>
                 No Entry yet in the Collections this field allows. Create one
                 first.
               </Trans>
             </p>
           ) : shownGroups.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-4 py-2.5 text-sm text-muted-foreground">
               <Trans>No Entry matches the filter.</Trans>
             </p>
           ) : takesOne ? (
             <RadioGroup
+              className="gap-0"
               aria-label={title}
               value={draftIds[0] ?? null}
               onValueChange={(entryId: string) => toggle(entryId, false)}
@@ -310,11 +334,7 @@ export function EntryPickerDialog({
               {list}
             </RadioGroup>
           ) : (
-            <div
-              role="group"
-              aria-label={title}
-              className="flex flex-col gap-3"
-            >
+            <div role="group" aria-label={title} className="flex flex-col">
               {list}
             </div>
           )}

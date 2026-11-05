@@ -37,6 +37,23 @@ import type { Asset } from '@elek-io/core';
 //
 // See contributing/renderer/dynamic-form-field-generation.md.
 
+/**
+ * ci's Assets grid: four ruled columns, whatever the window does, with a
+ * divider between the columns of a row.
+ */
+const ASSET_GRID = cn(
+  'grid grid-cols-4 [&>*:not(:nth-child(4n+1))]:border-l [&>*]:border-b'
+);
+
+/**
+ * One card of that grid: its preview, then the control that chooses it beside
+ * the name. A chosen card is marked by that control alone, as ci asks, so the
+ * card takes no border and no surface of its own.
+ */
+const ASSET_CARD = cn(
+  'flex flex-col items-stretch gap-2.5 border-border px-6 pt-4 pb-4.5 font-normal has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-4 has-[:focus-visible]:outline-ring'
+);
+
 export interface AssetPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -153,21 +170,25 @@ export function AssetPickerDialog({
         key={asset.id}
         htmlFor={id}
         className={cn(
-          'flex flex-col items-stretch gap-0 overflow-hidden rounded-md border border-border font-normal',
-          'has-data-checked:border-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
+          ASSET_CARD,
           isChosen === false && maxReached ? 'opacity-50' : null
         )}
       >
         {/* The preview says the same as the name beside it, so it stays out
         of the card's accessible name. */}
         <span aria-hidden="true">
-          <AssetDisplay {...asset} static className="aspect-4/3" />
+          <AssetDisplay
+            {...asset}
+            static
+            className="h-28 w-full rounded-md object-cover"
+          />
         </span>
-        <span className="flex items-center gap-2 p-2">
+        <span className="flex items-start gap-2">
           {takesOne ? (
-            <RadioGroupItem id={id} value={asset.id} />
+            <RadioGroupItem className="mt-0.5" id={id} value={asset.id} />
           ) : (
             <Checkbox
+              className="mt-0.5"
               id={id}
               checked={isChosen}
               disabled={isChosen === false && maxReached}
@@ -175,7 +196,7 @@ export function AssetPickerDialog({
             />
           )}
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-sm">{asset.name}</span>
+            <span className="truncate text-label">{asset.name}</span>
             <span className="text-small text-muted-foreground">
               {t`${type}, ${size}`}
             </span>
@@ -187,27 +208,38 @@ export function AssetPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      {/* ci's Assets grid is four columns wide whatever the window does, so
+      the dialog is as wide as that grid asks and the filter stands above it
+      rather than scrolling with it. */}
+      <DialogContent className="grid-rows-[auto_auto_minmax(0,1fr)_auto] sm:max-w-[856px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{describesTheChoice}</DialogDescription>
         </DialogHeader>
 
-        <DialogBody>
+        <div className="flex gap-2 px-5 py-3">
           <FilterInput
+            className="flex-1"
             name={t`Filter Assets`}
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
+        </div>
+
+        <DialogBody flush className="border-t">
           {isReadingAssets ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className={ASSET_GRID}>
               {Array.from({ length: 8 }).map((_, index) => {
                 const key = `skeleton-${String(index)}`;
-                return <Skeleton key={key} className="aspect-4/3" />;
+                return (
+                  <div key={key} className={ASSET_CARD}>
+                    <Skeleton className="h-28 w-full" />
+                  </div>
+                );
               })}
             </div>
           ) : allowedAssets.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-6 py-4 text-sm text-muted-foreground">
               {ofAssetMimeTypes.length === 0 ? (
                 <Trans>
                   No Assets yet. Add one on the Assets screen first.
@@ -219,7 +251,7 @@ export function AssetPickerDialog({
               )}
             </p>
           ) : shownAssets.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-6 py-4 text-sm text-muted-foreground">
               <Trans>No Asset matches the filter.</Trans>
             </p>
           ) : takesOne ? (
@@ -227,16 +259,12 @@ export function AssetPickerDialog({
               aria-label={title}
               value={draftIds[0] ?? null}
               onValueChange={(assetId: string) => toggle(assetId, false)}
-              className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+              className={ASSET_GRID}
             >
               {cards}
             </RadioGroup>
           ) : (
-            <div
-              role="group"
-              aria-label={title}
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-            >
+            <div role="group" aria-label={title} className={ASSET_GRID}>
               {cards}
             </div>
           )}
