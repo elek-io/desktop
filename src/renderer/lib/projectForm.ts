@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { countEmptyFields } from '@renderer/lib/emptyFields';
+
 import {
   createProjectSchema,
   setRemoteOriginUrlProjectSchema,
@@ -113,20 +115,10 @@ export function projectFormValuesOf(project: Project): ProjectFormValues {
   };
 }
 
-/** Whether a Value a form holds is empty, which is what Core refuses. */
-function holdsNothing(value: unknown): boolean {
-  if (value === null || value === undefined || value === '') {
-    return true;
-  }
-  return Array.isArray(value) && value.length === 0;
-}
-
 /**
  * How many of the form's fields still need a Value before Core would take it.
  *
- * It runs without a validator, so it is cheap enough to answer on every
- * change, which is what lets Save say why it is blocked before anybody presses
- * it. The address counts only while another Git host is chosen, since a Project
+ * The address counts only while another Git host is chosen, since a Project
  * kept on this computer has none.
  */
 export function missingProjectValues(values: ProjectFormValues): number {
@@ -141,5 +133,5 @@ export function missingProjectValues(values: ProjectFormValues): number {
     needed.push(values.remoteOriginUrl);
   }
 
-  return needed.filter((value) => holdsNothing(value)).length;
+  return countEmptyFields(needed);
 }

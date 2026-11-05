@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
-import { msg, plural } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { ArrowRight, Plus } from 'lucide-react';
 import { type ReactElement, useId, useState } from 'react';
@@ -27,6 +27,7 @@ import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
+import { emptyFieldsReason } from '@renderer/lib/emptyFields';
 import {
   missingProjectValues,
   newProjectFormValues,
@@ -68,6 +69,7 @@ function CreateProjectPage(): ReactElement {
     resolver: zodResolver(projectFormSchema),
     defaultValues: newProjectFormValues(),
   });
+  const queryClient = useQueryClient();
   const { mutateAsync: createProject } = useMutation(
     queryOptions.projects.create
   );
@@ -91,14 +93,7 @@ function CreateProjectPage(): ReactElement {
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
 
   const values = createProjectForm.watch();
-  const missing = missingProjectValues(values);
-  const blockedBy =
-    missing === 0
-      ? undefined
-      : t`${plural(missing, {
-          one: '# field is still empty',
-          other: '# fields are still empty',
-        })}`;
+  const blockedBy = emptyFieldsReason(missingProjectValues(values));
 
   function Description(): ReactElement {
     return <Trans>A new Project starts with no content and no history.</Trans>;
@@ -118,6 +113,9 @@ function CreateProjectPage(): ReactElement {
     await router.navigate({
       to: '/projects/$projectId',
       params: { projectId },
+      // The page takes this way out itself, once the Project is made, so
+      // leaving it asks nothing: what the form holds is saved by then.
+      ignoreBlocker: true,
     });
   };
 
@@ -132,6 +130,25 @@ function CreateProjectPage(): ReactElement {
     // more calls: the address, then the first sync that puts it there.
     if (values.keptOn === 'git-host' && values.remoteOriginUrl !== null) {
       setCreatedProjectId(newProject.id);
+      // The two reads the calls below invalidate and refetch. The create
+      // writes the new Project into both of them rather than reading either,
+      // so neither carries a function of its own while this page is open, and
+      // a query with no function cannot be refetched: the refetch fails, and
+      // with it the editor would reach the error screen with the Project
+      // already made. Reading both once is what gives each key its own query,
+      // and each has to be a real read, because the app caches every read
+      // forever and a query that already holds data would be handed back
+      // without ever being given its function.
+      await Promise.all([
+        queryClient.query({
+          ...queryOptions.projects.read({ id: newProject.id }),
+          staleTime: 0,
+        }),
+        queryClient.query({
+          ...queryOptions.projects.list({ limit: 0 }),
+          staleTime: 0,
+        }),
+      ]);
       try {
         await setRemoteOriginUrl({
           id: newProject.id,

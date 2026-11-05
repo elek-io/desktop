@@ -1,5 +1,6 @@
 import { type VariantProps } from 'class-variance-authority';
 
+import { GradientPane } from '@renderer/components/gradient-pane';
 import { cn } from '@renderer/lib/utils';
 import { emptyMediaVariants } from '@renderer/lib/variants';
 
@@ -12,31 +13,18 @@ import { emptyMediaVariants } from '@renderer/lib/variants';
  * rather than standing under a page head, because no other button may repeat
  * the action the state itself offers, see ci's docs/desktop.md.
  *
- * The gradient always carries the dark mode colors, in light mode too, so the
- * surface declares `dark` and the text color with it, and a card placed on it
- * takes the light colors back through `on-plate`, see
- * contributing/renderer/theming-and-styling.md. Nothing else in the app takes
- * the gradient: a filter with no matches says so in its list, because the page
- * itself is not empty.
+ * The gradient itself is `GradientPane`, which the first start takes too.
  */
 function Empty({
   className,
-  children,
   ...props
-}: React.ComponentProps<'div'>): React.JSX.Element {
+}: React.ComponentProps<'main'>): React.JSX.Element {
   return (
-    <div
+    <GradientPane
       data-slot="empty"
-      className={cn(
-        'dark flex min-h-0 flex-1 overflow-y-auto bg-linear-to-br from-gradient-start to-gradient-end to-90% py-6 text-foreground',
-        className
-      )}
+      className={cn('[&>*]:w-[520px]', className)}
       {...props}
-    >
-      <div className="m-auto flex w-[520px] max-w-full flex-col items-center px-6 text-center text-balance">
-        {children}
-      </div>
-    </div>
+    />
   );
 }
 
@@ -63,13 +51,16 @@ function EmptyMedia({
 /**
  * What is missing, in ci's h3 role: 28 px below the mark, and 20 px below the
  * framed icon that stands in its place on a screen of a Project.
+ *
+ * It is the screen's `h1`, because an empty state takes the pane and there is
+ * no page head above it to carry one. ci's h3 is its size, not its rank.
  */
 function EmptyTitle({
   className,
   ...props
-}: React.ComponentProps<'h2'>): React.JSX.Element {
+}: React.ComponentProps<'h1'>): React.JSX.Element {
   return (
-    <h2
+    <h1
       data-slot="empty-title"
       className={cn('mt-7 text-h3 [[data-slot=empty-media]+&]:mt-5', className)}
       {...props}

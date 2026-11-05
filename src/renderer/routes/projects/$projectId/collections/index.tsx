@@ -58,6 +58,7 @@ function ProjectCollectionsIndexPage(): ReactElement {
         <EmptyActions>
           <Button
             Icon={Plus}
+            className="no-underline"
             render={
               <Link
                 to="/projects/$projectId/collections/create"

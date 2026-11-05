@@ -57,6 +57,7 @@ export function StateLine({
 }): React.JSX.Element {
   return (
     <div
+      data-slot="project-state-line"
       {...(announce ? { role: 'status' } : {})}
       className={cn(
         'flex h-[22px] items-center gap-2 text-small whitespace-nowrap',

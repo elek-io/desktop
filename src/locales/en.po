@@ -52,7 +52,7 @@ msgstr "{min} to {max}"
 msgid "{min} to {max} characters"
 msgstr "{min} to {max} characters"
 
-#: src/renderer/routes/projects/create.tsx
+#: src/renderer/lib/emptyFields.ts
 msgid "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
 msgstr "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
 
@@ -678,6 +678,10 @@ msgstr "Configure"
 msgid "Configure {collectionName}"
 msgstr "Configure {collectionName}"
 
+#: src/renderer/routes/welcome.tsx
+msgid "Continue"
+msgstr "Continue"
+
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Convert the slug to lowercase."
 msgstr "Convert the slug to lowercase."
@@ -1067,6 +1071,10 @@ msgstr "elek.io Desktop, Projects"
 #: src/renderer/routes/user/profile.tsx
 msgid "Email"
 msgstr "Email"
+
+#: src/renderer/routes/welcome.tsx
+msgid "Email address"
+msgstr "Email address"
 
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Emphasis"
@@ -1500,6 +1508,7 @@ msgstr "Multi line code with an optional language."
 
 #: src/renderer/components/forms/project-form.tsx
 #: src/renderer/components/report-dialog.tsx
+#: src/renderer/routes/welcome.tsx
 msgid "Name"
 msgstr "Name"
 
@@ -2162,6 +2171,10 @@ msgstr "Something went wrong. Please try again."
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Split camelCase words, so \"myWord\" becomes \"my-word\"."
 msgstr "Split camelCase words, so \"myWord\" becomes \"my-word\"."
+
+#: src/renderer/routes/welcome.tsx
+msgid "Start with your name and email address."
+msgstr "Start with your name and email address."
 
 #: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
@@ -2863,7 +2876,12 @@ msgstr "Visible Values"
 msgid "We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment."
 msgstr "We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment."
 
+#: src/renderer/routes/welcome.tsx
+msgid "Welcome"
+msgstr "Welcome"
+
 #: src/renderer/routes/user/profile.tsx
+#: src/renderer/routes/welcome.tsx
 msgid "Welcome to elek.io Desktop"
 msgstr "Welcome to elek.io Desktop"
 
@@ -2894,6 +2912,7 @@ msgstr "What this group of fields is, in singular, such as \"Teaser\"."
 #: src/renderer/routes/__root.tsx
 #: src/renderer/routes/projects/$projectId.tsx
 #: src/renderer/routes/projects/create.tsx
+#: src/renderer/routes/welcome.tsx
 msgid "what this screen shows"
 msgstr "what this screen shows"
 
@@ -2996,6 +3015,10 @@ msgstr "You've tried to access \"{href}\" but it does not exist. Use the buttons
 #: src/renderer/routes/user/profile.tsx
 msgid "Your email allows other members of Projects to contact you."
 msgstr "Your email allows other members of Projects to contact you."
+
+#: src/renderer/routes/welcome.tsx
+msgid "Your name and email address mark your changes in the History. They're saved with each change, so whoever you sync a Project with sees them. Desktop sends them nowhere else without asking."
+msgstr "Your name and email address mark your changes in the History. They're saved with each change, so whoever you sync a Project with sees them. Desktop sends them nowhere else without asking."
 
 #: src/renderer/routes/user/profile.tsx
 msgid "Your name will be used by others to identify changes made by you."

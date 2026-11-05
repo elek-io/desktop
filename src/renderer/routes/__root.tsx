@@ -7,6 +7,7 @@ import {
   HeadContent,
   Outlet,
   createRootRouteWithContext,
+  redirect,
   useRouter,
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
@@ -27,11 +28,38 @@ import { Toaster } from '@renderer/components/ui/sonner';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
 import { UnsavedChangesProvider } from '@renderer/providers/UnsavedChangesProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
+import { queryClient, queryOptions } from '@renderer/queries';
 
 export interface RouterContext {}
 
+/** The route the first start is on, which is the one screen without a User. */
+// A route's own address, which no language has a form of its own for.
+// eslint-disable-next-line lingui/no-unlocalized-strings
+const FIRST_START = '/welcome';
+
 // Use the routerContext to create your root route
 export const Route = createRootRouteWithContext<RouterContext>()({
+  /**
+   * The gate in front of every screen: nothing can be written before a User
+   * exists, because Core stamps the name and the email address on every change
+   * it commits. So while there is none, every address settles on the first
+   * start, and once there is one, that address settles on the Projects page.
+   *
+   * It runs here rather than in a component, so no screen is drawn for a moment
+   * before it gives way. The User comes from the same query the whole app reads
+   * it through, so the gate costs one read at the start and nothing after it.
+   */
+  beforeLoad: async ({ location }) => {
+    const user = await queryClient.query(queryOptions.user.get());
+    const isFirstStart = location.pathname === FIRST_START;
+
+    if (user === null && isFirstStart === false) {
+      throw redirect({ to: FIRST_START });
+    }
+    if (user !== null && isFirstStart) {
+      throw redirect({ to: '/projects' });
+    }
+  },
   component: RootComponent,
   errorComponent: ErrorComponent,
   notFoundComponent: NotFoundComponent,
