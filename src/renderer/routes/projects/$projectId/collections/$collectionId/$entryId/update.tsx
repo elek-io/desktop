@@ -14,7 +14,6 @@ import { Page } from '@renderer/components/page';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
-import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
 import { useEntryRefusals } from '@renderer/hooks/useEntryRefusals';
 import { useProject } from '@renderer/hooks/useProject';
@@ -40,7 +39,6 @@ function UpdateEntryPage(): ReactElement {
 
   const router = useRouter();
   const { projectId, collectionId, entryId } = Route.useParams();
-  useBreadcrumb(Route, t`Update`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     userQuery: { data: user },

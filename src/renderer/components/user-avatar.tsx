@@ -9,8 +9,8 @@ import { initials } from '@renderer/lib/utils';
 
 /**
  * A person's avatar: their picture where there is one, their initials
- * otherwise. The initials sit on the muted surface, because a label never sits
- * on the brand color.
+ * otherwise. The initials sit on ink, which is what ci draws every avatar in,
+ * and never on the brand color.
  */
 function UserAvatar({
   src,
@@ -23,7 +23,7 @@ function UserAvatar({
   return (
     <Avatar {...props}>
       {src !== undefined ? <AvatarImage src={src} /> : null}
-      <AvatarFallback className="text-xs font-semibold">
+      <AvatarFallback className="bg-foreground text-xs font-semibold text-background">
         {initials(name)}
       </AvatarFallback>
     </Avatar>

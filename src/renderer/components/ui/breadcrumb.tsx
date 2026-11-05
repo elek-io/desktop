@@ -30,7 +30,7 @@ function BreadcrumbList({
     <ol
       data-slot="breadcrumb-list"
       className={cn(
-        'flex flex-wrap items-center gap-1.5 text-sm wrap-break-word text-muted-foreground sm:gap-2.5',
+        'flex min-w-0 items-center gap-1.5 text-sm whitespace-nowrap text-muted-foreground',
         className
       )}
       {...props}
@@ -45,7 +45,10 @@ function BreadcrumbItem({
   return (
     <li
       data-slot="breadcrumb-item"
-      className={cn('inline-flex items-center gap-1.5', className)}
+      className={cn(
+        'inline-flex min-w-0 shrink-0 items-center gap-1.5',
+        className
+      )}
       {...props}
     />
   );
@@ -81,7 +84,7 @@ function BreadcrumbPage({
       role="link"
       aria-disabled="true"
       aria-current="page"
-      className={cn('font-normal text-foreground', className)}
+      className={cn('font-medium text-foreground', className)}
       {...props}
     />
   );
@@ -97,7 +100,7 @@ function BreadcrumbSeparator({
       data-slot="breadcrumb-separator"
       role="presentation"
       aria-hidden="true"
-      className={cn('[&>svg]:size-3.5', className)}
+      className={cn('shrink-0 [&>svg]:size-3', className)}
       {...props}
     >
       {children ?? <ChevronRightIcon />}

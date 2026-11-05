@@ -9,7 +9,13 @@ import {
   CircleHelp,
   ExternalLinkIcon,
 } from 'lucide-react';
-import { useState, type ReactElement, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { Fragment } from 'react/jsx-runtime';
 
 import { ReportDialog } from '@renderer/components/report-dialog';
@@ -18,10 +24,10 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@renderer/components/ui/breadcrumb';
 import { Button } from '@renderer/components/ui/button';
-import { ButtonGroup } from '@renderer/components/ui/button-group';
 import {
   DropdownMenu,
   DropdownMenuAddOn,
@@ -51,12 +57,26 @@ import lockupLight from '@elek-io/branding/logo/lockup-desktop-16-light.svg';
 const DOCS_URL = 'https://elek.io/en/documentation';
 
 /**
- * A version as Help shows it. The `v` is a marker rather than a word, so it
- * stays out of the catalog.
+ * One version row of Help: what it names, and the version itself.
+ *
+ * ci draws these in its small role on 24 px rows, with the version in Geist
+ * Mono and without a `v` in front of it, since the number says what it is.
  */
-function asVersion(value: string | undefined): string {
-  // eslint-disable-next-line lingui/no-unlocalized-strings
-  return `v${value ?? ''}`;
+function VersionRow({
+  name,
+  version,
+}: {
+  name: string;
+  version: string | undefined;
+}): ReactElement {
+  return (
+    <DropdownMenuItem className="h-6 py-0 text-small text-muted-foreground">
+      {name}
+      <DropdownMenuAddOn className="font-mono text-small tracking-normal">
+        {version ?? ''}
+      </DropdownMenuAddOn>
+    </DropdownMenuItem>
+  );
 }
 
 /**
@@ -164,38 +184,25 @@ function HelpMenu(): ReactElement {
           {/* Each row names a product or a runtime, and neither elek.io's own
               names nor a third party's are ever translated, see ci's naming
               rules. */}
-          {/* eslint-disable lingui/no-unlocalized-strings */}
           <DropdownMenuGroup>
-            <DropdownMenuItem>
-              elek.io Desktop
-              <DropdownMenuAddOn>{asVersion(desktopVersion)}</DropdownMenuAddOn>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              elek.io Core
-              <DropdownMenuAddOn>
-                {asVersion(dependencies['@elek-io/core'])}
-              </DropdownMenuAddOn>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              Electron
-              <DropdownMenuAddOn>
-                {asVersion(window.ipc.electron.process.versions['electron'])}
-              </DropdownMenuAddOn>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              Chromium
-              <DropdownMenuAddOn>
-                {asVersion(window.ipc.electron.process.versions['chrome'])}
-              </DropdownMenuAddOn>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              Node
-              <DropdownMenuAddOn>
-                {asVersion(window.ipc.electron.process.versions['node'])}
-              </DropdownMenuAddOn>
-            </DropdownMenuItem>
+            <VersionRow name="elek.io Desktop" version={desktopVersion} />
+            <VersionRow
+              name="elek.io Core"
+              version={dependencies['@elek-io/core']}
+            />
+            <VersionRow
+              name="Electron"
+              version={window.ipc.electron.process.versions['electron']}
+            />
+            <VersionRow
+              name="Chromium"
+              version={window.ipc.electron.process.versions['chrome']}
+            />
+            <VersionRow
+              name="Node"
+              version={window.ipc.electron.process.versions['node']}
+            />
           </DropdownMenuGroup>
-          {/* eslint-enable lingui/no-unlocalized-strings */}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -219,10 +226,10 @@ export function HeaderTrail(): ReactElement {
 
   return (
     <>
-      <ButtonGroup className="flex-none">
+      <div className="flex flex-none">
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           onClick={() => router.history.back()}
           Icon={ArrowLeft}
         >
@@ -232,7 +239,7 @@ export function HeaderTrail(): ReactElement {
         </Button>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           onClick={() => router.history.forward()}
           Icon={ArrowRight}
         >
@@ -240,23 +247,79 @@ export function HeaderTrail(): ReactElement {
             <Trans>Go forward</Trans>
           </span>
         </Button>
-      </ButtonGroup>
+      </div>
 
       <Breadcrumb className="ml-2 min-w-0">
         <BreadcrumbList>
-          {breadcrumbs.map((crumb, index, array) => (
-            <Fragment key={crumb.path}>
-              <BreadcrumbItem>
-                <BreadcrumbLink render={<Link to={crumb.path} />}>
-                  {crumb.label}
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              {array.length !== index + 1 && <BreadcrumbSeparator />}
-            </Fragment>
-          ))}
+          {breadcrumbs.map((crumb, index, array) => {
+            const isPage = array.length === index + 1;
+
+            return (
+              <Fragment key={crumb.path}>
+                {/* The last crumb is the page itself, and the only one that
+                gives way: ci cuts it with an ellipsis before the trail
+                wraps, which it never does. */}
+                <BreadcrumbItem className={isPage ? 'shrink' : undefined}>
+                  {isPage ? (
+                    <PageCrumb label={crumb.label} />
+                  ) : (
+                    <BreadcrumbLink render={<Link to={crumb.path} />}>
+                      {crumb.label}
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+                {isPage ? null : <BreadcrumbSeparator />}
+              </Fragment>
+            );
+          })}
         </BreadcrumbList>
       </Breadcrumb>
     </>
+  );
+}
+
+/**
+ * The trail's last crumb: the current page, in the text color.
+ *
+ * It is the one crumb that gives way, so a long title is cut with an ellipsis
+ * instead of the trail wrapping into the bar below it. The text in the element
+ * stays whole, so a screen reader reads the full name, and while the crumb is
+ * cut it carries that name on hover too and takes the keyboard, the way a
+ * blocked Save does, so somebody who tabs to it hears all of it.
+ *
+ * Only attributes change with the measurement, never the element, so the
+ * observer below is never handed a crumb that is no longer on screen, which
+ * reports no size and would say the name is not cut.
+ */
+function PageCrumb({ label }: { label: string }): ReactElement {
+  const [isCut, setIsCut] = useState(false);
+  const crumbRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const element = crumbRef.current;
+    if (element === null) {
+      return;
+    }
+
+    const measure = (): void => {
+      setIsCut(element.scrollWidth > element.clientWidth);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [label]);
+
+  return (
+    <BreadcrumbPage
+      ref={crumbRef}
+      className="block truncate"
+      tabIndex={isCut ? 0 : undefined}
+      title={isCut ? label : undefined}
+    >
+      {label}
+    </BreadcrumbPage>
   );
 }
 

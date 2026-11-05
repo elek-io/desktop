@@ -605,7 +605,6 @@ msgid "Collection-Slug"
 msgstr "Collection-Slug"
 
 #: src/renderer/components/project-sidebar.tsx
-#: src/renderer/routes/projects/$projectId/collections.tsx
 msgid "Collections"
 msgstr "Collections"
 
@@ -2712,7 +2711,6 @@ msgid "up to {max}"
 msgstr "up to {max}"
 
 #: src/renderer/components/asset-teaser.tsx
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 msgid "Update"
 msgstr "Update"
 

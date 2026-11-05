@@ -67,21 +67,19 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
 
   return (
     <DropdownMenu>
+      {/* Without elek.io Cloud the trigger shows the avatar and the name, as
+      ci draws it: the second line only tells elek.io Cloud apart. */}
       <DropdownMenuTrigger
         render={
           <Button
             variant="ghost"
-            size="lg"
             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
           />
         }
       >
-        <UserAvatar className="rounded-lg" name={user.name} />
-        <div className="grid flex-1 text-left text-sm leading-tight">
-          <span className="truncate font-medium">{user.name}</span>
-          <span className="truncate text-xs">{user.email}</span>
-        </div>
-        <ChevronDown className="ml-auto size-4" />
+        <UserAvatar size="sm" name={user.name} />
+        <span className="truncate font-medium">{user.name}</span>
+        <ChevronDown className="size-3 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         className="min-w-56 rounded-lg"
@@ -183,17 +181,10 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
 
 export function UserDropdownSkeleton(): React.JSX.Element {
   return (
-    <div className="flex items-center gap-2 px-4 py-1 text-left text-sm">
-      <UserAvatarSkeleton className="rounded-lg" />
-      <div className="grid flex-1 text-left text-sm leading-tight">
-        <div className="truncate font-medium">
-          <Skeleton className="h-4 w-12 rounded" />
-        </div>
-        <div className="truncate text-xs">
-          <Skeleton className="h-3 w-24 rounded" />
-        </div>
-      </div>
-      <ChevronDown className="ml-auto size-4" />
+    <div className="flex h-8 items-center gap-1.5 px-2.5 text-left text-sm">
+      <UserAvatarSkeleton size="sm" />
+      <Skeleton className="h-4 w-20 rounded" />
+      <ChevronDown className="size-3 text-muted-foreground" />
     </div>
   );
 }
