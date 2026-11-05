@@ -29,12 +29,18 @@ import { type ReleaseListItem } from '@elek-io/core';
 // sidebar's card is when it last checked and a sync of its own that failed, see
 // ci's Sync table. What they read is `useProjectState`.
 
-/** A 12 px icon centered in the same 7 px column as a marker. */
+/** A 12 px icon centered in the same column as a marker. */
 const STATE_ICON = cn('size-3 -mx-[2.5px]');
 
 /**
- * One line of the Project's state, in ci's own geometry: a 7 px column for the
+ * One line of the Project's state, in ci's own geometry: a column for the
  * marker or the icon that says the state, then what it says in words.
+ *
+ * Both the column's width and the line's height come from the surface the line
+ * stands on, because ci draws them differently in each place: `--state-lead`
+ * is 7 px in the sidebar's card and 12 px on a card of the Projects page, and
+ * `--state-line-height` is the sidebar's 22 px row, which a card of the
+ * Projects page leaves to the line's own 16 px.
  *
  * Every line says its state in words, so none of them is told by its color or
  * its marker alone. A line that appears because something went wrong carries
@@ -60,15 +66,13 @@ export function StateLine({
       data-slot="project-state-line"
       {...(announce ? { role: 'status' } : {})}
       className={cn(
-        'flex h-[22px] items-center gap-2 text-small whitespace-nowrap',
+        'flex h-[var(--state-line-height,22px)] items-center gap-2 text-small whitespace-nowrap',
         className
       )}
     >
       {/*
         One column for the marker and the 12 px icon alike, so every line's
-        words start on the same edge. ci sets its width per surface, 7 px in
-        the sidebar's card and 12 px on a card of the Projects page, which is
-        what `--state-lead` carries.
+        words start on the same edge, at the width the surface sets.
       */}
       <span className="grid w-[var(--state-lead,7px)] flex-none place-items-center">
         {lead}

@@ -97,9 +97,10 @@ function ProjectCard({ project }: { project: Project }): React.JSX.Element {
 
       {/*
         ci gives a card's state lines a wider column for the marker and the
-        12 px icon than the sidebar's card does, and 6 px between them.
+        12 px icon than the sidebar's card does, 6 px between them, and no row
+        height of its own, so each line is as tall as its own words.
       */}
-      <div className="flex flex-col gap-1.5 text-muted-foreground [--state-lead:12px]">
+      <div className="flex flex-col gap-1.5 text-muted-foreground [--state-lead:12px] [--state-line-height:auto]">
         <WhereItSyncs remoteOriginUrl={project.remoteOriginUrl} />
         <SyncStateLines state={state} />
         <CheckFailureLine state={state} />
