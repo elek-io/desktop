@@ -25,6 +25,7 @@ import { mainPanel, navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import { MINIMUM_WINDOW_SIZE, resizeWindow } from '../helpers/window.js';
 
 /**
  * The heights, borders, corners, shadows and type roles ci gives the controls,
@@ -639,6 +640,7 @@ test.describe('A menu and a dialog', () => {
 
 test.describe('The trail', () => {
   test('names only what opens, and cuts the page rather than wrapping', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -646,20 +648,33 @@ test.describe('The trail', () => {
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
     });
-    // A title no header is wide enough for, so the crumb is cut at any window
-    // size rather than only at the smallest one.
+    // A title the header has no room for at the smallest window the app
+    // supports, which is the size ci's trail is ruled at.
     const title =
-      'Spring opening hours at the showroom in Ebersfelde, every weekday until 7 pm';
+      'Spring opening hours at the showroom in Ebersfelde, every weekday until 7 pm and on Saturdays until 4 pm';
     const entry = await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
       values: { title: stringValue({ en: title }) },
     });
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
     await navigate(
       mainWindow,
       `#/projects/${project.id}/collections/${collection.id}/${entry.id}/update`
     );
     await expect(mainPanel(mainWindow).getByRole('heading')).toBeVisible();
+
+    // The crumb measures its own box, so it says it is cut once the header has
+    // been laid out rather than on the frame the trail first renders in.
+    await expect
+      .poll(async () =>
+        mainWindow.evaluate(() =>
+          document
+            .querySelector('[data-slot="breadcrumb-page"]')
+            ?.getAttribute('tabindex')
+        )
+      )
+      .toBe('0');
 
     const trail = await mainWindow.evaluate(() => {
       const list = document.querySelector('[data-slot="breadcrumb-list"]');
