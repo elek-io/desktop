@@ -201,7 +201,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     Icon={XIcon}
                     aria-describedby={describedBy}
                     aria-label={t`Remove the missing Asset from ${label}`}
@@ -232,7 +232,8 @@ export function AssetControl<TFieldValues extends FieldValues>({
                 <AssetDisplay
                   {...asset}
                   static
-                  className="h-10 w-16 rounded-sm object-cover"
+                  fit="cover"
+                  className="h-10 w-16 rounded-sm"
                 />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
@@ -258,7 +259,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     Icon={XIcon}
                     aria-describedby={describedBy}
                     aria-label={t`Remove ${name} from ${label}`}

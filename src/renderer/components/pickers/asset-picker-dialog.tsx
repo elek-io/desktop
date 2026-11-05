@@ -39,10 +39,15 @@ import type { Asset } from '@elek-io/core';
 
 /**
  * ci's Assets grid: four ruled columns, whatever the window does, with a
- * divider between the columns of a row.
+ * divider between the columns of a row and a rule between its rows.
+ *
+ * The rule between two rows is the lower row's own top border, so the last row
+ * draws none against the footer, which is what ci's grid does. The rule above
+ * the first row is the body's, and `gap-0` is the grid's, where a radio group
+ * would otherwise bring the registry's gap.
  */
 const ASSET_GRID = cn(
-  'grid grid-cols-4 [&>*:not(:nth-child(4n+1))]:border-l [&>*]:border-b'
+  'grid grid-cols-4 gap-0 [&>*:not(:nth-child(4n+1))]:border-l [&>*:not(:nth-child(-n+4))]:border-t'
 );
 
 /**
@@ -180,7 +185,8 @@ export function AssetPickerDialog({
           <AssetDisplay
             {...asset}
             static
-            className="h-28 w-full rounded-md object-cover"
+            fit="cover"
+            className="h-28 w-full rounded-md"
           />
         </span>
         <span className="flex items-start gap-2">
