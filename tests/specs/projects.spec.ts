@@ -181,18 +181,6 @@ test.describe('Projects', () => {
     await expect(
       projectCardOf(mainWindow, 'On a host').getByText('Everything synced')
     ).toBeVisible();
-
-    // A logo never stands on its own: every brand logo on the page has the
-    // host's name beside it in words.
-    const unnamed = await mainWindow.evaluate(() =>
-      Array.from(document.querySelectorAll('[data-brand-logo]'))
-        .map(
-          (logo) =>
-            logo.closest('[data-slot="project-state-line"]')?.textContent ?? ''
-        )
-        .filter((name) => name.trim() === '')
-    );
-    expect(unnamed).toEqual([]);
   });
 
   test('fills each card on its own, so one Git repository holds up no other', async ({
@@ -261,6 +249,14 @@ test.describe('Projects', () => {
       url: 'https://example.invalid/service-app.git',
     });
 
+    // A Project on a host Simple Icons has a logo for. Its address is never
+    // reached here, because the check is held below, so the card draws what
+    // the address alone says.
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: (await createProjectViaIpc(mainWindow, { name: 'Used bikes' })).id,
+      url: 'https://github.com/example/used-bikes.git',
+    });
+
     // A check that never answers, which is a Git repository taking its time.
     await stubCoreHang(electronApp, 'core:projects:getChanges');
     await navigate(mainWindow, '#/projects');
@@ -278,6 +274,23 @@ test.describe('Projects', () => {
     await expect(
       waiting.locator('[data-slot="skeleton"]').first()
     ).toBeVisible();
+
+    // One it has a logo for reads as the brand's own name, with that logo.
+    const named = projectCardOf(mainWindow, 'Used bikes');
+    await expect(named.getByText('GitHub')).toBeVisible();
+    await expect(named.locator('[data-brand-logo]')).toBeVisible();
+
+    // A logo never stands on its own: every brand logo on the page has the
+    // host's name beside it in words.
+    const unnamed = await mainWindow.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-brand-logo]'))
+        .map(
+          (logo) =>
+            logo.closest('[data-slot="project-state-line"]')?.textContent ?? ''
+        )
+        .filter((name) => name.trim() === '')
+    );
+    expect(unnamed).toEqual([]);
   });
 
   test('keeps a new Project on this computer when its Git repository refuses it', async ({
