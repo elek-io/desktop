@@ -6,7 +6,7 @@ import { emptyMediaVariants } from '@renderer/lib/variants';
 
 /**
  * A screen with nothing in it yet: the one gradient filling the pane, and a
- * column of 520 px centered on it.
+ * column of 520 px of content centered on it.
  *
  * ci's empty state, which every screen's uses: an icon of what is missing, a
  * title, one sentence, and the screen's one primary button. It takes the pane
@@ -52,6 +52,10 @@ function EmptyMedia({
  * What is missing, in ci's h3 role: 28 px below the mark, and 20 px below the
  * framed icon that stands in its place on a screen of a Project.
  *
+ * Only the framed icon pulls it up, which is why the rule keys on that variant
+ * rather than on any media: ci draws a mark-led title 28 px down, and only
+ * `.media + h2` at 20 (ci's desktop.html).
+ *
  * It is the screen's `h1`, because an empty state takes the pane and there is
  * no page head above it to carry one. ci's h3 is its size, not its rank.
  */
@@ -62,7 +66,10 @@ function EmptyTitle({
   return (
     <h1
       data-slot="empty-title"
-      className={cn('mt-7 text-h3 [[data-slot=empty-media]+&]:mt-5', className)}
+      className={cn(
+        'mt-7 text-h3 [[data-slot=empty-media][data-variant=icon]+&]:mt-5',
+        className
+      )}
       {...props}
     />
   );

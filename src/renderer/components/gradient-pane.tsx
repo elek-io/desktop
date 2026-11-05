@@ -26,12 +26,14 @@ export function GradientPane({
     <main
       data-slot="gradient-pane"
       className={cn(
-        'dark flex min-h-0 flex-1 overflow-y-auto bg-linear-to-br from-gradient-start to-gradient-end to-90% py-6 text-foreground',
+        'dark flex min-h-0 flex-1 overflow-y-auto bg-linear-to-br from-gradient-start to-gradient-end to-90% p-6 text-foreground',
         className
       )}
       {...props}
     >
-      <div className="m-auto flex max-w-full flex-col items-center px-6 text-center text-balance">
+      {/* The pane itself keeps the edge clear, so what stands here is a plain
+      content box: a column of 520 px holds ci's own 520 px of content. */}
+      <div className="m-auto flex max-w-full flex-col items-center text-center text-balance">
         {children}
       </div>
     </main>
