@@ -653,6 +653,55 @@ test.describe('Projects', () => {
     await expect(projectCardOf(mainWindow, 'Used cars')).toBeVisible();
   });
 
+  test('keeps a new Project on this computer when Core refuses its address', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    // Slow on purpose, for the same reason as the spec above.
+    test.slow();
+    await setUserViaIpc(mainWindow);
+    // The address itself refused, which is the first of the two calls after the
+    // create and a separate catch from the sync below it. No local repository
+    // can be arranged into an Unauthorized, so it is injected.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:projects:setRemoteOriginUrl',
+      'Unauthorized'
+    );
+    await navigateToProjectCreate(mainWindow);
+
+    await fillProjectForm(mainWindow, {
+      name: 'Used cars',
+      description: 'The cars for sale on the website',
+    });
+    await mainWindow.getByRole('radio', { name: 'Another Git host' }).click();
+    await mainWindow
+      .getByLabel('Address', { exact: true })
+      .fill('https://github.com/example/used-cars.git');
+    await mainWindow.getByRole('button', { name: 'Create Project' }).click();
+
+    // The same dialog as a refused sync, with the reason for this type, rather
+    // than the error screen with the Project already made.
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(
+      dialog.getByRole('heading', {
+        name: 'Used cars was created, but not synced',
+      })
+    ).toBeVisible({ timeout: 30000 });
+    await expect(
+      dialog.getByText(
+        'The Git repository refused access, so ask whoever set it up.'
+      )
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeHidden();
+
+    // The Project is here, and opening it is the way on.
+    await dialog.getByRole('button', { name: 'Open the Project' }).click();
+    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/dashboard/);
+  });
+
   test('puts a new Project on the Git repository its address names', async ({
     electronApp,
     mainWindow,
@@ -789,6 +838,11 @@ test.describe('Projects', () => {
     await expect(
       mainWindow.getByText('Create your first Project')
     ).toBeVisible();
+    // The mark leads the screen, which is what ci draws above the title here
+    // rather than the framed icon every other empty state shows.
+    await expect(
+      mainWindow.locator('[data-slot="brand-mark"]:visible')
+    ).toHaveCount(1);
     await expect(
       mainWindow.getByRole('button', { name: 'Create Project' })
     ).toBeVisible();

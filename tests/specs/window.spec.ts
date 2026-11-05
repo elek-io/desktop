@@ -107,6 +107,51 @@ test.describe('The window', () => {
     }
   });
 
+  test('keeps the Welcome screen inside it at the smallest size', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    // A User but no Project, which is the one state the Projects page is the
+    // Welcome screen in, so the spec above walks past it with a Project seeded.
+    await setUserViaIpc(mainWindow);
+    await navigate(mainWindow, '#/projects');
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+
+    const measured = await mainWindow.evaluate(() => {
+      // The empty state is the gradient's pane itself, which it takes over as
+      // the screen's own main landmark.
+      const pane = document.querySelector('main[data-slot="empty"]');
+      const notes = document.querySelector('[data-slot="welcome-notes"]');
+
+      if (pane === null || notes === null) {
+        throw new Error('The Welcome screen has no gradient or no notes');
+      }
+
+      return {
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        document: {
+          width: document.documentElement.scrollWidth,
+          height: document.documentElement.scrollHeight,
+        },
+        pane: { scroll: pane.scrollHeight, shown: pane.clientHeight },
+        notesBottom: Math.round(notes.getBoundingClientRect().bottom),
+      };
+    });
+
+    // Nothing clips the window itself.
+    expect(measured.document).toEqual({
+      width: measured.viewport.width,
+      height: measured.viewport.height,
+    });
+    // The whole screen fits without the gradient's pane scrolling, the mark,
+    // the title, the sentence, both actions and the three notes together.
+    expect(measured.pane.scroll).toBe(measured.pane.shown);
+    expect(measured.notesBottom).toBeLessThanOrEqual(measured.viewport.height);
+  });
+
   test('keeps the first start inside it at the smallest size', async ({
     electronApp,
     mainWindow,
