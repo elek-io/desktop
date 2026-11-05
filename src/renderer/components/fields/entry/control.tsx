@@ -1,6 +1,6 @@
 import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { ListIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { Layers, ListIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import * as React from 'react';
 import type {
   ControllerRenderProps,
@@ -160,8 +160,8 @@ export function EntryControl<TFieldValues extends FieldValues>({
           other: '# Entries',
         })}.`;
   const rowClassName = cn(
-    'flex items-center gap-3 rounded-md border px-3 py-2',
-    isInvalid ? 'border-destructive' : 'border-border'
+    'flex w-full items-center gap-3 rounded-lg border p-2',
+    isInvalid ? 'border-error' : 'border-border'
   );
 
   /**
@@ -196,8 +196,8 @@ export function EntryControl<TFieldValues extends FieldValues>({
       onBlur={field.onBlur}
     >
       {chosenRows.length === 0 ? (
-        <div className={rowClassName}>
-          <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+        <div className={rowClassName} data-slot="field-row">
+          <span className="flex h-10 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
             <ListIcon className="size-4" />
           </span>
           <span className="flex-1 text-sm text-muted-foreground">
@@ -213,8 +213,8 @@ export function EntryControl<TFieldValues extends FieldValues>({
           // it either way, so the row says so and Remove is what repairs it.
           if (pickable === undefined) {
             return (
-              <div key={row.id} className={rowClassName}>
-                <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+              <div key={row.id} className={rowClassName} data-slot="field-row">
+                <span className="flex h-10 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
                   <TriangleAlertIcon className="size-4" />
                 </span>
                 <span className="flex-1 text-sm text-muted-foreground">
@@ -240,13 +240,25 @@ export function EntryControl<TFieldValues extends FieldValues>({
           const title = pickable.title;
 
           return (
-            <div key={pickable.entry.id} className={rowClassName}>
+            <div
+              key={pickable.entry.id}
+              className={rowClassName}
+              data-slot="field-row"
+            >
+              {/* The box ci draws in place of an Asset's preview, with the
+              icon a Collection is shown by. */}
+              <span
+                aria-hidden="true"
+                className="flex h-10 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground"
+              >
+                <Layers className="size-4" />
+              </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm">{title}</span>
                 <span className="text-small text-muted-foreground">
                   {translateContent({
-                    key: 'collection.name.singular',
-                    record: pickable.collection.name.singular,
+                    key: 'collection.name.plural',
+                    record: pickable.collection.name.plural,
                   })}
                 </span>
               </span>

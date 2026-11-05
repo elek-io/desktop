@@ -99,8 +99,8 @@ export function AssetControl<TFieldValues extends FieldValues>({
   const replaceTitle = t`Replace ${label}`;
   const chooseName = required ? t`Choose ${label}, Required` : chooseTitle;
   const rowClassName = cn(
-    'flex items-center gap-3 rounded-md border p-2',
-    isInvalid ? 'border-destructive' : 'border-border'
+    'flex w-full items-center gap-3 rounded-lg border p-2',
+    isInvalid ? 'border-error' : 'border-border'
   );
 
   function remove(assetId: string): void {
@@ -173,8 +173,8 @@ export function AssetControl<TFieldValues extends FieldValues>({
       onBlur={field.onBlur}
     >
       {chosenRows.length === 0 ? (
-        <div className={rowClassName}>
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
+        <div className={rowClassName} data-slot="field-row">
+          <span className="flex h-10 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
             <ImageIcon className="size-4" />
           </span>
           <span className="flex-1 text-sm text-muted-foreground">
@@ -190,8 +190,8 @@ export function AssetControl<TFieldValues extends FieldValues>({
           // wrong and Remove is what repairs it.
           if (asset === undefined) {
             return (
-              <div key={row.id} className={rowClassName}>
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
+              <div key={row.id} className={rowClassName} data-slot="field-row">
+                <span className="flex h-10 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
                   <TriangleAlertIcon className="size-4" />
                 </span>
                 <span className="flex-1 text-sm text-muted-foreground">
@@ -225,14 +225,14 @@ export function AssetControl<TFieldValues extends FieldValues>({
             : t`Replace ${name} in ${label}`;
 
           return (
-            <div key={asset.id} className={rowClassName}>
+            <div key={asset.id} className={rowClassName} data-slot="field-row">
               {/* The preview says the same as the name beside it, so it
               stays out of the row's text. */}
               <span aria-hidden="true" className="shrink-0">
                 <AssetDisplay
                   {...asset}
                   static
-                  className="size-10 rounded-sm"
+                  className="h-10 w-16 rounded-sm object-cover"
                 />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">

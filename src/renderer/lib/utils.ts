@@ -8,9 +8,45 @@ import type {
   RefAttributes,
   SVGProps,
 } from 'react';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
 
 import { type SupportedLanguage } from '@elek-io/core';
+
+/**
+ * The type roles the brand package adds on top of Tailwind's own scale.
+ *
+ * Class names, which no language has a form of its own for.
+ */
+/* eslint-disable lingui/no-unlocalized-strings */
+const TYPE_ROLES = [
+  'display',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'body-lg',
+  'body',
+  'ui',
+  'label',
+  'small',
+  'tag',
+  'code',
+  'code-sm',
+];
+/* eslint-enable lingui/no-unlocalized-strings */
+
+/**
+ * Tailwind's own merge, told that those roles are font sizes.
+ *
+ * `text-small` and the rest are sizes, but tailwind-merge only knows
+ * Tailwind's own scale, so without this it reads them as text colors and drops
+ * the role wherever a color stands beside it, as in
+ * `cn('text-small text-muted-foreground')`. Naming them here keeps a role
+ * conflicting with another role and with `text-sm`, and never with a color.
+ */
+const twMerge = extendTailwindMerge({
+  extend: { classGroups: { 'font-size': [{ text: TYPE_ROLES }] } },
+});
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));

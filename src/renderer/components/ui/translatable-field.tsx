@@ -134,11 +134,16 @@ export function TranslatableField<
 
   return (
     <div className="flex items-center">
+      {/* The control takes the field's whole width beside the button, so a row
+      or an editor fills its field rather than shrinking to its content. */}
       {renderControl(
         field,
         {
           ...controlProps,
-          className: cn('rounded-r-none', controlProps.className),
+          className: cn(
+            'min-w-0 flex-1 rounded-r-none',
+            controlProps.className
+          ),
         },
         title
       )}

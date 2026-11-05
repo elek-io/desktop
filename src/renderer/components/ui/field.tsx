@@ -100,7 +100,7 @@ function FieldLabel({
     <Label
       data-slot="field-label"
       className={cn(
-        'group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-data-checked:border-primary/30 has-data-checked:bg-primary/5 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:outline-2 has-[>[data-slot=field]]:has-[:focus-visible]:outline-offset-2 has-[>[data-slot=field]]:has-[:focus-visible]:outline-ring *:data-[slot=field]:p-3 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10',
+        'group/field-label peer/field-label flex w-fit gap-2 group-data-[disabled=true]/field:opacity-50 has-data-checked:border-primary/30 has-data-checked:bg-primary/5 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:outline-2 has-[>[data-slot=field]]:has-[:focus-visible]:outline-offset-2 has-[>[data-slot=field]]:has-[:focus-visible]:outline-ring *:data-[slot=field]:p-3 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10',
         'has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col',
         className
       )}
@@ -200,7 +200,7 @@ function FieldDescription({
     <p
       data-slot="field-description"
       className={cn(
-        'text-left text-sm leading-normal font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5',
+        'text-left text-small font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5',
         'last:mt-0 nth-last-2:-mt-1',
         '[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
         className
@@ -284,7 +284,10 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn('flex gap-1.5 text-sm font-normal text-error', className)}
+      className={cn(
+        'flex gap-1.5 text-small font-normal text-error',
+        className
+      )}
       {...props}
     >
       {/* ci's Messages table draws the error icon beside the words, so the

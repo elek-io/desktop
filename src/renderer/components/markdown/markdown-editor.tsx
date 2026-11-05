@@ -314,7 +314,7 @@ const MarkdownEditorInner = ({
   return (
     <div
       className={cn(
-        'markdown-editor w-full rounded-md border border-border shadow-xs',
+        'markdown-editor w-full rounded-md border border-input',
         { 'pointer-events-none opacity-50': disabled },
         className
       )}

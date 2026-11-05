@@ -170,7 +170,7 @@ export const MarkdownToolbar = ({
   }
 
   return (
-    <div className="flex flex-row flex-wrap items-center gap-1 border-b border-border p-1">
+    <div className="flex flex-row flex-wrap items-center gap-0.5 border-b border-border p-1 text-muted-foreground">
       {features.headings.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger
