@@ -1338,6 +1338,15 @@ test.describe('Projects', () => {
     await expect(dialog).toBeVisible();
     await expect(mainWindow).toHaveURL(/#\/projects$/);
 
+    // Spaces are the third empty shape: the control normalizes anything blank
+    // to null, so they hold Download too rather than reaching Core as an
+    // address made of spaces.
+    await url.fill('   ');
+    await expect(blockedReason(dialog)).toHaveText('1 field is still empty');
+    await download.click({ force: true });
+    expect(await recordedCoreCalls(electronApp)).toEqual([]);
+    await expect(dialog).toBeVisible();
+
     // An address frees it again.
     await url.fill('https://github.com/example/used-cars.git');
     await expect(blockedReason(dialog)).toBeHidden();
