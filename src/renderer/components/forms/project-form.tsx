@@ -192,7 +192,7 @@ export function ProjectForm({
         <div
           className={cn(
             'items-start gap-x-12',
-            asksWhereToKeepIt && 'grid grid-cols-1 lg:grid-cols-2'
+            asksWhereToKeepIt && 'grid grid-cols-2'
           )}
         >
           {asksWhereToKeepIt ? (
