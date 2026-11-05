@@ -165,6 +165,15 @@ function CreateProjectPage(): ReactElement {
     await openProject(newProject.id);
   };
 
+  /** The way out of the dialog below, which every way out of it takes. */
+  const openCreatedProject = (): void => {
+    if (createdProjectId === null) {
+      return;
+    }
+
+    void openProject(createdProjectId);
+  };
+
   const { type: syncFailureType } = parseIpcError(syncFailure);
   const projectName = values.name;
 
@@ -191,12 +200,17 @@ function CreateProjectPage(): ReactElement {
         this says so and opens it, rather than leaving the editor on a form that
         would create a second one. It has room for the cause, which is where ci
         puts a failure somebody is waiting for.
+
+        Every way out of it opens the Project, Escape and the backdrop
+        included, because the form behind it would otherwise make a second
+        Project out of the same filled fields.
       */}
       <Dialog
         open={syncFailure !== null}
         onOpenChange={(isOpen) => {
           if (isOpen === false) {
             setSyncFailure(null);
+            openCreatedProject();
           }
         }}
       >
@@ -228,14 +242,7 @@ function CreateProjectPage(): ReactElement {
             </p>
           </DialogBody>
           <DialogFooter>
-            <Button
-              Icon={ArrowRight}
-              onClick={() => {
-                if (createdProjectId !== null) {
-                  void openProject(createdProjectId);
-                }
-              }}
-            >
+            <Button Icon={ArrowRight} onClick={openCreatedProject}>
               <Trans>Open the Project</Trans>
             </Button>
           </DialogFooter>
