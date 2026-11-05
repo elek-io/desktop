@@ -157,7 +157,7 @@ function HelpMenu(): ReactElement {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon-sm" Icon={CircleHelp} />}
+          render={<Button variant="ghost" size="icon" Icon={CircleHelp} />}
         >
           <span className="sr-only">
             <Trans>Help</Trans>

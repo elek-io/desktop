@@ -255,7 +255,8 @@ export function EntryPickerDialog({
         )}
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-label">{pickable.title}</span>
-          <span className="text-small text-muted-foreground">
+          {/* ci's row keeps 2 px between the title and the line below it. */}
+          <span className="mt-0.5 text-small text-muted-foreground">
             {translateContent({
               key: 'collection.name.singular',
               record: pickable.collection.name.singular,
