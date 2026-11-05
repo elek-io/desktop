@@ -28,6 +28,7 @@ import {
   deleteProjectViaIpc,
   downloadProject,
   fillProjectForm,
+  listProjectsViaIpc,
   navigateToProjectCreate,
   navigateToProjectDashboard,
   navigateToProjectSettings,
@@ -697,9 +698,16 @@ test.describe('Projects', () => {
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeHidden();
 
-    // The Project is here, and opening it is the way on.
-    await dialog.getByRole('button', { name: 'Open the Project' }).click();
+    // The Project is here, so every way out of the dialog opens it, Escape
+    // included: the form behind it would otherwise make a second Project out of
+    // the same fields.
+    await dismissDialog(mainWindow);
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/dashboard/);
+    await expect(
+      mainWindow.getByRole('button', { name: 'Create Project' })
+    ).toBeHidden();
+    const { total } = await listProjectsViaIpc(mainWindow);
+    expect(total).toBe(1);
   });
 
   test('puts a new Project on the Git repository its address names', async ({

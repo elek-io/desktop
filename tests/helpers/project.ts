@@ -37,6 +37,18 @@ export async function createProjectViaIpc(
 }
 
 /**
+ * List every Project directly over IPC, bypassing the UI.
+ *
+ * Used to corroborate how many Projects a flow ended up making, which the
+ * screen itself does not say.
+ */
+export async function listProjectsViaIpc(
+  page: Page
+): Promise<{ list: Project[]; total: number }> {
+  return page.evaluate(async () => window.ipc.core.projects.list({ limit: 0 }));
+}
+
+/**
  * Update a Project directly over IPC, bypassing the UI. `props` is the full
  * `UpdateProjectProps`, so pass a spread of the Project with the parts adjusted.
  */
