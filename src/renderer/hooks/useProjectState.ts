@@ -50,7 +50,9 @@ export interface ProjectState {
  * Each card runs its own, which is what lets a slow or failing Git repository
  * hold up nothing but its own lines. The Releases are caught here for the same
  * reason: the Projects page reads them once per card, so one Project whose
- * Releases cannot be read would otherwise empty the page of every Project.
+ * Releases cannot be read would otherwise empty the page of every Project. On
+ * the sidebar's card a refused read still reaches the root error screen, since
+ * the navigation beside it reads the same query above every pane.
  */
 export function useProjectState(project: Project): ProjectState {
   const check = useQuery(queryOptions.projects.getChanges(project));
