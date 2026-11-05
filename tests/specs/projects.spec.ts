@@ -183,6 +183,96 @@ test.describe('Projects', () => {
     ).toBeVisible();
   });
 
+  test('names the host from every shape an address comes in, and nothing else of it', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+
+    // Every shape a Project's origin reaches Desktop in. Only the hostname is
+    // read, so neither a token nor a home folder in an address can be shown,
+    // and a host Simple Icons has no logo for reads as its hostname.
+    const addresses: { name: string; url: string; reads: string }[] = [
+      {
+        name: 'Https',
+        url: 'https://github.com/example/https.git',
+        reads: 'GitHub',
+      },
+      {
+        name: 'Ssh',
+        url: 'git@github.com:example/ssh.git',
+        reads: 'GitHub',
+      },
+      {
+        name: 'Ssh scheme',
+        url: 'ssh://git@codeberg.org/example/ssh-scheme.git',
+        reads: 'Codeberg',
+      },
+      {
+        name: 'Upper case',
+        url: 'https://GitLab.com/example/upper.git',
+        reads: 'GitLab',
+      },
+      {
+        name: 'With www',
+        url: 'https://www.bitbucket.org/example/www.git',
+        reads: 'Bitbucket',
+      },
+      {
+        name: 'With a token',
+        url: 'https://someone:ghp_notarealtoken@github.com/example/token.git',
+        reads: 'GitHub',
+      },
+      {
+        name: 'Self hosted',
+        url: 'https://git.example.com/example/self-hosted.git',
+        reads: 'git.example.com',
+      },
+      {
+        name: 'A path',
+        url: '/home/someone/repositories/a-path.git',
+        reads: 'Another Git host',
+      },
+    ];
+
+    for (const address of addresses) {
+      const project = await createProjectViaIpc(mainWindow, {
+        name: address.name,
+      });
+      await setRemoteOriginUrlViaIpc(mainWindow, {
+        id: project.id,
+        url: address.url,
+      });
+    }
+
+    // The check never runs, so nothing here reaches a network and each card
+    // draws what its address alone says.
+    await stubCoreHang(electronApp, 'core:projects:getChanges');
+    await navigate(mainWindow, '#/projects');
+
+    for (const address of addresses) {
+      await expect(
+        projectCardOf(mainWindow, address.name).getByText(address.reads, {
+          exact: true,
+        }),
+        `${address.name} reads ${address.reads}`
+      ).toBeVisible();
+    }
+
+    // Nothing of an address itself is on the page: not a token, not a path and
+    // not a repository's name.
+    const shown = await mainWindow.getByRole('main').innerText();
+    for (const part of [
+      'ghp_notarealtoken',
+      'someone',
+      '/home/',
+      'https://',
+      '.git',
+    ]) {
+      expect(shown, `${part} is not shown`).not.toContain(part);
+    }
+  });
+
   test('fills each card on its own, so one Git repository holds up no other', async ({
     electronApp,
     mainWindow,

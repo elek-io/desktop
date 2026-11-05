@@ -95,10 +95,6 @@ function CreateProjectPage(): ReactElement {
   const values = createProjectForm.watch();
   const blockedBy = emptyFieldsReason(missingProjectValues(values));
 
-  function Description(): ReactElement {
-    return <Trans>A new Project starts with no content and no history.</Trans>;
-  }
-
   function Actions(): ReactElement {
     return (
       <FormActions form={createProjectForm} id={formId} blockedBy={blockedBy}>
@@ -176,11 +172,7 @@ function CreateProjectPage(): ReactElement {
     <>
       <Panel>
         <Pane name={t`what this screen shows`}>
-          <Page
-            title={title}
-            description={<Description />}
-            actions={<Actions />}
-          >
+          <Page title={title} actions={<Actions />}>
             <ProjectForm
               schema={projectFormSchema}
               id={formId}

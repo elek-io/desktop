@@ -230,9 +230,11 @@ function ProjectsPane({
         </>
       }
     >
+      {/* The count is of what the section shows, so it never contradicts the
+      cards below it while a filter narrows them. */}
       <SectionHead
         title={<Trans>On this computer</Trans>}
-        count={isListingProjects ? 0 : projects.total}
+        count={shown.length}
       />
       {isListingProjects ? (
         <ProjectGrid>

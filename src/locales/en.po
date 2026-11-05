@@ -184,10 +184,6 @@ msgstr "A lowercase version without any special characters of the Collection nam
 msgid "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
 msgstr "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
 
-#: src/renderer/routes/projects/create.tsx
-msgid "A new Project starts with no content and no history."
-msgstr "A new Project starts with no content and no history."
-
 #: src/renderer/routes/projects/index.tsx
 msgid "A Project holds the content of one website or app. It is a folder of files on this computer, and you can work on it offline."
 msgstr "A Project holds the content of one website or app. It is a folder of files on this computer, and you can work on it offline."
