@@ -1,6 +1,5 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Trans } from '@lingui/react/macro';
-import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@renderer/components/ui/button';
@@ -48,40 +47,20 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
-  showCloseButton = true,
   ...props
-}: DialogPrimitive.Popup.Props & {
-  showCloseButton?: boolean;
-}): React.JSX.Element {
+}: DialogPrimitive.Popup.Props): React.JSX.Element {
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100%-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 grid-rows-[auto_minmax(0,1fr)_auto] rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+          'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100%-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 grid-rows-[auto_minmax(0,1fr)_auto] rounded-lg border border-border bg-popover text-sm text-popover-foreground shadow-overlay duration-100 sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
           className
         )}
         {...props}
       >
         {children}
-        {showCloseButton ? (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            render={
-              <Button
-                variant="ghost"
-                className="absolute top-4 right-4"
-                size="icon-sm"
-              />
-            }
-          >
-            <XIcon />
-            <span className="sr-only">
-              <Trans>Close</Trans>
-            </span>
-          </DialogPrimitive.Close>
-        ) : null}
       </DialogPrimitive.Popup>
     </DialogPortal>
   );
@@ -94,7 +73,7 @@ function DialogHeader({
   return (
     <div
       data-slot="dialog-header"
-      className={cn('flex flex-col gap-2 border-b p-6', className)}
+      className={cn('flex flex-col gap-1.5 px-5 pt-5 pb-1', className)}
       {...props}
     />
   );
@@ -103,19 +82,29 @@ function DialogHeader({
 /**
  * The scrolling middle row of a dialog, so a long dialog keeps its header and
  * its footer in view.
+ *
+ * A body that holds a list or a grid reaching the dialog's own edges, as ci
+ * draws both pickers, passes `flush` and brings its own spacing.
  */
 function DialogBody({
   className,
   children,
+  flush = false,
   ...props
-}: React.ComponentProps<typeof ScrollArea>): React.JSX.Element {
+}: React.ComponentProps<typeof ScrollArea> & {
+  flush?: boolean;
+}): React.JSX.Element {
   return (
     <ScrollArea
       data-slot="dialog-body"
       className={cn('flex flex-col', className)}
       {...props}
     >
-      <div className="space-y-6 p-6">{children}</div>
+      {flush ? (
+        children
+      ) : (
+        <div className="space-y-2 px-5 pt-3 pb-5">{children}</div>
+      )}
     </ScrollArea>
   );
 }
@@ -132,7 +121,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        'flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end',
+        'flex flex-col-reverse gap-2 border-t px-5 py-3 sm:flex-row sm:justify-end',
         className
       )}
       {...props}
@@ -154,7 +143,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('leading-none font-medium', className)}
+      className={cn('text-h4', className)}
       {...props}
     />
   );
@@ -168,7 +157,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        'text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
+        'text-small text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
         className
       )}
       {...props}
