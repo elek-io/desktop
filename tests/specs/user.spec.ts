@@ -195,6 +195,24 @@ appTest.describe('The first start', () => {
   );
 
   appTest(
+    'reaches the root error screen when Core cannot be asked whether a User exists',
+    async ({ electronApp, mainWindow }) => {
+      // The gate reads the User before any screen is drawn, so a read it cannot
+      // make reaches the root error screen, which is where a read above every
+      // pane ends up either way.
+      await stubCoreRejectWithType(electronApp, 'core:user:get', 'Internal');
+      await mainWindow.reload();
+
+      await expect(
+        mainWindow.getByRole('heading', { name: 'Error' })
+      ).toBeVisible();
+      await expect(
+        mainWindow.getByRole('heading', { name: 'Welcome to elek.io Desktop' })
+      ).toBeHidden();
+    }
+  );
+
+  appTest(
     'reaches the root error screen when Core refuses to write the User',
     async ({ electronApp, mainWindow }) => {
       // The create form handles no type, so a refused write is unexpected and

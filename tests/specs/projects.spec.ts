@@ -398,9 +398,7 @@ test.describe('Projects', () => {
       name: 'Used cars',
       description: 'The cars for sale on the website',
     });
-    await mainWindow
-      .getByRole('radio', { name: 'Another Git host' })
-      .click({ force: true });
+    await mainWindow.getByRole('radio', { name: 'Another Git host' }).click();
     await mainWindow
       .getByLabel('Address', { exact: true })
       .fill(join(testInfo.outputPath('nowhere'), 'gone.git'));
@@ -451,9 +449,7 @@ test.describe('Projects', () => {
     await expect(
       mainWindow.getByLabel('Address', { exact: true })
     ).toBeHidden();
-    await mainWindow
-      .getByRole('radio', { name: 'Another Git host' })
-      .click({ force: true });
+    await mainWindow.getByRole('radio', { name: 'Another Git host' }).click();
     await mainWindow.getByLabel('Address', { exact: true }).fill(remote.url);
     await mainWindow.getByRole('button', { name: 'Create Project' }).click();
 

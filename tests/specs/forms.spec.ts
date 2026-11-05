@@ -707,9 +707,7 @@ test.describe('A form filled from its query', () => {
     // The address the second option asks for. Core takes it as a plain string,
     // so its schema cannot say the field has to hold one and the field says it
     // through the prop.
-    await mainWindow
-      .getByRole('radio', { name: 'Another Git host' })
-      .click({ force: true });
+    await mainWindow.getByRole('radio', { name: 'Another Git host' }).click();
     expect(await rulesOf(mainWindow, 'Address')).toBe('Required');
     await expect(
       mainWindow.getByLabel('Address', { exact: true })

@@ -144,7 +144,7 @@ test.describe('Accessibility', () => {
           // screen only once that option is chosen.
           await mainWindow
             .getByRole('radio', { name: 'Another Git host' })
-            .click({ force: true });
+            .click();
           await expect(
             mainWindow.getByLabel('Address', { exact: true })
           ).toBeVisible();
