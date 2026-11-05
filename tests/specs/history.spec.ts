@@ -83,7 +83,7 @@ test.describe('History', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'create project' })
     ).toBeVisible();
-    await expect(mainWindow.getByLabel('Project name')).toBeVisible();
+    await expect(mainWindow.getByLabel('Name', { exact: true })).toBeVisible();
   });
 
   test('dashboard shows latest changes and links to full history', async ({

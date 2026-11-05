@@ -314,7 +314,7 @@ test.describe('A form while its own save runs', () => {
     const project = await createProjectViaIpc(mainWindow);
     await navigateToProjectSettings(mainWindow, project.id);
 
-    const name = mainWindow.getByLabel('Project name', { exact: true });
+    const name = mainWindow.getByLabel('Name', { exact: true });
     const sent = 'A name saved first';
 
     await stubCoreHang(electronApp, 'core:projects:update');
@@ -497,7 +497,7 @@ test.describe('Leaving a page with changes nobody saved', () => {
       },
       {
         open: async () => navigateToProjectSettings(mainWindow, project.id),
-        label: 'Project name',
+        label: 'Name',
         question: 'Discard your changes to General Settings?',
       },
       {

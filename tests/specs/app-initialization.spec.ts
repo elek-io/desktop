@@ -14,7 +14,7 @@ import {
   test,
   testDataDirs,
 } from '../fixtures/electronApp.js';
-import { verifyCurrentRouteHash } from '../helpers/navigation.js';
+import { bootOnHash, verifyCurrentRouteHash } from '../helpers/navigation.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import { openWindowCount } from '../helpers/window.js';
 
@@ -113,8 +113,13 @@ test.describe('App Initialization', () => {
     // Verify the title set by the root route
     await expect(mainWindow).toHaveTitle('elek.io Desktop');
 
-    // Verify the initial "/" to "/projects" redirect happened
-    await verifyCurrentRouteHash(mainWindow, '#/projects');
+    // Nothing can be written before a User exists, so the gate on the root
+    // route settles every address on the first start until there is one
+    await verifyCurrentRouteHash(mainWindow, '#/welcome');
+
+    // With a User, "/" redirects to the Projects page as it did before
+    await setUserViaIpc(mainWindow);
+    await bootOnHash(mainWindow, '#/', '#/projects');
   });
 
   test.describe('while its own first load is still running', () => {

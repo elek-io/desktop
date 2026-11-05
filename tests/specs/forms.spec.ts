@@ -28,10 +28,16 @@ import {
   createProjectViaIpc,
   navigateToProjectSettings,
   navigateToVersionControl,
+  openDownloadDialog,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
 import { setupRemote } from '../helpers/remote.js';
-import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
+import {
+  completeFirstStart,
+  navigateToFirstStart,
+  navigateToUserProfile,
+  setUserViaIpc,
+} from '../helpers/user.js';
 import {
   MINIMUM_WINDOW_SIZE,
   resizeWindow,
@@ -682,29 +688,42 @@ test.describe('A form filled from its query', () => {
     const project = await createProjectViaIpc(mainWindow);
 
     await navigate(mainWindow, '#/projects/create');
-    await expect(
-      mainWindow.getByLabel('Project name', { exact: true })
-    ).toBeVisible();
-    // The supported languages are a list of chips with a picker, so what the
-    // label points at is their container rather than one control, and the
-    // state is dropped there. Core takes no empty list and zod carries no
-    // minimum for an array, so the field says Required through the prop.
+    await expect(mainWindow.getByLabel('Name', { exact: true })).toBeVisible();
+    // Where to keep it is always one of its two options, so Required would
+    // name a rule nobody can break and the field says nothing, while the radio
+    // group still carries the state. The languages are a list of chips with a
+    // picker, so what the label points at is their container rather than one
+    // control, and the state is dropped there. Core takes no empty list and
+    // zod carries no minimum for an array, so the field says Required through
+    // the prop.
     expect(await statedFieldsOf(mainWindow)).toEqual([
-      { label: 'Project name', rules: 'Required', ariaRequired: 'true' },
-      { label: 'Project description', rules: 'Required', ariaRequired: 'true' },
-      { label: 'Supported', rules: 'Required', ariaRequired: null },
-      { label: 'Default', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Where to keep it', rules: null, ariaRequired: 'true' },
+      { label: 'Name', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Description', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Languages', rules: 'Required', ariaRequired: null },
+      { label: 'Default language', rules: 'Required', ariaRequired: 'true' },
     ]);
 
-    await navigateToProjectSettings(mainWindow, project.id);
+    // The address the second option asks for. Core takes it as a plain string,
+    // so its schema cannot say the field has to hold one and the field says it
+    // through the prop.
+    await mainWindow
+      .getByRole('radio', { name: 'Another Git host' })
+      .click({ force: true });
+    expect(await rulesOf(mainWindow, 'Address')).toBe('Required');
     await expect(
-      mainWindow.getByLabel('Project name', { exact: true })
-    ).toBeVisible();
+      mainWindow.getByLabel('Address', { exact: true })
+    ).toHaveAttribute('aria-required', 'true');
+
+    await navigateToProjectSettings(mainWindow, project.id);
+    await expect(mainWindow.getByLabel('Name', { exact: true })).toBeVisible();
+    // The Project's Settings holds where it is kept as it found it and shows no
+    // field for it, since the address is changed on the Sync page.
     expect(await statedFieldsOf(mainWindow)).toEqual([
-      { label: 'Project name', rules: 'Required', ariaRequired: 'true' },
-      { label: 'Project description', rules: 'Required', ariaRequired: 'true' },
-      { label: 'Supported', rules: 'Required', ariaRequired: null },
-      { label: 'Default', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Name', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Description', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Languages', rules: 'Required', ariaRequired: null },
+      { label: 'Default language', rules: 'Required', ariaRequired: 'true' },
     ]);
 
     await navigateToVersionControl(mainWindow, project.id);
@@ -761,6 +780,37 @@ test.describe('A form filled from its query', () => {
       },
       { label: 'Description', rules: null, ariaRequired: null },
     ]);
+  });
+
+  test('says what it needs on the two forms that come before a Project', async ({
+    mainWindow,
+  }) => {
+    // The first start, which stands before any User exists, and the dialog that
+    // downloads a Project. Neither of them has a Project behind it, so neither
+    // is on the walk above.
+    await navigateToFirstStart(mainWindow);
+    expect(await statedFieldsOf(mainWindow)).toEqual([
+      {
+        label: 'Name',
+        rules: 'Required, up to 256 characters',
+        ariaRequired: 'true',
+      },
+      {
+        label: 'Email address',
+        rules: 'Required, up to 254 characters',
+        ariaRequired: 'true',
+      },
+    ]);
+
+    // Core takes the address of a Project to download as a required string, so
+    // the field reads Required off that schema rather than saying it itself.
+    await completeFirstStart(mainWindow);
+    const dialog = await openDownloadDialog(mainWindow);
+    expect(await rulesOf(mainWindow, 'Address')).toBe('Required');
+    await expect(dialog.getByLabel('Address', { exact: true })).toHaveAttribute(
+      'aria-required',
+      'true'
+    );
   });
 
   test('says in the markdown link dialog that its URL is needed', async ({

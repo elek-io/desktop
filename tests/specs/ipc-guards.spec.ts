@@ -119,8 +119,12 @@ test.describe('IPC guards', () => {
     // the root error boundary); this observes the guard over IPC instead.
     await expectRejects(createProjectViaIpc(mainWindow));
 
-    // Nothing was created: the Projects list shows its empty state.
+    // Nothing was created: once a User exists, the Projects page shows the
+    // Welcome screen it has while there is no Project.
+    await setUserViaIpc(mainWindow);
     await navigate(mainWindow, '#/projects');
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
   });
 });

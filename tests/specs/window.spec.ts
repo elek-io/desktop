@@ -7,7 +7,7 @@ import { contrastRatio, parseColor, toBytes } from '../helpers/color.js';
 import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setTheme } from '../helpers/theme.js';
-import { setUserViaIpc } from '../helpers/user.js';
+import { navigateToFirstStart, setUserViaIpc } from '../helpers/user.js';
 import {
   HEADER_BAR_HEIGHT,
   MINIMUM_WINDOW_SIZE,
@@ -51,6 +51,7 @@ test.describe('The window', () => {
 
     const screens = [
       `#/projects`,
+      `#/projects/create`,
       `#/projects/${project.id}/dashboard`,
       `#/projects/${project.id}/collections`,
       `#/projects/${project.id}/history`,
@@ -104,6 +105,45 @@ test.describe('The window', () => {
         measured.viewport.height
       );
     }
+  });
+
+  test('keeps the first start inside it at the smallest size', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    // No User on purpose: the first start is the one screen that stands before
+    // one exists, so no other test reaches it.
+    await navigateToFirstStart(mainWindow);
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+
+    const measured = await mainWindow.evaluate(() => {
+      const card = document.querySelector('.on-plate');
+
+      if (card === null) {
+        throw new Error('The first start has no card');
+      }
+      const rect = card.getBoundingClientRect();
+
+      return {
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        document: {
+          width: document.documentElement.scrollWidth,
+          height: document.documentElement.scrollHeight,
+        },
+        card: {
+          right: Math.round(rect.right),
+          bottom: Math.round(rect.bottom),
+        },
+      };
+    });
+
+    // Nothing clips the window itself: the gradient's pane scrolls inside it
+    // where the card and its lead need more than 560 px.
+    expect(measured.document).toEqual({
+      width: measured.viewport.width,
+      height: measured.viewport.height,
+    });
+    expect(measured.card.right).toBeLessThanOrEqual(measured.viewport.width);
   });
 
   test('inset the main panel on the ground, with the header in two bars', async ({

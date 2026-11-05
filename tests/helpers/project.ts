@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import type {
   CreateProjectProps,
@@ -148,13 +148,54 @@ export async function navigateToAssets(
   await navigate(page, `#/projects/${projectId}/assets`);
 }
 
+/** Route to the Create Project page and confirm the app rendered there. */
+export async function navigateToProjectCreate(page: Page): Promise<void> {
+  await navigate(page, '#/projects/create');
+}
+
 /** Fill the visible fields of the Project form. */
 export async function fillProjectForm(
   page: Page,
   props: { name: string; description: string }
 ): Promise<void> {
-  await page.getByLabel('Project name').fill(props.name);
-  await page.getByLabel('Project description').fill(props.description);
+  await page.getByLabel('Name', { exact: true }).fill(props.name);
+  await page.getByLabel('Description', { exact: true }).fill(props.description);
+}
+
+/** One Project's card on the Projects page, by the Project's name. */
+export function projectCardOf(page: Page, name: string): Locator {
+  return page
+    .getByRole('main')
+    .getByRole('link')
+    .filter({ has: page.getByText(name, { exact: true }) });
+}
+
+/**
+ * Open the dialog that downloads a Project from another Git host, from the
+ * Projects page or from the Welcome screen.
+ */
+export async function openDownloadDialog(page: Page): Promise<Locator> {
+  await page
+    .getByRole('button', { name: 'Download from another Git host' })
+    .click();
+  const dialog = page.getByRole('dialog');
+  await expect(
+    dialog.getByRole('heading', { name: 'Download from another Git host' })
+  ).toBeVisible();
+
+  return dialog;
+}
+
+/** Download a Project from an address through the dialog. */
+export async function downloadProject(
+  page: Page,
+  url: string
+): Promise<Locator> {
+  const dialog = await openDownloadDialog(page);
+  await dialog.getByLabel('Address', { exact: true }).fill(url);
+  await dialog.getByRole('button', { name: 'Download' }).click();
+
+  return dialog;
 }
 
 /**
@@ -166,7 +207,9 @@ export async function createProject(
   page: Page,
   props: { name: string; description: string }
 ): Promise<string> {
-  // Open the create form from the Projects list
+  // Open the create form from the Projects page, whose head carries the button
+  // while it lists Projects and whose Welcome screen carries it while it does
+  // not.
   await page.getByRole('button', { name: 'Create Project' }).click();
   await expect(page).toHaveURL(/#\/projects\/create/);
 

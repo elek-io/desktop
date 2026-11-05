@@ -48,8 +48,9 @@ test.describe('Reporting a bug or feedback', () => {
     // menu, outside everything that depends on a User, because a broken first
     // run is the thing most worth reporting, and every other spec here seeds a
     // User, so without this one a refactor that moved it behind the User would
-    // pass CI.
-    await navigate(mainWindow, '#/projects');
+    // pass CI. The first start is the one screen then, since the gate settles
+    // every address on it until a User exists.
+    await navigate(mainWindow, '#/welcome');
 
     const dialog = await openReportDialogFromHeader(mainWindow);
     await expect(

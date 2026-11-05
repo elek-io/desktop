@@ -28,6 +28,10 @@ test.describe('Not found', () => {
   test('an unknown route renders the not-found screen', async ({
     mainWindow,
   }) => {
+    // A User, since without one the gate on the root route settles every
+    // address on the first start and no other screen is reached.
+    await setUserViaIpc(mainWindow);
+
     // An unmatched hash is a normal router state (no thrown error), so this
     // stays console-clean and must NOT opt into the console allow-list, which
     // would mask a real regression.
@@ -95,7 +99,9 @@ test.describe('Root error boundary', () => {
     // usable again (the empty state renders, since no Project was created).
     await mainWindow.getByRole('button', { name: 'Back to Projects' }).click();
     await verifyCurrentRouteHash(mainWindow, '#/projects');
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
   });
 
   test('the boundary offers to report the problem, with logs on', async ({

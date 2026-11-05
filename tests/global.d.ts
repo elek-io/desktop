@@ -15,6 +15,17 @@ interface ProbedElement {
   readonly tagName: string;
   readonly textContent: string | null;
   readonly parentElement: ProbedElement | null;
+  /**
+   * The element right after this one among its siblings, which a spec reads to
+   * say that a section's grid follows its head.
+   */
+  readonly nextElementSibling: ProbedElement | null;
+  /**
+   * The classes the element carries. One spec reads it rather than a computed
+   * color: the gradient always takes the dark mode colors, which the `dark`
+   * class on the surface is what settles.
+   */
+  readonly classList: { contains(token: string): boolean };
   readonly clientHeight: number;
   readonly clientWidth: number;
   readonly scrollHeight: number;
@@ -68,6 +79,7 @@ interface ProbedStyle {
   readonly transform: string;
   readonly animationName: string;
   readonly backgroundColor: string;
+  readonly backgroundImage: string;
   readonly bottom: string;
   readonly paddingLeft: string;
   readonly paddingRight: string;

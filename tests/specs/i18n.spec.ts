@@ -37,8 +37,10 @@ test.describe('The app in one language', () => {
     mainWindow,
   }) => {
     // Before a User exists the app is in the source locale, which index.html
-    // already declares, and the renderer keeps it there.
-    await navigate(mainWindow, '#/projects');
+    // already declares, and the renderer keeps it there. The first start is the
+    // one screen then, since the gate on the root route settles every address
+    // on it until a User exists.
+    await navigate(mainWindow, '#/welcome');
     await expect(mainWindow.locator('html')).toHaveAttribute('lang', 'en');
 
     // A User whose language Desktop carries a catalog for.
@@ -79,10 +81,10 @@ test.describe('The app in one language', () => {
     // A change the Project's settings make, which ends in a toast with nothing
     // to answer.
     await navigateToProjectSettings(mainWindow, project.id);
-    await expect(mainWindow.getByLabel('Project name')).toHaveValue(
+    await expect(mainWindow.getByLabel('Name', { exact: true })).toHaveValue(
       'Autohaus Ebersfelde'
     );
-    await mainWindow.getByLabel('Project name').fill('Autohaus Thamm');
+    await mainWindow.getByLabel('Name', { exact: true }).fill('Autohaus Thamm');
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     const projectToast = mainWindow.getByText('Project Autohaus Thamm saved', {
       exact: true,
@@ -366,10 +368,10 @@ test.describe('The app in one language', () => {
     });
 
     await navigateToProjectSettings(mainWindow, project.id);
-    await expect(mainWindow.getByLabel('Project name')).toHaveValue(
+    await expect(mainWindow.getByLabel('Name', { exact: true })).toHaveValue(
       'Autohaus Ebersfelde'
     );
-    await mainWindow.getByLabel('Project name').fill('Autohaus Thamm');
+    await mainWindow.getByLabel('Name', { exact: true }).fill('Autohaus Thamm');
 
     // A failure the save has no handling of its own for, which reaches the
     // error screen while the mutation's own toast still shows. What it throws

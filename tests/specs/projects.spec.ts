@@ -1,10 +1,16 @@
-import { expect } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { join } from 'node:path';
 
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
 import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
-import { stubCoreReject } from '../helpers/ipc.js';
+import {
+  recordedCoreCalls,
+  stubCoreHang,
+  stubCoreRecord,
+  stubCoreReject,
+} from '../helpers/ipc.js';
+import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import {
   navigate,
   reloadWindow,
@@ -14,12 +20,29 @@ import {
   createProject,
   createProjectViaIpc,
   deleteProjectViaIpc,
+  downloadProject,
+  fillProjectForm,
+  navigateToProjectCreate,
   navigateToProjectSettings,
   navigateToVersionControl,
+  openDownloadDialog,
+  projectCardOf,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
 import { renameBranchesOnRemote, setupRemote } from '../helpers/remote.js';
 import { setUserViaIpc } from '../helpers/user.js';
+
+/** What keeps a form from saving, as it stands below Save. */
+function blockedReason(page: Page): Locator {
+  return page.locator('[data-slot="form-blocked-reason"]');
+}
+
+/** The state lines of one Project's card, in the words they say. */
+async function stateLinesOf(page: Page, name: string): Promise<string[]> {
+  return projectCardOf(page, name)
+    .locator('[data-slot="project-state-line"]')
+    .allInnerTexts();
+}
 
 test.describe('Projects', () => {
   test('creates a project through the form and shows it in the list', async ({
@@ -48,6 +71,308 @@ test.describe('Projects', () => {
     await expect(mainWindow.getByRole('main').getByText(name)).toBeVisible();
   });
 
+  test('lists what is on this computer as a ruled grid, with its count', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    for (const name of ['Used cars', 'Service app']) {
+      await createProjectViaIpc(mainWindow, {
+        name,
+        description: `The content of ${name}`,
+        settings: { language: { default: 'en', supported: ['en', 'de'] } },
+      });
+    }
+    await navigate(mainWindow, '#/projects');
+
+    // The page head: the title, the filter, then the two ways in, the outline
+    // one before the primary one.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Projects', level: 1 })
+    ).toBeVisible();
+    await expect(mainWindow.getByLabel('Filter Projects')).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: 'Download from another Git host',
+      })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Create Project' })
+    ).toBeVisible();
+
+    // The one section, named and counted, with the cards in a ruled grid of
+    // three columns that spans the pane.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'On this computer', level: 2 })
+    ).toBeVisible();
+    const grid = await mainWindow.evaluate(() => {
+      const head = Array.from(document.querySelectorAll('h2')).find(
+        (candidate) => candidate.textContent === 'On this computer'
+      );
+      const section = head?.parentElement?.nextElementSibling;
+      const pane = document.querySelector('[data-slot="pane"]');
+
+      if (section === null || section === undefined || pane === null) {
+        throw new Error('The Projects page draws no grid under its section');
+      }
+      const style = getComputedStyle(section);
+
+      return {
+        count: head?.nextElementSibling?.textContent ?? '',
+        columns: style.gridTemplateColumns.split(' ').length,
+        ruled: style.borderTopWidth,
+        spansThePane:
+          Math.round(section.getBoundingClientRect().width) ===
+          Math.round(pane.getBoundingClientRect().width),
+      };
+    });
+    expect(grid).toEqual({
+      count: '2',
+      columns: 3,
+      ruled: '1px',
+      spansThePane: true,
+    });
+
+    // Each card carries the Project's name, its description and its languages
+    // by their codes, and opens the Project.
+    const card = projectCardOf(mainWindow, 'Used cars');
+    await expect(card).toHaveAttribute('href', /\/projects\/[^/]+\/dashboard/);
+    await expect(card.getByText('The content of Used cars')).toBeVisible();
+    await expect(card.getByText('EN', { exact: true })).toBeVisible();
+    await expect(card.getByText('DE', { exact: true })).toBeVisible();
+
+    // Nothing offers elek.io Cloud, which the alpha does not have.
+    await expect(mainWindow.getByText(/elek\.io Cloud/)).toBeHidden();
+  });
+
+  test('says on each card where it syncs, and names every logo it draws', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const local = await createProjectViaIpc(mainWindow, {
+      name: 'Only here',
+    });
+    const synced = await createProjectViaIpc(mainWindow, {
+      name: 'On a host',
+    });
+    const remote = setupRemote(testInfo, {
+      mirror: join(testDataDirs(testInfo).dataDir, 'projects', synced.id),
+    });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: synced.id,
+      url: remote.url,
+    });
+    await navigate(mainWindow, '#/projects');
+
+    // A Project with no Git repository says so and has no state line, since
+    // Core counts what is not synced against a remote only. It still says
+    // whether it has a Release.
+    expect(await stateLinesOf(mainWindow, 'Only here')).toEqual([
+      'This computer only',
+      'No Release yet',
+    ]);
+    expect(local.remoteOriginUrl).toBeNull();
+
+    // One that does names its host and what the check found. The address is a
+    // plain path here, which has no hostname, so the name is the words for a
+    // host Desktop cannot name rather than the address itself.
+    await expect(
+      projectCardOf(mainWindow, 'On a host').getByText('Another Git host')
+    ).toBeVisible();
+    await expect(
+      projectCardOf(mainWindow, 'On a host').getByText('Everything synced')
+    ).toBeVisible();
+
+    // A logo never stands on its own: every brand logo on the page has the
+    // host's name beside it in words.
+    const unnamed = await mainWindow.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-brand-logo]'))
+        .map(
+          (logo) =>
+            logo.closest('[data-slot="project-state-line"]')?.textContent ?? ''
+        )
+        .filter((name) => name.trim() === '')
+    );
+    expect(unnamed).toEqual([]);
+  });
+
+  test('fills each card on its own, so one Git repository holds up no other', async ({
+    electronApp,
+    mainWindow,
+  }, testInfo) => {
+    await recordLogsViaIpc(electronApp);
+    await setUserViaIpc(mainWindow);
+    const reachable = await createProjectViaIpc(mainWindow, {
+      name: 'Reachable',
+    });
+    const unreachable = await createProjectViaIpc(mainWindow, {
+      name: 'Unreachable',
+    });
+    const remote = setupRemote(testInfo, {
+      mirror: join(testDataDirs(testInfo).dataDir, 'projects', reachable.id),
+    });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: reachable.id,
+      url: remote.url,
+    });
+    // A path no repository is at, which is a Git repository nothing can reach.
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: unreachable.id,
+      url: join(testInfo.outputPath('nowhere'), 'gone.git'),
+    });
+    await navigate(mainWindow, '#/projects');
+
+    // The one that answers says so, and the one that does not says that in its
+    // own line, in the warning color. Neither holds up the other, and nothing
+    // reaches the error screen.
+    await expect(
+      projectCardOf(mainWindow, 'Reachable').getByText('Everything synced')
+    ).toBeVisible();
+    await expect(
+      projectCardOf(mainWindow, 'Unreachable').getByText(
+        "Can't reach the Git repository"
+      )
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Error' })
+    ).toBeHidden();
+    await expect(
+      mainWindow.getByText("Desktop can't read your Projects.")
+    ).toBeHidden();
+
+    // The failure is in the log file with its type and its stack, the way a
+    // pane's boundary writes one, so a repository that stopped answering is
+    // never only on screen.
+    const logged = (await recordedLogs(electronApp)).filter((record) =>
+      record.message.startsWith('Project card check error:')
+    );
+    expect(logged.length).toBeGreaterThan(0);
+    expect(logged[0]?.level).toBe('error');
+    expect(logged[0]?.meta['error.type']).toBeDefined();
+  });
+
+  test('shows the page at once while the checks are still running', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    await createProjectViaIpc(mainWindow, { name: 'Used cars' });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: (await createProjectViaIpc(mainWindow, { name: 'Service app' })).id,
+      url: 'https://example.invalid/service-app.git',
+    });
+
+    // A check that never answers, which is a Git repository taking its time.
+    await stubCoreHang(electronApp, 'core:projects:getChanges');
+    await navigate(mainWindow, '#/projects');
+
+    // The page is there with every card on it, each saying where it syncs,
+    // while the line the check fills is still a placeholder.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Projects', level: 1 })
+    ).toBeVisible();
+    await expect(projectCardOf(mainWindow, 'Used cars')).toBeVisible();
+    const waiting = projectCardOf(mainWindow, 'Service app');
+    // A host Simple Icons has no logo for reads as its hostname, with Lucide's
+    // git-branch beside it.
+    await expect(waiting.getByText('example.invalid')).toBeVisible();
+    await expect(
+      waiting.locator('[data-slot="skeleton"]').first()
+    ).toBeVisible();
+  });
+
+  test('keeps a new Project on this computer when its Git repository refuses it', async ({
+    mainWindow,
+  }, testInfo) => {
+    // Slow on purpose: the create is followed by two more calls, and each one
+    // re-reads the Project before the next runs.
+    test.slow();
+    await setUserViaIpc(mainWindow);
+    await navigateToProjectCreate(mainWindow);
+
+    // Another Git host, with an address no repository is at, so the first sync
+    // cannot go through.
+    await fillProjectForm(mainWindow, {
+      name: 'Used cars',
+      description: 'The cars for sale on the website',
+    });
+    await mainWindow
+      .getByRole('radio', { name: 'Another Git host' })
+      .click({ force: true });
+    await mainWindow
+      .getByLabel('Address', { exact: true })
+      .fill(join(testInfo.outputPath('nowhere'), 'gone.git'));
+    await mainWindow.getByRole('button', { name: 'Create Project' }).click();
+
+    // The Project was created before the sync was tried, so Desktop says it is
+    // here rather than leaving the editor on a form that would make a second
+    // one.
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(
+      dialog.getByRole('heading', {
+        name: 'Used cars was created, but not synced',
+      })
+    ).toBeVisible({ timeout: 30000 });
+    await expect(
+      dialog.getByText('Everything you entered is on this computer.')
+    ).toBeVisible();
+    // The cause, in words rather than as Core wrote it, since an address can
+    // carry a password.
+    await expect(
+      dialog.getByText('The Git repository could not be reached')
+    ).toBeVisible();
+
+    // Opening it leads to the Project, and the Projects page lists it.
+    await dialog.getByRole('button', { name: 'Open the Project' }).click();
+    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/dashboard/);
+    await navigate(mainWindow, '#/projects');
+    await expect(projectCardOf(mainWindow, 'Used cars')).toBeVisible();
+  });
+
+  test('puts a new Project on the Git repository its address names', async ({
+    electronApp,
+    mainWindow,
+  }, testInfo) => {
+    // Slow on purpose, for the same reason as the spec above.
+    test.slow();
+    await recordLogsViaIpc(electronApp);
+    await setUserViaIpc(mainWindow);
+    const remote = setupRemote(testInfo);
+    await navigateToProjectCreate(mainWindow);
+
+    await fillProjectForm(mainWindow, {
+      name: 'Used cars',
+      description: 'The cars for sale on the website',
+    });
+    // The address is asked for only once another Git host is chosen, and it
+    // says it is needed.
+    await expect(
+      mainWindow.getByLabel('Address', { exact: true })
+    ).toBeHidden();
+    await mainWindow
+      .getByRole('radio', { name: 'Another Git host' })
+      .click({ force: true });
+    await mainWindow.getByLabel('Address', { exact: true }).fill(remote.url);
+    await mainWindow.getByRole('button', { name: 'Create Project' }).click();
+
+    // Both calls went through, so the Project opens and its card names where it
+    // syncs rather than this computer.
+    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/dashboard/, {
+      timeout: 60000,
+    });
+    await navigate(mainWindow, '#/projects');
+    await expect(
+      projectCardOf(mainWindow, 'Used cars').getByText('Another Git host')
+    ).toBeVisible();
+
+    // Nothing of the three calls reached an error boundary on the way: the
+    // Project the create wrote into the cache is read back through its own
+    // query, so the two invalidations after it have something to refetch with.
+    const caught = (await recordedLogs(electronApp)).filter((record) =>
+      record.message.startsWith('Uncaught route error:')
+    );
+    expect(caught).toEqual([]);
+  });
+
   test('renders a persisted project after a renderer reload', async ({
     mainWindow,
   }) => {
@@ -63,52 +388,104 @@ test.describe('Projects', () => {
     await expect(mainWindow.getByText(name)).toBeVisible();
   });
 
-  test('surfaces create validation on submit without disabling the button', async ({
+  test('holds Create Project with its reason while a field is empty', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
-    await navigate(mainWindow, '#/projects/create');
+    await navigateToProjectCreate(mainWindow);
+    const create = mainWindow.getByRole('button', { name: 'Create Project' });
 
-    // On open, the create is not submit-gated (validation is surfaced on click,
-    // not by disabling the button) and no field is flagged invalid yet.
+    // Name and Description are empty on open, and the Project starts with one
+    // language, so two fields still need a Value and the button says so.
+    await expect(blockedReason(mainWindow)).toHaveText(
+      '2 fields are still empty'
+    );
+    await expect(create).toBeDisabled();
+    // Blocked means aria-disabled, so the button keeps its place in the tab
+    // order and points at the reason.
+    await expect(create).toHaveAttribute('aria-describedby', /.+/);
+
+    // Nothing reaches Core while it is blocked, however the submit is raised,
+    // and the validator does not even run, so no field is flagged either.
+    await stubCoreRecord(electronApp, 'core:projects:create');
+    // A click, which the control still takes, since it is not `disabled`.
+    await create.click({ force: true });
+    await mainWindow
+      .getByLabel('Name', { exact: true })
+      .press('Enter', { noWaitAfter: true });
+    expect(await recordedCoreCalls(electronApp)).toEqual([]);
     await expect(
-      mainWindow.getByRole('button', { name: 'Create Project' })
-    ).toBeEnabled();
-    await expect(mainWindow.getByLabel('Project name')).toHaveAttribute(
-      'aria-invalid',
-      'false'
-    );
-    await expect(mainWindow.getByLabel('Project description')).toHaveAttribute(
-      'aria-invalid',
-      'false'
-    );
-
-    // Submitting empty surfaces the errors on both required fields and the URL
-    // stays on the create route, so the submit did not go through and nothing
-    // was created. Whether the message text is Core's is Core's concern, the
-    // desktop app's responsibility is to surface the invalid state and block.
-    await mainWindow.getByRole('button', { name: 'Create Project' }).click();
-    await expect(mainWindow.getByLabel('Project name')).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    );
-    await expect(mainWindow.getByLabel('Project description')).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    );
+      mainWindow.getByLabel('Name', { exact: true })
+    ).toHaveAttribute('aria-invalid', 'false');
     await expect(mainWindow).toHaveURL(/#\/projects\/create$/);
+
+    // Filling both frees the button and clears the reason.
+    await fillProjectForm(mainWindow, {
+      name: 'Used cars',
+      description: 'The cars for sale on the website',
+    });
+    await expect(blockedReason(mainWindow)).toBeHidden();
+    await expect(create).toBeEnabled();
   });
 
-  test('shows the empty state, then a card once a project exists', async ({
+  test('asks before what was typed into the create form is lost', async ({
     mainWindow,
   }) => {
-    // Fresh app with nothing seeded: the empty state shows and no card renders.
-    await verifyCurrentRouteHash(mainWindow, '#/projects');
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await setUserViaIpc(mainWindow);
+    await navigateToProjectCreate(mainWindow);
+    await mainWindow.getByLabel('Name', { exact: true }).fill('Used cars');
+
+    // Leaving the page with something nobody saved asks, named by the page.
+    await mainWindow
+      .getByRole('banner')
+      .getByRole('link', { name: 'elek.io Desktop, Projects' })
+      .click();
+    const dialog = mainWindow.locator('[data-slot="discard-changes-dialog"]');
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByText('Discard your changes to Create Project?')
+    ).toBeVisible();
+
+    // Keeping the changes stays on the page with what was typed.
+    await dialog.getByRole('button', { name: 'Keep editing' }).click();
+    await expect(mainWindow).toHaveURL(/#\/projects\/create$/);
+    await expect(mainWindow.getByLabel('Name', { exact: true })).toHaveValue(
+      'Used cars'
+    );
+  });
+
+  test('shows Welcome with both ways in, then a card once a project exists', async ({
+    mainWindow,
+  }) => {
+    // A User but no Project: the Projects page is its own empty state, which is
+    // the Welcome screen, with the mark, both actions and the three notes, and
+    // no page head to repeat them.
+    await setUserViaIpc(mainWindow);
+    await navigate(mainWindow, '#/projects');
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Create Project' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', {
+        name: 'Download from another Git host',
+      })
+    ).toBeVisible();
+    for (const note of ['Offline', 'Sync', 'Release']) {
+      await expect(
+        mainWindow.getByRole('main').getByText(note, { exact: true }),
+        `the note ${note}`
+      ).toBeVisible();
+    }
+    await expect(mainWindow.getByLabel('Filter Projects')).toBeHidden();
+    // Nothing of elek.io Cloud, which the alpha does not offer.
+    await expect(mainWindow.getByText(/elek\.io Cloud/)).toBeHidden();
 
     // Seeding a project (over IPC, which skips the renderer cache) and reloading
-    // surfaces its card with both name and description, and the empty state goes.
-    await setUserViaIpc(mainWindow);
+    // surfaces its card with both name and description, and Welcome goes.
     await createProjectViaIpc(mainWindow);
     await reloadWindow(mainWindow);
 
@@ -116,7 +493,9 @@ test.describe('Projects', () => {
     await expect(
       mainWindow.getByText('A Project created by the E2E tests')
     ).toBeVisible();
-    await expect(mainWindow.getByText('No Projects yet')).toBeHidden();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeHidden();
   });
 
   test('updates a project through the form, gated on a dirty change', async ({
@@ -132,7 +511,7 @@ test.describe('Projects', () => {
 
     // Wait for the form to reset from the loaded Project. Until it settles, the
     // dirty gate cannot be trusted, so key off the name field showing.
-    await expect(mainWindow.getByLabel('Project name')).toHaveValue(
+    await expect(mainWindow.getByLabel('Name', { exact: true })).toHaveValue(
       'Test Project'
     );
 
@@ -142,7 +521,9 @@ test.describe('Projects', () => {
     ).toBeDisabled();
 
     // Editing the name dirties the form, so Save enables
-    await mainWindow.getByLabel('Project name').fill('Renamed Project');
+    await mainWindow
+      .getByLabel('Name', { exact: true })
+      .fill('Renamed Project');
     await expect(
       mainWindow.getByRole('button', { name: 'Save changes' })
     ).toBeEnabled();
@@ -185,7 +566,9 @@ test.describe('Projects', () => {
 
     // The force delete goes through and the UI reflects the removal
     await expect(mainWindow).toHaveURL(/#\/projects$/);
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
   });
 
   test('routes a project with unpushed commits through the force-delete modal', async ({
@@ -235,7 +618,9 @@ test.describe('Projects', () => {
 
     // The force delete goes through and the UI reflects the removal
     await expect(mainWindow).toHaveURL(/#\/projects$/);
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
   });
 
   test('blocks removing the default language and persists the supported set', async ({
@@ -397,7 +782,7 @@ test.describe('Projects', () => {
     }
   });
 
-  test('clones a project from a local bare remote and shows it in the list', async ({
+  test('downloads a project from another Git host and shows it in the list', async ({
     mainWindow,
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
@@ -416,37 +801,39 @@ test.describe('Projects', () => {
     const remote = setupRemote(testInfo, { mirror: projectPath });
     await deleteProjectViaIpc(mainWindow, { id: project.id, force: true });
 
-    // With the local copy gone, a fresh Projects list is empty again.
+    // With the local copy gone, the Projects page is the Welcome screen again,
+    // which carries the same way in as the page head does.
     await navigate(mainWindow, '#/projects');
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
 
-    // Clone it back from the bare remote through the UI, pointing at the bare's
-    // plain filesystem path (what setupRemote returns). clone stores that path as
-    // the Project's origin, and the list card's RemoteOriginBadge renders it, so
-    // this also exercises the badge's fallback for an origin that is not a
-    // parseable URL, where new URL(path) would throw.
-    await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
-    const dialog = mainWindow.getByRole('dialog');
-    await expect(dialog.getByText('Clone a Project by URL')).toBeVisible();
-    await dialog.getByLabel('URL', { exact: true }).fill(remote.url);
-    await dialog.getByRole('button', { name: 'Clone' }).click();
+    // The address the dialog asks for is the bare's plain filesystem path (what
+    // setupRemote returns), which Core stores as the Project's origin. A path
+    // has no hostname, so its card says "Another Git host" rather than the
+    // address itself, which can carry a credential.
+    const dialog = await downloadProject(mainWindow, remote.url);
 
-    // The clone reaches Core without throwing: the dialog closes and the Project
-    // reappears on the list by its name (the empty state is gone), its card
-    // rendered rather than crashing to the error boundary. Core's on-disk clone
-    // (files, LFS materialization) is Core's own test, not asserted here. Cloning
-    // the same id twice hits the root error boundary, which the spec below
-    // drives.
+    // The download reaches Core without throwing: the dialog closes and the
+    // Project reappears on the page by its name, its card rendered rather than
+    // crashing to the error boundary. Core's on-disk clone (files, LFS
+    // materialization) is Core's own test, not asserted here. Downloading the
+    // same id twice hits the root error boundary, which the spec below drives.
     await expect(dialog).toBeHidden();
-    // Scoped to the page, since the toast that confirmed the clone names the
-    // Project too.
+    // Scoped to the page, since the toast that confirmed it names the Project
+    // too.
     await expect(
       mainWindow.getByRole('main').getByText('Cloned Project')
     ).toBeVisible();
-    await expect(mainWindow.getByText('No Projects yet')).toBeHidden();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeHidden();
+    await expect(
+      projectCardOf(mainWindow, 'Cloned Project').getByText('Another Git host')
+    ).toBeVisible();
   });
 
-  test('refuses a clone of a remote without draft in the dialog', async ({
+  test('answers a download Core refuses in the dialog, with the address kept', async ({
     mainWindow,
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
@@ -470,10 +857,7 @@ test.describe('Projects', () => {
     await deleteProjectViaIpc(mainWindow, { id: project.id, force: true });
 
     await navigate(mainWindow, '#/projects');
-    await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
-    const dialog = mainWindow.getByRole('dialog');
-    await dialog.getByLabel('URL', { exact: true }).fill(remote.url);
-    await dialog.getByRole('button', { name: 'Clone' }).click();
+    const dialog = await downloadProject(mainWindow, remote.url);
 
     // Core refuses it with PreconditionFailed, which the dialog explains in
     // place, keeping the address to correct
@@ -482,13 +866,15 @@ test.describe('Projects', () => {
         'This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up.'
       )
     ).toBeVisible();
-    await expect(dialog.getByLabel('URL', { exact: true })).toHaveValue(
+    await expect(dialog.getByLabel('Address', { exact: true })).toHaveValue(
       remote.url
     );
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
   });
 
-  test('routes a clone of a Project already here to the root error boundary', async ({
+  test('routes a download of a Project already here to the root error boundary', async ({
     mainWindow,
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
@@ -504,10 +890,7 @@ test.describe('Projects', () => {
     const remote = setupRemote(testInfo, { mirror: projectPath });
 
     await navigate(mainWindow, '#/projects');
-    await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
-    const dialog = mainWindow.getByRole('dialog');
-    await dialog.getByLabel('URL', { exact: true }).fill(remote.url);
-    await dialog.getByRole('button', { name: 'Clone' }).click();
+    await downloadProject(mainWindow, remote.url);
 
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
@@ -517,22 +900,22 @@ test.describe('Projects', () => {
     ).toBeHidden();
   });
 
-  test('rejects a clone with an empty URL client-side', async ({
+  test('rejects a download with an empty address client-side', async ({
     mainWindow,
   }) => {
     // cloneProjectSchema.url is a required string and TextControl normalizes an
-    // empty input to null, so a cleared URL is the client-rejectable case: the
-    // resolver flags it before any IPC call, rather than sending an empty URL to
-    // Core.
+    // empty input to null, so a cleared address is the client-rejectable case:
+    // the resolver flags it before any IPC call, rather than sending an empty
+    // address to Core.
     await setUserViaIpc(mainWindow);
 
     await navigate(mainWindow, '#/projects');
-    await mainWindow.getByRole('button', { name: 'Clone Project' }).click();
-    const dialog = mainWindow.getByRole('dialog');
-    await expect(dialog.getByText('Clone a Project by URL')).toBeVisible();
+    const dialog = await openDownloadDialog(mainWindow);
+    // The words the dialog used to go by are gone from it.
+    await expect(mainWindow.getByText('Clone a Project by URL')).toBeHidden();
 
-    // On open the URL field is not flagged (no validation has run).
-    const url = dialog.getByLabel('URL', { exact: true });
+    // On open the address field is not flagged (no validation has run).
+    const url = dialog.getByLabel('Address', { exact: true });
     await expect(url).toHaveAttribute('aria-invalid', 'false');
 
     // Type then clear, so the field value normalizes to null, and submit. The
@@ -540,7 +923,7 @@ test.describe('Projects', () => {
     // the route stays on the Projects list, proving the reject was client-side.
     await url.fill('placeholder');
     await url.fill('');
-    await dialog.getByRole('button', { name: 'Clone' }).click();
+    await dialog.getByRole('button', { name: 'Download' }).click();
     await expect(url).toHaveAttribute('aria-invalid', 'true');
     await expect(dialog).toBeVisible();
     await expect(mainWindow).toHaveURL(/#\/projects$/);
