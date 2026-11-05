@@ -478,6 +478,7 @@ test.describe('A menu and a dialog', () => {
         borderWidth: Math.round(parseFloat(style.borderTopWidth)),
         border: style.borderTopColor,
         shadow: style.boxShadow,
+        trigger: Math.round(trigger.getBoundingClientRect().height),
         offset: Math.round(
           menu.getBoundingClientRect().y -
             trigger.getBoundingClientRect().bottom
@@ -494,6 +495,10 @@ test.describe('A menu and a dialog', () => {
     expect(measured.borderWidth).toBe(1);
     expect(measured.shadow).not.toBe('none');
     expect(measured.offset).toBe(8);
+
+    // Help itself is a control of ci's own height, like back and forward
+    // beside it, rather than one of its small ones.
+    expect(measured.trigger).toBe(CONTROL);
 
     // Help's versions are 24 px rows in the small role, each version in
     // Geist Mono.
@@ -554,6 +559,13 @@ test.describe('A menu and a dialog', () => {
         // takes no border and no surface of its own.
         rowBorder: getComputedStyle(row).borderLeftWidth,
         rowRadius: getComputedStyle(row).borderTopLeftRadius,
+        rowHeight: Math.round(row.getBoundingClientRect().height),
+        rowWidth: Math.round(row.getBoundingClientRect().width),
+        bodyWidth: Math.round(
+          (
+            document.querySelector('[data-slot="dialog-body"]') ?? row
+          ).getBoundingClientRect().width
+        ),
       };
     });
 
@@ -580,6 +592,12 @@ test.describe('A menu and a dialog', () => {
     expect(measured.closeButtons).toBe(0);
     expect(measured.rowBorder).toBe('0px');
     expect(measured.rowRadius).toBe('0px');
+
+    // ci lists the Entries a field allows like the list of Entries: a row of
+    // 10 by 16 px with a rule below it, 59 px high, from edge to edge of the
+    // dialog rather than inset as a card.
+    expect(measured.rowHeight).toBe(59);
+    expect(measured.rowWidth).toBe(measured.bodyWidth);
   });
 
   test('draws the Asset picker as ci’s four columns', async ({
