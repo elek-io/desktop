@@ -51,7 +51,8 @@ export interface PickableEntry {
 /**
  * One row of the list a picker shows: ci's row of 10 by 16 px with a rule
  * below it, edge to edge, and the control that chooses it on the title's line.
- * A chosen row is marked by that control alone, as ci asks.
+ * A chosen row is marked by that control alone, as ci asks. The list's last
+ * row drops that rule, so it does not stand against the footer's.
  */
 const ENTRY_ROW = cn(
   'flex items-start gap-2.5 border-b border-border px-4 py-2.5 font-normal has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-4 has-[:focus-visible]:outline-ring'
@@ -225,6 +226,10 @@ export function EntryPickerDialog({
     onOpenChange(false);
   }
 
+  // ci drops the rule below the list's last row, so the dialog's own footer
+  // draws the one line between them.
+  const lastRowId = shownGroups.at(-1)?.entries.at(-1)?.entry.id;
+
   function row(pickable: PickableEntry): ReactElement {
     const isChosen = draftIds.includes(pickable.entry.id);
     const id = `${itemId}-${pickable.entry.id}`;
@@ -235,6 +240,7 @@ export function EntryPickerDialog({
         htmlFor={id}
         className={cn(
           ENTRY_ROW,
+          pickable.entry.id === lastRowId ? 'border-b-0' : null,
           isChosen === false && maxReached ? 'opacity-50' : null
         )}
       >
