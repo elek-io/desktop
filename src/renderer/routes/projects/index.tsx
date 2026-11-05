@@ -54,10 +54,19 @@ export const Route = createFileRoute('/projects/')({
   component: ListProjectsPage,
 });
 
-/** The three notes the Welcome screen ends on, each an icon, a word and a line. */
+/**
+ * The three notes the Welcome screen ends on, each an icon, a word and a line.
+ *
+ * The rule between two of them stops short of both edges by the text edge or a
+ * fifth of the note, whichever is less, which is what ci insets every rule
+ * between two cells by.
+ */
 function WelcomeNotes(): ReactElement {
   return (
-    <div className="mt-14 grid w-full grid-cols-3 text-left">
+    <div
+      data-slot="welcome-notes"
+      className="mt-14 grid w-full grid-cols-3 text-left"
+    >
       {[
         {
           // The note's own key, which nobody reads.
@@ -81,7 +90,7 @@ function WelcomeNotes(): ReactElement {
       ].map(({ key, icon: Icon, title, line }) => (
         <div
           key={key}
-          className="relative px-5 py-1 text-small text-muted-foreground not-first:before:absolute not-first:before:inset-y-[min(24px,20%)] not-first:before:left-0 not-first:before:w-px not-first:before:bg-border"
+          className="relative px-5 py-1 text-small text-muted-foreground not-first:before:absolute not-first:before:inset-y-[min(32px,20%)] not-first:before:left-0 not-first:before:w-px not-first:before:bg-border"
         >
           <span className="mb-1 flex items-center gap-1.5 text-label text-foreground">
             <Icon className="size-4" />
@@ -156,11 +165,13 @@ function SectionHead({
  *
  * The grid spans the pane rather than the page body's text edge, so a card's
  * rule ends on the pane's own edge the way ci draws it, which is what the
- * negative margin takes back.
+ * negative margin takes back. The rule between two cards stops short of both
+ * edges by the text edge or a fifth of the card, whichever is less, as every
+ * rule between two cells does.
  */
 function ProjectGrid({ children }: { children: ReactNode }): ReactElement {
   return (
-    <div className="-mx-(--pane-edge) grid grid-cols-3 border-t [&>*:not(:nth-child(3n+1))]:before:absolute [&>*:not(:nth-child(3n+1))]:before:inset-y-6 [&>*:not(:nth-child(3n+1))]:before:left-0 [&>*:not(:nth-child(3n+1))]:before:w-px [&>*:not(:nth-child(3n+1))]:before:bg-border">
+    <div className="-mx-(--pane-edge) grid grid-cols-3 border-t [&>*:not(:nth-child(3n+1))]:before:absolute [&>*:not(:nth-child(3n+1))]:before:inset-y-[min(32px,20%)] [&>*:not(:nth-child(3n+1))]:before:left-0 [&>*:not(:nth-child(3n+1))]:before:w-px [&>*:not(:nth-child(3n+1))]:before:bg-border">
       {children}
     </div>
   );
