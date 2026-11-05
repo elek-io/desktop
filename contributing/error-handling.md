@@ -72,16 +72,23 @@ Two rules follow for a screen:
 - **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it. The one exception is below.
 - **A read belongs inside the pane that shows it.** A boundary only catches what is thrown below it, so a read in a layout above two panes takes both of them, which is right when both depend on it and wrong when one does. Read in the component that shows the data.
 
-### The one read a screen catches: the Project card's check
+### The one read a screen catches: a Project card's check
 
-The Project card in [`project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx) is the one place that answers a failed read itself, rather than leaving it to a boundary. It stands in the sidebar, which is above every pane, and what it reads is a state of the Project it has to show: whether the Git repository can be reached at all.
+A Project's card answers a failed read itself, rather than leaving it to a boundary. What it reads is a state of the Project it has to show, whether the Git repository can be reached at all, and the sidebar's card stands above every pane anyway. Two screens draw such a card and both read the check through [`useProjectState`](/src/renderer/hooks/useProjectState.ts), so neither writes an `isError` branch of its own:
+
+| Card               | Where                                                                                              | Shows                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| The open Project's | The sidebar, in [`project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx)              | Every state line, plus when it last checked and a sync of its own that failed                                 |
+| One per Project    | Each cell of the Projects page, in [`project-card.tsx`](/src/renderer/components/project-card.tsx) | The same state lines, without the check's own line and without a failed sync, which only the open Project has |
+
+Each card runs its own check, which is what lets a slow or failing Git repository hold up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder.
 
 - `projects.getChanges` ([`projectOptions.ts`](/src/renderer/queries/options/projectOptions.ts)) is the only query with `throwOnError: false`, and it retries nothing. So a repository that cannot be reached, or one that refused access, becomes a state line in the card at once instead of three retries of waiting and then the root error screen, which is what used to leave the counts blank with no word about it.
 - The card reads the failure with a plain `useQuery`, not `useQueryNoError`, which throws on `isError` by design.
 - **It logs what it caught the way a pane's boundary does**, through `errorLogAttributes`, with the message `Project card check error: ...`, from an effect so a re-render does not write the same record again. So a repository that stopped answering is in the log file with its type, message and stack either way.
 - Which line it shows comes from `checkRefusal` in [`lib/sync.ts`](/src/renderer/lib/sync.ts): `Unauthorized` is a repository that answered and refused, which gets its own line, and everything else is one that could not be reached. Sync and Check now are the retry, so nothing else has to offer one.
 
-Nothing else reads that query. A screen that needs the same check later shows its failure as a state the same way, rather than catching a read of its own.
+Nothing else reads that query. A screen that needs the same check later shows its failure as a state the same way, through `useProjectState`, rather than catching a read of its own.
 
 ### Expected errors: handled in place
 
@@ -161,11 +168,21 @@ Handling `Internal` in place is the exception to make on purpose, the same one t
 
 `synchronize()` pushes nothing until every step before it went through (see Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#synchronizing)), so the dialog says once that nothing was synced and the changes stay on this computer. It does not unwind what it already did locally: a `Conflict` comes after the rebase, and the integrated commits stay local on purpose, which is what lets the editor repair the Entry the dialog links and sync again.
 
-### Example: a clone Core refuses
+### Example: a download Core refuses
 
-The Clone dialog in [`routes/projects/index.tsx`](/src/renderer/routes/projects/index.tsx) `handles` only `PreconditionFailed`, which Core raises for a repository without a `draft` branch (see Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#cloning-an-existing-project)). Such a repository holds no Project, or one made before Core 0.25 renamed the branches, so the dialog stays open with the address and one line above its button: "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up." It names no version, because the version an editor would have to compare it against is the one that wrote the repository, which Desktop cannot read without cloning it. Any other failure, a `Conflict` for a Project already on this computer included, still reaches the boundary.
+Download from another Git host, the dialog in [`routes/projects/index.tsx`](/src/renderer/routes/projects/index.tsx), is Core's clone. It `handles` only `PreconditionFailed`, which Core raises for a repository without a `draft` branch (see Core's [git-and-sync doc](../node_modules/@elek-io/core/docs/git-and-sync.md#cloning-an-existing-project)). Such a repository holds no Project, or one made before Core 0.25 renamed the branches, so the dialog stays open with the address and one line above its button: "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up." It names no version, because the version an editor would have to compare it against is the one that wrote the repository, which Desktop cannot read without cloning it. Any other failure, a `Conflict` for a Project already on this computer included, still reaches the boundary.
 
 A missing `draft` branch is not the only cause of the type. Core classifies a git command whose dynamic loader failed as `PreconditionFailed` as well, centrally for every command it runs, so a clone of a perfectly good repository shows that same line on a machine whose git cannot load a shared library it needs. Core's [table of git errors](../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations) lists both causes under the type. There the line is wrong about the repository, and the dialog still cannot tell the two apart. A `CoreError`'s cause now crosses the boundary, but what Core attaches to a refused git command is the command's own output, which the encoding drops rather than carry a credential into the renderer (see [What the `cause` carries](#what-the-cause-carries-and-what-it-does-not)). So `handled` discriminates on `type` alone here, and splitting the line waits on Core raising something structured for it.
+
+### Example: a new Project its Git repository will not take
+
+Core's create takes no remote, so Create Project ([`routes/projects/create.tsx`](/src/renderer/routes/projects/create.tsx)) puts a Project on another Git host in three calls: the create, then `setRemoteOriginUrl`, then the first `synchronize`. The Project exists on this computer after the first one, so a failure of either call that follows it is not something to send to the error screen: the editor would be left thinking nothing happened, in front of a form that would make a second Project.
+
+Both of those mutations therefore `handle` the four types a sync can be refused with, which [`lib/sync.ts`](/src/renderer/lib/sync.ts) lists, `Internal` among them. Handling `Internal` is the exception made on purpose here, the same one the Release dialog makes: every failure of these two calls has the same true answer, and it keeps Core's own message off the screen, since a Git repository's address can carry a credential. A type outside those four still reaches the boundary.
+
+The answer is a dialog, which is where ci puts a failure somebody is waiting for. It says the Project is on this computer with everything that was entered, names the cause in the words of the page rather than Core's, says where the address can be set again, and opens the Project. The page takes that way out itself, so the guard for unsaved changes does not ask on it.
+
+**The two reads the calls after the create invalidate are primed first.** The create writes the new Project into `projects.read` and `projects.list` rather than reading either, so while the create page is open neither key carries a query function of its own. `setRemoteOriginUrl` and `synchronize` invalidate both with `refetchType: 'all'`, and a query with no function cannot be refetched: the refetch fails, retries with backoff and reaches the root error screen with the Project already made. So the page reads both once before it goes on, which is what gives each key its own query. Each has to be a real read, because the app caches every read forever and a query that already holds data would be handed back without ever being given its function.
 
 ### Example: force delete a Project
 
@@ -220,9 +237,9 @@ A refusal is modeled as an outcome of the read rather than a failure of it becau
 
 - A Project not checked out on `draft`, which `prepare()` requires. A Project last written before Core renamed the branches is on `work`, and Core refuses the read with "Not on draft branch". Synchronizing is not the way out either, since Synchronize is disabled for such a Project. Its branches are renamed by hand.
 - A remote that does not support the atomic push a Release needs. Core never falls back to separate pushes, because a push that lands `main` without `draft` breaks the rule a Release keeps.
-- A git that cannot load a shared library it needs, which is the cause the Clone dialog carries as well.
+- A git that cannot load a shared library it needs, which is the cause the Download dialog carries as well.
 
-These three are separated by git's own output, which the encoding does not forward, so splitting the lines waits on the same change as the Clone dialog's.
+These three are separated by git's own output, which the encoding does not forward, so splitting the lines waits on the same change as the Download dialog's.
 
 ## Logging: where, what, and when
 
@@ -349,7 +366,7 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 | ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
 | A read fails inside a pane                | One sentence and Try again, in the pane       | Pane error log plus the `onCaughtError` log                           |
 | A read fails above every pane             | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
-| The Project card's check of the remote    | A state line in the card, Sync as the retry   | `Project card check error` log                                        |
+| A Project card's check of the remote      | A state line in the card, Sync as the retry   | `Project card check error` log                                        |
 | Unexpected mutation error                 | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
 | Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page | None by default                                                       |
 | Handled `type` whose cause names no field | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |

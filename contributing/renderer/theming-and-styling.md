@@ -29,7 +29,23 @@ So `bg-primary`, `text-muted-foreground`, `border-input`, `rounded-md`, `shadow-
 
 **Do not add a color, a corner or a shadow to `index.css`.** A value the app needs and the package does not carry is a change to the brand package, not a local override. A hardcoded palette step such as `border-zinc-200` is the same mistake in a class name. `tests/specs/branding.spec.ts` reads every color token out of the running app and compares it with the package, in both themes, so a local override of one shows up as a failing test.
 
-What `index.css` still owns is the handful of rules that are about this app rather than about the brand: the base layer below, the draggable window region, hiding the native date picker button, and the rule that marks each edge the Project's navigation continues past. That last one is a scroll-driven animation, whose opacity follows the scroll position rather than a clock, because the navigation hides its scrollbar and nothing is allowed to move while the app is read. It is scoped to the Project's sidebar, so another list that scrolls keeps the geometry its own pane rules.
+What `index.css` still owns is the handful of rules that are about this app rather than about the brand: the base layer below, the draggable window region, hiding the native date picker button, the rule that marks each edge the Project's navigation continues past, a card on the gradient and the mark's one motion. The navigation's rule is a scroll-driven animation, whose opacity follows the scroll position rather than a clock, because the navigation hides its scrollbar and nothing is allowed to move while the app is read. It is scoped to the Project's sidebar, so another list that scrolls keeps the geometry its own pane rules.
+
+### The gradient, and a card on it
+
+elek.io has one gradient, the dark one, and it is used sparingly. In the app it stands behind three screens and nothing else: an empty state, the Welcome screen the Projects page shows while there is no Project, and the first start. A filter without matches is none of them, because the page itself is not empty, so it says so in plain text in its list. See ci's `docs/color.md` and `docs/desktop.md`.
+
+[`GradientPane`](../../src/renderer/components/gradient-pane.tsx) is the one component that draws it, and [`Empty`](../../src/renderer/components/ui/empty.tsx) is the empty state built on it:
+
+- **It fills the pane** and centers what it holds. It is also the screen's `main` landmark, the way `Page` is on every other screen, so a screen that stands empty is still one somebody can jump to.
+- **It carries the dark mode colors in both modes**, which is ci's rule for anything on the gradient, so the surface declares the `dark` class and `text-foreground` with it. Every `dark:` utility and every token inside it switches with that class, since the brand package declares the `dark` variant on it.
+- **A card on it keeps the light colors in light mode**, which Nils chose on 2026-10-16: a form to fill in reads like the rest of the app on its own surface. That is the `on-plate` class in `index.css`, which declares the light tokens again under `html:not(.dark)` and takes the window shadow back, which the dark theme clears. The first start's card is the one place that uses it today.
+
+### The mark's one motion
+
+ci gives the mark one movement: its cyan period slides in from the right along the bar and fades in on the way, 120 of the mark's 1000 units over 500 ms after a delay of 200 ms, in Tailwind's own ease-out. The ring and the bar stand still. See ci's `docs/logo.md`.
+
+[`BrandMark`](../../src/renderer/components/brand-mark.tsx) inlines the brand package's own SVG with `?raw` rather than loading it as an image, because only an inline SVG has a period to move, and nothing of the mark's geometry is written out in this app. The movement itself is one rule in `index.css` on the file's last path, which is that period. Under `prefers-reduced-motion` the period is simply in place, which is the end state the movement arrives at, so nothing is lost by holding it there.
 
 ### Type
 

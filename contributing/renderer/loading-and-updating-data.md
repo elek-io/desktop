@@ -225,19 +225,19 @@ const { data: projects, isPending: isListingProjects } = useQueryNoError(
 );
 
 return (
-  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+  <ProjectGrid>
     {isListingProjects
-      ? [1, 2, 3, 4, 5].map((i) => <ProjectCardSkeleton key={i} />)
-      : projects.list.map((project) => (
+      ? [1, 2, 3].map((key) => <ProjectCardSkeleton key={key} />)
+      : shown.map((project) => (
           <ProjectCard key={project.id} project={project} />
         ))}
-  </div>
+  </ProjectGrid>
 );
 ```
 
 This ensures the page structure renders immediately, with placeholders that are replaced by real data as it loads.
 
-**Lists load fully and paginate client side.** List queries pass `limit: 0`, so Core returns the whole list into a single cached `'list'` query (kept fresh by `staleTime: Infinity` and updated in place by `mergeListWithObject`, not refetched). Any pagination or filtering a list view offers is therefore applied client side over that already-loaded list, not by refetching a page from Core. The Entry table is the current example: it feeds the full list to TanStack Table with `getPaginationRowModel()` (a fixed page size) and `getFilteredRowModel()` (the filter input drives `state.globalFilter`), resets the page index when the filter changes, and sets `autoResetPageIndex: false` because it rebuilds its `data` array each render (the default auto-reset would read that as a data change and snap the page back to the first one).
+**Lists load fully and paginate client side.** List queries pass `limit: 0`, so Core returns the whole list into a single cached `'list'` query (kept fresh by `staleTime: Infinity` and updated in place by `mergeListWithObject`, not refetched). Any pagination or filtering a list view offers is therefore applied client side over that already-loaded list, not by refetching a page from Core. The Entry table is the current example: it feeds the full list to TanStack Table with `getPaginationRowModel()` (a fixed page size) and `getFilteredRowModel()` (the filter input drives `state.globalFilter`), resets the page index when the filter changes, and sets `autoResetPageIndex: false` because it rebuilds its `data` array each render (the default auto-reset would read that as a data change and snap the page back to the first one). Filter Projects is the simpler case: it narrows the loaded list by the name and the description, and a filter with no matches says so in plain text in the list's place rather than in an empty state, because the page itself is not empty.
 
 ### A read that fails belongs to its pane
 
@@ -250,11 +250,13 @@ Two rules follow for a screen:
 
 A failed write and a component that throws are not a read: they still replace the whole view with the root error screen, which offers Report an issue. How the two are told apart, and what a pane's name in the sentence comes from, is in [Error Handling](../error-handling.md#a-read-that-failed-the-pane-says-so).
 
-### The one read a screen catches: the Project card's check
+### The one read a screen catches: a Project card's check
 
-The sidebar's Project card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app with `throwOnError: false`, it retries nothing, and the card reads it with a plain `useQuery` rather than `useQueryNoError`. What that buys, and what it logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-one-read-a-screen-catches-the-project-cards-check).
+A Project's card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app with `throwOnError: false`, it retries nothing, and a card reads it with a plain `useQuery` rather than `useQueryNoError`. What that buys, and what it logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-one-read-a-screen-catches-a-project-cards-check).
 
-### What the Project card reads
+Two cards draw it, the sidebar's for the open Project and one per Project on the Projects page, and both read it through [`useProjectState`](../../src/renderer/hooks/useProjectState.ts), which is also where that log is written. Each card runs its own, so a slow or failing Git repository holds up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder.
+
+### What a Project card reads
 
 | Line                  | Where it comes from                                                                                                                                |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -267,7 +269,16 @@ The sidebar's Project card runs the one check of the Git repository, `projects.g
 
 The check refetches every three minutes, as it did before the card drew it, and Check now refetches at once.
 
-**The card is the only reader of that query.** The History reads neither `getChanges` nor `ahead` and `behind`, and it lists the Project's commits with no group for what is not synced, so there is no second number to agree with today. A History that marks what is synced and what is not is to read this same query, so that both show one number.
+**The two cards are the only readers of that query**, through the one hook, and they are keyed per Project, so each Project has one check however many cards are on screen. The History reads neither `getChanges` nor `ahead` and `behind`, and it lists the Project's commits with no group for what is not synced, so there is no second number to agree with today. A History that marks what is synced and what is not is to read this same query, so that both show one number.
+
+| Line                                     | Which card shows it                                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Where it syncs, by the Git host's name   | The Projects page's cards                                                                                      |
+| Changes not synced, incoming, all synced | Both                                                                                                           |
+| Can't reach, refused access              | Both                                                                                                           |
+| The last Release                         | Both, in cyan in the sidebar's card and in gray on the Projects page, because a list has one highlight at most |
+| When it last checked, and Check now      | The sidebar's card only                                                                                        |
+| A sync of its own that failed            | The sidebar's card only                                                                                        |
 
 ### Error Handling - Prefer useQueryNoError
 

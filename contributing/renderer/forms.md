@@ -121,32 +121,52 @@ A form has four parts:
 3. An `id`, from `useId`, shared between the form and its submit button.
 4. An `AppForm` wrapping the fields, and a `SubmitButton` inside a `FormActions`.
 
+[`routes/welcome.tsx`](../../src/renderer/routes/welcome.tsx), the first start, is
+the smallest complete example: two fields, one mutation, and one button inside
+the form's own subtree.
+
 [`routes/projects/create.tsx`](../../src/renderer/routes/projects/create.tsx) is
-the smallest complete example:
+the same four parts with the button detached into the page head:
 
 ```tsx
-const createProjectForm = useAppForm<CreateProjectProps>({
-  resolver: zodResolver(createProjectSchema),
-  defaultValues: { name: '', description: '', ... },
+const createProjectForm = useAppForm<ProjectFormValues>({
+  resolver: zodResolver(projectFormSchema),
+  defaultValues: newProjectFormValues(),
 });
-const { mutateAsync: createProject, isPending } = useMutation(
-  queryOptions.projects.create
-);
+const { mutateAsync: createProject } = useMutation(queryOptions.projects.create);
 const formId = useId();
+// Why it cannot be saved yet, which both halves below are given, see Save's block.
+const blockedBy = emptyFieldsReason(missingProjectValues(createProjectForm.watch()));
 
-const onCreate: SubmitHandler<CreateProjectProps> = async (project) => {
-  const newProject = await createProject(project);
+const onCreate: SubmitHandler<ProjectFormValues> = async (values) => {
+  const newProject = await createProject({ name: values.name, ... });
   await router.navigate({ to: '/projects/$projectId', params: { projectId: newProject.id } });
 };
 
 // The submit button, rendered in the Page header (outside the form).
-<FormActions form={createProjectForm} id={formId}>
-  <SubmitButton Icon={Check}>Create Project</SubmitButton>
+<FormActions form={createProjectForm} id={formId} blockedBy={blockedBy}>
+  <SubmitButton Icon={Plus}>Create Project</SubmitButton>
 </FormActions>
 
 // The form itself, rendered in the Page body.
-<ProjectForm id={formId} projectForm={createProjectForm} onFormSubmit={onCreate} />
+<ProjectForm
+  schema={projectFormSchema}
+  id={formId}
+  projectForm={createProjectForm}
+  blockedBy={blockedBy}
+  unsavedChangesTitle={title}
+  onFormSubmit={onCreate}
+/>
 ```
+
+**One form value type per object, whichever page edits it.** Both forms that edit
+a Project check against [`projectFormSchema`](../../src/renderer/lib/projectForm.ts),
+which is Core's own create schema plus where the Project is kept, so neither of
+them views its form as something else. Where it is kept is not a field of a
+Project: Core's create takes no remote, so the address goes to
+`setRemoteOriginUrl` and the first push to `synchronize`, which is why Create
+Project asks for it and the Project's Settings keeps it as it found it and shows
+the address on its Sync page instead.
 
 `ProjectForm` renders an [`AppForm`](../../src/renderer/components/ui/app-form.tsx),
 which owns the policies that used to be pasted at each call site:
@@ -246,11 +266,18 @@ const blockedBy = missing === 0 ? undefined : t`...`;
   blocked form shows no field error from a press, which is what tells it apart
   from a form that is checked on submit.
 - **The words are the page's**, never the form layer's. What is missing is
-  something only the page knows, and ci's example is a required Value a language
-  does not hold: `missingRequiredValues` in
-  [`components/fields/missing-values.ts`](../../src/renderer/components/fields/missing-values.ts)
-  answers that per language of the Project, without a validator, so it is cheap
-  on every change.
+  something only the page knows, and there are two shapes of answer:
+  - A form whose fields are generated from field definitions names the language,
+    as ci's example does. `missingRequiredValues` in
+    [`components/fields/missing-values.ts`](../../src/renderer/components/fields/missing-values.ts)
+    answers that per language of the Project.
+  - A form of hand-written fields counts them, since none of them belongs to a
+    language. `emptyFieldsReason` in
+    [`lib/emptyFields.ts`](../../src/renderer/lib/emptyFields.ts) words that
+    once, because the answer is the same wherever such a form stands, and which
+    fields a form counts stays the form's own, as `missingProjectValues` is.
+
+  Both run without a validator, so either is cheap on every change.
 
 ## A form is read-only while it saves
 

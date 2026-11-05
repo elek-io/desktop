@@ -43,7 +43,7 @@ const ago = formatRelativeShort(checkedAt);
 return <span>{ago === null ? t`Checked just now` : t`Checked ${ago}`}</span>;
 ```
 
-The one caller today is the Project card, whose line that says when it last checked the Git repository has 206 px. See [loading-and-updating-data.md](./loading-and-updating-data.md#what-the-project-card-reads).
+The one caller today is the sidebar's Project card, whose line that says when it last checked the Git repository has 206 px. See [loading-and-updating-data.md](./loading-and-updating-data.md#what-a-project-card-reads).
 
 ## Formatting field values (`formatInUserLocale`)
 
