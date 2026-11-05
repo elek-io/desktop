@@ -41,6 +41,7 @@ import { FilterInput } from '@renderer/components/ui/filter-input';
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { countEmptyFields, emptyFieldsReason } from '@renderer/lib/emptyFields';
 import queryOptions from '@renderer/queries/options';
 
 import {
@@ -262,6 +263,12 @@ function ProjectsPane({
 /**
  * Download a Project from another Git host, which is Core's clone.
  *
+ * Download is blocked while the address is empty and says so, as Save is on
+ * every form, so an untouched press sends nothing: `cloneProjectSchema` takes
+ * any string, so Core would answer an empty address with `Internal` and the
+ * whole window would go to the error screen. See
+ * contributing/renderer/forms.md.
+ *
  * It `handles` only `PreconditionFailed`, which Core raises for a repository
  * without a `draft` branch, so the dialog stays open with the address to
  * correct. Every other failure reaches the root error screen, see
@@ -293,6 +300,9 @@ function DownloadDialog({
       },
     });
   const formId = useId();
+
+  const { url } = cloneProjectForm.watch();
+  const blockedBy = emptyFieldsReason(countEmptyFields([url]));
 
   const onDownloadProject: SubmitHandler<CloneProjectProps> = async (props) => {
     setIsCloneRefused(false);
@@ -331,6 +341,7 @@ function DownloadDialog({
             schema={cloneProjectSchema}
             onSubmit={onDownloadProject}
             id={formId}
+            blockedBy={blockedBy}
           >
             <AppField
               form={cloneProjectForm}
@@ -357,11 +368,17 @@ function DownloadDialog({
           </AppForm>
         </DialogBody>
 
-        <DialogFooter>
+        {/* The reason stands under Download, so Cancel keeps the button's own
+        height beside it rather than stretching to the column. */}
+        <DialogFooter className="sm:items-start">
           <DialogClose render={<Button variant="ghost" />}>
             <Trans>Cancel</Trans>
           </DialogClose>
-          <FormActions form={cloneProjectForm} id={formId}>
+          <FormActions
+            form={cloneProjectForm}
+            id={formId}
+            blockedBy={blockedBy}
+          >
             <SubmitButton Icon={Download}>
               <Trans>Download</Trans>
             </SubmitButton>

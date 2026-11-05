@@ -999,33 +999,63 @@ test.describe('Projects', () => {
     ).toBeHidden();
   });
 
-  test('rejects a download with an empty address client-side', async ({
+  test('holds Download on an empty address, untouched or cleared', async ({
+    electronApp,
     mainWindow,
   }) => {
-    // cloneProjectSchema.url is a required string and TextControl normalizes an
-    // empty input to null, so a cleared address is the client-rejectable case:
-    // the resolver flags it before any IPC call, rather than sending an empty
-    // address to Core.
+    // `cloneProjectSchema.url` takes any string, so an untouched press would
+    // send '' to Core, which answers `Internal` and would take the whole window
+    // to the error screen. Download is blocked instead, as Save is on every
+    // form, and nothing reaches Core either way the field is empty: untouched,
+    // which is '', or typed into and cleared, which `TextControl` normalizes to
+    // null.
     await setUserViaIpc(mainWindow);
+    await stubCoreRecord(electronApp, 'core:projects:clone');
 
     await navigate(mainWindow, '#/projects');
     const dialog = await openDownloadDialog(mainWindow);
     // The words the dialog used to go by are gone from it.
     await expect(mainWindow.getByText('Clone a Project by URL')).toBeHidden();
 
-    // On open the address field is not flagged (no validation has run).
     const url = dialog.getByLabel('Address', { exact: true });
+    const download = dialog.getByRole('button', { name: 'Download' });
+
+    // On open the one field is empty, so Download says why it cannot go
+    // through, and the field itself is not flagged, since no validation has
+    // run.
+    await expect(blockedReason(dialog)).toHaveText('1 field is still empty');
+    await expect(download).toBeDisabled();
+    // Blocked means aria-disabled, so the button keeps its place in the tab
+    // order and points at the reason.
+    await expect(download).toHaveAttribute('aria-describedby', /.+/);
     await expect(url).toHaveAttribute('aria-invalid', 'false');
 
-    // Type then clear, so the field value normalizes to null, and submit. The
-    // resolver flags URL invalid and clones nothing: the dialog stays open and
-    // the route stays on the Projects list, proving the reject was client-side.
-    await url.fill('placeholder');
-    await url.fill('');
-    await dialog.getByRole('button', { name: 'Download' }).click();
-    await expect(url).toHaveAttribute('aria-invalid', 'true');
+    // Pressing it, which the control still takes since it is not `disabled`,
+    // sends nothing: the dialog stays open and the route stays on the Projects
+    // list. Enter in the field raises a submit of its own, which is ignored
+    // too.
+    await download.click({ force: true });
+    await url.press('Enter', { noWaitAfter: true });
+    expect(await recordedCoreCalls(electronApp)).toEqual([]);
     await expect(dialog).toBeVisible();
     await expect(mainWindow).toHaveURL(/#\/projects$/);
+    await expect(url).toHaveAttribute('aria-invalid', 'false');
+
+    // Typing into the field and clearing it again is the other empty shape,
+    // which normalizes to null rather than '', and is held the same way.
+    await url.fill('placeholder');
+    await expect(blockedReason(dialog)).toBeHidden();
+    await url.fill('');
+    await expect(blockedReason(dialog)).toHaveText('1 field is still empty');
+    await download.click({ force: true });
+    expect(await recordedCoreCalls(electronApp)).toEqual([]);
+    await expect(dialog).toBeVisible();
+    await expect(mainWindow).toHaveURL(/#\/projects$/);
+
+    // An address frees it again.
+    await url.fill('https://github.com/example/used-cars.git');
+    await expect(blockedReason(dialog)).toBeHidden();
+    await expect(download).toBeEnabled();
   });
 
   test('routes an unexpected delete failure to the root error boundary', async ({
