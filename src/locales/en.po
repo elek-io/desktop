@@ -2760,10 +2760,6 @@ msgstr "Use more than {smallest}."
 msgid "Use the local API to read data from your local Projects. The local API is only accessible on this device. You can access it at <0>{localApiUrl}</0> once it is enabled."
 msgstr "Use the local API to read data from your local Projects. The local API is only accessible on this device. You can access it at <0>{localApiUrl}</0> once it is enabled."
 
-#: src/renderer/routes/user.tsx
-msgid "User"
-msgstr "User"
-
 #: src/renderer/routes/user/profile.tsx
 msgid "User profile"
 msgstr "User profile"
