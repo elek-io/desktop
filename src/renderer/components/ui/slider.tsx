@@ -44,7 +44,7 @@ function Slider({
             key={index}
             // The thumb owns the slider role, so it takes the accessible name
             aria-label={ariaLabel}
-            className="block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm transition-[color,box-shadow] select-none disabled:pointer-events-none disabled:opacity-50"
+            className="block size-4 shrink-0 rounded-full border border-primary bg-background transition-[color,box-shadow] select-none disabled:pointer-events-none disabled:opacity-50"
           />
         ))}
       </SliderPrimitive.Control>
