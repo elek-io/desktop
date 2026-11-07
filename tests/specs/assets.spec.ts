@@ -32,6 +32,8 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import {
+  recordCoreCallProps,
+  recordedCoreCallProps,
   recordedCoreCalls,
   stubCoreHang,
   stubCoreRecord,
@@ -150,6 +152,7 @@ test.describe('Assets', () => {
 
   test('saves a new name and description without replacing the file', async ({
     mainWindow,
+    electronApp,
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
@@ -161,6 +164,10 @@ test.describe('Assets', () => {
 
     await navigateToAssets(mainWindow, project.id);
     await openAsset(mainWindow, 'showroom.png');
+
+    // What the save carries is what says it left the file alone, so the
+    // channel in front of Core is watched while it answers as usual.
+    await recordCoreCallProps(electronApp, 'core:assets:update');
 
     const pane = assetPane(mainWindow);
     await pane.getByLabel('Name', { exact: true }).fill('showroom-evening');
@@ -178,8 +185,20 @@ test.describe('Assets', () => {
       })
     ).toBeVisible();
 
-    // The file itself was not replaced: what Core derives from a file is what
-    // it was, and the Asset is still the one that was opened.
+    // The save asked Core to change the two fields and nothing else: no file
+    // went with it, which is what keeps the stored one.
+    expect(await recordedCoreCallProps(electronApp)).toEqual([
+      {
+        id: asset.id,
+        projectId: project.id,
+        name: 'showroom-evening',
+        description: 'The showroom in the evening',
+        newFilePath: undefined,
+      },
+    ]);
+
+    // And what Core derives from a file is what it was, so the Asset is still
+    // the one that was opened.
     const saved = await readAssetViaIpc(mainWindow, {
       projectId: project.id,
       id: asset.id,

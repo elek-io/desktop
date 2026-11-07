@@ -313,3 +313,44 @@ export async function stubCoreResolve(
     { channel, value }
   );
 }
+
+/**
+ * Record what the app hands a Core channel, while Core keeps answering it.
+ *
+ * Wrapped rather than replaced, because what the call does is part of what a
+ * spec asserts: a save that renames an Asset has to reach Core, and what says
+ * it left the file alone is that the call carried no new file. The handler the
+ * app registered is taken from Electron's own map, since no public API hands
+ * one back and `removeHandler` drops it for good, see
+ * tests/electron-internals.d.ts.
+ */
+export async function recordCoreCallProps(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    const handlers = ipcMain._invokeHandlers;
+    const handler = handlers?.get(ch);
+
+    // Asked before anything is set up, so a helper that cannot watch leaves no
+    // record of its own behind to read as an empty one.
+    if (handlers === undefined || handler === undefined) {
+      throw new Error(
+        `No handler of "${ch}" to watch, so nothing would be recorded`
+      );
+    }
+
+    globalThis.recordedCoreCallProps = [];
+    handlers.set(ch, async (event, ...args) => {
+      globalThis.recordedCoreCallProps?.push(args[0]);
+      return await Promise.resolve(handler(event, ...args));
+    });
+  }, channel);
+}
+
+/** What every call of a `recordCoreCallProps` channel was handed, in order. */
+export async function recordedCoreCallProps(
+  electronApp: ElectronApplication
+): Promise<unknown[]> {
+  return electronApp.evaluate(() => globalThis.recordedCoreCallProps ?? []);
+}

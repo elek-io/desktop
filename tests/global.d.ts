@@ -222,3 +222,11 @@ interface RecordedFileDialogCall {
 
 // eslint-disable-next-line no-var
 declare var fileDialogCalls: RecordedFileDialogCall[] | undefined;
+
+/**
+ * What every call of a watched Core channel was handed, kept in the main
+ * process the same way. A spec reads it to say what the app asked Core for,
+ * such as a save that carried no new file. See tests/helpers/ipc.ts.
+ */
+// eslint-disable-next-line no-var
+declare var recordedCoreCallProps: unknown[] | undefined;
