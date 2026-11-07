@@ -3,8 +3,9 @@
 //
 // Core stores the address as it was set, so an address that carries a
 // credential carries it into the renderer. ci shows the address with any
-// credential in it masked, which means the mask has to come off again on the
-// way back: an address saved with the mask still in it would point at a
+// password in it masked, and over HTTP git takes what stands alone before the
+// `@` as a credential too, so both are hidden. The mask has to come off again
+// on the way back: an address saved with the mask still in it would point at a
 // repository nobody can reach. See contributing/renderer/forms.md.
 
 /**
@@ -24,7 +25,10 @@ export const CREDENTIAL_MASK = '••••••••';
  */
 const AUTHORITY = /^([A-Za-z][A-Za-z0-9+.-]*:\/\/)([^/?#]*)/;
 
-/** Whether git takes the address over HTTP, where a URL carries credentials. */
+/**
+ * Whether the scheme is one git fetches over HTTP, where a URL may carry a
+ * credential of its own.
+ */
 function isHttp(scheme: string): boolean {
   return /^https?:\/\/$/i.test(scheme);
 }
