@@ -55,6 +55,16 @@ const shapes: Array<{ what: string; stored: string; shown: string }> = [
     shown: `https://mara:${CREDENTIAL_MASK}@example.invalid:8443/website.git`,
   },
   {
+    what: 'a port with no credential at all, which is no user and password',
+    stored: 'https://example.invalid:8443/website.git',
+    shown: 'https://example.invalid:8443/website.git',
+  },
+  {
+    what: 'an unencoded at sign inside the password, as curl reads one',
+    stored: 'https://mara:SECRET@keep@example.invalid/website.git',
+    shown: `https://mara:${CREDENTIAL_MASK}@example.invalid/website.git`,
+  },
+  {
     what: 'a query and a fragment behind the path',
     stored: 'https://mara:SECRET@example.invalid/website.git?x=1#f',
     shown: `https://mara:${CREDENTIAL_MASK}@example.invalid/website.git?x=1#f`,
