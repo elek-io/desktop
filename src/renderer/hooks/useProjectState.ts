@@ -39,6 +39,17 @@ export interface ProjectState {
 }
 
 /**
+ * The failures already written to the log file, so one of them reaches it once
+ * however many screens read the same Project's state.
+ *
+ * Two readers of one Project are the normal case: the sidebar's card stands
+ * above every pane, and the Remove dialog of the Project's Settings reads the
+ * same check beside it. A `WeakSet`, so nothing is added to the error itself
+ * and a failure is forgotten with the object that carried it.
+ */
+const logged = new WeakSet<Error>();
+
+/**
  * The one check of a Project's Git repository, and the Releases beside it.
  *
  * Both are reads a card answers itself rather than leaving to the boundary of
@@ -64,14 +75,17 @@ export function useProjectState(project: Project): ProjectState {
   const { error: checkError } = check;
   const { error: releasesError } = releases;
 
-  // Each read the card answers itself reaches the log file with its type,
+  // Each read a screen answers itself reaches the log file with its type,
   // message and stack, as a pane's boundary writes one. One effect each, so a
   // re-render does not write the same record again and neither failure
-  // re-logs because the other arrived.
+  // re-logs because the other arrived, and once per failure however many
+  // screens read the same Project, see `logOnce`.
   useEffect(() => {
-    if (checkError === null) {
+    if (checkError === null || logged.has(checkError)) {
       return;
     }
+
+    logged.add(checkError);
 
     void window.ipc.core.logger.error({
       source: 'desktop',
@@ -81,9 +95,11 @@ export function useProjectState(project: Project): ProjectState {
   }, [checkError]);
 
   useEffect(() => {
-    if (releasesError === null) {
+    if (releasesError === null || logged.has(releasesError)) {
       return;
     }
+
+    logged.add(releasesError);
 
     void window.ipc.core.logger.error({
       source: 'desktop',
