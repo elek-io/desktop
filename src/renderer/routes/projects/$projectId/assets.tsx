@@ -195,25 +195,28 @@ function ProjectAssetsLayout(): ReactElement {
             <Page
               title={t`Assets`}
               count={isListingAssets ? undefined : assets.total}
-              actions={
-                isListingAssets ? (
-                  <></>
-                ) : (
-                  <>
-                    <FilterInput
-                      className="w-65"
-                      name={t`Filter Assets`}
-                      value={filter}
-                      onChange={(event) => setFilter(event.target.value)}
-                    />
-                    <AddAssetButton
-                      variant="default"
-                      buttonRef={addAssetRef}
-                      onFilePicked={onFilePicked}
-                    />
-                  </>
-                )
-              }
+              // The head gains its filter and Add Asset once the Assets are
+              // read, since a Project with none shows the empty state instead
+              // and that state carries the button itself.
+              {...(isListingAssets
+                ? {}
+                : {
+                    actions: (
+                      <>
+                        <FilterInput
+                          className="w-65"
+                          name={t`Filter Assets`}
+                          value={filter}
+                          onChange={(event) => setFilter(event.target.value)}
+                        />
+                        <AddAssetButton
+                          variant="default"
+                          buttonRef={addAssetRef}
+                          onFilePicked={onFilePicked}
+                        />
+                      </>
+                    ),
+                  })}
             >
               {/* The grid spans its pane, so a rule runs from one divider to
               the other and each card carries the text edge itself. */}
