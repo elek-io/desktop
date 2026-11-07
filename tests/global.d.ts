@@ -209,3 +209,16 @@ declare var unsavedChangesClaims: unknown[] | undefined;
  */
 // eslint-disable-next-line no-var
 declare var heldFileRequests: string[] | undefined;
+
+/**
+ * One call the app made to a native file dialog, kept in the main process the
+ * same way. A spec reads the last one to say what the app asked for, since no
+ * test can drive the panel itself. See tests/helpers/dialog.ts.
+ */
+interface RecordedFileDialogCall {
+  dialog: 'open' | 'save';
+  options: unknown;
+}
+
+// eslint-disable-next-line no-var
+declare var fileDialogCalls: RecordedFileDialogCall[] | undefined;

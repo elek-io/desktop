@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
 import { expectNoAxeViolations } from '../helpers/accessibility.js';
+import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import { createComponentViaIpc } from '../helpers/component.js';
 import { navigate } from '../helpers/navigation.js';
 import {
@@ -118,8 +119,9 @@ const firstDayRoutes: {
 ];
 
 /**
- * The Dashboard, both pages of a Project's Settings and the Profile, scanned in
- * both modes at the smallest window the app supports.
+ * The Assets grid with an Asset open beside it, the Dashboard, both pages of a
+ * Project's Settings and the Profile, scanned in both modes at the smallest
+ * window the app supports.
  *
  * Each of them is a form or a ruled row of facts on the panel's own surface, so
  * contrast and a visible focus ring have to hold in light and dark mode alike.
@@ -128,6 +130,19 @@ const projectAndProfileRoutes: {
   name: string;
   arrange: (page: Page) => Promise<string> | string;
 }[] = [
+  // Assets, with one card open, so the grid, the card that is marked current
+  // and the pane's form are all under the scan.
+  {
+    name: '#/projects/:projectId/assets/:assetId',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      const asset = await createAssetViaIpc(page, {
+        projectId: project.id,
+        filePath: makeTempFile(test.info(), 'showroom.png', pngBytes),
+      });
+      return `#/projects/${project.id}/assets/${asset.id}`;
+    },
+  },
   {
     name: '#/projects/:projectId/dashboard',
     arrange: async (page) => {

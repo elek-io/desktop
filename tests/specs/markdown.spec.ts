@@ -473,7 +473,9 @@ test.describe('The markdown field', () => {
       picker.getByRole('textbox', { name: 'Filter Assets' })
     ).toBeVisible();
     const radio = picker.getByRole('radio', {
-      name: `${showroom.name} PNG, 70 Bytes`,
+      // The card names the file, which is the Asset's name with the extension
+      // Core derived from it.
+      name: `${showroom.name}.${showroom.extension} PNG, 70 Bytes`,
       exact: true,
     });
     await radio.focus();

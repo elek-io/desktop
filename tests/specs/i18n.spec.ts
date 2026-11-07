@@ -1,7 +1,13 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
-import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
+import {
+  createAssetViaIpc,
+  deleteOpenAsset,
+  makeTempFile,
+  openAsset,
+  pngBytes,
+} from '../helpers/asset.js';
 import {
   addFieldDefinition,
   createCollection,
@@ -336,10 +342,10 @@ test.describe('The app in one language', () => {
       mainWindow.getByText('Component Teaser deleted', { exact: true })
     ).toBeVisible();
 
-    // The Asset, named the way its teaser names it, by file name.
+    // The Asset, named the way its card names it, by file name.
     await navigateToAssets(mainWindow, project.id);
-    await mainWindow.getByRole('button', { name: 'Delete' }).click();
-    await confirmDialog(mainWindow, 'Delete');
+    await openAsset(mainWindow, 'company-logo.png');
+    await deleteOpenAsset(mainWindow, 'company-logo.png');
     await expect(
       mainWindow.getByText('Asset company-logo.png deleted', { exact: true })
     ).toBeVisible();

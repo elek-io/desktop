@@ -3,13 +3,18 @@ import { expect, type Page } from '@playwright/test';
 import { colors } from '@elek-io/branding';
 
 import { test } from '../fixtures/electronApp.js';
-import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
+import {
+  createAssetViaIpc,
+  deleteOpenAsset,
+  makeTempFile,
+  openAsset,
+  pngBytes,
+} from '../helpers/asset.js';
 import {
   createCollectionViaIpc,
   navigateToCollection,
 } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
-import { confirmDialog } from '../helpers/dialog.js';
 import {
   createEntryViaIpc,
   fillEntryForm,
@@ -423,8 +428,8 @@ test.describe("A Project's sidebar", () => {
       sidebar.getByRole('link', { name: /^Releases\s*0$/ })
     ).toBeVisible();
 
-    await mainWindow.getByRole('button', { name: 'Delete' }).click();
-    await confirmDialog(mainWindow, 'Delete');
+    await openAsset(mainWindow, 'test-asset.png');
+    await deleteOpenAsset(mainWindow, 'test-asset.png');
     await expect(
       sidebar.getByRole('link', { name: /^Assets\s*0$/ })
     ).toBeVisible();

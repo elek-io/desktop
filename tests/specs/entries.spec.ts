@@ -1776,9 +1776,11 @@ test.describe('Entries', () => {
     await expect(
       picker.getByRole('radiogroup', { name: 'Choose Cover' })
     ).toHaveAttribute('data-slot', 'radio-group');
-    // Named by the Asset and what it is, with its preview out of the way.
+    // Named by the Asset's file and what it is, with its preview out of the
+    // way. The card is the Assets grid's own, so it names the file the Asset
+    // is stored as.
     const radio = picker.getByRole('radio', {
-      name: `${showroom.name} PNG, 70 Bytes`,
+      name: `${showroom.name}.${showroom.extension} PNG, 70 Bytes`,
       exact: true,
     });
     await expect(radio).toHaveAttribute('data-slot', 'radio-group-item');
@@ -1925,15 +1927,15 @@ test.describe('Entries', () => {
     // Several Assets, so each card carries a checkbox rather than a radio
     // button, and the count follows what is ticked.
     const first = picker.getByRole('checkbox', {
-      name: `${showroom.name} PNG, 70 Bytes`,
+      name: `${showroom.name}.${showroom.extension} PNG, 70 Bytes`,
       exact: true,
     });
     const second = picker.getByRole('checkbox', {
-      name: `${serviceTeam.name} PNG, 70 Bytes`,
+      name: `${serviceTeam.name}.${serviceTeam.extension} PNG, 70 Bytes`,
       exact: true,
     });
     const third = picker.getByRole('checkbox', {
-      name: `${charging.name} PNG, 70 Bytes`,
+      name: `${charging.name}.${charging.extension} PNG, 70 Bytes`,
       exact: true,
     });
     // shadcn's checkbox on Base UI, not markup of our own.
@@ -1988,7 +1990,9 @@ test.describe('Entries', () => {
       replacePicker.locator('[data-slot="dialog-description"]')
     ).toHaveText(`Images only. The one you choose replaces ${showroom.name}.`);
     await replacePicker
-      .getByRole('radio', { name: `${serviceTeam.name} PNG, 70 Bytes` })
+      .getByRole('radio', {
+        name: `${serviceTeam.name}.${serviceTeam.extension} PNG, 70 Bytes`,
+      })
       .click();
     await replacePicker
       .getByRole('button', { name: 'Choose', exact: true })
@@ -2012,7 +2016,9 @@ test.describe('Entries', () => {
     await choose.click();
     await expect(says).toHaveText('Images only. Up to 2 Assets. 1 chosen.');
     await picker
-      .getByRole('checkbox', { name: `${charging.name} PNG, 70 Bytes` })
+      .getByRole('checkbox', {
+        name: `${charging.name}.${charging.extension} PNG, 70 Bytes`,
+      })
       .click();
     await picker.getByRole('button', { name: 'Choose', exact: true }).click();
     await expect(picker).toBeHidden();

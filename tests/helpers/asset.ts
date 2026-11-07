@@ -1,7 +1,14 @@
-import { type Page, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 
-import type { Asset, CreateAssetProps } from '@elek-io/core';
+import type { Asset, CreateAssetProps, ReadAssetProps } from '@elek-io/core';
+
+import { mainPanel } from './navigation.js';
 
 /**
  * A minimal valid 1x1 PNG.
@@ -83,4 +90,87 @@ export async function createAssetViaIpc(
     async (p) => window.ipc.core.assets.create(p),
     createProps
   );
+}
+
+/**
+ * Read an Asset directly over IPC, bypassing the UI.
+ *
+ * Use it to say what a save did to the stored Asset, such as a rename that
+ * left its file alone: the extension, the type and the size are what Core
+ * derives from the file, so they are what says whether the file changed.
+ */
+export async function readAssetViaIpc(
+  page: Page,
+  props: { projectId: string; id: string }
+): Promise<Asset> {
+  const readProps: ReadAssetProps = {
+    projectId: props.projectId,
+    id: props.id,
+  };
+
+  return page.evaluate(async (p) => window.ipc.core.assets.read(p), readProps);
+}
+
+/**
+ * One card of the Assets grid, by the file name it shows.
+ *
+ * Scoped to the main panel, because the breadcrumb names the open Asset the
+ * same way and carries the link role too.
+ */
+export function assetCard(page: Page, fileName: string): Locator {
+  return mainPanel(page).getByRole('link', {
+    name: new RegExp(`^${fileName.replace(/[.*+?^$()[\]{}|\\]/g, '\\$&')}`),
+  });
+}
+
+/** The Assets grid, which the screen and the Asset picker both draw. */
+export function assetGrid(page: Page): Locator {
+  return page.locator('[data-slot="asset-card"]');
+}
+
+/**
+ * The file names of the grid's cards, in the order the grid shows them.
+ *
+ * Core answers the Assets of a Project in no particular order, so a test that
+ * is about where a card stands reads the order rather than assuming one.
+ */
+export async function assetGridOrder(page: Page): Promise<string[]> {
+  return assetGrid(page).evaluateAll((cards) =>
+    cards.map(
+      (card) =>
+        card
+          .querySelector('[data-slot="asset-card-name"]')
+          ?.textContent?.trim() ?? ''
+    )
+  );
+}
+
+/** The pane beside the grid, which an opened or an added Asset fills. */
+export function assetPane(page: Page): Locator {
+  return page.locator('[data-slot="asset-pane"]');
+}
+
+/**
+ * Open an Asset's pane from its card in the grid, by the file name the card
+ * shows.
+ */
+export async function openAsset(page: Page, fileName: string): Promise<void> {
+  await assetCard(page, fileName).click();
+  await expect(
+    assetPane(page).getByRole('button', { name: `More for ${fileName}` })
+  ).toBeVisible();
+}
+
+/**
+ * Delete the Asset whose pane is open, through its More menu and the confirm
+ * ci rules for deleting.
+ */
+export async function deleteOpenAsset(
+  page: Page,
+  fileName: string
+): Promise<void> {
+  await page.getByRole('button', { name: `More for ${fileName}` }).click();
+  await page.getByRole('menuitem', { name: 'Delete Asset' }).click();
+  await expect(page.getByText(`Delete ${fileName}?`)).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Asset' }).click();
 }
