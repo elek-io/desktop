@@ -231,24 +231,36 @@ test.describe('Branding', () => {
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
 
     for (const theme of ['light', 'dark'] as const) {
-      await navigate(mainWindow, `#/projects/${project.id}/settings/general`);
+      await navigate(mainWindow, '#/user/profile');
       await setTheme(mainWindow, theme);
       await expect(
         mainWindow.locator('input[data-slot="input"]').first()
       ).toBeVisible();
 
       // Red as text is a token of its own, not the fill of the destructive
-      // button, so one of each has to be on screen. Emptying the required
-      // description and submitting surfaces the message, and it leaves the
-      // input measured below valid. The theme is set first, because setTheme
-      // reloads the renderer and would reset the form.
-      await mainWindow.getByLabel('Description', { exact: true }).fill('');
+      // button, so one of each has to be on screen. An address Core refuses
+      // surfaces the message, and it leaves the input measured below valid.
+      // The theme is set first, because setTheme reloads the renderer and
+      // would reset the form.
+      await mainWindow
+        .getByLabel('Email address', { exact: true })
+        .fill('not-an-address');
       await mainWindow.getByRole('button', { name: 'Save' }).click();
       await expect(
         mainWindow.locator('p[data-slot="form-message"]').first()
+      ).toBeVisible();
+
+      // The red fill, which is what the question asked before changes nobody
+      // saved are lost puts on its Discard. The form is still unsaved, so
+      // leaving the page is what asks it.
+      await mainWindow
+        .getByRole('banner')
+        .getByRole('link', { name: 'elek.io Desktop, Projects' })
+        .click();
+      await expect(
+        mainWindow.getByRole('button', { name: 'Discard' })
       ).toBeVisible();
 
       const measured = await mainWindow.evaluate(() => {
@@ -284,8 +296,8 @@ test.describe('Branding', () => {
         };
         return {
           surface,
-          // The one primary button of the page, and the destructive one that
-          // deletes the Project.
+          // The one primary button of the page, and the destructive one of the
+          // question that stands in front of it.
           primary: read('button.bg-primary'),
           destructive: read('button.bg-destructive'),
           input: read('input[data-slot="input"]'),
@@ -335,6 +347,9 @@ test.describe('Branding', () => {
           over(parseColor(measured.error.background), page)
         )
       ).toBeGreaterThanOrEqual(4.5);
+
+      // Keep what was typed, so the next pass starts on the same page.
+      await mainWindow.getByRole('button', { name: 'Keep editing' }).click();
     }
   });
 

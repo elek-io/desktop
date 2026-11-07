@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -125,11 +126,13 @@ function DashboardFacts({ project }: { project: Project }): ReactElement {
   const otherFiles = isListingAssets ? 0 : assets.total - images;
   const { supported, default: defaultLanguage } = project.settings.language;
   // The default language named as the default, then the others, joined the way
-  // the language the app is read in joins a list. Each name comes from the
-  // system's own language data rather than from the catalog, which is why it
-  // is a placeholder in the one sentence that words it, see `languageName`.
+  // the language the app is read in joins a list, which is the catalog in use
+  // rather than whatever language the computer itself is set to. Each name
+  // comes from the system's own language data rather than from the catalog,
+  // which is why it is a placeholder in the sentence that words it, see
+  // `languageName`.
   const defaultName = languageName(defaultLanguage);
-  const languageList = new Intl.ListFormat(undefined, {
+  const languageList = new Intl.ListFormat(i18n.locale, {
     // Intl's own option names, which nobody reads.
     // eslint-disable-next-line lingui/no-unlocalized-strings
     style: 'long',

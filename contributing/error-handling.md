@@ -91,7 +91,7 @@ Each card runs its own two reads, which is what lets a slow or failing one hold 
 - Which line the check shows comes from `checkRefusal` in [`lib/sync.ts`](/src/renderer/lib/sync.ts): `Unauthorized` is a repository that answered and refused, which gets its own line, and everything else is one that could not be reached. Sync and Check now are the retry, so nothing else has to offer one. A failed Releases read says so where the last Release stands.
 
 - **The Remove confirm never says there is nothing to lose when it cannot tell.** A Project whose Git repository cannot be reached is exactly the one whose changes have not left this computer, so a failed check reads as "Changes that aren't synced may be lost", never as a count of zero. The count itself is the check's `ahead`.
-- **A failure reaches the log file once**, however many of the three read the same Project. Each effect keeps the errors it has written in a `WeakSet`, so the sidebar's card and the Remove confirm of the same Project do not write the same record twice.
+- **One failure is one record.** Each effect keeps the errors it has written in a `WeakSet`, so neither a re-render nor a second screen reading the same error writes it again. A read that runs again and fails again is its own failure and its own record, which is what a second reader of a stale query brings about.
 
 Nothing else reads the check. A screen that needs it later shows its failure as a state the same way, through `useProjectState`, rather than catching a read of its own.
 

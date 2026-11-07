@@ -42,26 +42,25 @@ async function factsOf(page: Page): Promise<string[][]> {
   );
 }
 
-/**
- * Whether the newest change's marker is drawn in one of ci's colors.
- *
- * The value comes from the brand package rather than from a copy of it here,
- * so the assertion follows the token. Light mode, which the caller sets.
- */
-async function isMarkerColored(
-  page: Page,
-  token: 'border' | 'card'
-): Promise<boolean> {
-  const shown = await page
-    .locator('[data-slot="change-row"]')
-    .first()
-    .locator('span[aria-hidden="true"]')
-    .evaluate((node) => getComputedStyle(node).backgroundColor);
-
-  return (
-    toBytes(parseColor(shown)) ===
-    toBytes(parseColor(colors.light[token].oklch))
+/** The fill of the newest change's marker, as bytes a token compares to. */
+async function markerFill(page: Page): Promise<[number, number, number]> {
+  return toBytes(
+    parseColor(
+      await page
+        .locator('[data-slot="change-row"]')
+        .first()
+        .locator('span[aria-hidden="true"]')
+        .evaluate((node) => getComputedStyle(node).backgroundColor)
+    )
   );
+}
+
+/**
+ * One of ci's colors, read from the brand package rather than copied here, so
+ * the assertion follows the token. Light mode, which the caller sets.
+ */
+function brandColor(token: 'border' | 'card'): [number, number, number] {
+  return toBytes(parseColor(colors.light[token].oklch));
 }
 
 test.describe('The Dashboard', () => {
@@ -108,7 +107,7 @@ test.describe('The Dashboard', () => {
     expect(facts).toEqual([
       ['Entries', '1', 'in 1 Collection'],
       ['Assets', '1', '1 image and 0 other files'],
-      ['Languages', '2', 'English, the default, and German'],
+      ['Languages', '2', 'English, the default and German'],
       ['Last Release', 'None yet', ''],
     ]);
 
@@ -194,7 +193,7 @@ test.describe('The Dashboard', () => {
     // Without a Git repository there is nothing to sync with, so a row claims
     // neither state: its marker is the one that says nothing, in the border
     // color rather than hollow or filled.
-    expect(await isMarkerColored(mainWindow, 'border')).toBe(true);
+    expect(await markerFill(mainWindow)).toEqual(brandColor('border'));
 
     // With a reachable Git repository the check answers, and a change that has
     // not reached it takes the hollow marker: the pane's own surface inside a
@@ -214,12 +213,21 @@ test.describe('The Dashboard', () => {
     await expect(mainWindow.getByText('1 change not synced')).toBeVisible({
       timeout: 15000,
     });
-    expect(await isMarkerColored(mainWindow, 'card')).toBe(true);
+    expect(await markerFill(mainWindow)).toEqual(brandColor('card'));
     const border = await mainWindow
       .locator('[data-slot="change-row"]')
       .first()
       .locator('span[aria-hidden="true"]')
-      .evaluate((node) => getComputedStyle(node).borderTopWidth);
-    expect(border).toBe('1.5px');
+      .evaluate((node) => ({
+        width: getComputedStyle(node).borderTopWidth,
+        color: getComputedStyle(node).borderTopColor,
+      }));
+    // A border there at all is what makes it hollow rather than filled. Its
+    // width is read as a whole device pixel, so the 1.5 px it is drawn at is
+    // not what comes back.
+    expect(border.width).not.toBe('0px');
+    expect(toBytes(parseColor(border.color))).toEqual(
+      toBytes(parseColor(colors.light['foreground'].oklch))
+    );
   });
 });
