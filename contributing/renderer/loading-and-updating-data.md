@@ -254,7 +254,7 @@ A failed write and a component that throws are not a read: they still replace th
 
 A Project's card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app whose own options carry `throwOnError: false`, it retries nothing, and a card reads it with a plain `useQuery` rather than `useQueryNoError`. The card's read of the Releases is answered the same way, opted out for that read alone, since nothing else catches a failed `releases.list`. What that buys, and what each of them logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-reads-a-screen-catches-a-project-cards-own).
 
-Two cards draw it, the sidebar's for the open Project and one per Project on the Projects page, and both read it through [`useProjectState`](../../src/renderer/hooks/useProjectState.ts), which is also where that log is written. Each card runs its own, so a slow or failing read holds up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder, and one Project whose Releases cannot be read leaves every other card standing.
+Four places draw it, the sidebar's card for the open Project, one card per Project on the Projects page, the Remove confirm of a Project's Settings and the change rows of its Dashboard, and all of them read it through [`useProjectState`](../../src/renderer/hooks/useProjectState.ts), which is also where that log is written. Each one runs its own, so a slow or failing read holds up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder, and one Project whose Releases cannot be read leaves every other card standing.
 
 ### What a Project card reads
 
@@ -269,7 +269,7 @@ Two cards draw it, the sidebar's for the open Project and one per Project on the
 
 The check refetches every three minutes, as it did before the card drew it, and Check now refetches at once.
 
-**The two cards are the only readers of that query**, through the one hook, and they are keyed per Project, so each Project has one check however many cards are on screen. The History reads neither `getChanges` nor `ahead` and `behind`, and it lists the Project's commits with no group for what is not synced, so there is no second number to agree with today. A History that marks what is synced and what is not is to read this same query, so that both show one number.
+**Those four are the only readers of that query**, through the one hook, and it is keyed per Project, so each Project has one check however many of them are on screen. The History itself reads neither `getChanges` nor `ahead` and `behind`, and it lists the Project's commits with no group for what is not synced, so there is no second number to agree with today. The Dashboard's change rows mark what is synced off this same query, which is what keeps their markers and the card's count behind one number.
 
 | Line                                     | Which card shows it                                                                                            |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |

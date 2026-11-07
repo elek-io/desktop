@@ -991,7 +991,7 @@ test.describe('Projects', () => {
     ).toBeVisible();
   });
 
-  test('routes a project with unpushed commits through the force-delete modal', async ({
+  test('removes a Project whose changes are not synced from one confirm', async ({
     mainWindow,
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
@@ -1011,9 +1011,9 @@ test.describe('Projects', () => {
       url: remote.url,
     });
 
-    // One real local write moves work ahead of the remote, so a guarded delete
-    // would now destroy unsynchronized work. This is the state that separates
-    // this case from the local-only (no origin) force-delete above.
+    // One real local write moves work ahead of the remote, so the removal would
+    // now take work that has not left this computer. This is the state that
+    // separates this case from the Project without a Git repository above.
     await createCollectionViaIpc(mainWindow, { projectId: project.id });
 
     await navigate(mainWindow, `#/projects/${project.id}/settings/general`);

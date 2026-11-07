@@ -74,13 +74,14 @@ Two rules follow for a screen:
 
 ### The reads a screen catches: a Project card's own
 
-A Project's card answers its own failed reads itself, rather than leaving them to a boundary. What it reads is a state of the Project it has to show, whether the Git repository can be reached at all and which Release it is at, and the sidebar's card stands above every pane anyway. Three places draw such a state and all of them read through [`useProjectState`](/src/renderer/hooks/useProjectState.ts), so none of them writes an `isError` branch of its own:
+A Project's card answers its own failed reads itself, rather than leaving them to a boundary. What it reads is a state of the Project it has to show, whether the Git repository can be reached at all and which Release it is at, and the sidebar's card stands above every pane anyway. Four places draw such a state and all of them read through [`useProjectState`](/src/renderer/hooks/useProjectState.ts), so none of them writes an `isError` branch of its own:
 
-| Card               | Where                                                                                                                          | Shows                                                                                                                                      |
+| Whose state        | Where                                                                                                                          | Shows                                                                                                                                      |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | The open Project's | The sidebar, in [`project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx)                                          | Every state line, plus when it last checked and a sync of its own that failed                                                              |
 | One per Project    | Each cell of the Projects page, in [`project-card.tsx`](/src/renderer/components/project-card.tsx)                             | The same state lines, without the check's own line and without a failed sync, which only the open Project has                              |
 | The open Project's | The Remove confirm of its Settings, in [`settings/general.tsx`](/src/renderer/routes/projects/$projectId/settings/general.tsx) | What removing cannot bring back: how many changes are not synced, or, where the check failed or has not answered, that changes may be lost |
+| The open Project's | The change rows of its Dashboard, in [`dashboard.tsx`](/src/renderer/routes/projects/$projectId/dashboard.tsx)                | Whether each change has reached the Git repository, and neither state where the check failed or has not answered, see `syncStateOf`        |
 
 Each card runs its own two reads, which is what lets a slow or failing one hold up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder. It matters most on that page, which draws one card per Project, so a read left to the boundary would empty the page of every Project because one of them could not be read.
 
@@ -93,7 +94,7 @@ Each card runs its own two reads, which is what lets a slow or failing one hold 
 - **The Remove confirm never says there is nothing to lose when it cannot tell.** A Project whose Git repository cannot be reached is exactly the one whose changes have not left this computer, so a failed check reads as "Changes that aren't synced may be lost", never as a count of zero. The count itself is the check's `ahead`.
 - **One failure is one record.** Each effect keeps the errors it has written in a `WeakSet`, so neither a re-render nor a second screen reading the same error writes it again. A read that runs again and fails again is its own failure and its own record, which is what a second reader of a stale query brings about.
 
-Nothing else reads the check. A screen that needs it later shows its failure as a state the same way, through `useProjectState`, rather than catching a read of its own.
+Every reader of the check is in the table above. A screen that needs it later shows its failure as a state the same way, through `useProjectState`, rather than catching a read of its own.
 
 ### Expected errors: handled in place
 

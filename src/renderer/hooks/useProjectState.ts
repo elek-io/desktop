@@ -43,9 +43,10 @@ export interface ProjectState {
  * however many screens read the same Project's state.
  *
  * Two readers of one Project are the normal case: the sidebar's card stands
- * above every pane, and the Remove dialog of the Project's Settings reads the
- * same check beside it. A `WeakSet`, so nothing is added to the error itself
- * and a failure is forgotten with the object that carried it.
+ * above every pane, and the screen beside it reads the same check, which is
+ * the Remove dialog of the Project's Settings and the change rows of its
+ * Dashboard. A `WeakSet`, so nothing is added to the error itself and a
+ * failure is forgotten with the object that carried it.
  */
 const logged = new WeakSet<Error>();
 
