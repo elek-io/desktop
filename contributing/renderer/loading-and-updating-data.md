@@ -454,6 +454,12 @@ typed in between would stay on screen while the form counted as clean, so Save
 would be unavailable and leaving would ask nothing, see
 [forms.md](./forms.md#a-form-is-read-only-while-it-saves).
 
+**A reset that has to drop a value passes `{ keepDirtyValues: false }`.** The
+Asset pane is the one form that does, because what it holds is not all stored:
+Replace file puts the picked path into the form, and the save that carried it to
+Core leaves nothing pending. The value it keeps is what the save brought back,
+and no edit can be newer, since the form took none while the save ran.
+
 ### Mutation Metadata
 
 Every mutation carries both `meta` and `toasts`, and `customMutationOptions` from [`util.ts`](../../src/renderer/queries/util.ts) is what requires them. A `toasts.success` of `null` says a change is its own answer and shows none, which only `user.setPreference` uses, see [error-handling.md](../error-handling.md#expected-errors-handled-in-place). It also adds `throwOnError: true`, so a failure propagates to the nearest error boundary, and logs every mutation with Core:

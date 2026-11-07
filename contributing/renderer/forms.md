@@ -679,7 +679,7 @@ draws a label, a rule, a warning, a description or an error.
 <AppField
   form={assetForm}
   name="name"
-  label={<Trans>Asset name</Trans>}
+  label={<Trans>Name</Trans>}
   description={<Trans>What this Asset is called in your Project.</Trans>}
 >
   {({ field, controlProps }) => (

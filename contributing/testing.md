@@ -99,9 +99,30 @@ The `tests` folder is type-checked by `pnpm check-types:node` under the strictes
 
 ### Accessibility as a testing contract
 
-An element a test drives must expose a proper accessible role and name, so a role and name locator finds it. When an interactable has no accessible name (a bare icon button, an icon-only toggle), fix the source rather than reaching for a brittle structural locator. Give it an `sr-only` label or an `aria-label`, mirroring the icon buttons in [`asset-teaser.tsx`](../src/renderer/components/asset-teaser.tsx) (`<span className="sr-only">…</span>` inside the button). One fix serves screen-reader users and stable tests at once, and it chips away at the axe violations blocking the fixture's deferred assertion. This is how the language-chip remove button became `getByRole('button', { name: 'Remove en' })`.
+An element a test drives must expose a proper accessible role and name, so a role and name locator finds it. When an interactable has no accessible name (a bare icon button, an icon-only toggle), fix the source rather than reaching for a brittle structural locator. Give it an `sr-only` label or an `aria-label`, mirroring the icon buttons of an Asset's pane in [`asset-pane.tsx`](../src/renderer/components/asset-pane.tsx) (`aria-label={t`More for ${fileName}`}`, which names each of them with the Asset it is about). One fix serves screen-reader users and stable tests at once, and it chips away at the axe violations blocking the fixture's deferred assertion. This is how the language-chip remove button became `getByRole('button', { name: 'Remove en' })`.
 
 The translatable-field dialog trigger in [`translatable-field.tsx`](../src/renderer/components/ui/translatable-field.tsx) got the same treatment. In a multi-language Project every translatable field renders a `LanguagesIcon` button that opens the per-language translations dialog, and it used to render that button with no accessible name. It now carries `<span className="sr-only">Edit translations for {label}</span>`, named per field, so a test opens a specific field's dialog with `getByRole('button', { name: 'Edit translations for Title' })`. This is what lets `fillEntryForm` fill both languages of a translatable field. There is one trigger now rather than three variants of it, since a generated field and a hand-written one go through the same wrapper.
+
+## What has to be checked by hand
+
+A native dialog is drawn by the system, so no test can type in one or read what
+it shows. A spec asserts what the app asked the dialog for, through
+`stubFileDialog`'s record (`lastSaveDialogOptions`, `lastOpenDialogOptions` in
+[`tests/helpers/dialog.ts`](../tests/helpers/dialog.ts)), and the panel itself
+is checked by hand once per platform after a change to what the app asks for.
+
+**Save a copy of an Asset**, from the pane beside the Assets grid. Add an Asset
+whose name is not the file's own, so the offered name and the picked file's name
+differ, then press Save a copy and read the panel before saving:
+
+| Platform | What to check                                                                                                                                                                                                                                                                                        |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS    | The name field holds the Asset's name with its extension, once and whole. The panel's own setting for showing extensions decides whether the extension is drawn in the field or behind it, and either way the saved file carries it. There is no format chooser, since the dialog carries one filter |
+| Windows  | The name field holds the same name, and the type dropdown offers that one type. Saving over an existing file asks before it overwrites                                                                                                                                                               |
+| Linux    | The name field holds the same name, and the filter above the file list is the Asset's own type                                                                                                                                                                                                       |
+
+On every platform the file is saved where it was picked, under the name the
+panel showed, and the toast says the Asset was saved to the computer.
 
 ## CI
 
