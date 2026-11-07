@@ -170,6 +170,22 @@ export function languageName(language: SupportedLanguage): string {
 }
 
 /**
+ * A language by its own name, such as "English" for `en` and "Deutsch" for
+ * `de`, whichever language the app is read in.
+ *
+ * For the list somebody picks the app's language from: ci names each one in its
+ * own language, so a person finds theirs even while the app speaks one they
+ * cannot read. A sentence that speaks about a language uses `languageName`
+ * instead, which names it in the language of the sentence.
+ */
+export function ownLanguageName(language: string): string {
+  return (
+    new Intl.DisplayNames([language], { type: 'language' }).of(language) ??
+    language
+  );
+}
+
+/**
  * Often used by tailwind components to join multiple strings of classes
  *
  * @param classes Array of classes to join

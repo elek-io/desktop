@@ -63,7 +63,9 @@ function mutationLogAttributes(
  * `toasts` is required, and it is what the two notifications say. Each sentence
  * is written for the person in front of the app and read from the message
  * catalog when the toast shows, never built from the call, so no toast can read
- * as a method and an object. A mutation without it does not compile.
+ * as a method and an object. A mutation without it does not compile. A success
+ * `null` is the one way out, for a change the person watches happen, which is
+ * its own answer. A failure always has words.
  *
  * It adds `throwOnError: true` to propagate errors to the nearest error boundary (__root.tsx).
  *
@@ -103,12 +105,18 @@ export function customMutationOptions<
      * through `translateContentFromCache`. It is called before this mutation's
      * own `onSuccess`, so a delete, whose answer is empty, reads the object as
      * that handler found it.
+     *
+     * `null` where the change is its own answer, such as the app's words
+     * changing language, so nothing says in a corner what somebody just
+     * watched happen. ci keeps a toast for an outcome nobody can see.
      */
-    success: (
-      data: TData,
-      variables: TVariables,
-      context: MutationFunctionContext
-    ) => string;
+    success:
+      | ((
+          data: TData,
+          variables: TVariables,
+          context: MutationFunctionContext
+        ) => string)
+      | null;
     /** What did not happen. It names no call, type, id or git output. */
     error: (variables: TVariables) => string;
   };
@@ -139,7 +147,9 @@ export function customMutationOptions<
       } else {
         // Before `originalOnSuccess` below, so a delete's sentence reads the
         // object it removed out of the cache as that handler found it.
-        toast.success(toasts.success(data, variables, context));
+        if (toasts.success !== null) {
+          toast.success(toasts.success(data, variables, context));
+        }
 
         await window.ipc.core.logger.info({
           source: 'desktop',

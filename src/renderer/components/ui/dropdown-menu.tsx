@@ -1,7 +1,7 @@
 'use client';
 
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
-import { ChevronRightIcon, CheckIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@renderer/lib/utils';
@@ -116,11 +116,19 @@ function DropdownMenuSub({
 function DropdownMenuSubTrigger({
   className,
   inset,
+  side = 'right',
   children,
   ...props
 }: MenuPrimitive.SubmenuTrigger.Props & {
   inset?: boolean;
+  /**
+   * Which way the submenu opens, so the chevron points the way it goes. Pass
+   * the same side to the `DropdownMenuSubContent` it opens.
+   */
+  side?: 'left' | 'right';
 }): React.JSX.Element {
+  const Chevron = side === 'left' ? ChevronLeftIcon : ChevronRightIcon;
+
   return (
     <MenuPrimitive.SubmenuTrigger
       data-slot="dropdown-menu-sub-trigger"
@@ -132,7 +140,7 @@ function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <ChevronRightIcon className="ml-auto" />
+      <Chevron className="ml-auto" />
     </MenuPrimitive.SubmenuTrigger>
   );
 }
