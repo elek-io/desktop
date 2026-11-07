@@ -263,7 +263,9 @@ export function HeaderTrail(): ReactElement {
                   {isPage ? (
                     <PageCrumb label={crumb.label} />
                   ) : (
-                    <BreadcrumbLink render={<Link to={crumb.path} />}>
+                    <BreadcrumbLink
+                      render={<Link to={crumb.to ?? crumb.path} />}
+                    >
                       {crumb.label}
                     </BreadcrumbLink>
                   )}

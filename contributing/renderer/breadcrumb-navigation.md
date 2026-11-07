@@ -153,6 +153,8 @@ export function HeaderTrail(): ReactElement {
 
 ## What the trail holds, and what gives way
 
-The trail names only what opens: Projects, the Project, a page or a Collection, then the item, such as an Entry by its title. A route that opens no page of its own registers no crumb, which is why the layout under Collections, the layout under the user and the page that edits an Entry register none: the Collection's own layout names the Collection, the Profile names itself, and the Entry's layout names the Entry.
+The trail names only what opens: Projects, the Project, a page or a Collection, then the item, such as an Entry by its title. A route that opens no page of its own registers no crumb, which is why the layout under Collections and the page that edits an Entry register none: the Collection's own layout names the Collection and the Entry's layout names the Entry.
+
+**A crumb may lead somewhere other than the route it stands for**, through the third argument of `useBreadcrumb`. The one crumb that needs it is the Projects step the Profile's trail starts on: the trail is built from the current route's own matches, and the Profile sits outside the Projects route, so no match of its own carries that step. The layout under the user registers it instead, since `/user` opens no page of its own.
 
 The last crumb is the current page rather than a link, and it is the one crumb that gives way. The trail never wraps, because it sits in a bar of 48 px with the window controls above it and the main panel right below, so a name too long for the header is cut with an ellipsis instead. `PageCrumb` measures its own box with a `ResizeObserver`, and while the name is cut it carries the whole name in its `title` and takes the keyboard, so a pointer sees it on hover and a screen reader reads all of it either way. Only those attributes change with the measurement, never the element, so the observer is never handed a crumb that is no longer on screen.
