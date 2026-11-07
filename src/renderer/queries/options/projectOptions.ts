@@ -1,6 +1,11 @@
-import { queryOptions } from '@tanstack/react-query';
+import { t } from '@lingui/core/macro';
+import {
+  queryOptions,
+  type MutationFunctionContext,
+} from '@tanstack/react-query';
 
 import type {
+  DeleteProjectProps,
   ListProjectsProps,
   PaginatedList,
   Project,
@@ -29,6 +34,23 @@ export async function fetchProjectChanges(id: string): Promise<ProjectChanges> {
   return await window.ipc.core.projects.getChanges({ id });
 }
 
+/**
+ * The name a deleted Project was last shown under, or `undefined` when the
+ * cache no longer holds it.
+ *
+ * A delete answers with nothing, so the Project itself is only still reachable
+ * under its own read key. The toast is built before the mutation's own
+ * `onSuccess` writes to the cache, see `queries/util.ts`.
+ */
+function deletedProjectName(
+  variables: DeleteProjectProps,
+  context: MutationFunctionContext
+): string | undefined {
+  return context.client.getQueryData(
+    projectOptions.read({ id: variables.id }).queryKey
+  )?.name;
+}
+
 export const projectOptions = {
   create: customMutationOptions({
     mutationFn: window.ipc.core.projects.create,
@@ -36,6 +58,13 @@ export const projectOptions = {
     meta: {
       method: 'create',
       objectType: 'project',
+    },
+    toasts: {
+      success: (createdProject) => {
+        const { name } = createdProject;
+        return t`Project ${name} created`;
+      },
+      error: () => t`Could not create the Project`,
     },
     onSuccess: (createdProject, _variables, _result, context) => {
       // Add Project to cache individually
@@ -77,6 +106,13 @@ export const projectOptions = {
       method: 'update',
       objectType: 'project',
     },
+    toasts: {
+      success: (updatedProject) => {
+        const { name } = updatedProject;
+        return t`Project ${name} saved`;
+      },
+      error: () => t`Could not save the Project`,
+    },
     onSuccess: (updatedProject, _variables, _result, context) => {
       // Update Project in cache individually
       context.client.setQueryData(
@@ -96,6 +132,18 @@ export const projectOptions = {
     meta: {
       method: 'delete',
       objectType: 'project',
+    },
+    toasts: {
+      success: (_deletedProject, variables, context) => {
+        const name = deletedProjectName(variables, context);
+
+        if (name === undefined) {
+          return t`Project deleted`;
+        }
+
+        return t`Project ${name} deleted`;
+      },
+      error: () => t`Could not delete the Project`,
     },
     onSuccess: (_deletedProject, variables, _result, context) => {
       // Remove Project from cache individually
@@ -141,6 +189,13 @@ export const projectOptions = {
       method: 'clone',
       objectType: 'project',
     },
+    toasts: {
+      success: (clonedProject) => {
+        const { name } = clonedProject;
+        return t`Project ${name} cloned`;
+      },
+      error: () => t`Could not clone the Project`,
+    },
     onSuccess: (clonedProject, _variables, _result, context) => {
       // Add Project to cache individually
       context.client.setQueryData(
@@ -155,6 +210,19 @@ export const projectOptions = {
       );
     },
   }),
+  /**
+   * The check of the Git repository the Project card runs, on its own every
+   * three minutes and at once when Check now is pressed.
+   *
+   * A read the card answers itself. `throwOnError` is off here rather than at
+   * the card, because nothing else reads it, and nothing retries, so a
+   * repository that cannot be reached or refused access becomes a state line in
+   * the card at once, rather than three retries of waiting and then the root
+   * error screen. The card logs the failure the way a pane's boundary logs one,
+   * so it still reaches the log file, and Sync and Check now are the retry. The
+   * card's reads are the exception to the rule that a screen does not catch a
+   * failed read, see contributing/error-handling.md.
+   */
   getChanges: (project?: Project) =>
     queryOptions({
       enabled: project !== undefined && project.remoteOriginUrl !== null,
@@ -162,7 +230,8 @@ export const projectOptions = {
       queryFn: async () => {
         return await fetchProjectChanges(project!.id);
       },
-      throwOnError: true,
+      throwOnError: false,
+      retry: false,
       refetchInterval: 180000, // Refetch changes every 3 minutes
     }),
   synchronize: customMutationOptions({
@@ -170,6 +239,10 @@ export const projectOptions = {
     meta: {
       method: 'synchronize',
       objectType: 'project',
+    },
+    toasts: {
+      success: () => t`Changes synced`,
+      error: () => t`Sync failed`,
     },
     onSuccess: async (_data, variables, _result, context) => {
       // On synchronization anything inside the Project may have changed
@@ -189,6 +262,10 @@ export const projectOptions = {
     meta: {
       method: 'update',
       objectType: 'project',
+    },
+    toasts: {
+      success: () => t`Git repository saved`,
+      error: () => t`Could not save the Git repository`,
     },
     onSuccess: async (_data, variables, _result, context) => {
       // Remote origin URL is part of the Project data

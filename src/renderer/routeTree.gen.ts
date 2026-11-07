@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as UserRouteImport } from './routes/user'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects/$projectId'
 import { Route as ProjectsCreateRouteImport } from './routes/projects/create'
@@ -55,6 +56,11 @@ const ProjectsRoute = ProjectsRouteImport.update({
 const UserRoute = UserRouteImport.update({
   id: '/user',
   path: '/user',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/user': typeof UserRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/create': typeof ProjectsCreateRoute
   '/user/profile': typeof UserProfileRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/welcome': typeof WelcomeRoute
   '/projects/create': typeof ProjectsCreateRoute
   '/user/profile': typeof UserProfileRoute
   '/projects': typeof ProjectsIndexRoute
@@ -291,6 +299,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/user': typeof UserRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/create': typeof ProjectsCreateRoute
   '/user/profile': typeof UserProfileRoute
@@ -327,6 +336,7 @@ export interface FileRouteTypes {
     | '/'
     | '/projects'
     | '/user'
+    | '/welcome'
     | '/projects/$projectId'
     | '/projects/create'
     | '/user/profile'
@@ -359,6 +369,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/welcome'
     | '/projects/create'
     | '/user/profile'
     | '/projects'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/'
     | '/projects'
     | '/user'
+    | '/welcome'
     | '/projects/$projectId'
     | '/projects/create'
     | '/user/profile'
@@ -422,6 +434,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   UserRoute: typeof UserRouteWithChildren
+  WelcomeRoute: typeof WelcomeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/user'
       fullPath: '/user'
       preLoaderRoute: typeof UserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/': {
@@ -831,6 +851,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   UserRoute: UserRouteWithChildren,
+  WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

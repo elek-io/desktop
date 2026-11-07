@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { FileQuestion, FolderArchive } from 'lucide-react';
 import { forwardRef, useEffect, useRef } from 'react';
 
@@ -37,7 +38,19 @@ function toLocalFileSrc(absolutePath: string): string {
 
 export function AssetDisplay(
   props: Asset & {
+    /**
+     * Classes for the box the Asset is drawn in, which is what gives it its
+     * size. A caller that names none gets a 4 by 3 box as wide as it has room
+     * for. The Asset fills that box, so a size on the box reaches what is
+     * drawn in it, including the icon that stands for a type with no preview.
+     */
     className?: string | undefined;
+    /**
+     * How the Asset fills its box. ci's previews fill theirs, so a field's row
+     * and a picker's card ask for `cover`, while an Asset shown whole keeps
+     * its own shape with `contain`, which is the default.
+     */
+    fit?: 'contain' | 'cover';
     /**
      * If set to true, GIFs will be displayed as static images (no animation).
      * Video and audio files will be displayed without controls and not be played automatically.
@@ -45,8 +58,20 @@ export function AssetDisplay(
     static?: boolean;
   }
 ): React.JSX.Element {
+  const { t } = useLingui();
+
   const absolutePath = toLocalFileSrc(props.absolutePath);
   const ref = useRef(null);
+
+  // The caller's classes land on the box rather than on the media inside it,
+  // so a row or a card that asks for 64 by 40 px gets a box of that size
+  // instead of a 4 by 3 one around it. `overflow-hidden` keeps an Asset that
+  // fills the box inside the box's own corners.
+  const box = cn('flex aspect-4/3 basis-full overflow-hidden', props.className);
+  const media = cn(
+    'h-full w-full',
+    props.fit === 'cover' ? 'object-cover' : 'object-contain'
+  );
 
   if (props.mimeType === 'image/gif' && props.static === true) {
     const gif = new Image();
@@ -74,7 +99,7 @@ export function AssetDisplay(
             ref={forwardedRef}
             width={gif.width}
             height={gif.height}
-            className={cn('h-full w-full object-contain', props.className)}
+            className={media}
           />
         );
       }
@@ -82,19 +107,21 @@ export function AssetDisplay(
     StaticGifCanvas.displayName = 'StaticGifCanvas';
 
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={box}>
         <StaticGifCanvas ref={ref} />
       </div>
     );
   }
 
+  const assetName = props.name;
+
   if (props.mimeType.startsWith('image/')) {
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={box}>
         <img
           src={absolutePath}
-          alt={`Asset "${props.name}"`}
-          className={cn('h-full w-full object-contain', props.className)}
+          alt={t`Asset "${assetName}"`}
+          className={media}
         />
       </div>
     );
@@ -102,12 +129,12 @@ export function AssetDisplay(
 
   if (props.mimeType.startsWith('video/')) {
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={box}>
         <video
           muted
           controls={props.static === true ? false : true}
           autoPlay={props.static === true ? false : true}
-          className={cn('', props.className)}
+          className={media}
         >
           <source src={absolutePath} type={props.mimeType} />
         </video>
@@ -117,12 +144,12 @@ export function AssetDisplay(
 
   if (props.mimeType.startsWith('audio/')) {
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={box}>
         <audio
           muted
           controls={props.static === true ? false : true}
           autoPlay={props.static === true ? false : true}
-          className={cn('', props.className)}
+          className={media}
         >
           <source src={absolutePath} type={props.mimeType} />
         </audio>
@@ -132,26 +159,22 @@ export function AssetDisplay(
 
   if (props.mimeType === 'application/pdf') {
     return (
-      <div className="flex aspect-4/3 basis-full">
-        <embed
-          src={absolutePath}
-          type={props.mimeType}
-          className={cn('h-full w-full object-contain', props.className)}
-        />
+      <div className={box}>
+        <embed src={absolutePath} type={props.mimeType} className={media} />
       </div>
     );
   }
 
   if (props.mimeType === 'application/zip') {
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={box}>
         <FolderArchive className="m-auto h-10 w-10" />
       </div>
     );
   }
 
   return (
-    <div className="flex aspect-4/3 basis-full">
+    <div className={box}>
       <FileQuestion className="m-auto h-10 w-10" />
     </div>
   );

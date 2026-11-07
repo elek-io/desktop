@@ -1,37 +1,36 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import { test } from '../fixtures/electronApp.js';
 import { expectNoAxeViolations } from '../helpers/accessibility.js';
 import { createComponentViaIpc } from '../helpers/component.js';
 import { navigate } from '../helpers/navigation.js';
-import { createProjectViaIpc } from '../helpers/project.js';
+import {
+  createProjectViaIpc,
+  setRemoteOriginUrlViaIpc,
+} from '../helpers/project.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import { MINIMUM_WINDOW_SIZE, resizeWindow } from '../helpers/window.js';
 
 // Per-route accessibility assertions, opt-in ahead of the fixture-wide axe
 // assertion the @todo still defers (see testing.md). Each route enforces every
-// axe rule except the ones in `disableRules`, which scope out issues the route
-// does not pass yet (an app-wide color-contrast issue). Add a route here once it
-// is clean enough to enforce.
+// axe rule, color-contrast included. Add a route here once it is clean enough
+// to enforce.
 //
 // `arrange` seeds whatever the route needs and returns the hash to scan, so a
 // route inside a Project can be enforced too.
 const enforcedRoutes: {
   name: string;
-  disableRules: string[];
   arrange: (page: Page) => Promise<string> | string;
 }[] = [
-  // The Projects list (empty) passes every rule except the app-wide
-  // color-contrast issue, so it is the first enforced route.
   {
     name: '#/projects',
-    disableRules: ['color-contrast'],
     arrange: () => '#/projects',
   },
   // A Project's Releases, empty, which also puts the Project sidebar and a
   // Project's breadcrumb under the scan.
   {
     name: '#/projects/:projectId/releases',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       return `#/projects/${project.id}/releases`;
@@ -40,7 +39,6 @@ const enforcedRoutes: {
   // A Project's Components, empty.
   {
     name: '#/projects/:projectId/components',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       return `#/projects/${project.id}/components`;
@@ -50,7 +48,6 @@ const enforcedRoutes: {
   // Add Field button under the scan.
   {
     name: '#/projects/:projectId/components/create',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       return `#/projects/${project.id}/components/create`;
@@ -60,7 +57,6 @@ const enforcedRoutes: {
   // reorder, edit and remove chrome.
   {
     name: '#/projects/:projectId/components/:componentId',
-    disableRules: ['color-contrast'],
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
       const component = await createComponentViaIpc(page, {
@@ -71,6 +67,100 @@ const enforcedRoutes: {
   },
 ];
 
+/**
+ * The screens an editor meets on the first day, scanned in both modes at the
+ * smallest window the app supports.
+ *
+ * Each of them stands on the one gradient or lists cards on it, and the
+ * gradient always carries the dark mode colors, so light mode is the case where
+ * both a dark surface and a light card on it have to pass at once.
+ */
+const firstDayRoutes: {
+  name: string;
+  arrange: (page: Page) => Promise<string> | string;
+}[] = [
+  // The first start, which is the one screen before a User exists.
+  {
+    name: '#/welcome',
+    arrange: () => '#/welcome',
+  },
+  // The Projects page with nothing on it, which is the Welcome screen.
+  {
+    name: '#/projects, empty',
+    arrange: async (page) => {
+      await setUserViaIpc(page);
+      return '#/projects';
+    },
+  },
+  // The Projects page with cards, one of them on a Git repository nothing can
+  // reach, so the warning line is under the scan too.
+  {
+    name: '#/projects, with cards',
+    arrange: async (page) => {
+      await setUserViaIpc(page);
+      await createProjectViaIpc(page, { name: 'Only here' });
+      const synced = await createProjectViaIpc(page, { name: 'On a host' });
+      await setRemoteOriginUrlViaIpc(page, {
+        id: synced.id,
+        url: 'https://example.invalid/on-a-host.git',
+      });
+      return '#/projects';
+    },
+  },
+  // Create Project, with the address its second option asks for shown.
+  {
+    name: '#/projects/create',
+    arrange: async (page) => {
+      await setUserViaIpc(page);
+      return '#/projects/create';
+    },
+  },
+];
+
+/**
+ * The Dashboard, both pages of a Project's Settings and the Profile, scanned in
+ * both modes at the smallest window the app supports.
+ *
+ * Each of them is a form or a ruled row of facts on the panel's own surface, so
+ * contrast and a visible focus ring have to hold in light and dark mode alike.
+ */
+const projectAndProfileRoutes: {
+  name: string;
+  arrange: (page: Page) => Promise<string> | string;
+}[] = [
+  {
+    name: '#/projects/:projectId/dashboard',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      return `#/projects/${project.id}/dashboard`;
+    },
+  },
+  {
+    name: '#/projects/:projectId/settings/general',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      return `#/projects/${project.id}/settings/general`;
+    },
+  },
+  // Sync with an address that carries a password, so the masked part is under
+  // the scan too.
+  {
+    name: '#/projects/:projectId/settings/version-control',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      await setRemoteOriginUrlViaIpc(page, {
+        id: project.id,
+        url: 'https://mara-klein:a-token@example.invalid/website.git',
+      });
+      return `#/projects/${project.id}/settings/version-control`;
+    },
+  },
+  {
+    name: '#/user/profile',
+    arrange: () => '#/user/profile',
+  },
+];
+
 test.describe('Accessibility', () => {
   for (const route of enforcedRoutes) {
     test(`has no axe violations on ${route.name}`, async ({ mainWindow }) => {
@@ -78,9 +168,49 @@ test.describe('Accessibility', () => {
       // was validated against, and every seed below needs one.
       await setUserViaIpc(mainWindow);
       await navigate(mainWindow, await route.arrange(mainWindow));
-      await expectNoAxeViolations(mainWindow, {
-        disableRules: route.disableRules,
-      });
+      await expectNoAxeViolations(mainWindow);
     });
+  }
+
+  for (const route of projectAndProfileRoutes) {
+    for (const theme of ['light', 'dark'] as const) {
+      test(`has no axe violations on ${route.name} in ${theme} mode`, async ({
+        electronApp,
+        mainWindow,
+      }) => {
+        await setUserViaIpc(mainWindow);
+        await navigate(mainWindow, await route.arrange(mainWindow));
+        await setTheme(mainWindow, theme);
+        await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+        await expectNoAxeViolations(mainWindow);
+      });
+    }
+  }
+
+  for (const route of firstDayRoutes) {
+    for (const theme of ['light', 'dark'] as const) {
+      test(`has no axe violations on ${route.name} in ${theme} mode`, async ({
+        electronApp,
+        mainWindow,
+      }) => {
+        const hash = await route.arrange(mainWindow);
+        await navigate(mainWindow, hash);
+        await setTheme(mainWindow, theme);
+        await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+
+        if (hash === '#/projects/create') {
+          // The address stands inside the option that asks for it, so it is on
+          // screen only once that option is chosen.
+          await mainWindow
+            .getByRole('radio', { name: 'Another Git host' })
+            .click();
+          await expect(
+            mainWindow.getByLabel('Address', { exact: true })
+          ).toBeVisible();
+        }
+
+        await expectNoAxeViolations(mainWindow);
+      });
+    }
   }
 });

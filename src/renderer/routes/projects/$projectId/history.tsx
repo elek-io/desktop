@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
@@ -5,6 +6,7 @@ import {
   HistorySidebar,
   HistorySidebarSkeleton,
 } from '@renderer/components/history-sidebar';
+import { Pane, Panes } from '@renderer/components/pane';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 
@@ -13,21 +15,25 @@ export const Route = createFileRoute('/projects/$projectId/history')({
 });
 
 function ProjectHistoryLayout(): ReactElement {
-  useBreadcrumb(Route, 'History');
+  const { t } = useLingui();
+
+  useBreadcrumb(Route, t`History`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
 
   return (
-    <div className="flex h-full">
-      {isReadingProject ? (
-        <HistorySidebarSkeleton />
-      ) : (
-        <HistorySidebar project={project} />
-      )}
-      <div className="flex flex-1 flex-col overflow-y-auto">
+    <Panes>
+      <Pane width="list" name={t`the changes of this Project`}>
+        {isReadingProject ? (
+          <HistorySidebarSkeleton />
+        ) : (
+          <HistorySidebar project={project} />
+        )}
+      </Pane>
+      <Pane name={t`this change`}>
         <Outlet />
-      </div>
-    </div>
+      </Pane>
+    </Panes>
   );
 }

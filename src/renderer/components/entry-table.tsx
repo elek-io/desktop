@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useRouter } from '@tanstack/react-router';
 import {
   flexRender,
@@ -11,6 +12,7 @@ import {
 import { ChevronDown } from 'lucide-react';
 import { useLayoutEffect, useState } from 'react';
 
+import { fieldModule } from '@renderer/components/fields';
 import { Button } from '@renderer/components/ui/button';
 import {
   DropdownMenu,
@@ -18,7 +20,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu';
-import { Input } from '@renderer/components/ui/input';
+import { FilterInput } from '@renderer/components/ui/filter-input';
 import {
   Pagination,
   PaginationContent,
@@ -27,6 +29,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@renderer/components/ui/pagination';
+import { SkeletonRows } from '@renderer/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -38,7 +41,6 @@ import {
 import { useProject } from '@renderer/hooks/useProject';
 
 import {
-  extractText,
   flattenFieldDefinitions,
   type Collection,
   type Entry,
@@ -62,9 +64,13 @@ export function EntryTable({
   collection: Collection;
   entries: PaginatedList<Entry>;
 }): React.JSX.Element {
+  const { t } = useLingui();
   const router = useRouter();
-  const { formatDatetime, translateContent, formatTemporalFieldValue } =
-    useProject();
+  const { formatDatetime, translateContent, formatInUserLocale } = useProject();
+  const collectionName = translateContent({
+    key: 'currentCollection.name.plural',
+    record: collection.name.plural,
+  });
   const [filter, setFilter] = useState('');
   const [pagination, setPagination] = useState({
     pageIndex: 0, // initial page index
@@ -87,11 +93,11 @@ export function EntryTable({
     columns.push(
       {
         accessorKey: 'created',
-        header: 'Created',
+        header: t`Created`,
       },
       {
         accessorKey: 'updated',
-        header: 'Updated',
+        header: t`Updated`,
       }
       // {
       //   id: 'actions',
@@ -104,10 +110,10 @@ export function EntryTable({
 
     return columns;
   }
-  const fieldTypeBySlug = new Map(
+  const definitionBySlug = new Map(
     flattenFieldDefinitions(collection.fieldDefinitions).map((definition) => [
       definition.slug,
-      definition.fieldType,
+      definition,
     ])
   );
   const table = useReactTable({
@@ -118,46 +124,20 @@ export function EntryTable({
         updated: formatDatetime({ datetime: entry.updated }).relative,
       };
 
+      // What a Value looks like in a row is its field type's own answer, so
+      // each cell is drawn by the type's folder. A Value whose field the
+      // Collection no longer defines has no cell at all.
       for (const [slug, value] of Object.entries(entry.values)) {
-        if (value.valueType === 'reference') {
-          // Reference content is an array of { id, objectType } objects,
-          // which cannot be rendered directly - show a count instead
-          const references =
-            value.content[project.settings.language.default] ?? [];
-          const fieldType = fieldTypeBySlug.get(slug);
-          const noun =
-            fieldType === 'asset'
-              ? references.length === 1
-                ? 'Asset'
-                : 'Assets'
-              : fieldType === 'entry'
-                ? references.length === 1
-                  ? 'Entry'
-                  : 'Entries'
-                : references.length === 1
-                  ? 'Reference'
-                  : 'References';
-          row[slug] =
-            references.length === 0
-              ? undefined
-              : `${String(references.length)} ${noun}`;
-        } else if (value.valueType === 'mdast') {
-          // Structured markdown content - show its plain text
-          const tree = value.content[project.settings.language.default];
-          row[slug] =
-            tree === null || tree === undefined ? undefined : extractText(tree);
-        } else {
-          // Content is a per-language record; index it by the default language.
-          // Date, datetime and time values are formatted in the user's locale,
-          // every other type is shown as stored.
-          const content = (value.content as Record<string, unknown>)[
-            project.settings.language.default
-          ];
-          row[slug] = formatTemporalFieldValue({
-            value: content,
-            fieldType: fieldTypeBySlug.get(slug),
-          });
+        const fieldDefinition = definitionBySlug.get(slug);
+        if (fieldDefinition === undefined) {
+          continue;
         }
+        row[slug] = fieldModule(fieldDefinition).listCell({
+          content: value.content,
+          fieldDefinition,
+          language: project.settings.language.default,
+          formatInUserLocale,
+        });
       }
 
       return row;
@@ -199,6 +179,11 @@ export function EntryTable({
     }
   }, [pageCount, pagination.pageIndex, table]);
 
+  const shownCount = table.getFilteredRowModel().rows.length;
+  const totalCount = entries.total;
+  const selectedCount = table.getFilteredSelectedRowModel().rows.length;
+  const countsShown = t`Showing ${shownCount} of ${totalCount} total ${collectionName} (${selectedCount} selected)`;
+
   async function onRowClicked(id: string): Promise<void> {
     await router.navigate({
       to: '/projects/$projectId/collections/$collectionId/$entryId/update',
@@ -213,11 +198,8 @@ export function EntryTable({
   return (
     <>
       <div className="flex items-center justify-end p-6">
-        <Input
-          placeholder={`Filter ${translateContent({
-            key: 'currentCollection.name.plural',
-            record: collection.name.plural,
-          })}...`}
+        <FilterInput
+          name={t`Filter ${collectionName}`}
           value={filter}
           onChange={(event) => {
             setFilter(event.target.value);
@@ -227,11 +209,11 @@ export function EntryTable({
           className="max-w-sm"
         />
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Visible Values
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
+          <DropdownMenuTrigger
+            render={<Button variant="outline" className="ml-auto" />}
+          >
+            <Trans>Visible Values</Trans>
+            <ChevronDown className="ml-2 h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {table
@@ -297,7 +279,7 @@ export function EntryTable({
                 colSpan={table.getAllColumns().length}
                 className="h-24 text-center"
               >
-                No results.
+                <Trans>No results.</Trans>
               </TableCell>
             </TableRow>
           )}
@@ -305,14 +287,8 @@ export function EntryTable({
       </Table>
 
       <div className="flex items-center justify-end p-6">
-        <div className="flex-1 text-sm text-zinc-400">
-          Showing {table.getFilteredRowModel().rows.length} of {entries.total}{' '}
-          total{' '}
-          {translateContent({
-            key: 'currentCollection.name.plural',
-            record: collection.name.plural,
-          })}{' '}
-          ({table.getFilteredSelectedRowModel().rows.length} selected)
+        <div className="flex-1 text-sm text-muted-foreground">
+          {countsShown}
         </div>
         <Pagination>
           <PaginationContent>
@@ -354,17 +330,7 @@ export function EntryTable({
 }
 
 export function EntryTableSkeleton(): React.JSX.Element {
-  return (
-    <div className="animate-pulse">
-      <div className="h-8 w-1/4 rounded bg-zinc-200 dark:bg-zinc-700" />
-      <div className="mt-4 space-y-2">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="h-10 w-full rounded bg-zinc-200 dark:bg-zinc-700"
-          />
-        ))}
-      </div>
-    </div>
-  );
+  const { t } = useLingui();
+
+  return <SkeletonRows label={t`Loading Entries`} />;
 }

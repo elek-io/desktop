@@ -1,4 +1,9 @@
-import { expect, type ElectronApplication, type Page } from '@playwright/test';
+import {
+  expect,
+  type ElectronApplication,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 
 /**
  * Confirm an open shadcn Dialog / AlertDialog by clicking its confirm button.
@@ -20,12 +25,36 @@ export async function confirmDialog(
   await dialog.getByRole('button', { name: confirmName }).click();
 }
 
-/** Dismiss an open dialog with the Escape key. */
-export async function dismissDialog(page: Page): Promise<void> {
-  const dialog = page.getByRole('dialog');
+/**
+ * Dismiss an open dialog with the Escape key.
+ *
+ * A dialog is visible before it has finished opening, and an Escape that
+ * arrives during the entry transition is swallowed, which made this flaky. The
+ * dialog carries `data-starting-style` while it enters, so the key is pressed
+ * once that is gone.
+ */
+async function dismiss(page: Page, dialog: Locator): Promise<void> {
   await expect(dialog).toBeVisible();
+  await expect(dialog).not.toHaveAttribute('data-starting-style');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+}
+
+/** Dismiss an open `Dialog`, which exposes `role="dialog"`. */
+export async function dismissDialog(page: Page): Promise<void> {
+  await dismiss(page, page.getByRole('dialog'));
+}
+
+/**
+ * Dismiss an open dialog that answers something the person is waiting for,
+ * such as a failed sync, which exposes `role="alertdialog"`.
+ *
+ * Addressed by that role rather than by either, because a confirm step is an
+ * `AlertDialog` too and both can be mounted at once, which a locator over the
+ * two roles would resolve to.
+ */
+export async function dismissAlertDialog(page: Page): Promise<void> {
+  await dismiss(page, page.getByRole('alertdialog'));
 }
 
 /**

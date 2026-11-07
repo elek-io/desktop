@@ -1,3 +1,5 @@
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { Blocks, Plus } from 'lucide-react';
 import { type ReactElement } from 'react';
@@ -6,9 +8,8 @@ import { Page } from '@renderer/components/page';
 import { Button } from '@renderer/components/ui/button';
 import {
   Empty,
-  EmptyContent,
+  EmptyActions,
   EmptyDescription,
-  EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
@@ -24,6 +25,8 @@ export const Route = createFileRoute('/projects/$projectId/components/')({
 });
 
 function ProjectComponentsPage(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId } = Route.useParams();
   const { translateContent } = useProject();
@@ -33,10 +36,10 @@ function ProjectComponentsPage(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         A Component is a group of fields an Entry can hold more than once, in
         any order. A page uses them as its sections.
-      </>
+      </Trans>
     );
   }
 
@@ -53,27 +56,40 @@ function ProjectComponentsPage(): ReactElement {
           })
         }
       >
-        Create Component
+        <Trans>Create Component</Trans>
       </Button>
     );
   }
 
-  function Actions(): ReactElement {
+  // The empty state takes the whole pane, head and all, so nothing repeats the
+  // action it offers, see ci's rule for an empty state.
+  if (isListingComponents === false && components.total === 0) {
     return (
-      <>
-        {isListingComponents || components.total === 0 ? null : (
+      <Empty>
+        <EmptyMedia>
+          <Blocks />
+        </EmptyMedia>
+        <EmptyTitle>
+          <Trans>No Components yet</Trans>
+        </EmptyTitle>
+        <EmptyDescription>
+          <Trans>
+            Nothing in this Project is built from Components yet. Create one to
+            give a Collection a field whose sections an editor fills in.
+          </Trans>
+        </EmptyDescription>
+        <EmptyActions>
           <CreateAction />
-        )}
-      </>
+        </EmptyActions>
+      </Empty>
     );
   }
 
   return (
     <Page
-      title="Components"
+      title={t`Components`}
       description={<Description />}
-      actions={<Actions />}
-      layout="bare"
+      actions={<>{isListingComponents ? null : <CreateAction />}</>}
     >
       {isListingComponents ? (
         <div className="grid gap-2">
@@ -81,22 +97,6 @@ function ProjectComponentsPage(): ReactElement {
             <Skeleton key={key} className="h-16 w-full rounded" />
           ))}
         </div>
-      ) : components.total === 0 ? (
-        <Empty className="border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Blocks />
-            </EmptyMedia>
-            <EmptyTitle>No Components yet</EmptyTitle>
-            <EmptyDescription>
-              Nothing in this Project is built from Components yet. Create one
-              to give a Collection a field whose sections an editor fills in.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <CreateAction />
-          </EmptyContent>
-        </Empty>
       ) : (
         <ul className="grid gap-2">
           {components.list.map((component) => (
@@ -126,6 +126,8 @@ function ComponentRow({
   component: Component;
   name: string;
 }): ReactElement {
+  const { t } = useLingui();
+
   const fieldCount = component.fieldDefinitions.length;
 
   return (
@@ -138,7 +140,7 @@ function ComponentRow({
       <span className="font-medium">{name}</span>
       <span className="text-sm text-muted-foreground">{component.slug}</span>
       <span className="ml-auto text-sm text-muted-foreground">
-        {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
+        {t`${plural(fieldCount, { one: '# field', other: '# fields' })}`}
       </span>
     </Link>
   );

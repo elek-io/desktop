@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 import { IPC_CORE_ERROR_SENTINEL } from '../../src/shared/ipcError.js';
 import { test } from '../fixtures/electronApp.js';
+import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import { navigate, verifyCurrentRouteHash } from '../helpers/navigation.js';
 import { closeReportDialog, reportDialog } from '../helpers/report.js';
 import { setUserViaIpc } from '../helpers/user.js';
@@ -27,6 +28,10 @@ test.describe('Not found', () => {
   test('an unknown route renders the not-found screen', async ({
     mainWindow,
   }) => {
+    // A User, since without one the gate on the root route settles every
+    // address on the first start and no other screen is reached.
+    await setUserViaIpc(mainWindow);
+
     // An unmatched hash is a normal router state (no thrown error), so this
     // stays console-clean and must NOT opt into the console allow-list, which
     // would mask a real regression.
@@ -49,34 +54,54 @@ test.describe('Not found', () => {
 });
 
 test.describe('Root error boundary', () => {
-  test('a failed route read renders the error boundary and recovers', async ({
+  test('a failed route read renders the error boundary, logs it and recovers', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
+    await recordLogsViaIpc(electronApp);
     await openErrorBoundary(mainWindow);
 
     // The desktop app shows a decoded message (via parseIpcError) and, in the
     // technical detail block, the decoded Core origin stack. Neither carries the
     // raw IPC sentinel JSON, so the whole error view is free of it. The message
-    // is a plain `<p>` with no ARIA role, so key its visibility off the Page's
-    // card body, which holds it and not the Page header's description. Scoping
-    // structurally rather than filtering the description out by text keeps this
-    // from breaking every time the boundary's copy is reworded. Then assert the
-    // sentinel is absent from the entire main region (the `<pre>` included,
-    // which before the fix still leaked the encoded form).
+    // is a plain `<p>` with no ARIA role, so key its visibility off the block
+    // that holds the cause, which is the message and the stack and not the page
+    // head's description. Scoping structurally rather than filtering the
+    // description out by text keeps this from breaking every time the
+    // boundary's copy is reworded. Then assert the sentinel is absent from the
+    // entire main region (the `<pre>` included, which before the fix still
+    // leaked the encoded form).
     const errorMessage = mainWindow
       .getByRole('main')
-      .locator('[data-slot="card-content"] p');
+      .locator('[data-slot="error-cause"] p');
     await expect(errorMessage).toBeVisible();
     await expect(mainWindow.getByRole('main')).not.toContainText(
       IPC_CORE_ERROR_SENTINEL
+    );
+
+    // It logs what it caught, the way a pane's boundary logs what it catches,
+    // so the error that took the whole view is in the log file with its type,
+    // message and stack.
+    const records = await recordedLogs(electronApp);
+    const logged = records.filter(
+      (record) =>
+        record.level === 'error' &&
+        record.message.startsWith('Uncaught route error')
+    );
+    expect(logged).toHaveLength(1);
+    expect(logged[0]?.source).toBe('desktop');
+    expect(Object.keys(logged[0]?.meta ?? {})).toContain(
+      'exception.stacktrace'
     );
 
     // Recovery: Back to Projects returns to the Projects list and the app is
     // usable again (the empty state renders, since no Project was created).
     await mainWindow.getByRole('button', { name: 'Back to Projects' }).click();
     await verifyCurrentRouteHash(mainWindow, '#/projects');
-    await expect(mainWindow.getByText('No Projects yet')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Create your first Project')
+    ).toBeVisible();
   });
 
   test('the boundary offers to report the problem, with logs on', async ({
@@ -109,7 +134,9 @@ test.describe('Root error boundary', () => {
 
     // Logs default ON here and only here: they carry the error, and the user is
     // looking at the failure while deciding.
-    await expect(dialog.getByLabel('Also send my logs')).toBeChecked();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).toBeChecked();
 
     // Dismissing the dialog leaves the boundary's own recovery working.
     await closeReportDialog(mainWindow);

@@ -41,6 +41,21 @@ export function makeTempFile(
 }
 
 /**
+ * Delete an Asset directly over IPC, bypassing the UI.
+ *
+ * Use it to arrange what two windows do to each other: an Asset that is gone
+ * by the time a form that chose it is saved. Core blocks the delete while a
+ * saved Entry still references it, so the Entry in such a test is one that has
+ * not been saved yet.
+ */
+export async function deleteAssetViaIpc(
+  page: Page,
+  props: { projectId: string; id: string; extension: string }
+): Promise<void> {
+  await page.evaluate(async (p) => window.ipc.core.assets.delete(p), props);
+}
+
+/**
  * Create an Asset directly over IPC, bypassing the UI and the native file dialog.
  *
  * Use this to arrange an Asset a test depends on but does not itself verify.

@@ -19,11 +19,12 @@ jobs:
     name: Testing on ${{ matrix.platform }}
     # The cap is here to end a hung job, not to bound the suite. One job installs,
     # type-checks, lints, packages the app and then runs every E2E test against
-    # it, which takes between 10 and 17 minutes depending on the runner, and the
-    # suite keeps growing. So the cap sits well above the slowest run rather than
-    # just above it, where a slow runner or a few more tests would cancel a job
-    # that had nothing wrong with it.
-    timeout-minutes: 40
+    # it, which takes about 20 minutes on the quickest runner and up to 36 on
+    # macos-15-intel, and the suite keeps growing. A dependency install that
+    # misses its cache adds another ten minutes on top of that. So the cap sits
+    # well above the slowest run rather than just above it, where a slow runner
+    # or a few more tests would cancel a job that had nothing wrong with it.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 import {
   type FieldPath,
@@ -7,18 +8,12 @@ import {
 } from 'react-hook-form';
 
 import { FieldDefinitionsEditor } from '@renderer/components/forms/field-definitions-editor';
-import { AppForm } from '@renderer/components/ui/app-form';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
   TranslatableFormInputField,
   TranslatableFormTextareaField,
-} from '@renderer/components/ui/form';
+} from '@renderer/components/ui/translatable-field';
 
 import { type Project } from '@elek-io/core';
 
@@ -30,6 +25,11 @@ interface ComponentFormProps<
 > {
   componentForm: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   project: Project;
+  /**
+   * The Core schema this form checks against, which its fields read their own
+   * rules off, so no limit Core sets is written out here.
+   */
+  schema: unknown;
   children?: React.ReactNode;
   isViewOnly?: boolean;
   onFormSubmit?: SubmitHandler<TTransformedValues>;
@@ -39,6 +39,8 @@ interface ComponentFormProps<
    * same `form={id}`, so it submits this form from outside its subtree.
    */
   id?: string;
+  /** The page's title, which turns the leave guard on, see `AppForm`. */
+  unsavedChangesTitle?: string | undefined;
 }
 
 /**
@@ -56,11 +58,15 @@ export function ComponentForm<
 >({
   componentForm,
   project,
+  schema,
   children,
   isViewOnly = false,
   onFormSubmit = () => {},
   id,
+  unsavedChangesTitle,
 }: ComponentFormProps<TFieldValues, TTransformedValues>): ReactElement {
+  const { t } = useLingui();
+
   const defaultLanguage = project.settings.language.default;
   const path = (name: string): FieldPath<TFieldValues> =>
     name as FieldPath<TFieldValues>;
@@ -68,75 +74,81 @@ export function ComponentForm<
   return (
     <AppForm
       form={componentForm}
+      schema={schema}
       onSubmit={onFormSubmit}
       id={id}
       mode={isViewOnly ? 'view' : 'edit'}
+      unsavedChangesTitle={unsavedChangesTitle}
     >
       <div className="space-y-6 p-6">
         <div className="grid grid-cols-12 items-start gap-6">
-          <FormField
-            control={componentForm.control}
+          <AppField
+            form={componentForm}
             name={path(`name.${defaultLanguage}`)}
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-6">
-                <FormLabel isRequired>Component name</FormLabel>
-                <TranslatableFormInputField
-                  title="Component name"
-                  description='What this group of fields is, in singular, such as "Teaser".'
-                  type="text"
-                  field={field}
-                  errors={componentForm.formState.errors}
-                  supportedLanguages={project.settings.language.supported}
-                />
-                <FormDescription>
-                  What this group of fields is, in singular, such as
-                  &quot;Teaser&quot;.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Component name</Trans>}
+            description={
+              <Trans>
+                What this group of fields is, in singular, such as
+                &quot;Teaser&quot;.
+              </Trans>
+            }
+            className="col-span-12 sm:col-span-6"
+          >
+            {({ field, controlProps }) => (
+              <TranslatableFormInputField
+                form={componentForm}
+                title={t`Component name`}
+                description={t`What this group of fields is, in singular, such as "Teaser".`}
+                type="text"
+                field={field}
+                controlProps={controlProps}
+                errors={componentForm.formState.errors}
+                supportedLanguages={project.settings.language.supported}
+              />
             )}
-          />
+          </AppField>
 
-          <FormField
-            control={componentForm.control}
+          <AppField
+            form={componentForm}
             name={path('slug')}
-            render={({ field }) => (
-              <FormItem className="col-span-12 sm:col-span-6">
-                <FormLabel isRequired>Component slug</FormLabel>
-                <FormControl>
-                  <FormInputField field={field} type="text" />
-                </FormControl>
-                <FormDescription>
-                  A lowercase version of the name without special characters. It
-                  identifies this Component and has to be unique in this
-                  Project.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Component slug</Trans>}
+            description={
+              <Trans>
+                A lowercase version of the name without special characters. It
+                identifies this Component and has to be unique in this Project.
+              </Trans>
+            }
+            className="col-span-12 sm:col-span-6"
+          >
+            {({ field, controlProps }) => (
+              <TextControl field={field} type="text" {...controlProps} />
             )}
-          />
+          </AppField>
 
-          <FormField
-            control={componentForm.control}
+          <AppField
+            form={componentForm}
             name={path(`description.${defaultLanguage}`)}
-            render={({ field }) => (
-              <FormItem className="col-span-12">
-                <FormLabel isRequired={false}>Description</FormLabel>
-                <TranslatableFormTextareaField
-                  title="Description"
-                  description="What this Component is used for. Leave every language empty for no description, or fill them all."
-                  field={field}
-                  errors={componentForm.formState.errors}
-                  supportedLanguages={project.settings.language.supported}
-                />
-                <FormDescription>
-                  Optional. What this Component is used for. Leave every
-                  language empty for no description, or fill them all.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Description</Trans>}
+            description={
+              <Trans>
+                Optional. What this Component is used for. Leave every language
+                empty for no description, or fill them all.
+              </Trans>
+            }
+            className="col-span-12"
+          >
+            {({ field, controlProps }) => (
+              <TranslatableFormTextareaField
+                form={componentForm}
+                title={t`Description`}
+                description={t`What this Component is used for. Leave every language empty for no description, or fill them all.`}
+                field={field}
+                controlProps={controlProps}
+                errors={componentForm.formState.errors}
+                supportedLanguages={project.settings.language.supported}
+              />
             )}
-          />
+          </AppField>
         </div>
       </div>
 

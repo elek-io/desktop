@@ -1,28 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Check } from 'lucide-react';
-import { useEffect, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { type ReactElement, useId } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { Page } from '@renderer/components/page';
-import { PageSection } from '@renderer/components/page-section';
 import {
+  AppField,
   AppForm,
   FormActions,
   SubmitButton,
 } from '@renderer/components/ui/app-form';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+import { TextControl } from '@renderer/components/ui/field-controls';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
+import { countEmptyFields, emptyFieldsReason } from '@renderer/lib/emptyFields';
+import {
+  addressWithStoredPassword,
+  maskAddressPassword,
+} from '@renderer/lib/gitAddress';
 import { queryOptions } from '@renderer/queries';
 
 import {
@@ -33,84 +31,121 @@ import {
 export const Route = createFileRoute(
   '/projects/$projectId/settings/version-control'
 )({
-  component: ProjectSettingsVersionControlPage,
+  component: ProjectSettingsSyncPage,
 });
 
-function ProjectSettingsVersionControlPage(): ReactElement {
+/**
+ * The Sync page of a Project's Settings: the address of its Git repository.
+ *
+ * The address is shown with any password in it masked, and the stored password
+ * is put back on the way to Core, so a save that did not touch it keeps it and
+ * nothing on screen or on the clipboard carries it, see `lib/gitAddress.ts`.
+ */
+function ProjectSettingsSyncPage(): ReactElement {
+  const { t } = useLingui();
+
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Version Control');
+  useBreadcrumb(Route, t`Sync`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
   const { mutateAsync: setRemoteOriginUrl } = useMutation(
     queryOptions.projects.setRemoteOriginUrl
   );
-  const remoteOriginUrlForm = useForm<SetRemoteOriginUrlProjectProps>({
+  const formId = useId();
+  const storedUrl = isReadingProject ? null : project.remoteOriginUrl;
+  const remoteOriginUrlForm = useAppForm<SetRemoteOriginUrlProjectProps>({
     resolver: zodResolver(setRemoteOriginUrlProjectSchema),
     defaultValues: {
       id: projectId,
       url: '',
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingProject
+      ? {}
+      : {
+          values: {
+            id: project.id,
+            url: maskAddressPassword(project.remoteOriginUrl ?? ''),
+          },
+        }),
+    disabled: isReadingProject,
   });
-  // Reset form with Project data when it loads
-  useEffect(() => {
-    if (isReadingProject === false) {
-      remoteOriginUrlForm.reset({
-        id: project.id,
-        url: project.remoteOriginUrl !== null ? project.remoteOriginUrl : '',
-      });
-    }
-  }, [project, isReadingProject, remoteOriginUrlForm]);
 
-  function Description(): ReactElement {
-    return <></>;
-  }
+  // Core takes the address as a string it has to have, and answers an empty one
+  // with an internal failure, so Save says what is missing rather than letting
+  // the press find out, see contributing/renderer/forms.md#saves-block.
+  const blockedBy = emptyFieldsReason(
+    countEmptyFields([remoteOriginUrlForm.watch('url')])
+  );
 
   function Actions(): ReactElement {
-    return <></>;
+    return (
+      <FormActions form={remoteOriginUrlForm} id={formId} blockedBy={blockedBy}>
+        <SubmitButton requireDirty>
+          <Trans>Save</Trans>
+        </SubmitButton>
+      </FormActions>
+    );
   }
 
   const onSetRemoteOriginUrl: SubmitHandler<
     SetRemoteOriginUrlProjectProps
   > = async (props) => {
-    await setRemoteOriginUrl(props);
+    const url = addressWithStoredPassword(props.url, storedUrl);
+    await setRemoteOriginUrl({ ...props, url });
+    // This page stays open after it saved, so the form is made pristine again
+    // with what went in, masked as it is shown. Without it Save would stay
+    // available and leaving would ask about changes that are already saved.
+    remoteOriginUrlForm.reset({ ...props, url: maskAddressPassword(url) });
   };
 
   return (
-    <Page
-      title="Version Control Settings"
-      description={<Description />}
-      actions={<Actions />}
-    >
-      <AppForm form={remoteOriginUrlForm} onSubmit={onSetRemoteOriginUrl}>
-        <PageSection
-          title="Remote"
-          description="A Projects remote is a place that makes it accessible for other users. By adding a remote you are able to work with multiple others together on the same Project."
-          actions={
-            <FormActions form={remoteOriginUrlForm}>
-              <SubmitButton requireDirty Icon={Check}>
-                Save changes
-              </SubmitButton>
-            </FormActions>
-          }
-        >
-          <div className="grid grid-cols-12 gap-6">
-            <FormField
-              control={remoteOriginUrlForm.control}
-              name="url"
-              render={({ field }) => (
-                <FormItem className="col-span-12">
-                  <FormLabel isRequired>Remote URL</FormLabel>
-                  <FormControl>
-                    <FormInputField field={field} type="url" />
-                  </FormControl>
-                  <FormDescription />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </PageSection>
+    <Page title={t`Sync`} actions={<Actions />}>
+      <AppForm
+        form={remoteOriginUrlForm}
+        schema={setRemoteOriginUrlProjectSchema}
+        onSubmit={onSetRemoteOriginUrl}
+        id={formId}
+        blockedBy={blockedBy}
+        unsavedChangesTitle={t`Sync`}
+      >
+        <div className="flex flex-col gap-4">
+          <AppField
+            form={remoteOriginUrlForm}
+            name="url"
+            label={<Trans>Git repository</Trans>}
+            description={
+              storedUrl === null ? (
+                <Trans>
+                  An empty repository that supports Git LFS. Once it is saved,
+                  Sync uploads the Project there.
+                </Trans>
+              ) : (
+                <Trans>
+                  Desktop syncs this Project with it. A password in the address
+                  stays hidden.
+                </Trans>
+              )
+            }
+          >
+            {({ field, controlProps }) => (
+              <TextControl
+                field={field}
+                type="text"
+                className="font-mono"
+                {...controlProps}
+              />
+            )}
+          </AppField>
+          {storedUrl === null ? null : (
+            <p className="text-small text-muted-foreground">
+              <Trans>
+                Desktop checks it for incoming changes every 3 minutes.
+              </Trans>
+            </p>
+          )}
+        </div>
       </AppForm>
     </Page>
   );

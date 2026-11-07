@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Plus } from 'lucide-react';
+import { Images, Plus } from 'lucide-react';
 import { useId, useState } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { type SubmitHandler } from 'react-hook-form';
 
 import {
   AssetTeaser,
@@ -25,11 +26,12 @@ import {
 } from '@renderer/components/ui/dialog';
 import {
   Empty,
+  EmptyActions,
   EmptyDescription,
-  EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
@@ -41,8 +43,10 @@ export const Route = createFileRoute('/projects/$projectId/assets/')({
 });
 
 function ProjectAssetsPage(): React.JSX.Element {
+  const { t } = useLingui();
+
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Assets');
+  useBreadcrumb(Route, t`Assets`);
   const { data: assets, isPending: isListingAssets } = useQueryNoError(
     queryOptions.assets.list({
       projectId: projectId,
@@ -53,7 +57,7 @@ function ProjectAssetsPage(): React.JSX.Element {
   const [isAddAssetDialogOpen, setIsAddAssetDialogOpen] =
     useState<boolean>(false);
   const addAssetFormId = useId();
-  const createAssetForm = useForm<CreateAssetProps>({
+  const createAssetForm = useAppForm<CreateAssetProps>({
     resolver: zodResolver(createAssetSchema),
     defaultValues: {
       name: '',
@@ -65,31 +69,27 @@ function ProjectAssetsPage(): React.JSX.Element {
 
   function Description(): React.JSX.Element {
     return (
-      <>
+      <Trans>
         An Asset is a file like an image, PDF or other document that can be used
         inside your Collections.
-      </>
+      </Trans>
     );
   }
 
-  function Actions(): React.JSX.Element {
+  // The empty state carries this button while there is no Asset, so the two
+  // never repeat each other, see ci's rule for an empty state.
+  function AddAction(): React.JSX.Element {
     return (
-      <>
-        <Button
-          variant="default"
-          Icon={Plus}
-          onClick={async () => onAddAsset()}
-        >
-          Add Asset
-        </Button>
-      </>
+      <Button variant="default" Icon={Plus} onClick={async () => onAddAsset()}>
+        <Trans>Add Asset</Trans>
+      </Button>
     );
   }
 
   async function onAddAsset(): Promise<void> {
     const result = await window.ipc.electron.dialog.showOpenDialog({
-      title: 'Select Asset to add',
-      buttonLabel: 'Add to Assets',
+      title: t`Select Asset to add`,
+      buttonLabel: t`Add to Assets`,
       properties: ['openFile'],
     });
 
@@ -120,39 +120,51 @@ function ProjectAssetsPage(): React.JSX.Element {
 
   return (
     <>
-      <Page
-        title="Assets"
-        description={<Description />}
-        actions={<Actions />}
-        layout="bare"
-      >
-        {isListingAssets ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <AssetTeaserSkeleton key={i} />
-            ))}
-          </div>
-        ) : assets.total === 0 ? (
-          <Empty className="border border-dashed">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Plus />
-              </EmptyMedia>
-              <EmptyTitle>No Assets yet</EmptyTitle>
-              <EmptyDescription>
-                You haven&apos;t added any Assets yet. Get started by adding an
-                Asset by clicking the button in the top right corner.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
-            {assets.list.map((asset) => (
-              <AssetTeaser key={asset.id} {...asset} projectId={projectId} />
-            ))}
-          </div>
-        )}
-      </Page>
+      {/*
+        The empty state takes the whole pane, head and all, so nothing repeats
+        the action it offers, see ci's rule for an empty state. The dialog that
+        adds an Asset stays mounted either way, since that is what the state's
+        own button opens.
+      */}
+      {isListingAssets === false && assets.total === 0 ? (
+        <Empty>
+          <EmptyMedia>
+            <Images />
+          </EmptyMedia>
+          <EmptyTitle>
+            <Trans>No Assets yet</Trans>
+          </EmptyTitle>
+          <EmptyDescription>
+            <Trans>
+              An Asset is a file an Entry can point at, such as an image or a
+              PDF. Add the first one to use it in a Collection&apos;s fields.
+            </Trans>
+          </EmptyDescription>
+          <EmptyActions>
+            <AddAction />
+          </EmptyActions>
+        </Empty>
+      ) : (
+        <Page
+          title={t`Assets`}
+          description={<Description />}
+          actions={<>{isListingAssets ? null : <AddAction />}</>}
+        >
+          {isListingAssets ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <AssetTeaserSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5 xl:gap-6">
+              {assets.list.map((asset) => (
+                <AssetTeaser key={asset.id} {...asset} projectId={projectId} />
+              ))}
+            </div>
+          )}
+        </Page>
+      )}
 
       <Dialog
         open={isAddAssetDialogOpen}
@@ -160,9 +172,11 @@ function ProjectAssetsPage(): React.JSX.Element {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Asset</DialogTitle>
+            <DialogTitle>
+              <Trans>Add Asset</Trans>
+            </DialogTitle>
             <DialogDescription>
-              Provide a name and description for this Asset.
+              <Trans>Provide a name and description for this Asset.</Trans>
             </DialogDescription>
           </DialogHeader>
 
@@ -170,18 +184,21 @@ function ProjectAssetsPage(): React.JSX.Element {
             <AssetForm
               id={addAssetFormId}
               assetForm={createAssetForm}
+              schema={createAssetSchema}
+              nameField="name"
+              descriptionField="description"
               onFormSubmit={onCreateAsset}
             />
           </DialogBody>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Cancel
-              </Button>
+            <DialogClose render={<Button type="button" variant="secondary" />}>
+              <Trans>Cancel</Trans>
             </DialogClose>
             <FormActions form={createAssetForm} id={addAssetFormId}>
-              <SubmitButton Icon={Plus}>Add Asset</SubmitButton>
+              <SubmitButton Icon={Plus}>
+                <Trans>Add Asset</Trans>
+              </SubmitButton>
             </FormActions>
           </DialogFooter>
         </DialogContent>

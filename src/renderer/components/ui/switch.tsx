@@ -1,26 +1,27 @@
-import * as SwitchPrimitive from '@radix-ui/react-switch';
-import * as React from 'react';
+import { Switch as SwitchPrimitive } from '@base-ui/react/switch';
 
 import { cn } from '@renderer/lib/utils';
 
 function Switch({
   className,
+  size = 'default',
   ...props
-}: React.ComponentProps<typeof SwitchPrimitive.Root>): React.JSX.Element {
+}: SwitchPrimitive.Root.Props & {
+  size?: 'sm' | 'default';
+}): React.JSX.Element {
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
+      data-size={size}
       className={cn(
-        'peer inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80',
+        'peer group/switch relative inline-flex shrink-0 items-center rounded-full p-[3px] transition-all after:absolute after:-inset-x-3 after:-inset-y-2 aria-invalid:inset-ring-1 aria-invalid:inset-ring-error data-[size=default]:h-[18px] data-[size=default]:w-[32px] data-[size=sm]:h-[14px] data-[size=sm]:w-[24px] data-checked:bg-foreground data-unchecked:bg-card data-unchecked:inset-ring-1 data-unchecked:inset-ring-input data-disabled:cursor-not-allowed data-disabled:opacity-50',
         className
       )}
       {...props}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
-        className={cn(
-          'pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0 dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground'
-        )}
+        className="pointer-events-none block rounded-full transition-transform group-data-[size=default]/switch:size-3 group-data-[size=sm]/switch:size-2 data-checked:bg-background group-data-[size=default]/switch:data-checked:translate-x-[14px] group-data-[size=sm]/switch:data-checked:translate-x-[10px] data-unchecked:bg-muted-foreground group-data-[size=default]/switch:data-unchecked:translate-x-0 group-data-[size=sm]/switch:data-unchecked:translate-x-0"
       />
     </SwitchPrimitive.Root>
   );

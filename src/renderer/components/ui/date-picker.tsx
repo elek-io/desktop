@@ -1,5 +1,6 @@
 'use client';
 
+import { Trans } from '@lingui/react/macro';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 
@@ -33,10 +34,10 @@ export function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button Icon={CalendarIcon} {...props}>
-          <span className="sr-only">Select date</span>
-        </Button>
+      <PopoverTrigger render={<Button Icon={CalendarIcon} {...props} />}>
+        <span className="sr-only">
+          <Trans>Select date</Trans>
+        </span>
       </PopoverTrigger>
       <PopoverContent
         className="w-auto overflow-hidden p-0"

@@ -112,10 +112,19 @@ export async function launchApp(
 
   // No main script argument on purpose, packaged builds load their bundled
   // app on their own. Playwright adds --no-sandbox on Linux itself, so
-  // unpacked builds without the SUID sandbox helper run fine on CI
+  // unpacked builds without the SUID sandbox helper run fine on CI.
+  //
+  // The window runs at one device pixel per CSS pixel whatever the display
+  // says. Every size a spec reads is in CSS pixels at 100% zoom, from the
+  // smallest window the app supports to a focus ring's 2 px offset, and on a
+  // display that reports a fractional scale, as a HiDPI laptop does, Chromium
+  // snaps each of them to whole device pixels: the window keeps 1169 by 562
+  // where a spec asked for 1168 by 560, and an offset of 2 px computes to
+  // 1.91. CI runs at 1x, so without this the suite is green there and red on
+  // the machine it was written on.
   const app = await electron.launch({
     executablePath: appInfo.executable,
-    args: [`--user-data-dir=${userDataDir}`],
+    args: [`--user-data-dir=${userDataDir}`, '--force-device-scale-factor=1'],
     env,
   });
 
@@ -133,6 +142,27 @@ export async function launchApp(
     );
 
   return app;
+}
+
+/**
+ * Close a running app, whatever its windows hold.
+ *
+ * A window that holds changes nobody saved refuses to close until the question
+ * in it is answered, and nothing that closes an app from the outside can answer
+ * one. So every window is destroyed first, which skips the close the app holds,
+ * and a spec may leave a form changed. Every close of an app goes through this,
+ * see contributing/renderer/forms.md#leaving-unsaved-changes.
+ *
+ * Both steps tolerate an app that is already gone, so a spec that closed it
+ * itself does not fail here.
+ */
+export async function closeApp(app: ElectronApplication): Promise<void> {
+  await app
+    .evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows().forEach((window) => window.destroy());
+    })
+    .catch(() => {});
+  await app.close().catch(() => {});
 }
 
 /**
@@ -192,13 +222,9 @@ export const test = base.extend<{
     await use(app);
 
     // Clean up - close the app after tests. A spec that relaunches (see
-    // relaunchApp) closes this app itself first, so tolerate an already-closed
-    // app rather than failing teardown on a double close
-    try {
-      await app.close();
-    } catch {
-      // Already closed by the test, nothing to clean up
-    }
+    // relaunchApp) closes this app itself first, and `closeApp` tolerates an
+    // already-closed app rather than failing teardown on a double close
+    await closeApp(app);
 
     // The data dirs sit outside testInfo.outputPath (kept short for Windows
     // MAX_PATH, see testDataDirs), so Playwright's preserveOutput does not sweep

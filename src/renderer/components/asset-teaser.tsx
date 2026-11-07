@@ -1,4 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -11,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { Fragment, useId, useState } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { AssetDisplay } from '@renderer/components/asset-display';
 import { AssetForm } from '@renderer/components/forms/asset-form';
@@ -56,6 +59,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@renderer/components/ui/tooltip';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
@@ -70,17 +74,18 @@ import {
 } from '@elek-io/core';
 
 // Copy for a blocked delete, keyed by CoreError type.
-const deleteErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again.',
+const deleteErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  Conflict: msg`This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again.`,
 };
 
-const deleteErrorFallback =
-  'This Asset could not be deleted. Please review and try again.';
+const deleteErrorFallback = msg`This Asset could not be deleted. Please review and try again.`;
 
 export function AssetTeaser(
   props: Asset & { projectId: string; className?: string }
 ): React.JSX.Element {
+  const { t } = useLingui();
   const { formatDatetime } = useProject();
   const { mutateAsync: saveAsset } = useMutation(queryOptions.assets.save);
   const { mutateAsync: updateAsset } = useMutation(queryOptions.assets.update);
@@ -100,7 +105,7 @@ export function AssetTeaser(
         },
       },
     });
-  const updateAssetForm = useForm<UpdateAssetProps>({
+  const updateAssetForm = useAppForm<UpdateAssetProps>({
     resolver: zodResolver(updateAssetSchema),
     defaultValues: {
       id: props.id,
@@ -112,34 +117,44 @@ export function AssetTeaser(
   });
   const updateAssetFormId = useId();
   const newFilePath = updateAssetForm.watch('newFilePath');
+  // The file's own name, so the sentence below takes one placeholder rather
+  // than being assembled around a path.
+  const newFileName = newFilePath?.split(/[/\\]/).pop();
   const createdTime = formatDatetime({ datetime: props.created });
   const updatedTime = formatDatetime({ datetime: props.updated });
+  // `label` is what the row shows and comes from the catalog, `key` is the
+  // stable id React keys the rows by and never shown.
   const information = [
     {
-      key: 'Size',
+      key: 'size',
+      label: t`Size`,
       value: formatBytes(props.size),
     },
     {
-      key: 'Type',
+      key: 'type',
+      label: t`Type`,
       value: props.extension.toUpperCase(),
       tooltip: props.mimeType,
     },
     {
-      key: 'Created',
+      key: 'created',
+      label: t`Created`,
       value: createdTime.relative,
       tooltip: createdTime.absolute,
     },
     {
-      key: 'Updated',
+      key: 'updated',
+      label: t`Updated`,
       value: updatedTime.relative,
       tooltip: updatedTime.absolute,
     },
   ];
 
   async function onAssetSave(): Promise<void> {
+    const fileName = `${props.name}.${props.extension}`;
     const result = await window.ipc.electron.dialog.showSaveDialog({
-      title: `Save Asset ${props.name}.${props.extension} to disk`,
-      buttonLabel: 'Save Asset',
+      title: t`Save Asset ${fileName} to disk`,
+      buttonLabel: t`Save Asset`,
       defaultPath: `${props.name}.${props.extension}`,
       // properties: ['createDirectory', 'showOverwriteConfirmation'],
       // filters: [
@@ -163,8 +178,8 @@ export function AssetTeaser(
 
   async function onReplaceFile(): Promise<void> {
     const result = await window.ipc.electron.dialog.showOpenDialog({
-      title: 'Select a replacement file',
-      buttonLabel: 'Replace file',
+      title: t`Select a replacement file`,
+      buttonLabel: t`Replace file`,
       properties: ['openFile'],
     });
 
@@ -225,7 +240,7 @@ export function AssetTeaser(
           return (
             <Fragment key={info.key}>
               <div className="flex justify-between">
-                <div className="">{info.key}</div>
+                <div className="">{info.label}</div>
                 <div className="whitespace-nowrap">
                   {info.tooltip !== undefined && info.tooltip !== '-' ? (
                     <TooltipProvider>
@@ -249,15 +264,19 @@ export function AssetTeaser(
       <ItemFooter>
         <ButtonGroup className="w-full">
           <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="flex-1"
-                Icon={ExpandIcon}
-              >
-                <span className="sr-only">View</span>
-              </Button>
+            <DialogTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="flex-1"
+                  Icon={ExpandIcon}
+                />
+              }
+            >
+              <span className="sr-only">
+                <Trans>View</Trans>
+              </span>
             </DialogTrigger>
             <DialogContent className="sm:max-w-4xl">
               <DialogHeader>
@@ -275,15 +294,19 @@ export function AssetTeaser(
             open={isUpdateAssetDialogOpen}
             onOpenChange={setIsUpdateAssetDialogOpen}
           >
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="flex-1"
-                Icon={Edit2Icon}
-              >
-                <span className="sr-only">Update</span>
-              </Button>
+            <DialogTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="flex-1"
+                  Icon={Edit2Icon}
+                />
+              }
+            >
+              <span className="sr-only">
+                <Trans>Update</Trans>
+              </span>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -305,12 +328,12 @@ export function AssetTeaser(
                       Icon={Replace}
                       onClick={async () => onReplaceFile()}
                     >
-                      Replace file
+                      <Trans>Replace file</Trans>
                     </Button>
-                    {newFilePath !== undefined ? (
+                    {newFileName !== undefined ? (
                       <div className="flex max-w-full items-center gap-1 text-sm text-muted-foreground">
                         <span className="line-clamp-1 break-all">
-                          New file: {newFilePath.split(/[/\\]/).pop()}
+                          <Trans>New file: {newFileName}</Trans>
                         </span>
                         <Button
                           type="button"
@@ -321,7 +344,9 @@ export function AssetTeaser(
                             updateAssetForm.resetField('newFilePath')
                           }
                         >
-                          <span className="sr-only">Undo file replacement</span>
+                          <span className="sr-only">
+                            <Trans>Undo file replacement</Trans>
+                          </span>
                         </Button>
                       </div>
                     ) : null}
@@ -331,6 +356,9 @@ export function AssetTeaser(
                     <AssetForm
                       id={updateAssetFormId}
                       assetForm={updateAssetForm}
+                      schema={updateAssetSchema}
+                      nameField="name"
+                      descriptionField="description"
                       onFormSubmit={onAssetUpdate}
                     />
                   </ItemContent>
@@ -340,7 +368,7 @@ export function AssetTeaser(
               <DialogFooter>
                 <FormActions form={updateAssetForm} id={updateAssetFormId}>
                   <SubmitButton requireDirty variant="outline" Icon={Edit2Icon}>
-                    Update
+                    <Trans>Update</Trans>
                   </SubmitButton>
                 </FormActions>
               </DialogFooter>
@@ -354,43 +382,51 @@ export function AssetTeaser(
             Icon={DownloadIcon}
             onClick={onAssetSave}
           >
-            <span className="sr-only">Save as</span>
+            <span className="sr-only">
+              <Trans>Save as</Trans>
+            </span>
           </Button>
 
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                className="flex-1"
-                Icon={TrashIcon}
-              >
-                <span className="sr-only">Delete</span>
-              </Button>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  variant="destructive"
+                  size="icon-sm"
+                  className="flex-1"
+                  Icon={TrashIcon}
+                />
+              }
+            >
+              <span className="sr-only">
+                <Trans>Delete</Trans>
+              </span>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  You are about to delete this Asset
+                  <Trans>You are about to delete this Asset</Trans>
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action can be undone later by restoring the Asset via
-                  it&apos;s history.
+                  <Trans>
+                    This action can be undone later by restoring the Asset via
+                    it&apos;s history.
+                  </Trans>
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
               <AssetDisplay {...props} static />
 
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction asChild>
-                  <Button
-                    variant="destructive"
-                    Icon={TrashIcon}
-                    onClick={() => void onDelete()}
-                  >
-                    Delete
-                  </Button>
+                <AlertDialogCancel>
+                  <Trans>Cancel</Trans>
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  Icon={TrashIcon}
+                  onClick={() => void onDelete()}
+                >
+                  <Trans>Delete</Trans>
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -403,7 +439,9 @@ export function AssetTeaser(
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Could not delete this Asset</DialogTitle>
+              <DialogTitle>
+                <Trans>Could not delete this Asset</Trans>
+              </DialogTitle>
               <DialogDescription>
                 {describeCoreError(
                   deleteErrorType,
@@ -413,10 +451,10 @@ export function AssetTeaser(
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="secondary">
-                  Close
-                </Button>
+              <DialogClose
+                render={<Button type="button" variant="secondary" />}
+              >
+                <Trans>Close</Trans>
               </DialogClose>
             </DialogFooter>
           </DialogContent>

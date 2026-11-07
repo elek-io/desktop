@@ -25,8 +25,8 @@ Then proceed to the specific topics based on your interests or contribution goal
 - **[Dynamic Form Field Generation](./renderer/dynamic-form-field-generation.md)** - How user-defined forms work with field definitions
 - **[Markdown Editor](./renderer/markdown-editor.md)** - The Milkdown based mdast editor for markdown fields: the tree bridge, feature gating, and reference nodes
 - **[Breadcrumb Navigation](./renderer/breadcrumb-navigation.md)** - Route-based breadcrumb system for hierarchical navigation
-- **[Theming and Styling](./renderer/theming-and-styling.md)** - shadcn/ui components, Tailwind v4 CSS configuration, and dark mode
-- **[Internationalization](./renderer/internationalization.md)** - translations, datetime locales, and multi-language form state
+- **[Theming and Styling](./renderer/theming-and-styling.md)** - the brand package's tokens, shadcn/ui components on Base UI and what the app changes about them, the focus ring, and dark mode
+- **[Internationalization](./renderer/internationalization.md)** - the message catalog every word the app shows comes from, how to add a string, a plural, a placeholder and a language, datetime locales, and multi-language form state
 - **[Build and Packaging](./build-and-packaging.md)** - how electron-vite and electron-builder turn source into installers, the rule for `dependencies` vs `devDependencies`, why the renderer ships unminified, and what drives app size
 - **[E2E Testing](./testing.md)** - Playwright tests against the packaged app, fixtures, isolation, and CI
 - **[Releasing](./releasing.md)** - versioning with changesets and how CD publishes draft GitHub Releases

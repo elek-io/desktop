@@ -2,6 +2,8 @@ import { expect, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 
 import {
+  type CreateReleaseProps,
+  type ReleaseResult,
   uuid,
   type ListReleasesProps,
   type ReleaseListItem,
@@ -67,6 +69,20 @@ export async function listReleasesViaIpc(
   props: ListReleasesProps
 ): Promise<{ list: ReleaseListItem[]; total: number }> {
   return page.evaluate(async (p) => window.ipc.core.releases.list(p), props);
+}
+
+/**
+ * Publish a Release of a Project directly over IPC, bypassing the UI.
+ *
+ * Used to arrange a Project that is at a Release, where what the Release itself
+ * does is another spec's. Core works out the version from what changed since
+ * the last one, so the caller does not pass one.
+ */
+export async function createReleaseViaIpc(
+  page: Page,
+  props: CreateReleaseProps
+): Promise<ReleaseResult> {
+  return page.evaluate(async (p) => window.ipc.core.releases.create(p), props);
 }
 
 /**

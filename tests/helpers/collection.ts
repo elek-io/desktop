@@ -10,14 +10,20 @@ import {
   type DynamicFieldDefinition,
   type EmailFieldDefinition,
   type FieldType,
+  type Ipv4FieldDefinition,
   type MarkdownFieldDefinition,
   type NumberFieldDefinition,
   type RangeFieldDefinition,
+  type SlugFieldDefinition,
+  type StringSelectFieldDefinition,
   type ReferenceFieldDefinition,
   type SupportedLanguage,
+  type TelephoneFieldDefinition,
   type TextFieldDefinition,
   type TimeFieldDefinition,
+  type ToggleFieldDefinition,
   type UpdateCollectionProps,
+  type UrlFieldDefinition,
 } from '@elek-io/core';
 
 import { navigate } from './navigation.js';
@@ -102,11 +108,166 @@ export function numberFieldDefinition(
 }
 
 /**
+ * Build a toggle FieldDefinition with a caller-supplied id. Core pins a toggle
+ * to required and gives it a boolean default, because it always holds a Value,
+ * which is why it shows no rule beside its label.
+ */
+export function toggleFieldDefinition(
+  overrides: Partial<ToggleFieldDefinition> = {}
+): ToggleFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'featured',
+    label: { en: 'Featured' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'boolean',
+    fieldType: 'toggle',
+    defaultValue: false,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required url FieldDefinition with a caller-supplied id. Mirrors
+ * `emailFieldDefinition`, with `fieldType` "url", so a spec can drive the
+ * refusal of text that is not a web address.
+ */
+export function urlFieldDefinition(
+  overrides: Partial<UrlFieldDefinition> = {}
+): UrlFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'homepage',
+    label: { en: 'Homepage' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'url',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required ipv4 FieldDefinition with a caller-supplied id. Mirrors
+ * `urlFieldDefinition` with `fieldType` "ipv4".
+ */
+export function ipv4FieldDefinition(
+  overrides: Partial<Ipv4FieldDefinition> = {}
+): Ipv4FieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'server',
+    label: { en: 'Server' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'ipv4',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required telephone FieldDefinition with a caller-supplied id. Mirrors
+ * `urlFieldDefinition` with `fieldType` "telephone". Core checks it against
+ * E.164, which takes a leading plus, a country code and no spaces.
+ */
+export function telephoneFieldDefinition(
+  overrides: Partial<TelephoneFieldDefinition> = {}
+): TelephoneFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'hotline',
+    label: { en: 'Hotline' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'telephone',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required slug FieldDefinition with a caller-supplied id.
+ *
+ * Core pins a slug to unique and to no default Value, and takes the form it
+ * has to be in from `separator`, `lowercase` and `decamelize`. With no
+ * `ofFieldDefinitions` it stands on its own rather than following other fields.
+ */
+export function slugFieldDefinition(
+  overrides: Partial<SlugFieldDefinition> = {}
+): SlugFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'handle',
+    label: { en: 'Handle' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: true,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'slug',
+    defaultValue: null,
+    separator: '-',
+    lowercase: true,
+    decamelize: true,
+    ofFieldDefinitions: [],
+    ...overrides,
+  };
+}
+
+/**
+ * Build an optional string select FieldDefinition with a caller-supplied id.
+ *
+ * A select's options are what the control draws: up to seven of them as a list
+ * of radio buttons, and more as a dropdown with a filter. An optional one may
+ * stay empty, so None leads its list. Pass `options` to drive either shape.
+ */
+export function selectFieldDefinition(
+  overrides: Partial<StringSelectFieldDefinition> = {}
+): StringSelectFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'style',
+    label: { en: 'Style' },
+    description: null,
+    isRequired: false,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'select',
+    defaultValue: null,
+    options: [
+      { value: 'primary', label: { en: 'Primary' } },
+      { value: 'outline', label: { en: 'Outline' } },
+    ],
+    ...overrides,
+  };
+}
+
+/**
  * Build a range FieldDefinition with a caller-supplied id. A range definition is
  * always required and never unique (Core pins both), carries a numeric
- * `defaultValue`, and its `min` / `max` are the Slider's functional value domain
- * (Radix exposes them as `aria-valuemin` / `aria-valuemax`), not HTML constraint
- * attributes, so a test can assert they survive on the rendered slider.
+ * `defaultValue`, and its `min` / `max` are the Slider's functional value domain,
+ * carried by the range input that owns the slider role, so a test can assert
+ * they survive on the rendered slider.
  */
 export function rangeFieldDefinition(
   overrides: Partial<RangeFieldDefinition> = {}
@@ -538,7 +699,7 @@ export async function openAddFieldSheet(
 
   if (fieldType !== 'text') {
     // The picker is the first combobox in the sheet (its header). Its options
-    // render in a Radix portal, so locate them on the page, not in the dialog.
+    // render in a portal, so locate them on the page, not in the dialog.
     await sheet.getByRole('combobox').first().click();
     await page.getByRole('option', { name: fieldType, exact: true }).click();
   }

@@ -65,6 +65,7 @@ That only happens for code that was **externalized**, not bundled. Combined with
 Two more cases follow the same "is it required at runtime" test:
 
 - **Peer dependencies of a shipped package.** [`@elek-io/core`](../package.json) declares `dugite` and `zod` as required peers and `require()`s them at runtime in the main process. The client provides them, so they must be `dependencies`. Demote them and the app crashes on launch.
+- **A package the main process imports for its own text.** `@lingui/core` is a `dependency`, because main reads the message catalog for the box it shows when the app could not start and the main build externalizes its imports, see [internationalization.md](./renderer/internationalization.md). `@lingui/react` is a `devDependency`: only the renderer imports it, and the renderer is bundled. Lingui's CLI and its Vite plugin run only during the build, so those stay `devDependencies` too.
 - **Build only tools.** A Vite plugin like `@tailwindcss/vite` or `@tanstack/router-plugin` runs only during the build, so it is a `devDependency` even though it is very much part of shipping the app. Left in `dependencies` it drags itself, its platform binaries and its whole transitive tree into every packaged copy for no runtime benefit.
 
 ### Why this fails late
