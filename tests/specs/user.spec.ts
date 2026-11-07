@@ -372,6 +372,53 @@ appTest.describe('The Profile', () => {
       await expect(mainWindow.getByLabel('Preferred language')).toBeHidden();
     }
   );
+
+  appTest(
+    'holds Save with its reason while a field is empty, and writes nothing',
+    async ({ electronApp, mainWindow }) => {
+      await setUserViaIpc(mainWindow, {
+        name: 'Mara Klein',
+        email: 'mara@autohaus-ebersfelde.de',
+        localApi: { port: 31310, isEnabled: false },
+      });
+      await navigateToUserProfile(mainWindow);
+      const name = mainWindow.getByLabel('Name', { exact: true });
+      const port = mainWindow.getByLabel('Port', { exact: true });
+      const save = mainWindow.getByRole('button', { name: 'Save' });
+      await expect(name).toHaveValue('Mara Klein');
+
+      // Emptying the Name says what is missing before anybody presses Save,
+      // and Save stays reachable rather than leaving the tab order.
+      await name.fill('');
+      await expect(blockedReason(mainWindow)).toHaveText(
+        '1 field is still empty'
+      );
+      await expect(save).toBeDisabled();
+      await expect(save).toHaveAttribute('aria-describedby', /.+/);
+
+      // The Local API's port counts the same way, since it has to have one to
+      // listen on.
+      await port.fill('');
+      await expect(blockedReason(mainWindow)).toHaveText(
+        '2 fields are still empty'
+      );
+
+      // Nothing reaches Core while it is blocked, however the submit is
+      // raised, and the validator does not even run, so no field is flagged.
+      await stubCoreRecord(electronApp, 'core:user:set');
+      await save.click({ force: true });
+      await name.press('Enter', { noWaitAfter: true });
+      expect(await recordedCoreCalls(electronApp)).toEqual([]);
+      await expect(name).toHaveAttribute('aria-invalid', 'false');
+      await verifyCurrentRouteHash(mainWindow, '#/user/profile');
+
+      // Filling both clears the reason and frees the button.
+      await name.fill('Mara Klein');
+      await port.fill('31310');
+      await expect(blockedReason(mainWindow)).toBeHidden();
+      await expect(save).toBeEnabled();
+    }
+  );
 });
 
 appTest.describe('The user menu', () => {

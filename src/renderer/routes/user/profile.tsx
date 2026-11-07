@@ -21,6 +21,7 @@ import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { useUser } from '@renderer/hooks/useUser';
+import { countEmptyFields, emptyFieldsReason } from '@renderer/lib/emptyFields';
 import { queryOptions } from '@renderer/queries';
 
 import { type SetUserProps, setUserSchema } from '@elek-io/core';
@@ -92,10 +93,16 @@ function UserProfilePage(): ReactElement {
       },
     });
 
-  const port = setUserForm.watch('localApi.port');
+  const values = setUserForm.watch();
   // Read off the field, so the address follows the port while it is typed. The
   // scheme and the host are the same in every language.
-  const localApiUrl = `http://localhost:${port}`;
+  const localApiUrl = `http://localhost:${values.localApi.port}`;
+  // Core refuses a User without a name or an email address, and the Local API
+  // needs a port to listen on, so Save says what is missing rather than letting
+  // the press find out, see contributing/renderer/forms.md#saves-block.
+  const blockedBy = emptyFieldsReason(
+    countEmptyFields([values.name, values.email, values.localApi.port])
+  );
 
   const onSetUser: SubmitHandler<SetUserProps> = async (props) => {
     // The Local API comes back with the app while its switch is on, and a port
@@ -142,6 +149,7 @@ function UserProfilePage(): ReactElement {
             schema={setUserSchema}
             onSubmit={onSetUser}
             id={formId}
+            blockedBy={blockedBy}
             unsavedChangesTitle={t`Profile`}
             fieldsetClassName="flex flex-col gap-4"
           >
@@ -168,7 +176,7 @@ function UserProfilePage(): ReactElement {
               )}
             </AppField>
 
-            <FormActions form={setUserForm} id={formId}>
+            <FormActions form={setUserForm} id={formId} blockedBy={blockedBy}>
               <SubmitButton requireDirty className="w-full">
                 <Trans>Save</Trans>
               </SubmitButton>
