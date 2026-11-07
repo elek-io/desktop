@@ -1522,7 +1522,7 @@ test.describe("A Project's Settings", () => {
     await expect(address).toHaveValue(masked);
     expect(await mainWindow.content()).not.toContain(password);
     await expect(
-      mainWindow.getByText('A password in the address stays hidden.')
+      mainWindow.getByText('A password or token in the address stays hidden.')
     ).toBeVisible();
 
     // Untouched, there is nothing to save, so the mask cannot reach Core by a
@@ -1551,6 +1551,43 @@ test.describe("A Project's Settings", () => {
       masked.replace('website.git', 'site.git')
     );
     expect(await mainWindow.content()).not.toContain(password);
+  });
+
+  test('masks a token that stands alone in the Git address', async ({
+    mainWindow,
+  }) => {
+    // Over HTTPS git takes what stands alone before the at sign as a
+    // credential, which is how GitHub and GitLab are handed a token, so it is
+    // hidden the way a password is.
+    const token = 'ghp_0123456789abcdefSECRET';
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: `https://${token}@example.invalid/website.git`,
+    });
+    await navigateToSync(mainWindow, project.id);
+
+    const address = mainWindow.getByLabel('Git repository', { exact: true });
+    const masked = 'https://••••••••@example.invalid/website.git';
+    await expect(address).toHaveValue(masked);
+    // Nowhere on the screen, so it cannot be read off it or copied with the
+    // field either.
+    expect(await mainWindow.content()).not.toContain(token);
+
+    // And saving another part of the address puts it back, so the Project
+    // still points at a repository it can reach.
+    await address.fill(masked.replace('website.git', 'site.git'));
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow.getByText('Git repository saved')).toBeVisible();
+
+    const stored = await mainWindow.evaluate(
+      async (id) =>
+        (await window.ipc.core.projects.read({ id })).remoteOriginUrl,
+      project.id
+    );
+    expect(stored).toBe(`https://${token}@example.invalid/site.git`);
+    expect(await mainWindow.content()).not.toContain(token);
   });
 
   test('saves a password typed over the mask', async ({ mainWindow }) => {

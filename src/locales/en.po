@@ -1064,8 +1064,8 @@ msgid "Desktop checks it for incoming changes every 3 minutes."
 msgstr "Desktop checks it for incoming changes every 3 minutes."
 
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
-msgid "Desktop syncs this Project with it. A password in the address stays hidden."
-msgstr "Desktop syncs this Project with it. A password in the address stays hidden."
+msgid "Desktop syncs this Project with it. A password or token in the address stays hidden."
+msgstr "Desktop syncs this Project with it. A password or token in the address stays hidden."
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Disabled"

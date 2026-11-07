@@ -18,8 +18,8 @@ import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { countEmptyFields, emptyFieldsReason } from '@renderer/lib/emptyFields';
 import {
-  addressWithStoredPassword,
-  maskAddressPassword,
+  addressWithStoredCredential,
+  maskAddressCredential,
 } from '@renderer/lib/gitAddress';
 import { queryOptions } from '@renderer/queries';
 
@@ -37,8 +37,8 @@ export const Route = createFileRoute(
 /**
  * The Sync page of a Project's Settings: the address of its Git repository.
  *
- * The address is shown with any password in it masked, and the stored password
- * is put back on the way to Core, so a save that did not touch it keeps it and
+ * The address is shown with any credential in it masked, and the stored one is
+ * put back on the way to Core, so a save that did not touch it keeps it and
  * nothing on screen or on the clipboard carries it, see `lib/gitAddress.ts`.
  */
 function ProjectSettingsSyncPage(): ReactElement {
@@ -66,7 +66,7 @@ function ProjectSettingsSyncPage(): ReactElement {
       : {
           values: {
             id: project.id,
-            url: maskAddressPassword(project.remoteOriginUrl ?? ''),
+            url: maskAddressCredential(project.remoteOriginUrl ?? ''),
           },
         }),
     disabled: isReadingProject,
@@ -92,12 +92,12 @@ function ProjectSettingsSyncPage(): ReactElement {
   const onSetRemoteOriginUrl: SubmitHandler<
     SetRemoteOriginUrlProjectProps
   > = async (props) => {
-    const url = addressWithStoredPassword(props.url, storedUrl);
+    const url = addressWithStoredCredential(props.url, storedUrl);
     await setRemoteOriginUrl({ ...props, url });
     // This page stays open after it saved, so the form is made pristine again
     // with what went in, masked as it is shown. Without it Save would stay
     // available and leaving would ask about changes that are already saved.
-    remoteOriginUrlForm.reset({ ...props, url: maskAddressPassword(url) });
+    remoteOriginUrlForm.reset({ ...props, url: maskAddressCredential(url) });
   };
 
   return (
@@ -123,8 +123,8 @@ function ProjectSettingsSyncPage(): ReactElement {
                 </Trans>
               ) : (
                 <Trans>
-                  Desktop syncs this Project with it. A password in the address
-                  stays hidden.
+                  Desktop syncs this Project with it. A password or token in the
+                  address stays hidden.
                 </Trans>
               )
             }
