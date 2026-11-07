@@ -454,7 +454,7 @@ would be unavailable and leaving would ask nothing, see
 
 ### Mutation Metadata
 
-Every mutation carries both `meta` and `toasts`, and `customMutationOptions` from [`util.ts`](../../src/renderer/queries/util.ts) is what requires them. It also adds `throwOnError: true`, so a failure propagates to the nearest error boundary, and logs every mutation with Core:
+Every mutation carries both `meta` and `toasts`, and `customMutationOptions` from [`util.ts`](../../src/renderer/queries/util.ts) is what requires them. A `toasts.success` of `null` says a change is its own answer and shows none, which only `user.setPreference` uses, see [error-handling.md](../error-handling.md#expected-errors-handled-in-place). It also adds `throwOnError: true`, so a failure propagates to the nearest error boundary, and logs every mutation with Core:
 
 ```typescript
 customMutationOptions({
