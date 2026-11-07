@@ -36,6 +36,7 @@ function SettingsRow({
 }): ReactElement {
   return (
     <Link
+      data-slot="settings-page"
       to={to}
       params={{ projectId }}
       activeProps={{ 'data-active': true }}
@@ -105,16 +106,23 @@ function ProjectSettingsLayout(): ReactElement {
   return (
     <Panes>
       <Pane width="list" name={t`the pages of these Settings`}>
-        <PaneHead>
-          <span className="text-label">
-            <Trans>Settings</Trans>
-          </span>
-        </PaneHead>
-        <ScrollArea className="flex-1">
-          <div className="px-(--pane-edge) pb-6">
-            <SettingsList />
-          </div>
-        </ScrollArea>
+        {/*
+          The list is the navigation between these pages, so it is a landmark
+          of its own and says what it navigates. Its head stands inside it,
+          because the head is what names it.
+        */}
+        <nav aria-label={t`Settings`} className="flex min-h-0 flex-1 flex-col">
+          <PaneHead>
+            <span className="text-label">
+              <Trans>Settings</Trans>
+            </span>
+          </PaneHead>
+          <ScrollArea className="flex-1">
+            <div className="px-(--pane-edge) pb-6">
+              <SettingsList />
+            </div>
+          </ScrollArea>
+        </nav>
       </Pane>
       <Pane name={t`this page of these Settings`}>
         <Outlet />

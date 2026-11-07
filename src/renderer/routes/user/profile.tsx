@@ -120,53 +120,61 @@ function UserProfilePage(): ReactElement {
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="m-auto w-90 px-(--pane-edge) py-6">
-        <div className="mb-6 text-center">
-          <h1 className="text-h3">
-            <Trans>Profile</Trans>
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            <Trans>Who your changes are from, and the Local API.</Trans>
-          </p>
-        </div>
+      {/*
+        ci's column of 360 px, centered on the panel like the sign in pages,
+        with the pane's own text edge around it rather than inside it. An auto
+        margin rather than centered content, so a form taller than the window
+        keeps both its ends reachable while the pane scrolls.
+      */}
+      <div className="m-auto px-(--pane-edge) py-6">
+        <div className="w-90">
+          <div className="mb-6 text-center">
+            <h1 className="text-h3">
+              <Trans>Profile</Trans>
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              <Trans>Who your changes are from, and the Local API.</Trans>
+            </p>
+          </div>
 
-        <AppForm
-          form={setUserForm}
-          schema={setUserSchema}
-          onSubmit={onSetUser}
-          id={formId}
-          unsavedChangesTitle={t`Profile`}
-          fieldsetClassName="flex flex-col gap-4"
-        >
-          <UserIdentityFields form={setUserForm} />
-          <UserIdentityNote />
-
-          <h2 className="mt-2 border-t pt-4 text-label">
-            <Trans>Local API</Trans>
-          </h2>
-          <AppField
+          <AppForm
             form={setUserForm}
-            name="localApi.port"
-            label={<Trans>Port</Trans>}
-            description={
-              <Trans>
-                While it&apos;s on, other apps on this computer read your
-                Projects at <span className="font-mono">{localApiUrl}</span>.
-                You turn it on in the user menu.
-              </Trans>
-            }
+            schema={setUserSchema}
+            onSubmit={onSetUser}
+            id={formId}
+            unsavedChangesTitle={t`Profile`}
+            fieldsetClassName="flex flex-col gap-4"
           >
-            {({ field, controlProps }) => (
-              <TextControl field={field} type="number" {...controlProps} />
-            )}
-          </AppField>
+            <UserIdentityFields form={setUserForm} />
+            <UserIdentityNote />
 
-          <FormActions form={setUserForm} id={formId}>
-            <SubmitButton requireDirty className="w-full">
-              <Trans>Save</Trans>
-            </SubmitButton>
-          </FormActions>
-        </AppForm>
+            <h2 className="mt-2 border-t pt-4 text-label">
+              <Trans>Local API</Trans>
+            </h2>
+            <AppField
+              form={setUserForm}
+              name="localApi.port"
+              label={<Trans>Port</Trans>}
+              description={
+                <Trans>
+                  While it&apos;s on, other apps on this computer read your
+                  Projects at <span className="font-mono">{localApiUrl}</span>.
+                  You turn it on in the user menu.
+                </Trans>
+              }
+            >
+              {({ field, controlProps }) => (
+                <TextControl field={field} type="number" {...controlProps} />
+              )}
+            </AppField>
+
+            <FormActions form={setUserForm} id={formId}>
+              <SubmitButton requireDirty className="w-full">
+                <Trans>Save</Trans>
+              </SubmitButton>
+            </FormActions>
+          </AppForm>
+        </div>
       </div>
     </main>
   );

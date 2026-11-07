@@ -189,7 +189,10 @@ test.describe('Navigation', () => {
       .poll(async () => breadcrumbTrail(mainWindow))
       .toEqual(['Projects', 'Autohaus Ebersfelde', 'Settings', 'General']);
 
-    await mainWindow.getByRole('link', { name: /Sync/ }).click();
+    await mainWindow
+      .locator('[data-slot="settings-page"]')
+      .filter({ hasText: 'Sync' })
+      .click();
     await expect
       .poll(async () => breadcrumbTrail(mainWindow))
       .toEqual(['Projects', 'Autohaus Ebersfelde', 'Settings', 'Sync']);

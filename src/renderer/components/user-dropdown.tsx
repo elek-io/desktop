@@ -145,7 +145,10 @@ export function UserDropdown({ user }: { user: User }): React.JSX.Element {
           {/* A row of the menu rather than its group label, because a group
           label is hidden from assistive technology, which would take the
           switch with it. */}
-          <div className="flex h-8 items-center gap-2 px-2">
+          <div
+            data-slot="dropdown-menu-row"
+            className="flex h-8 items-center gap-2 px-2"
+          >
             <Braces aria-hidden="true" className="size-4 shrink-0" />
             <Label htmlFor={localApiSwitchId} className="flex-1">
               <Trans>Local API</Trans>

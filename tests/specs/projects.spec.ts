@@ -82,18 +82,16 @@ async function expectStateLines(
  * Whether a line stands in ci's warning color, which is what marks something
  * that cannot be brought back.
  *
- * The token is read off the document rather than written down here, so the
- * assertion follows the brand package rather than a copy of its value.
+ * The value comes from the brand package rather than from a copy of it here,
+ * so the assertion follows the token. Light mode, which the callers set.
  */
-async function warningColorOf(line: Locator): Promise<boolean> {
-  const [shown, token] = await Promise.all([
-    line.evaluate((node) => getComputedStyle(node).color),
-    line.evaluate((node) =>
-      getComputedStyle(node).getPropertyValue('--color-warning')
-    ),
-  ]);
+async function isWarningColored(line: Locator): Promise<boolean> {
+  const shown = await line.evaluate((node) => getComputedStyle(node).color);
 
-  return toBytes(parseColor(shown)) === toBytes(parseColor(token));
+  return (
+    toBytes(parseColor(shown)) ===
+    toBytes(parseColor(colors.light['warning'].oklch))
+  );
 }
 
 /**
@@ -943,6 +941,7 @@ test.describe('Projects', () => {
   test('deletes a Project without a Git repository from one confirm', async ({
     mainWindow,
   }) => {
+    await setTheme(mainWindow, 'light');
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow, {
       name: 'Autohaus Ebersfelde',
@@ -974,7 +973,7 @@ test.describe('Projects', () => {
       "Once deleted, it can't be brought back."
     );
     await expect(warning).toBeVisible();
-    expect(await warningColorOf(warning)).toBe(true);
+    expect(await isWarningColored(warning)).toBe(true);
     await confirm.getByRole('button', { name: 'Cancel' }).click();
     await expect(confirm).toBeHidden();
     expect((await listProjectsViaIpc(mainWindow)).total).toBe(1);
@@ -1159,7 +1158,7 @@ test.describe('Projects', () => {
     await expect(mainWindow.getByRole('button', { name: 'Sync' })).toBeHidden();
 
     // Setting the origin dirties the form, so Save enables.
-    await mainWindow.getByLabel('Remote URL').fill(remote.url);
+    await mainWindow.getByLabel('Git repository').fill(remote.url);
     await expect(
       mainWindow.getByRole('button', { name: 'Save' })
     ).toBeEnabled();
@@ -1429,8 +1428,11 @@ test.describe("A Project's Settings", () => {
     });
     await navigateToProjectSettings(mainWindow, project.id);
 
-    // The list of 296 px beside the chosen page, with a row per page.
-    const list = mainWindow.getByRole('link', { name: /General/ });
+    // The list of 296 px beside the chosen page, with a row per page. Each row
+    // carries its own slot, so this reads the list rather than the crumb of
+    // the same name.
+    const pages = mainWindow.locator('[data-slot="settings-page"]');
+    const list = pages.filter({ hasText: 'General' });
     await expect(list).toBeVisible();
     await expect(
       mainWindow.getByText('Name, description and languages')
@@ -1438,7 +1440,7 @@ test.describe("A Project's Settings", () => {
 
     // Without a Git repository the Sync row says so, rather than naming a host
     // this Project has none of.
-    const sync = mainWindow.getByRole('link', { name: /Sync/ });
+    const sync = pages.filter({ hasText: 'Sync' });
     await expect(sync).toContainText('This computer only');
 
     // General is the page that is open, and the chosen row is marked by more
@@ -1485,9 +1487,11 @@ test.describe("A Project's Settings", () => {
     });
     await navigateToProjectSettings(mainWindow, project.id);
 
-    await expect(mainWindow.getByRole('link', { name: /Sync/ })).toContainText(
-      'GitHub'
-    );
+    await expect(
+      mainWindow.locator('[data-slot="settings-page"]').filter({
+        hasText: 'Sync',
+      })
+    ).toContainText('GitHub');
   });
 
   test('shows the Git address with its password masked, and keeps the stored one', async ({
@@ -1571,6 +1575,7 @@ test.describe("A Project's Settings", () => {
     electronApp,
     mainWindow,
   }) => {
+    await setTheme(mainWindow, 'light');
     await recordLogsViaIpc(electronApp);
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
@@ -1598,7 +1603,7 @@ test.describe("A Project's Settings", () => {
       { exact: false }
     );
     await expect(warning).toBeVisible();
-    expect(await warningColorOf(warning)).toBe(true);
+    expect(await isWarningColored(warning)).toBe(true);
     await expect(confirm.getByText("aren't synced. Removing")).toBeHidden();
 
     // And the failed check is in the log file with its type, the way a pane's

@@ -1,6 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 import { join } from 'node:path';
 
+import { colors } from '@elek-io/branding';
+
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import {
@@ -17,6 +19,7 @@ import {
 } from '../helpers/project.js';
 import { createReleaseViaIpc } from '../helpers/release.js';
 import { setupRemote } from '../helpers/remote.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
 /**
@@ -39,21 +42,26 @@ async function factsOf(page: Page): Promise<string[][]> {
   );
 }
 
-/** The background a marker is drawn in, as bytes a token can be compared to. */
-async function markerBackground(page: Page, token: string): Promise<boolean> {
-  const marker = page
+/**
+ * Whether the newest change's marker is drawn in one of ci's colors.
+ *
+ * The value comes from the brand package rather than from a copy of it here,
+ * so the assertion follows the token. Light mode, which the caller sets.
+ */
+async function isMarkerColored(
+  page: Page,
+  token: 'border' | 'card'
+): Promise<boolean> {
+  const shown = await page
     .locator('[data-slot="change-row"]')
     .first()
-    .locator('span[aria-hidden="true"]');
-  const [shown, declared] = await Promise.all([
-    marker.evaluate((node) => getComputedStyle(node).backgroundColor),
-    marker.evaluate(
-      (node, property) => getComputedStyle(node).getPropertyValue(property),
-      token
-    ),
-  ]);
+    .locator('span[aria-hidden="true"]')
+    .evaluate((node) => getComputedStyle(node).backgroundColor);
 
-  return toBytes(parseColor(shown)) === toBytes(parseColor(declared));
+  return (
+    toBytes(parseColor(shown)) ===
+    toBytes(parseColor(colors.light[token].oklch))
+  );
 }
 
 test.describe('The Dashboard', () => {
@@ -65,14 +73,25 @@ test.describe('The Dashboard', () => {
       name: 'Autohaus Ebersfelde',
       settings: { language: { default: 'en', supported: ['en', 'de'] } },
     });
+    // A Project of two languages holds every name and every Value in both, so
+    // the Collection and the Entry below carry German too.
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
-      fieldDefinitions: [textFieldDefinition()],
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'Articles', de: 'Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+      ],
     });
     await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
-      values: { title: stringValue({ en: 'Spring opening hours' }) },
+      values: {
+        title: stringValue({ en: 'Spring opening hours', de: 'Frühling' }),
+      },
     });
     await createAssetViaIpc(mainWindow, {
       projectId: project.id,
@@ -164,6 +183,7 @@ test.describe('The Dashboard', () => {
   test('says of each change whether it is synced, where that can be told', async ({
     mainWindow,
   }, testInfo) => {
+    await setTheme(mainWindow, 'light');
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     await navigateToProjectDashboard(mainWindow, project.id);
@@ -174,7 +194,7 @@ test.describe('The Dashboard', () => {
     // Without a Git repository there is nothing to sync with, so a row claims
     // neither state: its marker is the one that says nothing, in the border
     // color rather than hollow or filled.
-    expect(await markerBackground(mainWindow, '--color-border')).toBe(true);
+    expect(await isMarkerColored(mainWindow, 'border')).toBe(true);
 
     // With a reachable Git repository the check answers, and a change that has
     // not reached it takes the hollow marker: the pane's own surface inside a
@@ -194,7 +214,7 @@ test.describe('The Dashboard', () => {
     await expect(mainWindow.getByText('1 change not synced')).toBeVisible({
       timeout: 15000,
     });
-    expect(await markerBackground(mainWindow, '--color-card')).toBe(true);
+    expect(await isMarkerColored(mainWindow, 'card')).toBe(true);
     const border = await mainWindow
       .locator('[data-slot="change-row"]')
       .first()

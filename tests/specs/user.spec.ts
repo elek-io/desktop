@@ -393,6 +393,16 @@ appTest.describe('The user menu', () => {
       const language = menu.getByRole('menuitem', { name: 'Language' });
       await expect(language).toBeVisible();
 
+      // Polled, because the menu scales as it opens, so a width read in the
+      // middle of that is neither the one it starts at nor the one it ends on.
+      await expect
+        .poll(async () =>
+          menu.evaluate((node) =>
+            Math.round(node.getBoundingClientRect().width)
+          )
+        )
+        .toBe(280);
+
       const measured = await mainWindow.evaluate(() => {
         const node = document.querySelector(
           '[data-slot="dropdown-menu-content"]'
@@ -406,12 +416,16 @@ appTest.describe('The user menu', () => {
           width: Math.round(node.getBoundingClientRect().width),
           rows: Array.from(
             node.querySelectorAll(
-              '[data-slot="dropdown-menu-item"],[data-slot="dropdown-menu-sub-trigger"]'
+              '[data-slot="dropdown-menu-item"],[data-slot="dropdown-menu-sub-trigger"],[data-slot="dropdown-menu-row"]'
             )
           ).map((row) => Math.round(row.getBoundingClientRect().height)),
         };
       });
       expect(measured.width).toBe(280);
+      // Every row ci draws is 32 px high, Local API's own row included, which
+      // is a row of the menu rather than one of its items so the switch stays
+      // in the accessibility tree.
+      expect(measured.rows.length).toBeGreaterThanOrEqual(4);
       expect(new Set(measured.rows)).toEqual(new Set([32]));
 
       // The row says which language the app is read in, and its submenu lists
