@@ -115,14 +115,15 @@ is checked by hand once per platform after a change to what the app asks for.
 whose name is not the file's own, so the offered name and the picked file's name
 differ, then press Save a copy and read the panel before saving:
 
-| Platform | What to check                                                                                                                                                                                                                                                                                        |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| macOS    | The name field holds the Asset's name with its extension, once and whole. The panel's own setting for showing extensions decides whether the extension is drawn in the field or behind it, and either way the saved file carries it. There is no format chooser, since the dialog carries one filter |
-| Windows  | The name field holds the same name, and the type dropdown offers that one type. Saving over an existing file asks before it overwrites                                                                                                                                                               |
-| Linux    | The name field holds the same name, and the filter above the file list is the Asset's own type                                                                                                                                                                                                       |
+| Platform | What to check                                                                                                                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS    | That the name field holds the Asset's name with its extension, once and whole, whether the panel draws the extension in the field or hides it behind its own setting, and that no format chooser stands below it, since the dialog carries one filter |
+| Windows  | That the name field holds the same name, and that the type dropdown offers that one type                                                                                                                                                              |
+| Linux    | That the name field holds the same name, and that the filter above the file list is the Asset's own type                                                                                                                                              |
 
-On every platform the file is saved where it was picked, under the name the
-panel showed, and the toast says the Asset was saved to the computer.
+On every platform, check that the file is saved where it was picked, under
+the name the panel showed, and that the toast says the Asset was saved to
+the computer.
 
 ## CI
 
