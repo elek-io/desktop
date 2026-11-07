@@ -48,6 +48,7 @@ export function ChangeRow({
 
   return (
     <Link
+      data-slot="change-row"
       to="/projects/$projectId/history/$commitHash"
       params={{ projectId, commitHash: commit.hash }}
       activeProps={{ 'data-active': true }}
@@ -97,7 +98,7 @@ export function ChangeList({
   }
 
   return (
-    <div className="-mx-(--pane-edge) border-t">
+    <div data-slot="change-list" className="-mx-(--pane-edge) border-t">
       {commits.map((commit) => (
         <ChangeRow
           key={commit.hash}

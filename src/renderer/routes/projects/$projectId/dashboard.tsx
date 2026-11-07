@@ -46,7 +46,10 @@ function Fact({
   line: ReactNode;
 }): ReactElement {
   return (
-    <div className="relative flex flex-col gap-1 px-(--pane-edge) py-5">
+    <div
+      data-slot="project-fact"
+      className="relative flex flex-col gap-1 px-(--pane-edge) py-5"
+    >
       <span className="text-small text-muted-foreground">{label}</span>
       <span className="text-h3">{value}</span>
       <span className="text-small text-muted-foreground">{line}</span>
@@ -70,7 +73,10 @@ function FactPlaceholder(): ReactElement {
  */
 function Facts({ children }: { children: ReactNode }): ReactElement {
   return (
-    <div className="-mx-(--pane-edge) grid grid-cols-4 border-y [&>*:not(:first-child)]:before:absolute [&>*:not(:first-child)]:before:inset-y-[min(32px,20%)] [&>*:not(:first-child)]:before:left-0 [&>*:not(:first-child)]:before:w-px [&>*:not(:first-child)]:before:bg-border">
+    <div
+      data-slot="project-facts"
+      className="-mx-(--pane-edge) grid grid-cols-4 border-y [&>*:not(:first-child)]:before:absolute [&>*:not(:first-child)]:before:inset-y-[min(32px,20%)] [&>*:not(:first-child)]:before:left-0 [&>*:not(:first-child)]:before:w-px [&>*:not(:first-child)]:before:bg-border"
+    >
       {children}
     </div>
   );
