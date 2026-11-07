@@ -115,52 +115,57 @@ export function AddAssetButton({
         <Trans>Add Asset</Trans>
       </Button>
 
-      <Dialog
-        open={pickedFilePath !== null}
-        onOpenChange={(isOpen) => {
-          if (isOpen === false) {
-            setPickedFilePath(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              <Trans>Add Asset</Trans>
-            </DialogTitle>
-            <DialogDescription>
-              {t`The file ${fileName} is added once it has a name and a description.`}
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogBody>
-            <AssetForm
-              id={formId}
-              assetForm={createAssetForm}
-              schema={createAssetSchema}
-              nameField="name"
-              descriptionField="description"
-              blockedBy={blockedBy}
-              onFormSubmit={onCreateAsset}
-            />
-          </DialogBody>
-
-          <DialogFooter>
-            <DialogClose render={<Button type="button" variant="ghost" />}>
-              <Trans>Cancel</Trans>
-            </DialogClose>
-            <FormActions
-              form={createAssetForm}
-              id={formId}
-              blockedBy={blockedBy}
-            >
-              <SubmitButton Icon={Plus}>
+      {/* Only where this button asks for the name and the description itself.
+      A screen that opens its own pane for the picked file takes it through
+      `onFilePicked`, and no dialog of this one is ever on screen there. */}
+      {onFilePicked === undefined ? (
+        <Dialog
+          open={pickedFilePath !== null}
+          onOpenChange={(isOpen) => {
+            if (isOpen === false) {
+              setPickedFilePath(null);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
                 <Trans>Add Asset</Trans>
-              </SubmitButton>
-            </FormActions>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </DialogTitle>
+              <DialogDescription>
+                {t`The file ${fileName} is added once it has a name and a description.`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogBody>
+              <AssetForm
+                id={formId}
+                assetForm={createAssetForm}
+                schema={createAssetSchema}
+                nameField="name"
+                descriptionField="description"
+                blockedBy={blockedBy}
+                onFormSubmit={onCreateAsset}
+              />
+            </DialogBody>
+
+            <DialogFooter>
+              <DialogClose render={<Button type="button" variant="ghost" />}>
+                <Trans>Cancel</Trans>
+              </DialogClose>
+              <FormActions
+                form={createAssetForm}
+                id={formId}
+                blockedBy={blockedBy}
+              >
+                <SubmitButton Icon={Plus}>
+                  <Trans>Add Asset</Trans>
+                </SubmitButton>
+              </FormActions>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </>
   );
 }
