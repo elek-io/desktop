@@ -50,10 +50,12 @@ interface Credential {
  * scheme a lone element is the login name, which is no secret and which git's
  * own `git@host:path` shape carries in plain sight.
  *
- * The user information ends at the authority's last `@`, the way curl reads
- * one, so a password holding an unencoded `@` is hidden whole rather than up to
- * that character. An authority with no `@` carries no credential, which is what
- * keeps a host's port from being read as one.
+ * The user information ends at the authority's last `@`, as the URL standard
+ * reads one, so a password holding an unencoded `@` is hidden whole rather than
+ * up to that character. Hiding from the first `@` would leave the rest of such
+ * a password on screen, and no parser reads less than this one hides. An
+ * authority with no `@` carries no credential at all, which is what keeps a
+ * host's port from being read as one.
  */
 function credentialOf(address: string): Credential | null {
   const match = AUTHORITY.exec(address);

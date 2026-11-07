@@ -60,7 +60,7 @@ const shapes: Array<{ what: string; stored: string; shown: string }> = [
     shown: 'https://example.invalid:8443/website.git',
   },
   {
-    what: 'an unencoded at sign inside the password, as curl reads one',
+    what: 'an unencoded at sign inside the password, which the last one ends',
     stored: 'https://mara:SECRET@keep@example.invalid/website.git',
     shown: `https://mara:${CREDENTIAL_MASK}@example.invalid/website.git`,
   },

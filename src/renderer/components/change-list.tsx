@@ -35,8 +35,8 @@ export type ChangeSyncState = 'not-synced' | 'synced' | 'unknown';
  *
  * ci's row names its Entry or Collection, which a commit carries as an id
  * only, so the object is read per row. It is read as it stood at the change,
- * which is the one read that cannot fail for an object that has since been
- * deleted or whose Collection has. A delete took the object out of the Project
+ * which is what keeps the read from failing for an object that has since been
+ * deleted, or whose Collection has. A delete took the object out of the Project
  * altogether, so that row is left with the kind of thing the sentence above it
  * already names.
  *
