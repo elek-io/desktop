@@ -264,8 +264,8 @@ export const projectOptions = {
       objectType: 'project',
     },
     toasts: {
-      success: () => t`Remote URL saved`,
-      error: () => t`Could not save the remote URL`,
+      success: () => t`Git repository saved`,
+      error: () => t`Could not save the Git repository`,
     },
     onSuccess: async (_data, variables, _result, context) => {
       // Remote origin URL is part of the Project data
