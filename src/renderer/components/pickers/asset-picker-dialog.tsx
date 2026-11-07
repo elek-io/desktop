@@ -1,7 +1,11 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useId, useState, type ReactElement } from 'react';
 
-import { AssetDisplay } from '@renderer/components/asset-display';
+import { AddAssetButton } from '@renderer/components/add-asset-button';
+import {
+  AssetCardContents,
+  AssetCardSkeleton,
+} from '@renderer/components/asset-card';
 import { Button } from '@renderer/components/ui/button';
 import { Checkbox } from '@renderer/components/ui/checkbox';
 import {
@@ -20,10 +24,11 @@ import {
   RadioGroup,
   RadioGroupItem,
 } from '@renderer/components/ui/radio-group';
-import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { cn, formatBytes } from '@renderer/lib/utils';
+import { assetFileName } from '@renderer/lib/assetFile';
+import { cn } from '@renderer/lib/utils';
+import { assetCardVariants, assetGridVariants } from '@renderer/lib/variants';
 import { queryOptions } from '@renderer/queries';
 
 import type { Asset } from '@elek-io/core';
@@ -32,32 +37,15 @@ import type { Asset } from '@elek-io/core';
 // it, and so does the markdown editor's Reference an Asset. Each Asset is a card
 // with a radio button where one may be chosen and a checkbox where several may.
 //
-// Add Asset, which ci draws beside the filter, belongs to the Assets screen's
-// own pane and is built with it.
+// The grid and its cards are the Assets screen's own, so an Asset reads here
+// the way it reads there, see components/asset-card.tsx. Add Asset stands
+// beside the filter as ci draws it, so a file that is not in the Project yet
+// can be added without leaving the field.
+//
+// A chosen card is marked by its control alone, as ci asks, so no card takes a
+// border or a surface of its own.
 //
 // See contributing/renderer/dynamic-form-field-generation.md.
-
-/**
- * ci's Assets grid: four ruled columns, whatever the window does, with a
- * divider between the columns of a row and a rule between its rows.
- *
- * The rule between two rows is the lower row's own top border, so the last row
- * draws none against the footer, which is what ci's grid does. The rule above
- * the first row is the body's, and `gap-0` is the grid's, where a radio group
- * would otherwise bring the registry's gap.
- */
-const ASSET_GRID = cn(
-  'grid grid-cols-4 gap-0 [&>*:not(:nth-child(4n+1))]:border-l [&>*:not(:nth-child(-n+4))]:border-t'
-);
-
-/**
- * One card of that grid: its preview, then the control that chooses it beside
- * the name. A chosen card is marked by that control alone, as ci asks, so the
- * card takes no border and no surface of its own.
- */
-const ASSET_CARD = cn(
-  'flex flex-col items-stretch gap-2.5 border-border px-6 pt-4 pb-4.5 font-normal has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-4 has-[:focus-visible]:outline-ring'
-);
 
 export interface AssetPickerDialogProps {
   open: boolean;
@@ -132,7 +120,9 @@ export function AssetPickerDialog({
     needle === ''
       ? allowedAssets
       : allowedAssets.filter((asset) =>
-          asset.name.toLowerCase().includes(needle)
+          // By the file name the card shows, so typing what is on screen
+          // narrows the grid, the extension included.
+          assetFileName(asset).toLowerCase().includes(needle)
         );
   const maxReached = max !== null && draftIds.length >= max;
   // How many are chosen right now, which ci draws beside what the field takes,
@@ -167,47 +157,32 @@ export function AssetPickerDialog({
   const cards = shownAssets.map((asset) => {
     const isChosen = draftIds.includes(asset.id);
     const id = `${itemId}-${asset.id}`;
-    const type = asset.extension.toUpperCase();
-    const size = formatBytes(asset.size);
 
     return (
       <Label
         key={asset.id}
         htmlFor={id}
         className={cn(
-          ASSET_CARD,
+          assetCardVariants(),
           isChosen === false && maxReached ? 'opacity-50' : null
         )}
       >
-        {/* The preview says the same as the name beside it, so it stays out
-        of the card's accessible name. */}
-        <span aria-hidden="true">
-          <AssetDisplay
-            {...asset}
-            static
-            fit="cover"
-            className="h-28 w-full rounded-md"
-          />
-        </span>
-        <span className="flex items-start gap-2">
-          {takesOne ? (
-            <RadioGroupItem className="mt-0.5" id={id} value={asset.id} />
-          ) : (
-            <Checkbox
-              className="mt-0.5"
-              id={id}
-              checked={isChosen}
-              disabled={isChosen === false && maxReached}
-              onCheckedChange={() => toggle(asset.id, isChosen)}
-            />
-          )}
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-label">{asset.name}</span>
-            <span className="text-small text-muted-foreground">
-              {t`${type}, ${size}`}
-            </span>
-          </span>
-        </span>
+        <AssetCardContents
+          asset={asset}
+          control={
+            takesOne ? (
+              <RadioGroupItem className="mt-0.5" id={id} value={asset.id} />
+            ) : (
+              <Checkbox
+                className="mt-0.5"
+                id={id}
+                checked={isChosen}
+                disabled={isChosen === false && maxReached}
+                onCheckedChange={() => toggle(asset.id, isChosen)}
+              />
+            )
+          }
+        />
       </Label>
     );
   });
@@ -230,18 +205,17 @@ export function AssetPickerDialog({
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
+          {/* An Asset added here lands in the grid below, since the create
+          writes it into the same list this dialog reads. */}
+          <AddAssetButton />
         </div>
 
         <DialogBody flush className="border-t">
           {isReadingAssets ? (
-            <div className={ASSET_GRID}>
+            <div className={assetGridVariants()}>
               {Array.from({ length: 8 }).map((_, index) => {
                 const key = `skeleton-${String(index)}`;
-                return (
-                  <div key={key} className={ASSET_CARD}>
-                    <Skeleton className="h-28 w-full" />
-                  </div>
-                );
+                return <AssetCardSkeleton key={key} />;
               })}
             </div>
           ) : allowedAssets.length === 0 ? (
@@ -265,12 +239,16 @@ export function AssetPickerDialog({
               aria-label={title}
               value={draftIds[0] ?? null}
               onValueChange={(assetId: string) => toggle(assetId, false)}
-              className={ASSET_GRID}
+              className={assetGridVariants()}
             >
               {cards}
             </RadioGroup>
           ) : (
-            <div role="group" aria-label={title} className={ASSET_GRID}>
+            <div
+              role="group"
+              aria-label={title}
+              className={assetGridVariants()}
+            >
               {cards}
             </div>
           )}

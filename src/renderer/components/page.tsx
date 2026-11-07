@@ -11,6 +11,12 @@ import { cn } from '@renderer/lib/utils';
 
 export interface PageProps extends HTMLAttributes<HTMLElement> {
   title: string;
+  /**
+   * How many things the screen holds, which stands beside the title where ci
+   * draws a count. The title says what is counted, so the number is read as it
+   * stands.
+   */
+  count?: number | undefined;
   description?: ReactElement;
   actions?: ReactElement;
   children?: ReactNode;
@@ -35,6 +41,7 @@ export interface PageProps extends HTMLAttributes<HTMLElement> {
 export function Page({
   className,
   title,
+  count,
   description,
   actions,
   children,
@@ -55,7 +62,19 @@ export function Page({
     >
       <PaneHead>
         <div className="min-w-0 flex-1">
-          <h1 className="text-h3">{title}</h1>
+          {/*
+            The title and the count beside it stand as two elements of a row,
+            which is what ci draws and what makes a screen reader read the
+            number as a word of its own rather than run onto the title.
+          */}
+          <h1 className="flex items-baseline gap-2 text-h3">
+            <span>{title}</span>
+            {count === undefined ? null : (
+              <span className="text-ui font-normal text-muted-foreground">
+                {count}
+              </span>
+            )}
+          </h1>
           {description ? (
             <p className="mt-1 max-w-prose text-small text-muted-foreground">
               {description}

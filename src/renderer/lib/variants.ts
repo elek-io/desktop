@@ -289,3 +289,30 @@ export const paneVariants = cva(
     },
   }
 );
+
+/*
+  ci's Assets grid: four ruled columns, whatever the window does, with a
+  divider between the columns of a row and a rule between its rows.
+
+  The rule between two rows is the lower row's own top border, so the last row
+  draws none against whatever follows the grid, which is what ci's grid does.
+  The rule above the first row is the caller's, since only the caller knows
+  whether something stands above it, and `gap-0` is the grid's, where a radio
+  group would otherwise bring the registry's gap.
+*/
+export const assetGridVariants = cva(
+  'grid grid-cols-4 gap-0 [&>*:not(:nth-child(4n+1))]:border-l [&>*:not(:nth-child(-n+4))]:border-t'
+);
+
+/*
+  One card of that grid: its preview, then what the file is called and what it
+  is.
+
+  The card carries the text edge of the main area itself, so the grid spans its
+  pane and a rule runs from one divider to the other. The focus ring is drawn
+  inside the card, which the pane's edge would otherwise clip, whether the card
+  itself takes the focus or a control inside it does.
+*/
+export const assetCardVariants = cva(
+  'relative flex flex-col items-stretch gap-2.5 border-border px-6 pt-4 pb-4.5 font-normal focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-4 has-[:focus-visible]:outline-ring'
+);

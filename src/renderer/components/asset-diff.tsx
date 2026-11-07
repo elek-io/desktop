@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { AssetTeaser } from '@renderer/components/asset-teaser';
+import { AssetCard } from '@renderer/components/asset-card';
 import {
   DiffContainer,
   DiffContainerSkeleton,
@@ -107,11 +107,7 @@ export function AssetDiff({
     }
     return (
       <DiffContainer type="create" commit={commitAfter}>
-        <AssetTeaser
-          className="border-none"
-          {...assetAfter}
-          projectId={project.id}
-        />
+        <AssetCard asset={assetAfter} />
       </DiffContainer>
     );
   }
@@ -123,11 +119,7 @@ export function AssetDiff({
     }
     return (
       <DiffContainer type="delete" commit={commitBefore}>
-        <AssetTeaser
-          className="border-none"
-          {...assetBefore}
-          projectId={project.id}
-        />
+        <AssetCard asset={assetBefore} />
       </DiffContainer>
     );
   }
@@ -140,19 +132,11 @@ export function AssetDiff({
     return (
       <>
         <DiffContainer type="before" commit={commitBefore}>
-          <AssetTeaser
-            className="border-none"
-            {...assetBefore}
-            projectId={project.id}
-          />
+          <AssetCard asset={assetBefore} />
         </DiffContainer>
 
         <DiffContainer type="after" commit={commitAfter}>
-          <AssetTeaser
-            className="border-none"
-            {...assetAfter}
-            projectId={project.id}
-          />
+          <AssetCard asset={assetAfter} />
         </DiffContainer>
       </>
     );

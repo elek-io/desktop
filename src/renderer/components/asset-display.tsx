@@ -1,5 +1,12 @@
 import { useLingui } from '@lingui/react/macro';
-import { FileQuestion, FolderArchive } from 'lucide-react';
+import {
+  AudioLines,
+  FileArchive,
+  FileQuestion,
+  FileText,
+  Play,
+  type LucideIcon,
+} from 'lucide-react';
 import { forwardRef, useEffect, useRef } from 'react';
 
 import { cn } from '@renderer/lib/utils';
@@ -36,6 +43,11 @@ function toLocalFileSrc(absolutePath: string): string {
   return `elek-io-local-file://${encodedPath}`;
 }
 
+/**
+ * What an Asset looks like: a preview where Desktop has one, images and video
+ * with the play mark, and an icon for a PDF, an audio file and an archive, as
+ * ci draws them.
+ */
 export function AssetDisplay(
   props: Asset & {
     /**
@@ -52,8 +64,9 @@ export function AssetDisplay(
      */
     fit?: 'contain' | 'cover';
     /**
-     * If set to true, GIFs will be displayed as static images (no animation).
-     * Video and audio files will be displayed without controls and not be played automatically.
+     * Draws a still rather than something that plays: a GIF as one frame, and
+     * a video without controls that does not start by itself, carrying the
+     * play mark ci draws on it.
      */
     static?: boolean;
   }
@@ -129,7 +142,7 @@ export function AssetDisplay(
 
   if (props.mimeType.startsWith('video/')) {
     return (
-      <div className={box}>
+      <div className={cn(box, 'relative')}>
         <video
           muted
           controls={props.static === true ? false : true}
@@ -138,44 +151,51 @@ export function AssetDisplay(
         >
           <source src={absolutePath} type={props.mimeType} />
         </video>
+        {/* The play mark ci draws on a video, so a still first frame is not
+        taken for an image. */}
+        {props.static === true ? (
+          <span className="absolute inset-0 m-auto grid size-8 place-items-center rounded-full bg-black/45 text-white">
+            <Play className="size-3" />
+          </span>
+        ) : null}
       </div>
     );
   }
 
   if (props.mimeType.startsWith('audio/')) {
-    return (
-      <div className={box}>
-        <audio
-          muted
-          controls={props.static === true ? false : true}
-          autoPlay={props.static === true ? false : true}
-          className={media}
-        >
-          <source src={absolutePath} type={props.mimeType} />
-        </audio>
-      </div>
-    );
+    return <TypeMark icon={AudioLines} className={box} />;
   }
 
   if (props.mimeType === 'application/pdf') {
-    return (
-      <div className={box}>
-        <embed src={absolutePath} type={props.mimeType} className={media} />
-      </div>
-    );
+    return <TypeMark icon={FileText} className={box} />;
   }
 
   if (props.mimeType === 'application/zip') {
-    return (
-      <div className={box}>
-        <FolderArchive className="m-auto h-10 w-10" />
-      </div>
-    );
+    return <TypeMark icon={FileArchive} className={box} />;
   }
 
+  return <TypeMark icon={FileQuestion} className={box} />;
+}
+
+/**
+ * What stands in for a file Desktop has no preview of: an icon on the muted
+ * surface, as ci draws a PDF, an audio file and an archive.
+ */
+function TypeMark({
+  icon: Icon,
+  className,
+}: {
+  icon: LucideIcon;
+  className: string;
+}): React.JSX.Element {
   return (
-    <div className={box}>
-      <FileQuestion className="m-auto h-10 w-10" />
+    <div
+      className={cn(
+        className,
+        'grid place-items-center bg-muted text-muted-foreground'
+      )}
+    >
+      <Icon className="size-6" />
     </div>
   );
 }

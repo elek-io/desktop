@@ -124,8 +124,13 @@ msgstr "{projectName} was created, but not synced"
 msgid "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
 msgstr "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
 
+#: src/renderer/components/asset-pane.tsx
+msgid "{type} file"
+msgstr "{type} file"
+
+#: src/renderer/components/asset-card.tsx
+#: src/renderer/components/asset-pane.tsx
 #: src/renderer/components/fields/asset/control.tsx
-#: src/renderer/components/pickers/asset-picker-dialog.tsx
 msgid "{type}, {size}"
 msgstr "{type}, {size}"
 
@@ -280,7 +285,9 @@ msgstr "Add a name, or clear the email to send this anonymously."
 msgid "Add an email, or clear your name to send this anonymously."
 msgstr "Add an email, or clear your name to send this anonymously."
 
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
+#: src/renderer/components/add-asset-button.tsx
+#: src/renderer/components/asset-pane.tsx
+#: src/renderer/routes/projects/$projectId/assets/new.tsx
 msgid "Add Asset"
 msgstr "Add Asset"
 
@@ -312,7 +319,7 @@ msgstr "Add option"
 msgid "Add section"
 msgstr "Add section"
 
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
+#: src/renderer/components/add-asset-button.tsx
 msgid "Add to Assets"
 msgstr "Add to Assets"
 
@@ -353,13 +360,9 @@ msgstr "Also send my logs"
 msgid "an Asset"
 msgstr "an Asset"
 
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
+#: src/renderer/routes/projects/$projectId/assets.tsx
 msgid "An Asset is a file an Entry can point at, such as an image or a PDF. Add the first one to use it in a Collection's fields."
 msgstr "An Asset is a file an Entry can point at, such as an image or a PDF. Add the first one to use it in a Collection's fields."
-
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
-msgid "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
-msgstr "An Asset is a file like an image, PDF or other document that can be used inside your Collections."
 
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "An Asset this field points at no longer exists. Choose another one."
@@ -435,6 +438,10 @@ msgstr "Any content already translated into {languagePendingRemoval} stays in th
 msgid "Apply link"
 msgstr "Apply link"
 
+#: src/renderer/components/asset-pane.tsx
+msgid "Asset"
+msgstr "Asset"
+
 #: src/renderer/components/asset-display.tsx
 msgid "Asset \"{assetName}\""
 msgstr "Asset \"{assetName}\""
@@ -455,14 +462,6 @@ msgstr "Asset {fileName} saved"
 msgid "Asset deleted"
 msgstr "Asset deleted"
 
-#: src/renderer/components/forms/asset-form.tsx
-msgid "Asset description"
-msgstr "Asset description"
-
-#: src/renderer/components/forms/asset-form.tsx
-msgid "Asset name"
-msgstr "Asset name"
-
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Asset references"
 msgstr "Asset references"
@@ -472,7 +471,7 @@ msgid "Asset saved to your computer"
 msgstr "Asset saved to your computer"
 
 #: src/renderer/components/project-sidebar.tsx
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
+#: src/renderer/routes/projects/$projectId/assets.tsx
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Assets"
 msgstr "Assets"
@@ -541,13 +540,13 @@ msgstr "Can't reach the Git repository"
 msgid "Can't read the Releases"
 msgstr "Can't read the Releases"
 
-#: src/renderer/components/asset-teaser.tsx
+#: src/renderer/components/add-asset-button.tsx
+#: src/renderer/components/asset-pane.tsx
 #: src/renderer/components/forms/project-form.tsx
 #: src/renderer/components/markdown/link-dialog.tsx
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
 #: src/renderer/components/pickers/entry-picker-dialog.tsx
 #: src/renderer/components/report-dialog.tsx
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
@@ -636,11 +635,19 @@ msgstr "Choose a date."
 msgid "Choose a different port on your profile to start the local API."
 msgstr "Choose a different port on your profile to start the local API."
 
+#: src/renderer/components/add-asset-button.tsx
+msgid "Choose a file to add as an Asset"
+msgstr "Choose a file to add as an Asset"
+
+#: src/renderer/components/asset-pane.tsx
+msgid "Choose a file to replace {fileName}"
+msgstr "Choose a file to replace {fileName}"
+
 #: src/renderer/lib/refusedValueText.ts
 msgid "Choose a time."
 msgstr "Choose a time."
 
-#: src/renderer/components/asset-teaser.tsx
+#: src/renderer/components/asset-pane.tsx
 #: src/renderer/components/release-dialog.tsx
 #: src/renderer/components/sync-dialog.tsx
 #: src/renderer/components/ui/dialog.tsx
@@ -651,6 +658,14 @@ msgstr "Choose a time."
 #: src/renderer/routes/projects/$projectId/components/create.tsx
 msgid "Close"
 msgstr "Close"
+
+#: src/renderer/components/asset-pane.tsx
+msgid "Close {fileName}"
+msgstr "Close {fileName}"
+
+#: src/renderer/components/asset-pane.tsx
+msgid "Close Add Asset"
+msgstr "Close Add Asset"
 
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Code block"
@@ -807,7 +822,7 @@ msgstr "Could not delete the Entry"
 msgid "Could not delete the Project"
 msgstr "Could not delete the Project"
 
-#: src/renderer/components/asset-teaser.tsx
+#: src/renderer/components/asset-pane.tsx
 msgid "Could not delete this Asset"
 msgstr "Could not delete this Asset"
 
@@ -938,7 +953,6 @@ msgstr "Create Release"
 msgid "Create your first Project"
 msgstr "Create your first Project"
 
-#: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/diff-container.tsx
 #: src/renderer/components/entry-table.tsx
 msgid "Created"
@@ -992,13 +1006,17 @@ msgstr "Define this Component's Fields"
 msgid "Defines how wide the input field will be."
 msgstr "Defines how wide the input field will be."
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "Delete"
-msgstr "Delete"
+#: src/renderer/components/asset-pane.tsx
+msgid "Delete {fileName}?"
+msgstr "Delete {fileName}?"
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Delete {name}?"
 msgstr "Delete {name}?"
+
+#: src/renderer/components/asset-pane.tsx
+msgid "Delete Asset"
+msgstr "Delete Asset"
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Delete Collection"
@@ -1044,6 +1062,7 @@ msgstr "Deleting this Collection also permanently deletes every Entry inside it.
 msgid "Describe what to input into this field. This text will be displayed under the field to guide users."
 msgstr "Describe what to input into this field. This text will be displayed under the field to guide users."
 
+#: src/renderer/components/forms/asset-form.tsx
 #: src/renderer/components/forms/collection-form.tsx
 #: src/renderer/components/forms/component-form.tsx
 #: src/renderer/components/forms/default-field-definition-form.tsx
@@ -1249,6 +1268,7 @@ msgid "Filter {onlyCollectionName}"
 msgstr "Filter {onlyCollectionName}"
 
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
+#: src/renderer/routes/projects/$projectId/assets.tsx
 msgid "Filter Assets"
 msgstr "Filter Assets"
 
@@ -1546,6 +1566,10 @@ msgstr "Minor"
 msgid "More"
 msgstr "More"
 
+#: src/renderer/components/asset-pane.tsx
+msgid "More for {fileName}"
+msgstr "More for {fileName}"
+
 #: src/renderer/components/ui/pagination.tsx
 msgid "More pages"
 msgstr "More pages"
@@ -1570,6 +1594,7 @@ msgstr "Move the {name} section up"
 msgid "Multi line code with an optional language."
 msgstr "Multi line code with an optional language."
 
+#: src/renderer/components/forms/asset-form.tsx
 #: src/renderer/components/forms/project-form.tsx
 #: src/renderer/components/forms/user-form.tsx
 #: src/renderer/components/report-dialog.tsx
@@ -1584,7 +1609,7 @@ msgstr "Name, description and languages"
 msgid "needs a Value for this Field, which is now required and has no default"
 msgstr "needs a Value for this Field, which is now required and has no default"
 
-#: src/renderer/components/asset-teaser.tsx
+#: src/renderer/components/asset-pane.tsx
 msgid "New file: {newFileName}"
 msgstr "New file: {newFileName}"
 
@@ -1597,6 +1622,7 @@ msgid "No Asset chosen"
 msgstr "No Asset chosen"
 
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
+#: src/renderer/routes/projects/$projectId/assets.tsx
 msgid "No Asset matches the filter."
 msgstr "No Asset matches the filter."
 
@@ -1608,7 +1634,7 @@ msgstr "No Asset of a type this field takes yet."
 msgid "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 msgstr "No Assets in this Project yet, so there are no file types to restrict to. Every type stays allowed."
 
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
+#: src/renderer/routes/projects/$projectId/assets.tsx
 msgid "No Assets yet"
 msgstr "No Assets yet"
 
@@ -1923,10 +1949,6 @@ msgstr "Project deleted"
 msgid "Projects"
 msgstr "Projects"
 
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
-msgid "Provide a name and description for this Asset."
-msgstr "Provide a name and description for this Asset."
-
 #: src/renderer/routes/projects/$projectId/releases.tsx
 msgid "Published {published}"
 msgstr "Published {published}"
@@ -2069,9 +2091,13 @@ msgstr "Replace {label}, Required"
 msgid "Replace {name} in {label}"
 msgstr "Replace {name} in {label}"
 
-#: src/renderer/components/asset-teaser.tsx
+#: src/renderer/components/asset-pane.tsx
 msgid "Replace file"
 msgstr "Replace file"
+
+#: src/renderer/components/asset-pane.tsx
+msgid "Replace file of {fileName}"
+msgstr "Replace file of {fileName}"
 
 #: src/renderer/components/report-dialog.tsx
 msgid "Report a bug"
@@ -2118,23 +2144,24 @@ msgstr "Restrict to file types"
 msgid "Retry"
 msgstr "Retry"
 
+#: src/renderer/components/asset-pane.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 #: src/renderer/routes/user/profile.tsx
 msgid "Save"
 msgstr "Save"
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "Save as"
-msgstr "Save as"
+#: src/renderer/components/asset-pane.tsx
+msgid "Save {fileName}"
+msgstr "Save {fileName}"
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "Save Asset"
-msgstr "Save Asset"
+#: src/renderer/components/asset-pane.tsx
+msgid "Save a copy"
+msgstr "Save a copy"
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "Save Asset {fileName} to disk"
-msgstr "Save Asset {fileName} to disk"
+#: src/renderer/components/asset-pane.tsx
+msgid "Save a copy of {fileName}"
+msgstr "Save a copy of {fileName}"
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
@@ -2160,14 +2187,6 @@ msgstr "Section"
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "Section {position} of {total}"
 msgstr "Section {position} of {total}"
-
-#: src/renderer/components/asset-teaser.tsx
-msgid "Select a replacement file"
-msgstr "Select a replacement file"
-
-#: src/renderer/routes/projects/$projectId/assets/index.tsx
-msgid "Select Asset to add"
-msgstr "Select Asset to add"
 
 #: src/renderer/components/ui/date-picker.tsx
 msgid "Select date"
@@ -2225,10 +2244,6 @@ msgstr "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCo
 #: src/renderer/components/forms/project-form.tsx
 msgid "Shown below the name on the Projects page."
 msgstr "Shown below the name on the Projects page."
-
-#: src/renderer/components/asset-teaser.tsx
-msgid "Size"
-msgstr "Size"
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Slug"
@@ -2320,9 +2335,17 @@ msgstr "Tell us what you think of elek.io Desktop. We read every one of these."
 msgid "Text"
 msgstr "Text"
 
+#: src/renderer/routes/projects/$projectId/assets/new.tsx
+msgid "the Asset being added"
+msgstr "the Asset being added"
+
 #: src/renderer/components/markdown/asset-reference-picker.tsx
 msgid "The Asset is inserted at the cursor position."
 msgstr "The Asset is inserted at the cursor position."
+
+#: src/renderer/routes/projects/$projectId/assets.tsx
+msgid "the Assets of this Project"
+msgstr "the Assets of this Project"
 
 #: src/renderer/components/fields/asset/control.tsx
 msgid "The Assets this field takes."
@@ -2428,6 +2451,15 @@ msgstr "The Field {slug} was turned on or off"
 #: src/renderer/lib/release.ts
 msgid "The Field {slug} writes its Values differently"
 msgstr "The Field {slug} writes its Values differently"
+
+#: src/renderer/components/add-asset-button.tsx
+#: src/renderer/components/asset-pane.tsx
+msgid "The file {fileName} is added once it has a name and a description."
+msgstr "The file {fileName} is added once it has a name and a description."
+
+#: src/renderer/components/asset-pane.tsx
+msgid "The file goes from this Project, and for everyone on it once you sync."
+msgstr "The file goes from this Project, and for everyone on it once you sync."
 
 #: src/renderer/routes/projects/create.tsx
 msgid "The Git repository could not be reached, so check your connection and the address."
@@ -2600,15 +2632,15 @@ msgstr "Thematic breaks"
 msgid "Theme"
 msgstr "Theme"
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "This action can be undone later by restoring the Asset via it's history."
-msgstr "This action can be undone later by restoring the Asset via it's history."
+#: src/renderer/routes/projects/$projectId/assets/$assetId.tsx
+msgid "this Asset"
+msgstr "this Asset"
 
-#: src/renderer/components/asset-teaser.tsx
+#: src/renderer/components/asset-pane.tsx
 msgid "This Asset could not be deleted. Please review and try again."
 msgstr "This Asset could not be deleted. Please review and try again."
 
-#: src/renderer/components/asset-teaser.tsx
+#: src/renderer/components/asset-pane.tsx
 msgid "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
 msgstr "This Asset is used by one or more Entries and can’t be deleted. Remove or repoint those references first, then try again."
 
@@ -2791,10 +2823,6 @@ msgstr "Too much was sent from here recently. Please try again shortly."
 msgid "Try again"
 msgstr "Try again"
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "Type"
-msgstr "Type"
-
 #: src/renderer/components/fields/select/definition.tsx
 msgid "Type of options"
 msgstr "Type of options"
@@ -2803,9 +2831,9 @@ msgstr "Type of options"
 msgid "Underscore (_)"
 msgstr "Underscore (_)"
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "Undo file replacement"
-msgstr "Undo file replacement"
+#: src/renderer/components/asset-pane.tsx
+msgid "Undo the file replacement of {fileName}"
+msgstr "Undo the file replacement of {fileName}"
 
 #: src/renderer/lib/fieldRules.ts
 msgid "unique"
@@ -2829,15 +2857,10 @@ msgstr "Up to {0, plural, one {# Entry} other {# Entries}}."
 msgid "up to {max}"
 msgstr "up to {max}"
 
-#: src/renderer/components/asset-teaser.tsx
-msgid "Update"
-msgstr "Update"
-
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 msgid "Update {entryName}"
 msgstr "Update {entryName}"
 
-#: src/renderer/components/asset-teaser.tsx
 #: src/renderer/components/entry-table.tsx
 msgid "Updated"
 msgstr "Updated"
@@ -2889,10 +2912,6 @@ msgstr "videos only"
 #: src/renderer/components/fields/asset/kind.ts
 msgid "Videos only."
 msgstr "Videos only."
-
-#: src/renderer/components/asset-teaser.tsx
-msgid "View"
-msgstr "View"
 
 #: src/renderer/components/project-switcher.tsx
 msgid "View all Projects"
@@ -3016,10 +3035,6 @@ msgstr "Yes, delete this Component"
 #: src/renderer/lib/changeSentence.ts
 msgid "You added {thing}"
 msgstr "You added {thing}"
-
-#: src/renderer/components/asset-teaser.tsx
-msgid "You are about to delete this Asset"
-msgstr "You are about to delete this Asset"
 
 #: src/renderer/routes/projects/create.tsx
 msgid "You can set the address again in the Project's Sync settings, and sync from the sidebar."
