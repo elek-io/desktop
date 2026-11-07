@@ -412,8 +412,10 @@ appTest.describe('The Profile', () => {
       await expect(name).toHaveAttribute('aria-invalid', 'false');
       await verifyCurrentRouteHash(mainWindow, '#/user/profile');
 
-      // Filling both clears the reason and frees the button.
-      await name.fill('Mara Klein');
+      // Filling both clears the reason and frees the button. The name goes
+      // back in changed, because a form filled back to what it held is
+      // pristine, and the dirty gate blocks Save then without words.
+      await name.fill('Mara Weber');
       await port.fill('31310');
       await expect(blockedReason(mainWindow)).toBeHidden();
       await expect(save).toBeEnabled();

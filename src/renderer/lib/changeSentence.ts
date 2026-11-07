@@ -9,6 +9,30 @@ import { type GitCommit, type ObjectType } from '@elek-io/core';
 // words, so the words are derived here. Every one of them is a message of the
 // catalog, see contributing/renderer/internationalization.md.
 
+/**
+ * What a change was about and when it happened, as the row's second line reads.
+ *
+ * ci's row names its Entry or Collection, and the name stands before the time.
+ * A commit carries that object as an id only, so a row whose object can no
+ * longer be read, which is what a delete leaves behind, says the time alone.
+ * The name is a placeholder, because it is what somebody wrote.
+ *
+ * Call it during a render, so the words come out of the catalog in use.
+ */
+export function changeContext({
+  name,
+  when,
+}: {
+  name: string | null;
+  when: string;
+}): string {
+  if (name === null) {
+    return when;
+  }
+
+  return t`${name}, ${when}`;
+}
+
 /** What a change happened to, with the article a sentence needs for it. */
 function changedThing(objectType: ObjectType): string {
   switch (objectType) {

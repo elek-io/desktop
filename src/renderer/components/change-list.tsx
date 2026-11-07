@@ -2,15 +2,18 @@ import { Trans } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
 import { type ReactElement } from 'react';
 
+import { entryTitle } from '@renderer/components/fields/entry-title';
 import { StateMarker } from '@renderer/components/project-state';
 import { Skeleton } from '@renderer/components/ui/skeleton';
-import { useUser } from '@renderer/hooks/useUser';
-import { changeSentence } from '@renderer/lib/changeSentence';
+import { useProject } from '@renderer/hooks/useProject';
+import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { changeContext, changeSentence } from '@renderer/lib/changeSentence';
+import { queryOptions } from '@renderer/queries';
 
-import { type GitCommit } from '@elek-io/core';
+import { flattenFieldDefinitions, type GitCommit } from '@elek-io/core';
 
 // The changes of a Project as ci's History draws them: a ruled row each, with
-// a marker, what happened and when.
+// a marker, what happened, what it was about and when.
 //
 // One module, because two screens draw the same rows: the Dashboard shows the
 // five latest ones and the History every one of them. A row says what happened
@@ -28,8 +31,236 @@ import { type GitCommit } from '@elek-io/core';
 export type ChangeSyncState = 'not-synced' | 'synced' | 'unknown';
 
 /**
+ * What the change was about, as the app names it, and when it happened.
+ *
+ * ci's row names its Entry or Collection, which a commit carries as an id
+ * only, so the object is read per row. It is read as it stood at the change,
+ * which is the one read that cannot fail for an object that has since been
+ * deleted or whose Collection has. A delete took the object out of the Project
+ * altogether, so that row is left with the kind of thing the sentence above it
+ * already names.
+ *
+ * One component per kind of object rather than one with a read per kind, so a
+ * row runs the one or two reads naming it needs.
+ */
+function ChangeContext({
+  projectId,
+  commit,
+  when,
+}: {
+  projectId: string;
+  commit: GitCommit;
+  when: string;
+}): ReactElement {
+  const { method, reference } = commit.message;
+
+  if (method === 'delete') {
+    return <>{when}</>;
+  }
+
+  switch (reference.objectType) {
+    case 'entry':
+      // Core writes an Entry's Collection into the commit, and an Entry cannot
+      // be read without it.
+      return reference.collectionId === undefined ? (
+        <>{when}</>
+      ) : (
+        <ChangedEntry
+          projectId={projectId}
+          collectionId={reference.collectionId}
+          id={reference.id}
+          commitHash={commit.hash}
+          when={when}
+        />
+      );
+    case 'collection':
+      return (
+        <ChangedCollection
+          projectId={projectId}
+          id={reference.id}
+          commitHash={commit.hash}
+          when={when}
+        />
+      );
+    case 'component':
+      return (
+        <ChangedComponent
+          projectId={projectId}
+          id={reference.id}
+          commitHash={commit.hash}
+          when={when}
+        />
+      );
+    case 'asset':
+      return (
+        <ChangedAsset
+          projectId={projectId}
+          id={reference.id}
+          commitHash={commit.hash}
+          when={when}
+        />
+      );
+    // The sentence above already names the Project itself, and a Value is part
+    // of an Entry, whose own id the commit does not carry.
+    case 'project':
+    case 'value':
+      return <>{when}</>;
+  }
+}
+
+/** The Entry a change was about, named the way every other place names one. */
+function ChangedEntry({
+  projectId,
+  collectionId,
+  id,
+  commitHash,
+  when,
+}: {
+  projectId: string;
+  collectionId: string;
+  id: string;
+  commitHash: string;
+  when: string;
+}): ReactElement {
+  const {
+    userQuery: { data: user },
+  } = useProject();
+  // The Collection as it stood at the change, because its field definitions are
+  // what name an Entry and it may have been deleted since, which would take the
+  // Entry with it.
+  const { data: collection } = useQueryNoError(
+    queryOptions.collections.read({ projectId, id: collectionId, commitHash })
+  );
+  const { data: entry } = useQueryNoError(
+    queryOptions.entries.read({ projectId, collectionId, id, commitHash })
+  );
+
+  if (
+    collection === undefined ||
+    entry === undefined ||
+    user === null ||
+    user === undefined
+  ) {
+    return <>{when}</>;
+  }
+
+  return (
+    <>
+      {changeContext({
+        name: entryTitle({
+          entry,
+          fieldDefinitions: flattenFieldDefinitions(
+            collection.fieldDefinitions
+          ),
+          language: user.language,
+        }),
+        when,
+      })}
+    </>
+  );
+}
+
+/** The Collection a change was about, by the name the app knows it under. */
+function ChangedCollection({
+  projectId,
+  id,
+  commitHash,
+  when,
+}: {
+  projectId: string;
+  id: string;
+  commitHash: string;
+  when: string;
+}): ReactElement {
+  const { translateContent } = useProject();
+  const { data: collection } = useQueryNoError(
+    queryOptions.collections.read({ projectId, id, commitHash })
+  );
+
+  if (collection === undefined) {
+    return <>{when}</>;
+  }
+
+  return (
+    <>
+      {changeContext({
+        name: translateContent({
+          key: 'collection.name.plural',
+          record: collection.name.plural,
+        }),
+        when,
+      })}
+    </>
+  );
+}
+
+/** The Component a change was about, by the name the app knows it under. */
+function ChangedComponent({
+  projectId,
+  id,
+  commitHash,
+  when,
+}: {
+  projectId: string;
+  id: string;
+  commitHash: string;
+  when: string;
+}): ReactElement {
+  const { translateContent } = useProject();
+  const { data: component } = useQueryNoError(
+    queryOptions.components.read({ projectId, id, commitHash })
+  );
+
+  if (component === undefined) {
+    return <>{when}</>;
+  }
+
+  return (
+    <>
+      {changeContext({
+        name: translateContent({
+          key: 'component.name',
+          record: component.name,
+        }),
+        when,
+      })}
+    </>
+  );
+}
+
+/** The Asset a change was about, by the file name the Assets grid shows. */
+function ChangedAsset({
+  projectId,
+  id,
+  commitHash,
+  when,
+}: {
+  projectId: string;
+  id: string;
+  commitHash: string;
+  when: string;
+}): ReactElement {
+  const { data: asset } = useQueryNoError(
+    queryOptions.assets.read({ projectId, id, commitHash })
+  );
+
+  if (asset === undefined) {
+    return <>{when}</>;
+  }
+
+  return (
+    <>
+      {changeContext({
+        name: `${asset.name}.${asset.extension}`,
+        when,
+      })}
+    </>
+  );
+}
+
+/**
  * One change in ci's ruled row: its marker on the History's line, what
- * happened, and when.
+ * happened, what it was about, and when.
  *
  * The whole row opens the change, so there is one way in, and its focus ring
  * is drawn inside the row, which the pane's edge would otherwise clip.
@@ -43,7 +274,7 @@ export function ChangeRow({
   commit: GitCommit;
   syncState: ChangeSyncState;
 }): ReactElement {
-  const { formatDatetime, userQuery } = useUser();
+  const { formatDatetime, userQuery } = useProject();
   const byYou = userQuery.data?.email === commit.author.email;
 
   return (
@@ -65,7 +296,11 @@ export function ChangeRow({
       <span className="flex min-w-0 flex-col">
         <span className="truncate">{changeSentence(commit, byYou)}</span>
         <span className="truncate text-small text-muted-foreground">
-          {formatDatetime({ datetime: commit.datetime }).relative}
+          <ChangeContext
+            projectId={projectId}
+            commit={commit}
+            when={formatDatetime({ datetime: commit.datetime }).relative}
+          />
         </span>
       </span>
     </Link>

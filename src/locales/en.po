@@ -100,6 +100,10 @@ msgstr "{missing, plural, one {# field is still empty} other {# fields are still
 msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
 
+#: src/renderer/lib/changeSentence.ts
+msgid "{name}, {when}"
+msgstr "{name}, {when}"
+
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"

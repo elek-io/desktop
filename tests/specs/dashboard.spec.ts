@@ -10,7 +10,11 @@ import {
   textFieldDefinition,
 } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
-import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
+import {
+  createEntryViaIpc,
+  deleteEntryViaIpc,
+  stringValue,
+} from '../helpers/entry.js';
 import { verifyCurrentRouteHash } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
@@ -161,11 +165,12 @@ test.describe('The Dashboard', () => {
     }
     await navigateToProjectDashboard(mainWindow, project.id);
 
-    // Each change says in words who did what, and the five latest ones are
-    // what the Dashboard shows of them.
+    // Each change says in words who did what and what it was about, and the
+    // five latest ones are what the Dashboard shows of them.
     const rows = mainWindow.locator('[data-slot="change-row"]');
     await expect(rows).toHaveCount(5);
     await expect(rows.first()).toContainText('You added an Entry');
+    await expect(rows.first()).toContainText('Five');
 
     // The raw dump of the Project the page used to end on is gone.
     await expect(mainWindow.locator('main pre')).toHaveCount(0);
@@ -177,6 +182,67 @@ test.describe('The Dashboard', () => {
       mainWindow,
       `#/projects/${project.id}/history`
     );
+  });
+
+  test('names the Entry, the Collection or the Asset each change was about', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow, { name: 'Mara Klein' });
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Article' }, plural: { en: 'Articles' } },
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Spring opening hours' }) },
+    });
+    await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      name: 'showroom-evening',
+      filePath: makeTempFile(testInfo, 'showroom-evening.png', pngBytes),
+    });
+    // Deleted after it was added, so the row above it has an object the Project
+    // no longer holds.
+    await deleteEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    await navigateToProjectDashboard(mainWindow, project.id);
+
+    const rows = mainWindow.locator('[data-slot="change-row"]');
+    await expect(rows).toHaveCount(5);
+
+    // The Asset by the file name the Assets grid shows it under, and the
+    // Collection by the name the app knows it under.
+    await expect(rows.filter({ hasText: 'You added an Asset' })).toContainText(
+      'showroom-evening.png'
+    );
+    await expect(
+      rows.filter({ hasText: 'You added a Collection' })
+    ).toContainText('Articles');
+
+    // The Entry by its title, read as it stood at the change, so the row still
+    // names it after the Entry itself was deleted.
+    await expect(rows.filter({ hasText: 'You added an Entry' })).toContainText(
+      'Spring opening hours'
+    );
+
+    // That delete took the Entry out of the Project, so there is nothing left
+    // to name it from and its own row keeps what its sentence says.
+    const deleted = rows.filter({ hasText: 'You deleted an Entry' });
+    await expect(deleted).toHaveCount(1);
+    await expect(deleted).not.toContainText('Spring opening hours');
+
+    // The Project's own first change is named by its sentence already.
+    await expect(
+      rows.filter({ hasText: 'You created this Project' })
+    ).toHaveCount(1);
   });
 
   test('says of each change whether it is synced, where that can be told', async ({
