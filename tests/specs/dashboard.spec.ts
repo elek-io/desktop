@@ -10,6 +10,7 @@ import {
   textFieldDefinition,
 } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
+import { createComponentViaIpc } from '../helpers/component.js';
 import {
   createEntryViaIpc,
   deleteEntryViaIpc,
@@ -184,7 +185,7 @@ test.describe('The Dashboard', () => {
     );
   });
 
-  test('names the Entry, the Collection or the Asset each change was about', async ({
+  test('names the object each change was about', async ({
     mainWindow,
   }, testInfo) => {
     await setUserViaIpc(mainWindow, { name: 'Mara Klein' });
@@ -206,43 +207,58 @@ test.describe('The Dashboard', () => {
       name: 'showroom-evening',
       filePath: makeTempFile(testInfo, 'showroom-evening.png', pngBytes),
     });
-    // Deleted after it was added, so the row above it has an object the Project
-    // no longer holds.
-    await deleteEntryViaIpc(mainWindow, {
-      projectId: project.id,
-      collectionId: collection.id,
-      id: entry.id,
-    });
     await navigateToProjectDashboard(mainWindow, project.id);
 
     const rows = mainWindow.locator('[data-slot="change-row"]');
-    await expect(rows).toHaveCount(5);
+    await expect(rows).toHaveCount(4);
 
-    // The Asset by the file name the Assets grid shows it under, and the
-    // Collection by the name the app knows it under.
+    // Each kind of object by the name the app knows it under: an Asset by the
+    // file name the Assets grid shows, a Collection by its plural name and an
+    // Entry by its title.
     await expect(rows.filter({ hasText: 'You added an Asset' })).toContainText(
       'showroom-evening.png'
     );
     await expect(
       rows.filter({ hasText: 'You added a Collection' })
     ).toContainText('Articles');
-
-    // The Entry by its title, read as it stood at the change, so the row still
-    // names it after the Entry itself was deleted.
     await expect(rows.filter({ hasText: 'You added an Entry' })).toContainText(
       'Spring opening hours'
     );
 
-    // That delete took the Entry out of the Project, so there is nothing left
-    // to name it from and its own row keeps what its sentence says.
+    // The Project's own first change is named by its sentence already, so its
+    // row is the time alone.
+    const created = rows.filter({ hasText: 'You created this Project' });
+    await expect(created).toHaveCount(1);
+    await expect(created).toContainText('less than a minute ago');
+
+    // A Component, and the Entry gone from the Project altogether.
+    await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Teaser' },
+    });
+    await deleteEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    await navigateToProjectDashboard(mainWindow, project.id);
+    await expect(rows).toHaveCount(5);
+
+    await expect(
+      rows.filter({ hasText: 'You added a Component' })
+    ).toContainText('Teaser');
+
+    // The Entry is read as it stood at its own change, so the row that added
+    // it still names it now that it is gone.
+    await expect(rows.filter({ hasText: 'You added an Entry' })).toContainText(
+      'Spring opening hours'
+    );
+
+    // The delete took it out of the Project, so there is nothing left to name
+    // it from and its own row keeps what its sentence says.
     const deleted = rows.filter({ hasText: 'You deleted an Entry' });
     await expect(deleted).toHaveCount(1);
     await expect(deleted).not.toContainText('Spring opening hours');
-
-    // The Project's own first change is named by its sentence already.
-    await expect(
-      rows.filter({ hasText: 'You created this Project' })
-    ).toHaveCount(1);
   });
 
   test('says of each change whether it is synced, where that can be told', async ({
