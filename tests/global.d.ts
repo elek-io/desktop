@@ -44,6 +44,8 @@ interface ProbedElement {
     readonly y: number;
     readonly width: number;
     readonly height: number;
+    readonly top: number;
+    readonly left: number;
     readonly right: number;
     readonly bottom: number;
   };

@@ -291,18 +291,28 @@ test.describe('Assets', () => {
     await expect(save).toHaveAttribute('aria-disabled', 'true');
     await expect(pane.getByText('1 field is still empty')).toBeVisible();
 
+    // Another file picked while this pane is open is what it is about from
+    // then on, and the name follows that file rather than the first one.
+    await stubFileDialog(electronApp, {
+      open: [makeTempFile(testInfo, 'price-list.png', pngBytes)],
+    });
+    await mainWindow.getByRole('button', { name: 'Add Asset' }).click();
+    await expect(pane.getByLabel('Name', { exact: true })).toHaveValue(
+      'price-list'
+    );
+
     await pane
       .getByLabel('Description', { exact: true })
-      .fill('The company logo');
+      .fill('The price list');
     await expect(save).not.toHaveAttribute('aria-disabled', 'true');
     await save.click();
 
     // The Asset is in the grid, and its own pane took the place of the one
     // that added it.
-    await expect(assetCard(mainWindow, 'company-logo.png')).toBeVisible();
+    await expect(assetCard(mainWindow, 'price-list.png')).toBeVisible();
     await expect(
       assetPane(mainWindow).getByRole('button', {
-        name: 'More for company-logo.png',
+        name: 'More for price-list.png',
       })
     ).toBeVisible();
   });

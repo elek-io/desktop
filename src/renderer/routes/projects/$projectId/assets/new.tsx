@@ -37,7 +37,7 @@ function ProjectAssetNewPage(): ReactElement {
 
   return (
     <Pane width="list" name={t`the Asset being added`}>
-      <NewAssetPane key={pickedFilePath} filePath={pickedFilePath} />
+      <NewAssetPane filePath={pickedFilePath} />
     </Pane>
   );
 }

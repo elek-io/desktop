@@ -52,7 +52,8 @@ import {
 } from '@renderer/lib/assetFile';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { countEmptyFields, emptyFieldsReason } from '@renderer/lib/emptyFields';
-import { formatBytes } from '@renderer/lib/utils';
+import { cn, formatBytes } from '@renderer/lib/utils';
+import { buttonVariants } from '@renderer/lib/variants';
 import { queryOptions } from '@renderer/queries';
 
 import {
@@ -96,18 +97,20 @@ function AssetPaneHead({
     <PaneHead>
       <span className="min-w-0 flex-1 truncate text-label">{title}</span>
       {more}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        Icon={X}
+      {/*
+        A link rather than a button, because closing the pane is leaving the
+        Asset's own address, which is what lets the question before losing
+        changes catch it. It takes the ghost icon button's own look, as ci
+        draws it.
+      */}
+      <Link
+        to="/projects/$projectId/assets"
+        params={{ projectId: projectId }}
         aria-label={closeLabel}
-        render={
-          <Link
-            to="/projects/$projectId/assets"
-            params={{ projectId: projectId }}
-          />
-        }
-      />
+        className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }))}
+      >
+        <X />
+      </Link>
     </PaneHead>
   );
 }
@@ -495,16 +498,21 @@ export function NewAssetPane({ filePath }: { filePath: string }): ReactElement {
   const { projectId } = useProject();
   const { mutateAsync: createAsset } = useMutation(queryOptions.assets.create);
   const fileName = filePath.split(/[/\\]/).pop() ?? '';
+  const pickedValues: CreateAssetProps = {
+    // The file's own name is offered, so an Asset added from `logo.png` is
+    // called `logo` without anybody typing it again.
+    name: assetNameFromFilePath(filePath),
+    description: '',
+    projectId: projectId,
+    filePath: filePath,
+  };
+  // Filled from the picked file rather than from a mount of its own, so Add
+  // Asset pressed again while this pane is open takes the new file and the
+  // name that comes with it, and keeps whatever was already typed over it.
   const createAssetForm = useAppForm<CreateAssetProps>({
     resolver: zodResolver(createAssetSchema),
-    defaultValues: {
-      // The file's own name is offered, so an Asset added from `logo.png` is
-      // called `logo` without anybody typing it again.
-      name: assetNameFromFilePath(filePath),
-      description: '',
-      projectId: projectId,
-      filePath: filePath,
-    },
+    defaultValues: pickedValues,
+    values: pickedValues,
   });
   const typed = createAssetForm.watch();
   const blockedBy = emptyFieldsReason(
