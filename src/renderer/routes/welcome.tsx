@@ -2,20 +2,22 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { ArrowRight, Info } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { type ReactElement, useId } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 
 import { BrandMark } from '@renderer/components/brand-mark';
+import {
+  UserIdentityFields,
+  UserIdentityNote,
+} from '@renderer/components/forms/user-form';
 import { GradientPane } from '@renderer/components/gradient-pane';
 import { Pane, Panel } from '@renderer/components/pane';
 import {
-  AppField,
   AppForm,
   FormActions,
   SubmitButton,
 } from '@renderer/components/ui/app-form';
-import { TextControl } from '@renderer/components/ui/field-controls';
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { countEmptyFields, emptyFieldsReason } from '@renderer/lib/emptyFields';
@@ -103,41 +105,12 @@ function FirstStartPage(): ReactElement {
               blockedBy={blockedBy}
               fieldsetClassName="flex flex-col gap-4 p-6"
             >
-              <AppField
-                form={setUserForm}
-                name="name"
-                label={<Trans>Name</Trans>}
-              >
-                {({ field, controlProps }) => (
-                  <TextControl field={field} type="text" {...controlProps} />
-                )}
-              </AppField>
-              <AppField
-                form={setUserForm}
-                name="email"
-                label={<Trans>Email address</Trans>}
-              >
-                {({ field, controlProps }) => (
-                  <TextControl field={field} type="email" {...controlProps} />
-                )}
-              </AppField>
               {/*
-                What Desktop keeps of the two and where they go. It is true of
-                the build: nothing but a commit Core writes carries them, and
-                Report an issue fills them in for the person to change or clear
-                before they send it.
+                The two fields and the note the Profile shows too, so neither
+                screen words them on its own.
               */}
-              <p className="flex gap-2 text-small text-muted-foreground">
-                <Info aria-hidden="true" className="mt-0.5 size-3 flex-none" />
-                <span>
-                  <Trans>
-                    Your name and email address mark your changes in the
-                    History. They&apos;re saved with each change, so whoever you
-                    sync a Project with sees them. Desktop sends them nowhere
-                    else without asking.
-                  </Trans>
-                </span>
-              </p>
+              <UserIdentityFields form={setUserForm} />
+              <UserIdentityNote />
               <FormActions form={setUserForm} id={formId} blockedBy={blockedBy}>
                 <SubmitButton Icon={ArrowRight} className="w-full">
                   <Trans>Continue</Trans>
