@@ -209,6 +209,8 @@ const { data: history } = useQueryNoError(
 // history?.fullHistory is the full git log, history?.history is Project-only changes
 ```
 
+**A commit names its object by id only, so a change row reads it.** `ChangeRow` in [`change-list.tsx`](../../src/renderer/components/change-list.tsx) names the Entry, Collection, Component or Asset the change was about, which the commit message carries as an `objectType` and an `id`. The read passes the row's own `commitHash`, so the object is read as it stood at that change, and a `read` of HEAD would fail for one that has since been deleted or whose Collection has. A `delete` commit took the object out of the Project altogether, so that row runs no read and keeps what its sentence says.
+
 ### Non-Blocking Page Loads
 
 We prioritize fast, responsive UI by rendering pages immediately without waiting for data to load. Navigation between pages should feel instantaneous.
