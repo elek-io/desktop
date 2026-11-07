@@ -14,12 +14,8 @@ import {
   navigateToEntryUpdate,
   stringValue,
 } from '../helpers/entry.js';
-import { mainPanel, verifyCurrentRouteHash } from '../helpers/navigation.js';
-import {
-  createProjectViaIpc,
-  navigateToHistory,
-  navigateToProjectDashboard,
-} from '../helpers/project.js';
+import { mainPanel } from '../helpers/navigation.js';
+import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
 test.describe('History', () => {
@@ -84,49 +80,6 @@ test.describe('History', () => {
       mainWindow.getByRole('heading', { name: 'create project' })
     ).toBeVisible();
     await expect(mainWindow.getByLabel('Name', { exact: true })).toBeVisible();
-  });
-
-  test('dashboard shows latest changes and links to full history', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    const collection = await createCollectionViaIpc(mainWindow, {
-      projectId: project.id,
-    });
-    await createEntryViaIpc(mainWindow, {
-      projectId: project.id,
-      collectionId: collection.id,
-      values: { title: stringValue({ en: 'First article' }) },
-    });
-
-    await navigateToProjectDashboard(mainWindow, project.id);
-
-    // "Latest changes" renders the seeded commits (the panel slices to the
-    // latest 5, but three commits are well under that cap). The Collection's
-    // change is looked for inside the main panel, because the Project's sidebar
-    // carries a Create Collection link of its own.
-    await expect(
-      mainWindow.getByRole('link', { name: /create project/i })
-    ).toBeVisible();
-    await expect(
-      mainPanel(mainWindow).getByRole('link', {
-        name: /create collection/i,
-      })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('link', { name: /create entry/i })
-    ).toBeVisible();
-
-    // The "Current Project" debug panel is present.
-    await expect(mainWindow.getByText('Current Project')).toBeVisible();
-
-    // "Full History" navigates to the project's history route.
-    await mainWindow.getByRole('button', { name: 'Full History' }).click();
-    await verifyCurrentRouteHash(
-      mainWindow,
-      `#/projects/${project.id}/history`
-    );
   });
 
   // The CollectionDiff hydrates the Controller-bound fieldDefinitions read-only

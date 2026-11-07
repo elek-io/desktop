@@ -22,6 +22,7 @@ import {
 } from '../helpers/external.js';
 import {
   bootOnHash,
+  navigate,
   navigationRows,
   projectSidebar,
   verifyCurrentRouteHash,
@@ -53,6 +54,14 @@ async function expectRedirect(
   toHash: string
 ): Promise<void> {
   await bootOnHash(page, fromHash, toHash);
+}
+
+/** The trail in the header, step by step, as a person reads it. */
+async function breadcrumbTrail(page: Page): Promise<string[]> {
+  return page
+    .getByRole('navigation', { name: 'breadcrumb' })
+    .getByRole('listitem')
+    .allInnerTexts();
 }
 
 test.describe('Navigation', () => {
@@ -140,7 +149,7 @@ test.describe('Navigation', () => {
     // Back/forward drive the router history. An in-app navigation (no reload)
     // pushes a history entry, so back returns to the dashboard and forward
     // returns to the pushed route.
-    await mainWindow.getByRole('button', { name: 'Full History' }).click();
+    await mainWindow.getByRole('link', { name: 'Full History' }).click();
     await verifyCurrentRouteHash(
       mainWindow,
       `#/projects/${project.id}/history`
@@ -163,6 +172,36 @@ test.describe('Navigation', () => {
     const crumbLinks = breadcrumb.getByRole('link');
     await expect(crumbLinks.first()).toBeVisible();
     expect(await crumbLinks.count()).toBeGreaterThanOrEqual(2);
+  });
+
+  test('names each page of the Settings and the Profile in the trail', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
+
+    // Each page of the Settings is its own step, after the Project and
+    // Settings, so the trail says which one is open.
+    await navigate(mainWindow, `#/projects/${project.id}/settings/general`);
+    await expect
+      .poll(async () => breadcrumbTrail(mainWindow))
+      .toEqual(['Projects', 'Autohaus Ebersfelde', 'Settings', 'General']);
+
+    await mainWindow.getByRole('link', { name: /Sync/ }).click();
+    await expect
+      .poll(async () => breadcrumbTrail(mainWindow))
+      .toEqual(['Projects', 'Autohaus Ebersfelde', 'Settings', 'Sync']);
+
+    // The Projects step the Profile's trail starts on leads to the Projects
+    // page, though the Profile sits outside that route.
+    await navigate(mainWindow, '#/user/profile');
+    await mainWindow
+      .getByRole('navigation', { name: 'breadcrumb' })
+      .getByRole('link', { name: 'Projects' })
+      .click();
+    await verifyCurrentRouteHash(mainWindow, '#/projects');
   });
 });
 

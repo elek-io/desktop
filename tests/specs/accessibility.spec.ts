@@ -117,6 +117,50 @@ const firstDayRoutes: {
   },
 ];
 
+/**
+ * The Dashboard, both pages of a Project's Settings and the Profile, scanned in
+ * both modes at the smallest window the app supports.
+ *
+ * Each of them is a form or a ruled row of facts on the panel's own surface, so
+ * contrast and a visible focus ring have to hold in light and dark mode alike.
+ */
+const projectAndProfileRoutes: {
+  name: string;
+  arrange: (page: Page) => Promise<string> | string;
+}[] = [
+  {
+    name: '#/projects/:projectId/dashboard',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      return `#/projects/${project.id}/dashboard`;
+    },
+  },
+  {
+    name: '#/projects/:projectId/settings/general',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      return `#/projects/${project.id}/settings/general`;
+    },
+  },
+  // Sync with an address that carries a password, so the masked part is under
+  // the scan too.
+  {
+    name: '#/projects/:projectId/settings/version-control',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      await setRemoteOriginUrlViaIpc(page, {
+        id: project.id,
+        url: 'https://mara-klein:a-token@example.invalid/website.git',
+      });
+      return `#/projects/${project.id}/settings/version-control`;
+    },
+  },
+  {
+    name: '#/user/profile',
+    arrange: () => '#/user/profile',
+  },
+];
+
 test.describe('Accessibility', () => {
   for (const route of enforcedRoutes) {
     test(`has no axe violations on ${route.name}`, async ({ mainWindow }) => {
@@ -126,6 +170,21 @@ test.describe('Accessibility', () => {
       await navigate(mainWindow, await route.arrange(mainWindow));
       await expectNoAxeViolations(mainWindow);
     });
+  }
+
+  for (const route of projectAndProfileRoutes) {
+    for (const theme of ['light', 'dark'] as const) {
+      test(`has no axe violations on ${route.name} in ${theme} mode`, async ({
+        electronApp,
+        mainWindow,
+      }) => {
+        await setUserViaIpc(mainWindow);
+        await navigate(mainWindow, await route.arrange(mainWindow));
+        await setTheme(mainWindow, theme);
+        await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+        await expectNoAxeViolations(mainWindow);
+      });
+    }
   }
 
   for (const route of firstDayRoutes) {

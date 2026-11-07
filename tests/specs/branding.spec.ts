@@ -246,7 +246,7 @@ test.describe('Branding', () => {
       // input measured below valid. The theme is set first, because setTheme
       // reloads the renderer and would reset the form.
       await mainWindow.getByLabel('Description', { exact: true }).fill('');
-      await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+      await mainWindow.getByRole('button', { name: 'Save' }).click();
       await expect(
         mainWindow.locator('p[data-slot="form-message"]').first()
       ).toBeVisible();

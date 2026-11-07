@@ -1085,11 +1085,13 @@ test.describe('The trail', () => {
 
   test('drops a step that opens nothing of its own', async ({ mainWindow }) => {
     await setUserViaIpc(mainWindow);
-    // `#/user` settles on the Profile, so the trail is the Profile alone: the
-    // step above it opens no page and ci's trail holds only what opens.
+    // `#/user` settles on the Profile and opens no page of its own, so the
+    // trail holds no step for it: ci's trail holds only what opens. It still
+    // starts on Projects, as every trail does, which the layout under the user
+    // is what names.
     await navigate(mainWindow, '#/user/profile');
     await expect(
-      mainWindow.getByRole('heading', { name: 'User profile' })
+      mainWindow.getByRole('heading', { name: 'Profile' })
     ).toBeVisible();
 
     const trail = await mainWindow.evaluate(() => {
@@ -1105,8 +1107,8 @@ test.describe('The trail', () => {
       };
     });
 
-    expect(trail.crumbs).toEqual(['Profile']);
-    expect(trail.links).toBe(0);
+    expect(trail.crumbs).toEqual(['Projects', 'Profile']);
+    expect(trail.links).toBe(1);
   });
 });
 

@@ -18,7 +18,7 @@ import {
 import { confirmDialog } from '../helpers/dialog.js';
 import { fillEntryForm, navigateToEntryCreate } from '../helpers/entry.js';
 import { stubCoreReject } from '../helpers/ipc.js';
-import { navigate } from '../helpers/navigation.js';
+import { navigate, reloadWindow } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToAssets,
@@ -45,26 +45,26 @@ test.describe('The app in one language', () => {
 
     // A User whose language Desktop carries a catalog for.
     await setUserViaIpc(mainWindow, { language: 'en' });
-    await navigate(mainWindow, '#/user/profile');
+    await navigate(mainWindow, '#/projects');
     await waitForUserLoaded(mainWindow);
     await expect(mainWindow.locator('html')).toHaveAttribute('lang', 'en');
 
-    // What index.html declares is overwritten here, so what the assertion
-    // below reads can only be what the renderer wrote. Every navigation of
-    // this suite boots the window fresh, which would put the declaration back,
-    // so the language is changed from here on through the app itself.
-    await mainWindow.evaluate(() => {
-      document.documentElement.setAttribute('lang', 'zz');
-    });
-    await expect(mainWindow.locator('html')).toHaveAttribute('lang', 'zz');
-
-    // A language Desktop has no catalog for, picked the way a User picks one.
-    // Its words stay English, so that is what the document has to declare
-    // rather than the language asked for.
-    await mainWindow.getByLabel('Preferred language').click();
-    await mainWindow.getByRole('option', { name: 'de', exact: true }).click();
-    await mainWindow.getByRole('button', { name: 'Save local User' }).click();
+    // A language Desktop has no catalog for. The user menu offers only the
+    // catalogs it carries, so such a language can only come from a User
+    // written outside it, which is what this seeds. Its words stay English, so
+    // that is what the document has to declare rather than the language asked
+    // for, and what the menu says the app is set to.
+    await setUserViaIpc(mainWindow, { language: 'de' });
+    await reloadWindow(mainWindow);
+    await navigate(mainWindow, '#/projects');
+    await waitForUserLoaded(mainWindow);
     await expect(mainWindow.locator('html')).toHaveAttribute('lang', 'en');
+
+    await mainWindow.getByRole('button', { name: /Test User/ }).click();
+    const menu = mainWindow.getByRole('menu').first();
+    await expect(
+      menu.getByRole('menuitem', { name: 'Language' })
+    ).toContainText('English');
   });
 
   test('a toast says what happened to what, and never reads as a method and an object', async ({
@@ -85,7 +85,7 @@ test.describe('The app in one language', () => {
       'Autohaus Ebersfelde'
     );
     await mainWindow.getByLabel('Name', { exact: true }).fill('Autohaus Thamm');
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
     const projectToast = mainWindow.getByText('Project Autohaus Thamm saved', {
       exact: true,
     });
@@ -345,12 +345,13 @@ test.describe('The app in one language', () => {
     ).toBeVisible();
 
     // And the Project, last, because it takes the rest with it. A Project with
-    // no remote is refused once and deleted by force, which runs the same
-    // mutation again, so its sentence is read after a failed attempt.
+    // no Git repository is deleted rather than removed, from the one confirm
+    // that says it cannot be brought back.
     await navigateToProjectSettings(mainWindow, project.id);
-    await mainWindow.getByRole('button', { name: 'Delete Project' }).click();
-    await confirmDialog(mainWindow, 'Delete');
-    await confirmDialog(mainWindow, 'Yes, delete');
+    await mainWindow
+      .getByRole('button', { name: 'Delete Project', exact: true })
+      .click();
+    await confirmDialog(mainWindow, 'Delete Project');
     await expect(
       mainWindow.getByText('Project Autohaus Ebersfelde deleted', {
         exact: true,
@@ -378,7 +379,7 @@ test.describe('The app in one language', () => {
     // carries a message no editor could read, which is what the toast's own
     // sentence replaces.
     await stubCoreReject(electronApp, 'core:projects:update');
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
 
     const toast = mainWindow.getByText('Could not save the Project');
     await expect(toast).toBeVisible();

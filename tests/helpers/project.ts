@@ -144,8 +144,8 @@ export async function navigateToHistory(
   await navigate(page, `#/projects/${projectId}/history`);
 }
 
-/** Route to a Project's version-control settings page and confirm it rendered. */
-export async function navigateToVersionControl(
+/** Route to the Sync page of a Project's Settings and confirm it rendered. */
+export async function navigateToSync(
   page: Page,
   projectId: string
 ): Promise<void> {

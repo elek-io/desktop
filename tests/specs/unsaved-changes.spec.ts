@@ -25,7 +25,7 @@ import { reloadWindow } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToProjectSettings,
-  navigateToVersionControl,
+  navigateToSync,
 } from '../helpers/project.js';
 import { setupRemote } from '../helpers/remote.js';
 import { navigateToUserProfile, setUserViaIpc } from '../helpers/user.js';
@@ -203,9 +203,9 @@ test.describe('A form while its own save runs', () => {
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    await navigateToVersionControl(mainWindow, project.id);
+    await navigateToSync(mainWindow, project.id);
 
-    const url = mainWindow.getByLabel('Remote URL', { exact: true });
+    const url = mainWindow.getByLabel('Git repository', { exact: true });
     const sent = 'https://example.com/first.git';
 
     // The save never answers, so the window the form is locked for stays open
@@ -235,10 +235,10 @@ test.describe('A form while its own save runs', () => {
   }, testInfo) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    await navigateToVersionControl(mainWindow, project.id);
+    await navigateToSync(mainWindow, project.id);
 
-    const url = mainWindow.getByLabel('Remote URL', { exact: true });
-    const save = mainWindow.getByRole('button', { name: 'Save changes' });
+    const url = mainWindow.getByLabel('Git repository', { exact: true });
+    const save = mainWindow.getByRole('button', { name: 'Save' });
 
     // A remote that is really there, so the Project card may read it once the
     // URL is stored rather than failing on a remote nobody can reach.
@@ -257,7 +257,7 @@ test.describe('A form while its own save runs', () => {
     await leaveThePage(mainWindow).click();
     await expect(
       discardDialog(mainWindow).getByRole('heading', {
-        name: 'Discard your changes to Version Control Settings?',
+        name: 'Discard your changes to Sync?',
       })
     ).toBeVisible();
     await discardDialog(mainWindow)
@@ -272,9 +272,9 @@ test.describe('A form while its own save runs', () => {
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    await navigateToVersionControl(mainWindow, project.id);
+    await navigateToSync(mainWindow, project.id);
 
-    const url = mainWindow.getByLabel('Remote URL', { exact: true });
+    const url = mainWindow.getByLabel('Git repository', { exact: true });
 
     // The form fills from its query, so it holds every field read-only until
     // the Project has been read. The read is stubbed to hang below, so this
@@ -298,7 +298,7 @@ test.describe('A form while its own save runs', () => {
     await url.press('Enter');
 
     // Core answered, which is what the toast says.
-    await expect(mainWindow.getByText('Remote URL saved')).toBeVisible();
+    await expect(mainWindow.getByText('Git repository saved')).toBeVisible();
 
     // And the form is still read-only, because what it is to show next is
     // still on its way.
@@ -399,15 +399,14 @@ test.describe('Leaving a page with changes nobody saved', () => {
     );
     await expect(discardDialog(mainWindow)).toBeHidden();
 
-    // The Profile is the form where only that rule carries it: it stays
-    // writable while it saves, so the guard is live at the moment the submit
-    // navigates away.
+    // The Profile stays open after it saved, so leaving it afterwards asks
+    // nothing either: the form is pristine again with what went in.
     await navigateToUserProfile(mainWindow);
-    await mainWindow
-      .getByLabel('Full name', { exact: true })
-      .fill('Mara Klein');
-    await mainWindow.getByRole('button', { name: 'Save local User' }).click();
+    await mainWindow.getByLabel('Name', { exact: true }).fill('Mara Klein');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow.getByText('Profile saved')).toBeVisible();
 
+    await leaveThePage(mainWindow).click();
     await expect(mainWindow).toHaveURL((url) => url.hash === '#/projects');
     await expect(discardDialog(mainWindow)).toBeHidden();
   });
@@ -498,17 +497,17 @@ test.describe('Leaving a page with changes nobody saved', () => {
       {
         open: async () => navigateToProjectSettings(mainWindow, project.id),
         label: 'Name',
-        question: 'Discard your changes to General Settings?',
+        question: 'Discard your changes to General?',
       },
       {
-        open: async () => navigateToVersionControl(mainWindow, project.id),
-        label: 'Remote URL',
-        question: 'Discard your changes to Version Control Settings?',
+        open: async () => navigateToSync(mainWindow, project.id),
+        label: 'Git repository',
+        question: 'Discard your changes to Sync?',
       },
       {
         open: async () => navigateToUserProfile(mainWindow),
-        label: 'Full name',
-        question: 'Discard your changes to User profile?',
+        label: 'Name',
+        question: 'Discard your changes to Profile?',
       },
     ];
 

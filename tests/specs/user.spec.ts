@@ -62,7 +62,7 @@ appTest.describe('The first start', () => {
       // The User persisted, which the Profile reads back from Core on a fresh
       // boot.
       await navigateToUserProfile(mainWindow);
-      await expect(mainWindow.getByLabel('Full name')).toHaveValue(
+      await expect(mainWindow.getByLabel('Name', { exact: true })).toHaveValue(
         'Ada Lovelace'
       );
     }
@@ -277,7 +277,7 @@ cloudTest.describe(
   }
 );
 
-appTest.describe('User profile', () => {
+appTest.describe('The Profile', () => {
   appTest(
     'edits an existing User and persists the change',
     async ({ mainWindow }) => {
@@ -286,32 +286,150 @@ appTest.describe('User profile', () => {
         email: 'test@elek.io',
       });
       await navigateToUserProfile(mainWindow);
+      const name = mainWindow.getByLabel('Name', { exact: true });
+      const save = mainWindow.getByRole('button', { name: 'Save' });
 
-      // With a User already set, the form reset from it (no Welcome title), shows
-      // the existing name, and Save is gated until an edit dirties the form.
+      // With a User already set, the form filled from it, shows the existing
+      // name, and Save is gated until an edit dirties the form.
       await expect(
-        mainWindow.getByRole('heading', { name: 'User profile' })
+        mainWindow.getByRole('heading', { name: 'Profile' })
       ).toBeVisible();
-      await expect(mainWindow.getByLabel('Full name')).toHaveValue('Test User');
-      await expect(
-        mainWindow.getByRole('button', { name: 'Save local User' })
-      ).toBeDisabled();
+      await expect(name).toHaveValue('Test User');
+      await expect(save).toBeDisabled();
 
-      // Editing the name dirties the form, so Save enables. Saving navigates to
-      // the Projects list. Whether the new identity reaches the git author is
-      // Core's own test, so it is not asserted here.
-      await mainWindow.getByLabel('Full name').fill('Renamed User');
-      await expect(
-        mainWindow.getByRole('button', { name: 'Save local User' })
-      ).toBeEnabled();
-      await mainWindow.getByRole('button', { name: 'Save local User' }).click();
-      await expect(mainWindow).toHaveURL(/#\/projects$/);
+      // Editing the name dirties the form, so Save enables. Whether the new
+      // identity reaches the git author is Core's own test, so it is not
+      // asserted here.
+      await name.fill('Renamed User');
+      await expect(save).toBeEnabled();
+      await save.click();
+
+      // The page stays open and is pristine again with what went in, as every
+      // other settings page is.
+      await expect(mainWindow.getByText('Profile saved')).toBeVisible();
+      await expect(mainWindow).toHaveURL(/#\/user\/profile$/);
+      await expect(save).toBeDisabled();
 
       // Persistence: reopening the profile shows the renamed value.
       await navigateToUserProfile(mainWindow);
-      await expect(mainWindow.getByLabel('Full name')).toHaveValue(
+      await expect(mainWindow.getByLabel('Name', { exact: true })).toHaveValue(
         'Renamed User'
       );
+    }
+  );
+
+  appTest(
+    "is ci's 360 px form, with the first start's note and the Local API's port and address",
+    async ({ mainWindow }) => {
+      await setUserViaIpc(mainWindow, {
+        name: 'Mara Klein',
+        email: 'mara@autohaus-ebersfelde.de',
+        localApi: { port: 31310, isEnabled: false },
+      });
+      await navigateToUserProfile(mainWindow);
+
+      // The form is 360 px wide, like the sign in pages ci draws it after.
+      const width = await mainWindow
+        .locator('form')
+        .evaluate((form) => Math.round(form.getBoundingClientRect().width));
+      expect(width).toBe(360);
+
+      // Both fields say what they need before anybody presses Save.
+      for (const label of ['Name', 'Email address'] as const) {
+        await expect(
+          mainWindow.getByLabel(label, { exact: true })
+        ).toHaveAttribute('aria-required', 'true');
+      }
+
+      // The same note the first start shows, in place of the line that said
+      // the name and the address are only saved locally.
+      await expect(
+        mainWindow.getByText(
+          'Your name and email address mark your changes in the History.',
+          { exact: false }
+        )
+      ).toBeVisible();
+      await expect(mainWindow.getByText('only saved locally')).toBeHidden();
+
+      // The Local API's port, and the address other apps read it at, which
+      // follows the field while it is typed.
+      await expect(
+        mainWindow.getByRole('heading', { name: 'Local API' })
+      ).toBeVisible();
+      const port = mainWindow.getByLabel('Port', { exact: true });
+      await expect(port).toHaveValue('31310');
+      await expect(
+        mainWindow.getByText('http://localhost:31310')
+      ).toBeVisible();
+      await port.fill('31400');
+      await expect(
+        mainWindow.getByText('http://localhost:31400')
+      ).toBeVisible();
+
+      // The language and the switch that turns the Local API on are in the
+      // user menu, so neither is on this page.
+      await expect(mainWindow.getByRole('switch')).toBeHidden();
+      await expect(mainWindow.getByLabel('Preferred language')).toBeHidden();
+    }
+  );
+});
+
+appTest.describe('The user menu', () => {
+  appTest(
+    'holds Profile, Local API, Theme and Language, each language in its own words',
+    async ({ mainWindow }) => {
+      await setUserViaIpc(mainWindow, { name: 'Mara Klein' });
+      await navigate(mainWindow, '#/projects');
+      await mainWindow.getByRole('button', { name: /Mara Klein/ }).click();
+      const menu = mainWindow.getByRole('menu').first();
+      await expect(menu).toBeVisible();
+
+      // ci's four rows, in ci's order, each 32 px high in a menu of 280 px.
+      await expect(
+        menu.getByRole('menuitem', { name: 'Profile' })
+      ).toBeVisible();
+      await expect(menu.getByText('Local API')).toBeVisible();
+      await expect(menu.getByRole('menuitem', { name: 'Theme' })).toBeVisible();
+      const language = menu.getByRole('menuitem', { name: 'Language' });
+      await expect(language).toBeVisible();
+
+      const measured = await mainWindow.evaluate(() => {
+        const node = document.querySelector(
+          '[data-slot="dropdown-menu-content"]'
+        );
+
+        if (node === null) {
+          throw new Error('The user menu is not open');
+        }
+
+        return {
+          width: Math.round(node.getBoundingClientRect().width),
+          rows: Array.from(
+            node.querySelectorAll(
+              '[data-slot="dropdown-menu-item"],[data-slot="dropdown-menu-sub-trigger"]'
+            )
+          ).map((row) => Math.round(row.getBoundingClientRect().height)),
+        };
+      });
+      expect(measured.width).toBe(280);
+      expect(new Set(measured.rows)).toEqual(new Set([32]));
+
+      // The row says which language the app is read in, and its submenu lists
+      // every language Desktop has words for, each named in its own language.
+      await expect(language).toContainText('English');
+      await language.click();
+      const languages = mainWindow
+        .getByRole('menu')
+        .filter({ has: mainWindow.getByRole('menuitemradio') });
+      await expect(
+        languages.getByRole('menuitemradio', { name: 'English' })
+      ).toBeChecked();
+      // Core knows 24 languages, and Desktop offers only the ones it can
+      // speak, so nothing it has no words for is in the list.
+      await expect(languages.getByRole('menuitemradio')).toHaveCount(1);
+      await expect(
+        languages.getByRole('menuitemradio', { name: 'de' })
+      ).toBeHidden();
     }
   );
 });

@@ -32,7 +32,7 @@ import {
   navigateToProjectCreate,
   navigateToProjectDashboard,
   navigateToProjectSettings,
-  navigateToVersionControl,
+  navigateToSync,
   openDownloadDialog,
   projectCardOf,
   setRemoteOriginUrlViaIpc,
@@ -76,6 +76,24 @@ async function expectStateLines(
       timeout: 15000,
     })
     .toEqual(lines);
+}
+
+/**
+ * Whether a line stands in ci's warning color, which is what marks something
+ * that cannot be brought back.
+ *
+ * The token is read off the document rather than written down here, so the
+ * assertion follows the brand package rather than a copy of its value.
+ */
+async function warningColorOf(line: Locator): Promise<boolean> {
+  const [shown, token] = await Promise.all([
+    line.evaluate((node) => getComputedStyle(node).color),
+    line.evaluate((node) =>
+      getComputedStyle(node).getPropertyValue('--color-warning')
+    ),
+  ]);
+
+  return toBytes(parseColor(shown)) === toBytes(parseColor(token));
 }
 
 /**
@@ -902,7 +920,7 @@ test.describe('Projects', () => {
 
     // Nothing edited yet, so Save is gated
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
+      mainWindow.getByRole('button', { name: 'Save' })
     ).toBeDisabled();
 
     // Editing the name dirties the form, so Save enables
@@ -910,9 +928,9 @@ test.describe('Projects', () => {
       .getByLabel('Name', { exact: true })
       .fill('Renamed Project');
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
+      mainWindow.getByRole('button', { name: 'Save' })
     ).toBeEnabled();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
 
     // A successful Project update stays on the settings page, so prove the
     // change persisted through a read surface: boot fresh on the Projects list,
@@ -922,34 +940,50 @@ test.describe('Projects', () => {
     await expect(mainWindow.getByText('Test Project')).toBeHidden();
   });
 
-  test('force-deletes a local-only project through the fallback modal', async ({
+  test('deletes a Project without a Git repository from one confirm', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
 
     await navigate(mainWindow, `#/projects/${project.id}/settings/general`);
 
-    // A local-only Project can't be deleted normally, Core guards against
-    // destroying unsynchronized work. The desktop app catches that rejection
-    // and offers a force delete instead of crashing to the error boundary.
-    await mainWindow.getByRole('button', { name: 'Delete Project' }).click();
-    await confirmDialog(mainWindow, 'Delete');
-
-    // The force-delete modal appears (the guard was handled in place) and its
-    // description reflects the preserved CoreError type: a local-only Project
-    // (PreconditionFailed) explains there is no remote copy.
+    // Its folder here is its only copy, so General ends in Delete Project
+    // rather than in Remove from this computer.
     await expect(
-      mainWindow.getByText('Force delete this Project?')
+      mainWindow.getByRole('heading', { name: 'Delete Project' })
     ).toBeVisible();
     await expect(
       mainWindow.getByText(
-        'This Project only exists on this device (no remote copy). Force delete removes it permanently.'
+        'Its folder here is its only copy, since it has no Git repository.'
       )
     ).toBeVisible();
-    await confirmDialog(mainWindow, 'Yes, delete');
+    await mainWindow
+      .getByRole('button', { name: 'Delete Project', exact: true })
+      .click();
 
-    // The force delete goes through and the UI reflects the removal
+    // The confirm names the Project and says, in the warning color, that this
+    // cannot be brought back. Cancel changes nothing.
+    const confirm = mainWindow.getByRole('alertdialog');
+    await expect(
+      confirm.getByRole('heading', { name: 'Delete Autohaus Ebersfelde?' })
+    ).toBeVisible();
+    const warning = confirm.getByText(
+      "Once deleted, it can't be brought back."
+    );
+    await expect(warning).toBeVisible();
+    expect(await warningColorOf(warning)).toBe(true);
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toBeHidden();
+    expect((await listProjectsViaIpc(mainWindow)).total).toBe(1);
+
+    // Confirming deletes it, and the Projects page is empty again.
+    await mainWindow
+      .getByRole('button', { name: 'Delete Project', exact: true })
+      .click();
+    await confirmDialog(mainWindow, 'Delete Project');
     await expect(mainWindow).toHaveURL(/#\/projects$/);
     await expect(
       mainWindow.getByText('Create your first Project')
@@ -983,25 +1017,26 @@ test.describe('Projects', () => {
 
     await navigate(mainWindow, `#/projects/${project.id}/settings/general`);
 
-    // The unpushed-ahead guard is caught in place and offers a force delete,
-    // rather than silently destroying the work or crashing to the error boundary.
-    await mainWindow.getByRole('button', { name: 'Delete Project' }).click();
-    await confirmDialog(mainWindow, 'Delete');
-
+    // With a Git repository, General ends in Remove from this computer and
+    // says what stays behind.
     await expect(
-      mainWindow.getByText('Force delete this Project?')
+      mainWindow.getByRole('heading', { name: 'Remove from this computer' })
     ).toBeVisible();
-    // The description reflects the preserved CoreError type: unpushed local work
-    // (Conflict) explains those changes would be discarded, distinct from the
-    // local-only reason above.
-    await expect(
-      mainWindow.getByText(
-        'This Project has local changes not yet pushed to its remote. Force delete discards those unpushed changes permanently.'
-      )
-    ).toBeVisible();
-    await confirmDialog(mainWindow, 'Yes, delete');
+    await mainWindow
+      .getByRole('button', { name: 'Remove from this computer' })
+      .click();
 
-    // The force delete goes through and the UI reflects the removal
+    // The confirm counts the changes the removal would lose, which is what the
+    // check of the Git repository answers, so nobody presses it without being
+    // told. One Collection was written after the mirror, so one change is not
+    // synced.
+    const confirm = mainWindow.getByRole('alertdialog');
+    await expect(
+      confirm.getByText("1 change isn't synced. Removing loses it.")
+    ).toBeVisible();
+    await confirmDialog(mainWindow, 'Remove Project');
+
+    // The removal goes through and the UI reflects it
     await expect(mainWindow).toHaveURL(/#\/projects$/);
     await expect(
       mainWindow.getByText('Create your first Project')
@@ -1085,7 +1120,7 @@ test.describe('Projects', () => {
     // Saving persists the set as it now stands. A reload re-reads from Core and
     // shows 'en' and the added 'es' (de gone, en stayed), guarding the
     // default-remove guard, the picker and the supported-set persistence.
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
     await reloadWindow(mainWindow);
     await expect(
       mainWindow.getByRole('button', { name: 'Remove en' })
@@ -1114,21 +1149,21 @@ test.describe('Projects', () => {
     );
     const remote = setupRemote(testInfo, { mirror: projectPath });
 
-    await navigateToVersionControl(mainWindow, project.id);
+    await navigateToSync(mainWindow, project.id);
 
     // No origin yet: Save is gated and the sidebar shows no Sync (it renders
     // only when remoteOriginUrl != null).
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
+      mainWindow.getByRole('button', { name: 'Save' })
     ).toBeDisabled();
     await expect(mainWindow.getByRole('button', { name: 'Sync' })).toBeHidden();
 
     // Setting the origin dirties the form, so Save enables.
     await mainWindow.getByLabel('Remote URL').fill(remote.url);
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
+      mainWindow.getByRole('button', { name: 'Save' })
     ).toBeEnabled();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
 
     // The origin is set: the Sync button appears, which renders only for
     // a Project that has one, so the change reached Core. The page stays open
@@ -1138,7 +1173,7 @@ test.describe('Projects', () => {
       mainWindow.getByRole('button', { name: 'Sync' })
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
+      mainWindow.getByRole('button', { name: 'Save' })
     ).toBeDisabled();
 
     // The clearing half (empty URL removes the origin) is dropped: an empty
@@ -1363,25 +1398,222 @@ test.describe('Projects', () => {
     await navigate(mainWindow, `#/projects/${project.id}/settings/general`);
 
     // Make the delete reject with a non-guard error (a plain Error carries no
-    // CoreError type). The delete mutation handles only PreconditionFailed and
-    // Conflict in place (the force-delete modal), so every other failure must
-    // reach the root error boundary. This guards the throwOnError predicate
-    // against a regression back to a blanket throwOnError: false, which would
-    // swallow the failure into the force-delete modal and drop it from the
-    // logs entirely. The guard-path force-delete specs above cannot catch that,
-    // since the modal still opens for the guard reasons either way.
+    // CoreError type). The removal handles no type at all, because the one
+    // guard Core raises is what its confirm has already said, so every failure
+    // must reach the root error boundary. This guards the mutation against a
+    // regression back to a blanket throwOnError: false, which would swallow the
+    // failure and drop it from the logs entirely.
     await stubCoreReject(electronApp, 'core:projects:delete');
 
-    await mainWindow.getByRole('button', { name: 'Delete Project' }).click();
-    await confirmDialog(mainWindow, 'Delete');
+    await mainWindow
+      .getByRole('button', { name: 'Delete Project', exact: true })
+      .click();
+    await confirmDialog(mainWindow, 'Delete Project');
 
     // The failure propagates: the root error boundary replaces the view and the
-    // force-delete modal never opens.
+    // confirm is not left standing in front of it.
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeVisible();
+    await expect(mainWindow.getByRole('alertdialog')).toBeHidden();
+  });
+});
+
+test.describe("A Project's Settings", () => {
+  test('lists General and Sync beside the chosen page, each with its Save', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
+    await navigateToProjectSettings(mainWindow, project.id);
+
+    // The list of 296 px beside the chosen page, with a row per page.
+    const list = mainWindow.getByRole('link', { name: /General/ });
+    await expect(list).toBeVisible();
     await expect(
-      mainWindow.getByText('Force delete this Project?')
-    ).toBeHidden();
+      mainWindow.getByText('Name, description and languages')
+    ).toBeVisible();
+
+    // Without a Git repository the Sync row says so, rather than naming a host
+    // this Project has none of.
+    const sync = mainWindow.getByRole('link', { name: /Sync/ });
+    await expect(sync).toContainText('This computer only');
+
+    // General is the page that is open, and the chosen row is marked by more
+    // than its color: it carries the bar ci draws on it.
+    await expect(list).toHaveAttribute('data-active', 'true');
+    const bar = await list.evaluate((row) => getComputedStyle(row).boxShadow);
+    expect(bar).toContain('inset');
+
+    // Each page has its own Save, and each says what keeps it from saving.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'General' })
+    ).toBeVisible();
+    const save = mainWindow.getByRole('button', { name: 'Save' });
+    await expect(save).toBeVisible();
+    await mainWindow.getByLabel('Name', { exact: true }).fill('');
+    await expect(blockedReason(mainWindow)).toHaveText(
+      '1 field is still empty'
+    );
+    await expect(save).toBeDisabled();
+    await expect(save).toHaveAttribute('aria-describedby', /.+/);
+
+    // Sync opens from its row, with a Save of its own.
+    await sync.click();
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Sync' })
+    ).toBeVisible();
+    await expect(sync).toHaveAttribute('data-active', 'true');
+    await expect(
+      mainWindow.getByLabel('Git repository', { exact: true })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Save' })
+    ).toBeVisible();
+  });
+
+  test('names the Git host of a Project that syncs, in the Sync row', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: 'https://github.com/autohaus-ebersfelde/website.git',
+    });
+    await navigateToProjectSettings(mainWindow, project.id);
+
+    await expect(mainWindow.getByRole('link', { name: /Sync/ })).toContainText(
+      'GitHub'
+    );
+  });
+
+  test('shows the Git address with its password masked, and keeps the stored one', async ({
+    mainWindow,
+  }) => {
+    const password = 'a-token-nobody-may-read';
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: `https://mara-klein:${password}@example.invalid/website.git`,
+    });
+    await navigateToSync(mainWindow, project.id);
+
+    const address = mainWindow.getByLabel('Git repository', { exact: true });
+    const masked = 'https://mara-klein:••••••••@example.invalid/website.git';
+
+    // The user name stays readable, the password is bullets, and the stored
+    // password is nowhere on the screen or in what a copy of the field takes.
+    await expect(address).toHaveValue(masked);
+    expect(await mainWindow.content()).not.toContain(password);
+    await expect(
+      mainWindow.getByText('A password in the address stays hidden.')
+    ).toBeVisible();
+
+    // Untouched, there is nothing to save, so the mask cannot reach Core by a
+    // press that changed nothing.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Save' })
+    ).toBeDisabled();
+
+    // Changing another part of the address and saving puts the stored password
+    // back, so the Project still points at a repository it can reach.
+    await address.fill(masked.replace('website.git', 'site.git'));
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow.getByText('Git repository saved')).toBeVisible();
+
+    const stored = await mainWindow.evaluate(
+      async (id) =>
+        (await window.ipc.core.projects.read({ id })).remoteOriginUrl,
+      project.id
+    );
+    expect(stored).toBe(
+      `https://mara-klein:${password}@example.invalid/site.git`
+    );
+
+    // And the field shows the mask again rather than what it saved.
+    await expect(address).toHaveValue(
+      masked.replace('website.git', 'site.git')
+    );
+    expect(await mainWindow.content()).not.toContain(password);
+  });
+
+  test('saves a password typed over the mask', async ({ mainWindow }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: 'https://mara-klein:the-old-one@example.invalid/website.git',
+    });
+    await navigateToSync(mainWindow, project.id);
+
+    const address = mainWindow.getByLabel('Git repository', { exact: true });
+    await address.fill(
+      'https://mara-klein:the-new-one@example.invalid/website.git'
+    );
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow.getByText('Git repository saved')).toBeVisible();
+
+    const stored = await mainWindow.evaluate(
+      async (id) =>
+        (await window.ipc.core.projects.read({ id })).remoteOriginUrl,
+      project.id
+    );
+    expect(stored).toBe(
+      'https://mara-klein:the-new-one@example.invalid/website.git'
+    );
+  });
+
+  test('says changes may be lost when the Git repository cannot be checked', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await recordLogsViaIpc(electronApp);
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: 'https://example.invalid/website.git',
+    });
+
+    // The one check of the Git repository fails, so nothing can be counted.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:projects:getChanges',
+      'Internal'
+    );
+    await navigateToProjectSettings(mainWindow, project.id);
+    await mainWindow
+      .getByRole('button', { name: 'Remove from this computer' })
+      .click();
+
+    // The confirm says changes may be lost, never that there are none, so
+    // nothing goes without a warning.
+    const confirm = mainWindow.getByRole('alertdialog');
+    const warning = confirm.getByText(
+      "Changes that aren't synced may be lost.",
+      { exact: false }
+    );
+    await expect(warning).toBeVisible();
+    expect(await warningColorOf(warning)).toBe(true);
+    await expect(confirm.getByText("aren't synced. Removing")).toBeHidden();
+
+    // And the failed check is in the log file with its type, the way a pane's
+    // boundary writes one, once however many screens read the same Project.
+    await expect
+      .poll(async () =>
+        (await recordedLogs(electronApp)).filter((record) =>
+          record.message.startsWith('Project card check error:')
+        )
+      )
+      .toHaveLength(1);
+    const logged = (await recordedLogs(electronApp)).filter((record) =>
+      record.message.startsWith('Project card check error:')
+    );
+    expect(logged[0]?.level).toBe('error');
+    expect(logged[0]?.meta['error.type']).toBe('Internal');
   });
 });

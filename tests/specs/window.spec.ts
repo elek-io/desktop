@@ -56,6 +56,7 @@ test.describe('The window', () => {
       `#/projects/${project.id}/collections`,
       `#/projects/${project.id}/history`,
       `#/projects/${project.id}/settings/general`,
+      `#/projects/${project.id}/settings/version-control`,
     ];
 
     for (const screen of screens) {
@@ -105,6 +106,49 @@ test.describe('The window', () => {
         measured.viewport.height
       );
     }
+  });
+
+  test('keeps the Profile inside it at the smallest size', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    await navigate(mainWindow, '#/user/profile');
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Profile' })
+    ).toBeVisible();
+
+    // The form is centered on the panel and scrolls inside its own pane, so a
+    // window at the smallest size it supports cuts off neither its head nor
+    // its Save.
+    const measured = await mainWindow.evaluate(() => {
+      const form = document.querySelector('form');
+      const scroller = form?.closest('main');
+
+      if (form === null || scroller === null || scroller === undefined) {
+        throw new Error('The Profile has no form inside a pane that scrolls');
+      }
+
+      return {
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        document: {
+          width: document.documentElement.scrollWidth,
+          height: document.documentElement.scrollHeight,
+        },
+        scrolls: getComputedStyle(scroller).overflowY,
+        reachable:
+          scroller.scrollHeight <= scroller.clientHeight ||
+          form.getBoundingClientRect().height < scroller.scrollHeight,
+      };
+    });
+
+    expect(measured.document).toEqual({
+      width: measured.viewport.width,
+      height: measured.viewport.height,
+    });
+    expect(measured.scrolls).toBe('auto');
+    expect(measured.reachable).toBe(true);
   });
 
   test('keeps the Welcome screen inside it at the smallest size', async ({

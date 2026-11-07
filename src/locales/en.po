@@ -836,12 +836,12 @@ msgid "Could not save the Entry"
 msgstr "Could not save the Entry"
 
 #: src/renderer/queries/options/projectOptions.ts
-msgid "Could not save the Project"
-msgstr "Could not save the Project"
+msgid "Could not save the Git repository"
+msgstr "Could not save the Git repository"
 
 #: src/renderer/queries/options/projectOptions.ts
-msgid "Could not save the remote URL"
-msgstr "Could not save the remote URL"
+msgid "Could not save the Project"
+msgstr "Could not save the Project"
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Could not save this Collection"
@@ -1288,6 +1288,10 @@ msgstr "Generate from the source Fields"
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Git repository"
 msgstr "Git repository"
+
+#: src/renderer/queries/options/projectOptions.ts
+msgid "Git repository saved"
+msgstr "Git repository saved"
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "GitHub, GitLab or any other. Desktop syncs the Project with it."
@@ -1911,6 +1915,7 @@ msgstr "Project deleted"
 #: src/renderer/components/project-switcher.tsx
 #: src/renderer/routes/projects.tsx
 #: src/renderer/routes/projects/index.tsx
+#: src/renderer/routes/user.tsx
 msgid "Projects"
 msgstr "Projects"
 
@@ -1987,10 +1992,6 @@ msgstr "Releases"
 #: src/renderer/routes/__root.tsx
 msgid "Reload"
 msgstr "Reload"
-
-#: src/renderer/queries/options/projectOptions.ts
-msgid "Remote URL saved"
-msgstr "Remote URL saved"
 
 #: src/renderer/components/fields/entry/control.tsx
 msgid "Remove"

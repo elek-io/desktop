@@ -27,7 +27,7 @@ import { navigate } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToProjectSettings,
-  navigateToVersionControl,
+  navigateToSync,
   openDownloadDialog,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
@@ -654,26 +654,23 @@ test.describe('A form filled from its query', () => {
     await setUserViaIpc(mainWindow);
     await navigateToUserProfile(mainWindow);
     await expect(
-      mainWindow.getByRole('heading', { name: 'User profile' })
+      mainWindow.getByRole('heading', { name: 'Profile' })
     ).toBeVisible();
 
-    expect(await rulesOf(mainWindow, 'Full name')).toBe(
+    expect(await rulesOf(mainWindow, 'Name')).toBe(
       'Required, up to 256 characters'
     );
-    expect(await rulesOf(mainWindow, 'Email')).toBe(
+    expect(await rulesOf(mainWindow, 'Email address')).toBe(
       'Required, up to 254 characters'
     );
-    // A switch always holds a Value, so Core asking for the key is no rule
-    // anybody could break, and the field says nothing.
-    expect(await rulesOf(mainWindow, 'Enabled')).toBeNull();
 
     // Required reaches assistive tech on every form, not only on a generated
     // field, which is what the hand-written ones were silent about.
     await expect(
-      mainWindow.getByLabel('Full name', { exact: true })
+      mainWindow.getByLabel('Name', { exact: true })
     ).toHaveAttribute('aria-required', 'true');
     await expect(
-      mainWindow.getByLabel('Email', { exact: true })
+      mainWindow.getByLabel('Email address', { exact: true })
     ).toHaveAttribute('aria-required', 'true');
   });
 
@@ -724,12 +721,12 @@ test.describe('A form filled from its query', () => {
       { label: 'Default language', rules: 'Required', ariaRequired: 'true' },
     ]);
 
-    await navigateToVersionControl(mainWindow, project.id);
+    await navigateToSync(mainWindow, project.id);
     await expect(
-      mainWindow.getByLabel('Remote URL', { exact: true })
+      mainWindow.getByLabel('Git repository', { exact: true })
     ).toBeVisible();
     expect(await statedFieldsOf(mainWindow)).toEqual([
-      { label: 'Remote URL', rules: 'Required', ariaRequired: 'true' },
+      { label: 'Git repository', rules: 'Required', ariaRequired: 'true' },
     ]);
 
     // The two slug fields carry the 128 characters Core caps a slug at, which
