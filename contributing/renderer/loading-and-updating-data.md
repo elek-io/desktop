@@ -438,9 +438,9 @@ read, so a form that kept it set after a save would offer Save with nothing left
 to save and ask about changes that are already stored. Two things clear it: the
 state the save brings back, which fills the form through `values`, and the
 `form.reset(values)` a submit handler calls after the mutation resolved. The
-Project's general settings and its version control settings do the second as
-well, so the form is pristine the moment the save is through rather than when
-its data comes back.
+General and the Sync page of a Project's Settings, and the Profile, do the
+second as well, so the form is pristine the moment the save is through rather
+than when its data comes back.
 
 **`keepDirtyValues` keeps a dirty field's value, not its dirtiness.** Every reset
 goes through it, the `reset()` above as much as the one `values` runs, because
@@ -639,7 +639,7 @@ Data loading and mutations lean on the app's error handling defaults:
 
 - `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the nearest error boundary. For a read that is the pane it was read in, and for everything else the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
 - All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. That is the only sink, and nothing it writes leaves the machine.
-- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete dialog and the sync dialog do this today.
+- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The sync dialog, the Profile's Port field and the Entry forms do this today.
 - One query does the same in its own layer. `releases.prepare` catches the `CoreError` types the Release dialog can explain inside its `queryFn` and returns them as a `refused` outcome, re-throwing everything else so its `throwOnError: true` still reaches the boundary. The caught set is the same map the dialog's copy comes from, so the two cannot drift apart.
 
 The full picture, including how `CoreError.type` survives IPC, the step-by-step guide to handling an expected error in place with those worked examples, and exactly where and when things are logged, lives in the dedicated [Error Handling](../error-handling.md) doc.

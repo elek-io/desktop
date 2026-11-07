@@ -529,7 +529,8 @@ A page opts in by passing its own title:
 ```
 
 Every page form that edits something does: the Entry, a Collection's settings, a
-Component, the Project's general and version control settings, and the Profile. A
+Component, the General and the Sync page of a Project's Settings, and the
+Profile. A
 form that passes no title asks nothing, which is every dialog, sheet and create
 form.
 
