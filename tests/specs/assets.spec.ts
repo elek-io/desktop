@@ -170,20 +170,30 @@ test.describe('Assets', () => {
     await recordCoreCallProps(electronApp, 'core:assets:update');
 
     const pane = assetPane(mainWindow);
-    await pane.getByLabel('Name', { exact: true }).fill('showroom-evening');
+    // A name as somebody types it, with a capital and a space in it, which
+    // Core slugifies on the way in, so what the screen shows afterwards is
+    // what an editor really gets.
+    await pane.getByLabel('Name', { exact: true }).fill('Showroom Evening');
     await pane
       .getByLabel('Description', { exact: true })
       .fill('The showroom in the evening');
     await pane.getByRole('button', { name: 'Save showroom.png' }).click();
 
-    // The grid shows the new name at once, and the pane is about the same
-    // Asset under its new name.
+    // The grid shows the new name at once, the pane's head is about the same
+    // Asset under it, and the Name field holds what Core stored rather than
+    // what was typed.
     await expect(assetCard(mainWindow, 'showroom-evening.png')).toBeVisible();
+    await expect(
+      assetPane(mainWindow).getByText('showroom-evening.png', { exact: true })
+    ).toBeVisible();
     await expect(
       assetPane(mainWindow).getByRole('button', {
         name: 'More for showroom-evening.png',
       })
     ).toBeVisible();
+    await expect(
+      assetPane(mainWindow).getByLabel('Name', { exact: true })
+    ).toHaveValue('showroom-evening');
 
     // The save asked Core to change the two fields and nothing else: no file
     // went with it, which is what keeps the stored one.
@@ -191,7 +201,7 @@ test.describe('Assets', () => {
       {
         id: asset.id,
         projectId: project.id,
-        name: 'showroom-evening',
+        name: 'Showroom Evening',
         description: 'The showroom in the evening',
         newFilePath: undefined,
       },
@@ -361,6 +371,7 @@ test.describe('Assets', () => {
 
     // It stands in the picker's grid, drawn as the same card the Assets screen
     // draws, and is chosen from there.
+    await expect(assetGrid(mainWindow)).toHaveCount(1);
     await expect(
       picker.getByRole('radio', { name: /^company-logo\.png PNG, / })
     ).toBeVisible();
@@ -394,19 +405,43 @@ test.describe('Assets', () => {
 
     const pane = assetPane(mainWindow);
     const save = pane.getByRole('button', { name: 'Save showroom.png' });
+    const name = pane.getByLabel('Name', { exact: true });
     const description = pane.getByLabel('Description', { exact: true });
-    await description.fill('');
-    await expect(save).toHaveAttribute('aria-disabled', 'true');
-    await expect(pane.getByText('1 field is still empty')).toBeVisible();
 
     // Nothing may reach Core, however the submit is raised. The channel in
     // front of it is the seam this records.
     await stubCoreRecord(electronApp, 'core:assets:update');
-    // A click, which the control still takes, since it is not `disabled`, and
-    // Enter in a field, which raises a submit of the form itself.
-    await save.click({ force: true });
-    await pane.getByLabel('Name', { exact: true }).press('Enter');
-    expect(await recordedCoreCalls(electronApp)).toEqual([]);
+
+    // Core requires both, so either one empty is a reason, and each of them
+    // blocks Save the same way. One step per field, so a half that stops
+    // blocking says which one it was.
+    for (const [label, field] of [
+      ['Description', description],
+      ['Name', name],
+    ] as const) {
+      await test.step(`an empty ${label} blocks Save`, async () => {
+        const filled = await field.inputValue();
+        await field.fill('');
+        await expect(save).toHaveAttribute('aria-disabled', 'true');
+        await expect(pane.getByText('1 field is still empty')).toBeVisible();
+
+        // A click, which the control still takes, since it is not
+        // `disabled`, and Enter in a field, which raises a submit of the form
+        // itself.
+        await save.click({ force: true });
+        await field.press('Enter');
+        expect(await recordedCoreCalls(electronApp)).toEqual([]);
+
+        // Put back for the next one, so exactly one field is empty each time.
+        await field.fill(filled);
+        await expect(pane.getByText('1 field is still empty')).toBeHidden();
+      });
+    }
+
+    // The question before changes are lost is about what is still typed, so
+    // the Description is left empty for it.
+    await description.fill('');
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
 
     // Choosing another card with the change still unsaved asks first, and Keep
     // editing leaves the pane as it was.
@@ -464,17 +499,13 @@ test.describe('Assets', () => {
     await deleteOpenAsset(mainWindow, middle);
 
     // The Asset is gone with its pane, and the grid keeps the focus: the card
-    // that took the deleted one's place has it.
+    // that took the deleted one's place has it. Asserted on that card rather
+    // than on whatever has the focus, since the document body answers for a
+    // focus that landed nowhere and carries every card's name.
     await expect(assetCard(mainWindow, middle)).toBeHidden();
     await expect(assetPane(mainWindow)).toBeHidden();
     await expect(assetGrid(mainWindow)).toHaveCount(2);
-    await expect
-      .poll(async () =>
-        mainWindow.evaluate(
-          () => document.activeElement?.textContent?.trim() ?? ''
-        )
-      )
-      .toContain(after);
+    await expect(assetCard(mainWindow, after)).toBeFocused();
 
     // Deleting the last one leaves no grid, so Add Asset takes the focus.
     for (const fileName of await assetGridOrder(mainWindow)) {
@@ -482,13 +513,9 @@ test.describe('Assets', () => {
       await deleteOpenAsset(mainWindow, fileName);
     }
     await expect(mainWindow.getByText('No Assets yet')).toBeVisible();
-    await expect
-      .poll(async () =>
-        mainWindow.evaluate(
-          () => document.activeElement?.textContent?.trim() ?? ''
-        )
-      )
-      .toBe('Add Asset');
+    await expect(
+      mainWindow.getByRole('button', { name: 'Add Asset' })
+    ).toBeFocused();
   });
 
   test('keeps an Asset an Entry still uses, and says why it cannot go', async ({
