@@ -161,6 +161,7 @@ export function AssetPickerDialog({
     return (
       <Label
         key={asset.id}
+        data-slot="asset-card"
         htmlFor={id}
         className={cn(
           assetCardVariants(),
