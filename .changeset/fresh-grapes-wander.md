@@ -14,7 +14,7 @@ The Assets screen is new. Until now every Asset was a card with four icon button
 
 **Add Asset** opens the system's file dialog and then the pane for the file you picked, with its name filled in from the file and the description still to write. Save adds it. The Asset picker of a field has Add Asset beside its filter too, so a file you forgot to add does not send you to another screen: it asks for the name and the description in a dialog there, and what you add stands in the grid you were choosing from.
 
-**Save a copy** offers the Asset's own name with its stored extension, once and whole, and the dialog offers that one type. Until now it offered a name that a slash in it could cut short, and no type at all. A copy of `spring/summer.jpg` is offered as `spring-summer.jpg` rather than as `summer.jpg` in a folder nobody asked for.
+**Save a copy** offers the Asset's own name with its stored extension, once and whole, and the dialog offers that one type. Until now it offered no type at all, so a JPG could be saved as a `.png`.
 
 **Deleting** moved into the More menu beside the Asset's name, and its confirm names the Asset and says the file goes for everyone on the Project once you sync. An Asset an Entry still uses stays where it is and says why it cannot go. After a delete the keyboard focus stays in the grid, on the card that took the deleted one's place, so you can delete several without tabbing in from the top.
 
