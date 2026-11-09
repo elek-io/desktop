@@ -12,6 +12,6 @@ Create Collection is a button on the Collections label, so the first Collection 
 
 A search field stands below the Project, disabled, because elek.io Core cannot search across a Project yet. It says "Search comes later" rather than only looking unavailable, shows no shortcut it does not have, and a screen reader reaches it and hears that it is disabled. Every filter inside a screen, such as Filter Blog posts, works as before.
 
-The navigation keeps every row at its full height at the smallest window elek.io Desktop supports and scrolls instead of squeezing them, and a hairline at its top or bottom edge says that the list continues past it. The screen you are on is marked by the surface it takes, and a screen reader says it is the current page.
+The navigation keeps every row at its full height at the smallest window elek.io Desktop supports and scrolls instead of squeezing them, and a hairline at its top or bottom edge says that the list continues past it. The screen you are on is marked by the surface it takes, and a screen reader says it is the current page. The rows stand 2 px apart, so the screen you are on and the row under the pointer never read as one.
 
 Nothing about your Projects changes, and nothing needs a migration.

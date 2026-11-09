@@ -285,7 +285,18 @@ test.describe("A Project's sidebar", () => {
         headerBottom: Math.round(header.getBoundingClientRect().bottom),
         labelLeft: Math.round(label.getBoundingClientRect().x),
         ruleTop: Math.round(rule.getBoundingClientRect().y),
+        ruleBottom: Math.round(rule.getBoundingClientRect().bottom),
         ruleLeft: Math.round(rule.getBoundingClientRect().x),
+        menus: Array.from(
+          content.querySelectorAll('[data-slot="sidebar-menu"]')
+        ).map((menu) =>
+          Array.from(
+            menu.querySelectorAll('[data-slot="sidebar-menu-button"]')
+          ).map((row) => {
+            const box = row.getBoundingClientRect();
+            return { top: Math.round(box.y), bottom: Math.round(box.bottom) };
+          })
+        ),
         rows: Array.from(
           content.querySelectorAll('[data-slot="sidebar-menu-button"]')
         ).map((row) => {
@@ -313,6 +324,20 @@ test.describe("A Project's sidebar", () => {
       'Settings',
     ]);
     expect(['Articles', 'Events']).toContain(above.at(-1)?.label);
+
+    // The rule stands as far from the row below it as from the row above it,
+    // as every rule of an aside does on the website too.
+    expect(measured.ruleTop - (above.at(-1)?.bottom ?? 0)).toBe(
+      (below[0]?.top ?? 0) - measured.ruleBottom
+    );
+
+    // The rows of one group stand 2 px apart, so the open row and the row
+    // under the pointer never read as one.
+    const gaps = measured.menus.flatMap((menu) =>
+      menu.slice(1).map((row, at) => row.top - (menu[at]?.bottom ?? 0))
+    );
+    expect(gaps.length).toBeGreaterThan(4);
+    expect([...new Set(gaps)]).toEqual([2]);
 
     // The search is the first thing below the Project and stands above the
     // first row of the navigation, which is where ci puts it. It renders in a

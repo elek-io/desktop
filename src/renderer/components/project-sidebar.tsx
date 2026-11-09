@@ -197,11 +197,13 @@ function ProjectNavigation(): React.JSX.Element {
     <>
       {/*
         The Project's own pages. No label heads them, since every row of the
-        navigation belongs to the Project.
+        navigation belongs to the Project. The rows of each group stand 2 px
+        apart, so the open row and the row under the pointer never read as
+        one, as the website's asides draw them.
       */}
       <SidebarGroup className="shrink-0 p-0">
         <SidebarGroupContent className="shrink-0">
-          <SidebarMenu>
+          <SidebarMenu className="gap-0.5">
             <NavigationRow
               link={
                 <Link
@@ -272,7 +274,7 @@ function ProjectNavigation(): React.JSX.Element {
           </SidebarGroupAction>
         </SidebarGroupLabel>
         <SidebarGroupContent className="shrink-0">
-          <SidebarMenu aria-labelledby={collectionsLabelId}>
+          <SidebarMenu className="gap-0.5" aria-labelledby={collectionsLabelId}>
             {isListingCollections
               ? [1, 2, 3].map((key) => (
                   <SidebarMenuItem className="shrink-0" key={key}>
@@ -329,7 +331,7 @@ function ProjectNavigation(): React.JSX.Element {
 
       <SidebarGroup className="shrink-0 p-0">
         <SidebarGroupContent className="shrink-0">
-          <SidebarMenu>
+          <SidebarMenu className="gap-0.5">
             <NavigationRow
               link={
                 <Link
