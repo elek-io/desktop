@@ -262,10 +262,11 @@ test.describe('The app in one language', () => {
     await expect(
       mainWindow.getByText('Collection Nachrichten saved', { exact: true })
     ).toBeVisible();
-    // The save lands on the Collection itself, whose heading is the same name
-    // again, so the two cannot disagree.
+    // The save lands on the Collection itself, whose list of Entries carries
+    // the same name again, with how many it holds beside it, so the two cannot
+    // disagree.
     await expect(
-      mainWindow.getByRole('heading', { name: 'Nachrichten', exact: true })
+      mainWindow.getByRole('heading', { name: /^Nachrichten\b/ })
     ).toBeVisible();
 
     // And the Component, whose name is one record rather than two.

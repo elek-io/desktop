@@ -394,6 +394,10 @@ test.describe('The markdown field', () => {
         textFieldDefinition({ slug: 'note', label: { en: 'Note' } }),
         markdownFieldDefinition({
           isRequired: true,
+          // Two blocks at least, so a tree that is there and short of the
+          // count is refused on submit. A Value that is missing blocks Save
+          // instead, see forms.md#saves-block.
+          min: 2,
           description: { en: 'The article itself' },
           features,
         }),
@@ -415,6 +419,7 @@ test.describe('The markdown field', () => {
     await expect(editor).toHaveAttribute('aria-invalid', 'false');
     expect(await describedPartsOf(mainWindow, editor)).toEqual([
       { slot: 'field-rules', text: 'Required' },
+      { slot: 'field-warning', text: 'Missing in English' },
       { slot: 'field-description', text: 'The article itself' },
     ]);
     // The field's label points at it rather than at a wrapper nothing focuses.
@@ -422,9 +427,13 @@ test.describe('The markdown field', () => {
       'textbox'
     );
 
-    // A refused submit, which is the only way an error is on screen. The
-    // editor is left empty while another field dirties the form past the gate.
+    // A refused submit, which is the only way an error is on screen. One
+    // paragraph where the field asks for two blocks is a Value that is there
+    // and refused, rather than one that is missing and blocks Save.
     await fillEntryForm(mainWindow, { Note: 'Just a note' });
+    await editor.click();
+    await editor.pressSequentially('Only one block');
+    await expect(mainWindow.getByText('Missing in English')).toBeHidden();
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
     await expect(editor).toHaveAttribute('aria-invalid', 'true');
     const refused = await describedPartsOf(mainWindow, editor);
@@ -787,9 +796,7 @@ test.describe('The markdown field', () => {
     await editor.click();
     await fillEntryForm(mainWindow, { Title: 'Seeded, renamed' });
     await mainWindow.getByRole('button', { name: 'Update Article' }).click();
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
-    );
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const stored = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -866,9 +873,7 @@ test.describe('The markdown field', () => {
     await editor.click();
     await fillEntryForm(mainWindow, { Title: 'Seeded from outside, renamed' });
     await mainWindow.getByRole('button', { name: 'Update Article' }).click();
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
-    );
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const storedAfter = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,

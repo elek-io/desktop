@@ -27,6 +27,7 @@ import {
 } from '../helpers/component.js';
 import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
 import {
+  chooseLanguage,
   componentValue,
   createEntryViaIpc,
   listEntriesViaIpc,
@@ -391,9 +392,7 @@ test.describe('Components', () => {
     await mainWindow.getByLabel('Title', { exact: true }).fill('Home');
 
     // No section yet, so the field says so instead of looking broken.
-    await expect(
-      mainWindow.getByText('No sections yet. Add one to start building')
-    ).toBeVisible();
+    await expect(mainWindow.getByText('No sections yet.')).toBeVisible();
 
     // A section is added from the Components the field allows, each named by its
     // own name in the menu.
@@ -581,9 +580,7 @@ test.describe('Components', () => {
     await mainWindow
       .getByRole('button', { name: 'Remove the Teaser section' })
       .click();
-    await expect(
-      mainWindow.getByText('No sections yet. Add one to start building')
-    ).toBeVisible();
+    await expect(mainWindow.getByText('No sections yet.')).toBeVisible();
 
     // The field is required, so an empty list cannot be saved. On the update
     // route that is said before Save is pressed, since the Entry is missing a
@@ -1385,24 +1382,17 @@ test.describe('Components', () => {
     );
 
     // Reading the Entry back through its own form shows the same, and the
-    // second language is reached through the field's translations dialog.
+    // second language is reached through the switch above its fields.
     await navigateToEntryUpdate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
       entryId: entry.id,
     });
-    await expect(
-      mainWindow.getByLabel('Headline', { exact: true })
-    ).toHaveValue('We are live');
-    await mainWindow
-      .getByRole('button', { name: 'Edit translations for Headline' })
-      .click();
-    const translations = mainWindow.getByRole('dialog', { name: 'Headline' });
-    await expect(translations.getByLabel('de', { exact: true })).toHaveValue(
-      'Wir sind live'
-    );
-    await translations.getByRole('button', { name: 'Done' }).click();
-    await expect(translations).toBeHidden();
+    const headline = mainWindow.getByLabel('Headline', { exact: true });
+    await expect(headline).toHaveValue('We are live');
+    await chooseLanguage(mainWindow, 'de');
+    await expect(headline).toHaveValue('Wir sind live');
+    await chooseLanguage(mainWindow, 'en');
 
     // The Entry can now gain a section of the Component that was just allowed.
     await mainWindow.getByRole('button', { name: 'Add section' }).click();
@@ -1412,9 +1402,7 @@ test.describe('Components', () => {
     // matched by prefix.
     await mainWindow.getByLabel('Tagline').fill('Content without a server');
     await mainWindow.getByRole('button', { name: 'Update Article' }).click();
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
-    );
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
 
     await navigateToEntryUpdate(mainWindow, {
       projectId: project.id,

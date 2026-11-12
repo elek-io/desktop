@@ -219,14 +219,16 @@ export function EntryListPane({
       className="flex min-h-0 flex-1 flex-col"
     >
       <PaneHead>
-        <h1 className="flex min-w-0 flex-1 items-baseline gap-2 text-label">
+        {/* The editor beside it carries the screen's h1, so the list's own
+        title is the heading below it. */}
+        <h2 className="flex min-w-0 flex-1 items-baseline gap-2 text-label">
           <span className="truncate">{collectionName}</span>
           {entries === undefined ? null : (
             <span className="font-normal text-muted-foreground">
               {entries.length}
             </span>
           )}
-        </h1>
+        </h2>
         {/*
           The head gains its two ways on once the Collection is read, since
           both are named after it. A link rather than a button, because each

@@ -26,7 +26,11 @@ import { mainPanel, navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
-import { MINIMUM_WINDOW_SIZE, resizeWindow } from '../helpers/window.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  waitForLayout,
+} from '../helpers/window.js';
 
 /**
  * The heights, borders, corners, shadows and type roles ci gives the controls,
@@ -417,18 +421,12 @@ test.describe('Every control', () => {
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    // A required Title beside an optional Note, so filling the Note takes the
-    // form past its dirty gate while Title is still empty and is refused.
+    // A Title of at least three characters, so a Value that is there and too
+    // short is refused on submit. A Value that is missing blocks Save instead,
+    // so it never reaches the validator, see forms.md#saves-block.
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
-      fieldDefinitions: [
-        textFieldDefinition(),
-        textFieldDefinition({
-          slug: 'note',
-          label: { en: 'Note' },
-          isRequired: false,
-        }),
-      ],
+      fieldDefinitions: [textFieldDefinition({ min: 3 })],
     });
     await navigate(
       mainWindow,
@@ -436,9 +434,9 @@ test.describe('Every control', () => {
     );
     await setTheme(mainWindow, 'light');
 
-    await mainWindow.getByLabel('Note').fill('Just a note');
-    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
     const title = mainWindow.getByLabel('Title', { exact: true });
+    await title.fill('Ab');
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
     await expect(title).toHaveAttribute('aria-invalid', 'true');
 
     const measured = await mainWindow.evaluate(() => {
@@ -479,9 +477,15 @@ test.describe('Every control', () => {
   });
 
   test('fills its field with a row, an editor and the rules of the field', async ({
+    electronApp,
     mainWindow,
   }, testInfo) => {
     await anEntryOfEveryControl(mainWindow, testInfo);
+    // An Entry now stands between the list of its Collection and its History,
+    // so the editor is 296 px narrower than the panel. The row below is
+    // measured at the width ci draws it at, which a wider window gives it.
+    await resizeWindow(electronApp, mainWindow, { width: 1600, height: 900 });
+    await waitForLayout(mainWindow);
 
     const measured = await mainWindow.evaluate(() => {
       const fieldOf = (label: string): ProbedElement | null => {
@@ -1012,7 +1016,9 @@ test.describe('The trail', () => {
       mainWindow,
       `#/projects/${project.id}/collections/${collection.id}/${entry.id}/update`
     );
-    await expect(mainPanel(mainWindow).getByRole('heading')).toBeVisible();
+    await expect(
+      mainPanel(mainWindow).getByRole('heading', { name: title })
+    ).toBeVisible();
 
     // The crumb measures its own box, so it says it is cut once the header has
     // been laid out rather than on the frame the trail first renders in.
@@ -1179,9 +1185,10 @@ test.describe('The sidebar', () => {
       };
     });
 
-    // ci's rows sit flush, so the pitch of the list is a row's own 32 px.
+    // A row is 32 px, and the rows of one group stand 2 px apart, so the open
+    // row and the row under the pointer never read as one.
     expect(measured.rowHeights).toEqual([32]);
-    expect(measured.pitch).toEqual([32]);
+    expect(measured.pitch).toEqual([34]);
 
     // The Collections label is the small role in the muted color, 12 px below
     // the row above it and 4 px above the first Collection.

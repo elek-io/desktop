@@ -449,18 +449,15 @@ test.describe('A form filled from its query', () => {
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    // A described required field to refuse, and an optional one that dirties
-    // the form past the create gate without filling the required one.
+    // A described required field of at least three characters, so a Value
+    // that is there and too short is refused on submit. A Value that is
+    // missing blocks Save instead, see forms.md#saves-block.
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       fieldDefinitions: [
         textFieldDefinition({
+          min: 3,
           description: { en: 'What the Entry is called' },
-        }),
-        textFieldDefinition({
-          slug: 'note',
-          label: { en: 'Note' },
-          isRequired: false,
         }),
       ],
     });
@@ -470,9 +467,10 @@ test.describe('A form filled from its query', () => {
       collectionId: collection.id,
     });
 
-    // Before a submit the field names its rules and its description, and
-    // nothing else.
-    await expect(mainWindow.getByLabel('Title', { exact: true })).toBeVisible();
+    // A new Entry holds no Value yet, so the field names its rules, the
+    // warning that its Value is missing and its description, in that order.
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await expect(title).toBeVisible();
     const clean = await describedPartsOf(mainWindow, 'Title');
     expect(clean.labelLeadsControl).toBe(true);
     expect(
@@ -488,16 +486,21 @@ test.describe('A form filled from its query', () => {
         text: 'Required',
       },
       {
+        slot: 'field-warning',
+        followsControl: true,
+        text: 'Missing in English',
+      },
+      {
         slot: 'field-description',
         followsControl: true,
         text: 'What the Entry is called',
       },
     ]);
 
-    // A refused submit, which is the only way an error is on screen.
-    await mainWindow.getByLabel('Note').fill('Just a note');
+    // A refused submit, which is the only way an error is on screen. The Value
+    // is there now, so the warning is gone and Save is pressable.
+    await title.fill('Ab');
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
-    const title = mainWindow.getByLabel('Title', { exact: true });
     await expect(title).toHaveAttribute('aria-invalid', 'true');
 
     // The label with its rules, then the control, the description and the
@@ -537,9 +540,12 @@ test.describe('A form filled from its query', () => {
       values: { title: stringValue({ en: 'The stored title' }) },
     });
 
-    // The Entry's own read never settles, so the window the form fills in is
-    // stable to assert instead of racing the answer.
+    // Neither read settles, so the window the form fills in is stable to
+    // assert instead of racing the answer. The list of Entries beside the
+    // editor caches each Entry it read, so hanging the Entry's own read alone
+    // would leave the form filled from that list.
     await stubCoreHang(electronApp, 'core:entries:read');
+    await stubCoreHang(electronApp, 'core:entries:list');
     await navigateToEntryUpdate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -737,7 +743,13 @@ test.describe('A form filled from its query', () => {
       mainWindow.getByLabel('Collection-Slug', { exact: true })
     ).toBeVisible();
     expect(await statedFieldsOf(mainWindow)).toEqual([
-      { label: 'Icon', rules: 'Required', ariaRequired: 'true' },
+      // Core takes any icon name Lucide ships, at most 64 characters, which is
+      // what the field reads off its schema.
+      {
+        label: 'Icon',
+        rules: 'Required, up to 64 characters',
+        ariaRequired: 'true',
+      },
       {
         label: 'Collection name (Plural)',
         rules: 'Required',
