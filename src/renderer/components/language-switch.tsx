@@ -46,9 +46,6 @@ export interface LanguageSwitchProps {
   onLanguageChange: (language: SupportedLanguage) => void;
 }
 
-/** The catalog's `t`, as a component reads it through `useLingui`. */
-type Translate = ReturnType<typeof useLingui>['t'];
-
 /** Whether a language has something somebody has to go and look at. */
 function needsAttention(state: LanguageState): boolean {
   return state.missing > 0 || state.hasError;
@@ -62,19 +59,25 @@ function needsAttention(state: LanguageState): boolean {
  * beside the others, so its word is said as well rather than instead, which is
  * what WCAG 2.5.3 asks of a name that carries more than its label.
  */
-function languageText(state: LanguageState, t: Translate): string {
+function LanguageText({ state }: { state: LanguageState }): ReactElement {
+  const { t } = useLingui();
   const name = languageName(state.language);
+  const missingValues = state.missing;
 
-  if (state.missing > 0) {
-    return t`${name}, missing ${plural(state.missing, {
-      one: '# Value',
-      other: '# Values',
-    })}`;
+  if (missingValues > 0) {
+    return (
+      <span className="sr-only">{t`${name}, missing ${plural(missingValues, {
+        one: '# Value',
+        other: '# Values',
+      })}`}</span>
+    );
   }
   if (state.hasError) {
-    return t`${name}, with a Value that was refused`;
+    return (
+      <span className="sr-only">{t`${name}, with a Value that was refused`}</span>
+    );
   }
-  return name;
+  return <span className="sr-only">{name}</span>;
 }
 
 /** The warning mark a language with something missing carries, as ci draws it. */
@@ -118,7 +121,7 @@ function LanguageSegments({
         <ToggleGroupItem key={state.language} value={state.language} size="xs">
           {state.language.toUpperCase()}
           {needsAttention(state) ? <AttentionMark /> : null}
-          <span className="sr-only">{languageText(state, t)}</span>
+          <LanguageText state={state} />
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -167,7 +170,7 @@ function LanguageDropdown({
           <SelectItem key={state.language} value={state.language}>
             {languageName(state.language)}
             {needsAttention(state) ? <AttentionMark /> : null}
-            <span className="sr-only">{languageText(state, t)}</span>
+            <LanguageText state={state} />
           </SelectItem>
         ))}
       </SelectContent>
@@ -195,16 +198,23 @@ export function LanguageSwitch(props: LanguageSwitchProps): ReactElement {
   const [fits, setFits] = useState(true);
 
   const measure = useCallback((): void => {
-    if (room.current === null) {
+    const available = room.current?.clientWidth ?? 0;
+    // Nothing has been laid out yet, so there is nothing to compare: measuring
+    // against a width of zero would read as "it does not fit" and take the row
+    // off screen, which would leave nothing to measure.
+    if (available === 0) {
       return;
     }
-    if (row.current !== null) {
-      needed.current = row.current.scrollWidth;
+    // Only ever grows, and only while the row is on screen to be measured, so
+    // the empty row the dropdown leaves behind cannot read as needing nothing.
+    const width = row.current?.scrollWidth ?? 0;
+    if (width > 0) {
+      needed.current = Math.max(needed.current ?? 0, width);
     }
     if (needed.current === null) {
       return;
     }
-    setFits(room.current.clientWidth >= needed.current);
+    setFits(available >= needed.current);
   }, []);
 
   useLayoutEffect(() => {

@@ -3,9 +3,12 @@ import { expect, type Page } from '@playwright/test';
 import { test } from '../fixtures/electronApp.js';
 import { expectNoAxeViolations } from '../helpers/accessibility.js';
 import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
+import { createCollectionViaIpc } from '../helpers/collection.js';
 import { createComponentViaIpc } from '../helpers/component.js';
+import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
 import { navigate } from '../helpers/navigation.js';
 import {
+  addProjectLanguageViaIpc,
   createProjectViaIpc,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
@@ -141,6 +144,27 @@ const projectAndProfileRoutes: {
         filePath: makeTempFile(test.info(), 'showroom.png', pngBytes),
       });
       return `#/projects/${project.id}/assets/${asset.id}`;
+    },
+  },
+  // An Entry in its three panes, with a Value one language is missing, so the
+  // switch's marks, the warning at the field and the badge in the list are all
+  // under the scan.
+  {
+    name: '#/projects/:projectId/collections/:collectionId/:entryId/update',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      const collection = await createCollectionViaIpc(page, {
+        projectId: project.id,
+      });
+      const entry = await createEntryViaIpc(page, {
+        projectId: project.id,
+        collectionId: collection.id,
+        values: { title: stringValue({ en: 'Spring opening hours' }) },
+      });
+      // The language is added after the Entry was written, which is how an
+      // Entry ends up missing a required Value: Core refuses one that does.
+      await addProjectLanguageViaIpc(page, project, 'de');
+      return `#/projects/${project.id}/collections/${collection.id}/${entry.id}/update?language=de`;
     },
   },
   {

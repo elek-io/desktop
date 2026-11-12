@@ -212,6 +212,67 @@ export async function listEntriesViaIpc(
   return list.list;
 }
 
+/**
+ * One row of the list of Entries beside the editor, by the title it shows.
+ *
+ * A row's accessible name runs its title, when it last changed and whatever
+ * badge it carries, so the row is found by the title element inside it rather
+ * than by that whole name.
+ */
+export function entryRow(page: Page, title: string): Locator {
+  return page
+    .locator('[data-slot="entry-row"]')
+    .filter({ has: page.getByText(title, { exact: true }) });
+}
+
+/**
+ * The switch above an Entry's fields, which sets the language of the whole
+ * Entry. It is a row of segments while they fit and one dropdown otherwise.
+ */
+export function languageSwitch(page: Page): Locator {
+  return page.locator('[data-slot="language-switch"]');
+}
+
+/**
+ * Take the whole Entry into another language, through the switch above its
+ * fields.
+ *
+ * It presses the segment while the languages stand side by side, and picks
+ * from the dropdown the switch becomes when they do not fit.
+ */
+export async function chooseLanguage(
+  page: Page,
+  language: SupportedLanguage
+): Promise<void> {
+  const switcher = languageSwitch(page);
+  // A segment shows the language's code and says its word for a screen
+  // reader, so it is found by the code its name opens with.
+  const segment = switcher.getByRole('button', {
+    name: new RegExp(`^${language.toUpperCase()}\\b`),
+  });
+  const picker = switcher.getByRole('combobox');
+  // Which of the two the switch is depends on how many languages the Project
+  // holds, so the wait is on whichever one it drew. Without it a form that is
+  // still reading reads as neither.
+  await expect(segment.or(picker)).toBeVisible();
+
+  if ((await segment.count()) > 0) {
+    await segment.click();
+    await expect(segment).toHaveAttribute('aria-pressed', 'true');
+    return;
+  }
+
+  await picker.click();
+  await page.getByRole('option', { name: languageName(language) }).click();
+}
+
+/** A language by its word in English, which is what the switch says it is. */
+function languageName(language: SupportedLanguage): string {
+  return (
+    new Intl.DisplayNames(['en'], { type: 'language' }).of(language) ?? language
+  );
+}
+
 /** Route to a Collection's Entry create form and confirm the app rendered. */
 export async function navigateToEntryCreate(
   page: Page,
@@ -239,15 +300,14 @@ export async function navigateToEntryUpdate(
  * (as shown above each input).
  *
  * A field value is either:
- * - a string, which fills the default-language input directly (single-language
- *   projects, or the visible input of a translatable field), or
- * - a per-language record like `{ en: 'Hello', de: 'Hallo' }`, which opens that
- *   field's translations dialog (via its accessible name "Edit translations for
- *   <label>", from the translatable field's dialog trigger), fills each
- *   language input (labelled by its language code, scoped to the dialog), then
- *   clicks "Done".
+ * - a string, which fills the field in the language the form is showing, or
+ * - a per-language record like `{ en: 'Hello', de: 'Hallo' }`, which takes the
+ *   whole Entry into each of those languages through the switch above its
+ *   fields and fills the field there.
  *
- * The string path stays backward compatible, so existing specs are unaffected.
+ * A per-language record leaves the form in the last language it filled, and
+ * the language it started in is restored at the end, so a spec that fills one
+ * field per language and then reads the form finds it as it left it.
  */
 export async function fillEntryForm(
   page: Page,
@@ -259,20 +319,9 @@ export async function fillEntryForm(
       continue;
     }
 
-    // Per-language: open the field's translations dialog. Its accessible name
-    // comes from the Phase 0 sr-only label on the LanguagesIcon trigger, and the
-    // dialog's own name is the field's title (both the field's label).
-    await page
-      .getByRole('button', { name: `Edit translations for ${label}` })
-      .click();
-    const dialog = page.getByRole('dialog', { name: label });
-    await expect(dialog).toBeVisible();
-
     for (const [language, text] of Object.entries(value)) {
-      await dialog.getByLabel(language, { exact: true }).fill(text);
+      await chooseLanguage(page, language as SupportedLanguage);
+      await page.getByLabel(label, { exact: true }).fill(text);
     }
-
-    await dialog.getByRole('button', { name: 'Done' }).click();
-    await expect(dialog).toBeHidden();
   }
 }

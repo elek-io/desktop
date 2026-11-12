@@ -17,6 +17,7 @@ import {
 import { navigateToComponentCreate } from '../helpers/component.js';
 import {
   createEntryViaIpc,
+  entryRow,
   navigateToEntryCreate,
   navigateToEntryUpdate,
   stringValue,
@@ -993,9 +994,7 @@ test.describe('A form filled from its query', () => {
       projectId: project.id,
       collectionId: target.id,
     });
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Ada Lovelace' })
-    ).toBeVisible();
+    await expect(entryRow(mainWindow, 'Ada Lovelace')).toBeVisible();
 
     // The breadcrumb of that Entry names it the same way.
     await navigateToEntryUpdate(mainWindow, {

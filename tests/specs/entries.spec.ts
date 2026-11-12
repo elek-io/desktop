@@ -2,7 +2,11 @@ import { expect, type Page } from '@playwright/test';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Collection, MdAstRoot } from '@elek-io/core';
+import {
+  supportedLanguageSchema,
+  type Collection,
+  type MdAstRoot,
+} from '@elek-io/core';
 
 import { closeApp, test, testDataDirs } from '../fixtures/electronApp.js';
 import { relaunchApp } from '../helpers/app.js';
@@ -40,9 +44,12 @@ import {
 } from '../helpers/component.js';
 import {
   assetReferenceValue,
+  chooseLanguage,
   componentValue,
   createEntryViaIpc,
+  entryRow,
   fillEntryForm,
+  languageSwitch,
   listEntriesViaIpc,
   markdownEditorSurface,
   markdownValue,
@@ -51,14 +58,20 @@ import {
   referenceValue,
   stringValue,
   temporalValue,
+  updateEntryViaIpc,
 } from '../helpers/entry.js';
 import { stubCoreReject, stubCoreRejectWithType } from '../helpers/ipc.js';
 import { mainPanel, reloadWindow } from '../helpers/navigation.js';
-import { createProjectViaIpc } from '../helpers/project.js';
+import {
+  addProjectLanguageViaIpc,
+  createProjectViaIpc,
+} from '../helpers/project.js';
+import { createReleaseViaIpc } from '../helpers/release.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import {
   MINIMUM_WINDOW_SIZE,
   resizeWindow,
+  waitForLayout,
   windowSize,
 } from '../helpers/window.js';
 
@@ -130,7 +143,7 @@ async function createBilingualCollectionViaIpc(
 }
 
 test.describe('Entries', () => {
-  test('creates an entry through the form and shows it in the table', async ({
+  test('creates an entry through the form and shows it in the list', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -155,9 +168,7 @@ test.describe('Entries', () => {
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Hello World' })
-    ).toBeVisible();
+    await expect(entryRow(mainWindow, 'Hello World')).toBeVisible();
   });
 
   test('conveys required with aria-required, not native constraint attributes', async ({
@@ -266,18 +277,16 @@ test.describe('Entries', () => {
     ).toBeEnabled();
     await mainWindow.getByRole('button', { name: 'Update Article' }).click();
 
-    // Redirecting to the Collection detail is how Core's success surfaces (the
-    // update did not throw). The UI reflects the result: the Entry's row now
-    // shows the edited value and the original is gone.
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    // The toast is how Core's success surfaces (the update did not throw). The
+    // Entry stays open beside its list, which is what ci's three panes are
+    // for, and the list reflects the result: the row now shows the edited
+    // value and the original is gone.
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.endsWith(`/${entry.id}/update`)
     );
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Edited title' })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Original title' })
-    ).toBeHidden();
+    await expect(entryRow(mainWindow, 'Edited title')).toBeVisible();
+    await expect(entryRow(mainWindow, 'Original title')).toBeHidden();
   });
 
   test('saves an entry reference selected through the picker', async ({
@@ -338,9 +347,7 @@ test.describe('Entries', () => {
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${referring.id}$`)
     );
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Referring article' })
-    ).toBeVisible();
+    await expect(entryRow(mainWindow, 'Referring article')).toBeVisible();
   });
 
   test('validates required and format fields, respecting the dirty gate', async ({
@@ -370,8 +377,6 @@ test.describe('Entries', () => {
     });
 
     // On open, the create is dirty-gated (disabled) and no field is flagged.
-    // A pristine empty form cannot be submitted by design, so a "required"
-    // error is only reachable after dirtying the form via another field.
     await expect(
       mainWindow.getByRole('button', { name: 'Create Article' })
     ).toBeDisabled();
@@ -379,24 +384,22 @@ test.describe('Entries', () => {
       mainWindow.getByLabel('Email', { exact: true })
     ).toHaveAttribute('aria-invalid', 'false');
 
-    // Required path: filling the optional Note dirties the form (Email still
-    // empty), the button enables, and submitting flags Email as invalid while
-    // the URL stays on the create route (nothing was created). Optional field
-    // labels carry an "- optional" suffix, so match Note without exactness
-    // rather than through the exact-label fillEntryForm helper.
+    // Required path: filling the optional Note dirties the form while the
+    // required Email stays empty, which blocks Save with its reason rather
+    // than refusing the Value on submit, since Core would refuse the Entry
+    // either way. Optional field labels carry an "- optional" suffix, so
+    // match Note without exactness rather than through the exact-label
+    // fillEntryForm helper.
     await mainWindow.getByLabel('Note').fill('Just a note');
     await expect(
-      mainWindow.getByRole('button', { name: 'Create Article' })
-    ).toBeEnabled();
-    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
+      mainWindow.getByText('English is missing 1 Value')
+    ).toBeVisible();
     await expect(
-      mainWindow.getByLabel('Email', { exact: true })
-    ).toHaveAttribute('aria-invalid', 'true');
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
-    );
+      mainWindow.getByRole('button', { name: 'Create Article' })
+    ).toBeDisabled();
 
-    // Format path: a syntactically invalid value is still flagged and blocked.
+    // Format path: a syntactically invalid value is no missing Value, so Save
+    // is pressable again and the submit refuses it at its field.
     await fillEntryForm(mainWindow, { Email: 'notanemail' });
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
     await expect(
@@ -450,8 +453,7 @@ test.describe('Entries', () => {
         urlFieldDefinition(),
         ipv4FieldDefinition(),
         telephoneFieldDefinition(),
-        textFieldDefinition({ slug: 'note', label: { en: 'Note' } }),
-        assetFieldDefinition(),
+        assetFieldDefinition({ isRequired: false }),
         dynamicFieldDefinition({ ofComponents: [component.id], min: 2 }),
       ],
     });
@@ -496,10 +498,9 @@ test.describe('Entries', () => {
     expect(await errorOf(mainWindow, 'Hotline')).toBe(
       'Enter a phone number with its country code, such as +4930123456.'
     );
-    // A Value nobody filled in, and a list nothing was chosen from, which Core
-    // measures as a count rather than as a missing Value.
-    expect(await errorOf(mainWindow, 'Note')).toBe('Fill in this field.');
-    expect(await errorOf(mainWindow, 'Logo')).toBe('Fill in this field.');
+    // A list that is short of the count it asks for, which is the one count an
+    // editor can be short of. A Value nobody filled in is answered before the
+    // submit instead, by Save's own block, see the specs of a missing Value.
     expect(await errorOf(mainWindow, 'Sections')).toBe(
       'This field needs at least 2.'
     );
@@ -750,7 +751,7 @@ test.describe('Entries', () => {
     }
   });
 
-  test('lists entries with the expected table chrome', async ({
+  test('lists every Entry beside the editor, with its two ways on', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -774,21 +775,29 @@ test.describe('Entries', () => {
       collectionId: collection.id,
     });
 
-    // Both known values render as table cells and the empty state is absent.
-    // Asserting the values beats a row count, which would include the header.
-    await expect(mainWindow.getByRole('cell', { name: 'First' })).toBeVisible();
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Second' })
-    ).toBeVisible();
+    // Both Entries have a row of their own, by the title each is named by.
+    await expect(entryRow(mainWindow, 'First')).toBeVisible();
+    await expect(entryRow(mainWindow, 'Second')).toBeVisible();
     await expect(mainWindow.getByText('No results.')).toBeHidden();
 
-    // The column-visibility dropdown and the singular-labelled create action.
+    // The head says what the list holds and how many, and holds the two ways
+    // on ci draws there: the Collection's settings and a new Entry, each named
+    // after the Collection.
     await expect(
-      mainWindow.getByRole('button', { name: 'Visible Values' })
+      mainWindow.getByRole('heading', { name: 'Articles 2' })
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('button', { name: 'Create Article' })
+      mainWindow.getByRole('link', {
+        name: 'Settings of the Articles Collection',
+      })
     ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('link', { name: 'Create Article' })
+    ).toBeVisible();
+
+    // Nothing is open, so the pane beside the list says so rather than
+    // repeating either way on.
+    await expect(mainWindow.getByText('No Entry chosen')).toBeVisible();
   });
 
   test('renders a persisted entry after a renderer reload', async ({
@@ -814,9 +823,7 @@ test.describe('Entries', () => {
     });
     await reloadWindow(mainWindow);
 
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Persisted entry' })
-    ).toBeVisible();
+    await expect(entryRow(mainWindow, 'Persisted entry')).toBeVisible();
   });
 
   test('creates and persists a multi-language translatable entry across both languages', async ({
@@ -836,44 +843,51 @@ test.describe('Entries', () => {
       collectionId: collection.id,
     });
 
-    // A Project with more than one supported language renders the translatable
-    // widget: the default-language input plus a translations dialog. The trigger
-    // (named by the Phase 0 sr-only label) is what distinguishes the multi
-    // language field from a single-language plain input.
+    // A Project with more than one language gets one switch above the fields,
+    // and no field of its own opens a dialog for its translations.
+    await expect(languageSwitch(mainWindow)).toBeVisible();
     await expect(
-      mainWindow.getByRole('button', { name: 'Edit translations for Title' })
-    ).toBeVisible();
+      mainWindow.getByRole('button', { name: /Edit translations/ })
+    ).toHaveCount(0);
 
-    // Fill both languages through the dialog, then create.
+    // Fill both languages through that one switch, then create.
     await fillEntryForm(mainWindow, { Title: { en: 'Hello', de: 'Hallo' } });
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
-    // The create did not throw, shown by the redirect to the Collection detail.
+    // The create did not throw, shown by the redirect to the Collection.
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
 
-    // Persistence: open the new Entry's update form (the table cell shows the
-    // project-default 'en' value), reload to force a fresh read from Core, then
-    // open the translations dialog and confirm both languages persisted.
-    await mainWindow.getByRole('cell', { name: 'Hello' }).click();
+    // Persistence: open the new Entry (the list names it by its Value in the
+    // Project's default language), reload to force a fresh read from Core,
+    // then read each language through the switch.
+    await entryRow(mainWindow, 'Hello').click();
     await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}/[^/]+/update$`)
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/[^/]+/update`)
     );
     await reloadWindow(mainWindow);
 
-    const updateTrigger = mainWindow.getByRole('button', {
-      name: 'Edit translations for Title',
-    });
-    await expect(updateTrigger).toBeVisible();
-    await updateTrigger.click();
-
-    const dialog = mainWindow.getByRole('dialog', { name: 'Title' });
-    await expect(dialog.getByLabel('en', { exact: true })).toHaveValue('Hello');
-    await expect(dialog.getByLabel('de', { exact: true })).toHaveValue('Hallo');
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await expect(title).toHaveValue('Hello');
+    await chooseLanguage(mainWindow, 'de');
+    await expect(title).toHaveValue('Hallo');
+    // The language stays in the address, so coming back opens the one that was
+    // left open rather than the Project's default.
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.includes('language=de')
+    );
+    await reloadWindow(mainWindow);
+    await expect(title).toHaveValue('Hallo');
+    // Saving keeps the Values of the language that is not on screen.
+    await title.fill('Hallo Welt');
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
+    await chooseLanguage(mainWindow, 'en');
+    await expect(title).toHaveValue('Hello');
   });
 
-  test('flags a required translatable field invalid when a language is left empty', async ({
+  test('marks the language that misses a Value, in the switch and at the field', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -890,38 +904,48 @@ test.describe('Entries', () => {
       collectionId: collection.id,
     });
 
-    // On open the translations trigger is not flagged (no validation has run).
-    const translationsTrigger = mainWindow.getByRole('button', {
-      name: 'Edit translations for Title',
-    });
-    await expect(translationsTrigger).toHaveAttribute('aria-invalid', 'false');
-
-    // Fill only 'en' through the dialog, leaving the required 'de' empty. Filling
-    // one language dirties the form, so the create button leaves the dirty gate.
+    // Fill 'en' only, leaving the required 'de' empty. Core refuses an Entry
+    // until every language of the Project holds each required Value, so Save
+    // says which language misses how many rather than offering a save that
+    // fails.
     await fillEntryForm(mainWindow, { Title: { en: 'Only English' } });
+    await chooseLanguage(mainWindow, 'en');
     const createButton = mainWindow.getByRole('button', {
       name: 'Create Article',
     });
+    await expect(
+      mainWindow.getByText('German is missing 1 Value')
+    ).toBeVisible();
+    await expect(createButton).toBeDisabled();
+
+    // The switch marks that language, in words a screen reader hears as well
+    // as by the warning mark beside its code.
+    await expect(
+      languageSwitch(mainWindow).getByRole('button', {
+        name: 'DE German, missing 1 Value',
+      })
+    ).toBeVisible();
+
+    // Choosing it marks the field that misses the Value, and the Value to
+    // translate from stands below it.
+    await chooseLanguage(mainWindow, 'de');
+    const title = mainWindow.getByLabel('Title', { exact: true });
+    await expect(title).toHaveValue('');
+    await expect(mainWindow.getByText('Missing in German')).toBeVisible();
+    await expect(
+      mainWindow.getByText('In English: Only English')
+    ).toBeVisible();
+
+    // Filling it clears all three at once.
+    await title.fill('Nur Deutsch');
+    await expect(mainWindow.getByText('Missing in German')).toBeHidden();
+    await expect(
+      mainWindow.getByText('German is missing 1 Value')
+    ).toBeHidden();
     await expect(createButton).toBeEnabled();
-    await createButton.click();
-
-    // Per-language required validation blocks the submit: nothing is created
-    // (still on the create route) and the translations trigger flips to invalid
-    // (its aria-invalid tracks errors in the other, non-default languages).
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
-    );
-    await expect(translationsTrigger).toHaveAttribute('aria-invalid', 'true');
-
-    // And the language that is missing says what it needs inside the dialog,
-    // in the same words the field outside it would show.
-    await translationsTrigger.click();
-    const languages = mainWindow.getByRole('dialog', { name: 'Title' });
-    await expect(languages).toBeVisible();
-    await expect(languages.getByText('Fill in this field.')).toBeVisible();
   });
 
-  test('formats temporal fields and relative columns per the user language', async ({
+  test('formats a Value and a date per the language the app is read in', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow, { language: 'de' });
@@ -951,12 +975,9 @@ test.describe('Entries', () => {
       collectionId: collection.id,
     });
 
-    // The temporal columns render (their header is present) and the Entry's row
-    // is the stable anchor by its title cell.
-    await expect(
-      mainWindow.getByRole('columnheader', { name: 'Published' })
-    ).toBeVisible();
-    const row = mainWindow.getByRole('row', { name: /Temporal entry/ });
+    // The Entry's row says when it last changed, in the words of the language
+    // the app is read in.
+    const row = entryRow(mainWindow, 'Temporal entry');
 
     // Wait until the on-demand `date-fns/locale/de` import resolves and the
     // relative Created/Updated column re-renders in German ("vor" is the German
@@ -970,15 +991,13 @@ test.describe('Entries', () => {
     await setUserViaIpc(mainWindow, { language: 'en' });
     await reloadWindow(mainWindow);
 
-    const enRowLocator = mainWindow.getByRole('row', {
-      name: /Temporal entry/,
-    });
+    const enRowLocator = entryRow(mainWindow, 'Temporal entry');
     await expect(enRowLocator).toContainText('ago');
     const enRow = await enRowLocator.innerText();
 
-    // Language drives formatting: the same Entry renders differently in the two
-    // languages (German words and date/time formats vs English), which is a
-    // stronger and less brittle assertion than pinning an exact format string.
+    // Language drives formatting: the same Entry reads differently in the two
+    // languages, which is a stronger and less brittle assertion than pinning
+    // an exact format string.
     expect(deRow).not.toEqual(enRow);
     expect(deRow).toContain('vor');
     expect(enRow).toContain('ago');
@@ -1046,19 +1065,17 @@ test.describe('Entries', () => {
     await expect(updateButton).toBeEnabled();
     await updateButton.click();
 
-    // The update did not throw, shown by the redirect to the Collection detail.
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
-    );
+    // The update did not throw, shown by the toast it answers with.
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
 
     // A fresh read reflects both values: A preserved and B round-tripped.
     await reloadWindow(mainWindow);
-    await expect(
-      mainWindow.getByRole('cell', { name: 'x', exact: true })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Custom subtitle' })
-    ).toBeVisible();
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveValue(
+      'x'
+    );
+    await expect(mainWindow.getByLabel('Subtitle')).toHaveValue(
+      'Custom subtitle'
+    );
   });
 
   test('marks a Value another Entry already uses on the field that holds it', async ({
@@ -1296,9 +1313,7 @@ test.describe('Entries', () => {
     // The Entry saves again, which is the repair the message after a refused
     // synchronize asks for.
     await mainWindow.getByRole('button', { name: 'Update Article' }).click();
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
-    );
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const [saved] = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -1397,9 +1412,7 @@ test.describe('Entries', () => {
     await expect(mainWindow.getByText('No Entry chosen')).toBeVisible();
 
     await mainWindow.getByRole('button', { name: 'Update Article' }).click();
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
-    );
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const [saved] = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -1554,7 +1567,11 @@ test.describe('Entries', () => {
       name: { en: 'Hero' },
       slug: 'hero',
       fieldDefinitions: [
-        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline' },
+          min: 3,
+        }),
       ],
     });
     const collection = await createCollectionViaIpc(mainWindow, {
@@ -1585,13 +1602,17 @@ test.describe('Entries', () => {
     });
     const headline = mainWindow.getByLabel('Headline', { exact: true });
     await expect(headline).toHaveValue('Book online');
-    await headline.fill('');
+    // Too short rather than empty, so the Value reaches the validator instead
+    // of blocking Save as a Value that is missing.
+    await headline.fill('Ab');
     await mainWindow.getByRole('button', { name: 'Update Article' }).click();
 
     // The inner field says what is wrong and is marked invalid, while the
     // field holding the sections says nothing and is not.
     await expect(headline).toHaveAttribute('aria-invalid', 'true');
-    await expectErrorOf(mainWindow, 'Headline').toBe('Fill in this field.');
+    await expectErrorOf(mainWindow, 'Headline').toBe(
+      'Use at least 3 characters.'
+    );
     expect(await errorOf(mainWindow, 'Sections')).toBeNull();
     await expect(
       mainWindow.getByRole('button', { name: 'Add section' })
@@ -1637,11 +1658,12 @@ test.describe('Entries', () => {
     ).toBeVisible();
   });
 
-  test('paginates and filters the entry table client side', async ({
+  test('lists every Entry of the Collection and narrows them with the filter', async ({
     mainWindow,
   }) => {
-    // Seed 11 Entries, one past the page size of 10, so a second page
-    // exists. Titles are zero-padded so an exact cell locator is unambiguous.
+    // Eleven Entries, which is more than the list the table used to page at,
+    // since ci's list of 296 px scrolls rather than paging. Titles are
+    // zero-padded so each one is found exactly.
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
@@ -1662,66 +1684,37 @@ test.describe('Entries', () => {
       collectionId: collection.id,
     });
 
-    // The route loads the whole Collection (limit 0) and the table paginates it
-    // client side at a page size of 10. Wait for the real table (its "Title"
-    // header, not the skeleton), then the first page shows 10 data rows plus the
-    // header row.
+    // The route reads the whole Collection, and every Entry has a row, so
+    // nothing is paged out of reach.
+    const rows = mainWindow.locator('[data-slot="entry-row"]');
+    await expect(rows).toHaveCount(11);
+    await expect(entryRow(mainWindow, 'Entry 11')).toBeVisible();
     await expect(
-      mainWindow.getByRole('columnheader', { name: 'Title' })
+      mainWindow.getByRole('heading', { name: 'Articles 11' })
     ).toBeVisible();
-    await expect(mainWindow.getByRole('row')).toHaveCount(11);
 
-    // The pagination controls are hrefless anchors (a generic role, so their
-    // disabled state is only exposed through aria-disabled, not a native
-    // disabled property) named by their aria-label. On the first page Previous
-    // is disabled and Next is enabled (11 over a page size of 10 is two pages).
-    const previous = mainWindow.getByLabel('Go to previous page');
-    const next = mainWindow.getByLabel('Go to next page');
-    await expect(previous).toHaveAttribute('aria-disabled', 'true');
-    await expect(next).toHaveAttribute('aria-disabled', 'false');
-
-    // Advancing pages the rows: the second page holds the 11th Entry, so one data
-    // row plus the header remain, and the control state flips.
-    await next.click();
-    await expect(mainWindow.getByRole('row')).toHaveCount(2);
-    await expect(previous).toHaveAttribute('aria-disabled', 'false');
-    await expect(next).toHaveAttribute('aria-disabled', 'true');
-
-    // Going back restores the full first page.
-    await previous.click();
-    await expect(mainWindow.getByRole('row')).toHaveCount(11);
-    await expect(previous).toHaveAttribute('aria-disabled', 'true');
-    await expect(next).toHaveAttribute('aria-disabled', 'false');
-
-    // The filter narrows the rows client side across every page. 'Entry 11'
-    // started on the second page, so a match proves the filter also resets to
-    // the first page (one data row plus the header).
+    // The filter narrows the rows by the title each Entry is named by.
     const filter = mainWindow.getByRole('textbox', {
       name: 'Filter Articles',
     });
     await filter.fill('Entry 11');
-    await expect(mainWindow.getByRole('row')).toHaveCount(2);
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Entry 11', exact: true })
-    ).toBeVisible();
+    await expect(rows).toHaveCount(1);
+    await expect(entryRow(mainWindow, 'Entry 11')).toBeVisible();
 
-    // The summary counts the match against the whole Collection, not just the
-    // filtered rows: "1 of 11 total". A regression to getRowCount() (the filtered
-    // count) would read "1 of 1 total".
-    await expect(mainWindow.getByText('Showing 1 of 11 total')).toBeVisible();
-
-    // A substring matches every title that contains it: 'Entry 1' matches
-    // 'Entry 10' and 'Entry 11' (two data rows plus the header).
+    // A substring matches every title that holds it, which 'Entry 10' and
+    // 'Entry 11' both do.
     await filter.fill('Entry 1');
-    await expect(mainWindow.getByRole('row')).toHaveCount(3);
+    await expect(rows).toHaveCount(2);
 
-    // A no-match filter collapses to the "No results." row.
+    // A filter without matches says so in plain text, since the Collection
+    // itself is not empty.
     await filter.fill('zzzzz');
+    await expect(rows).toHaveCount(0);
     await expect(mainWindow.getByText('No results.')).toBeVisible();
 
-    // Clearing the filter restores the full first page.
+    // Clearing it brings every row back.
     await filter.fill('');
-    await expect(mainWindow.getByRole('row')).toHaveCount(11);
+    await expect(rows).toHaveCount(11);
   });
 
   test('chooses one Asset from the keyboard and names every button after its field', async ({
@@ -2476,5 +2469,378 @@ test.describe('Entries', () => {
       picker.getByRole('button', { name: 'Cancel' })
     ).toBeInViewport();
     expect(await windowSize(electronApp)).toEqual(MINIMUM_WINDOW_SIZE);
+  });
+});
+
+/**
+ * The Entry as ci draws it: its Collection's Entries beside the editor and the
+ * Entry's own History, one switch above the fields for the whole Entry, and
+ * what each of the three panes says about a Value that is missing.
+ */
+test.describe('An Entry in three panes', () => {
+  /** A bilingual Project with one Collection whose only field is a Title. */
+  async function bilingualEntry(page: Page): Promise<{
+    projectId: string;
+    collectionId: string;
+    entryId: string;
+  }> {
+    await setUserViaIpc(page);
+    const project = await createProjectViaIpc(page, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    const collection = await createBilingualCollectionViaIpc(page, project.id);
+    const entry = await createEntryViaIpc(page, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours', de: 'Frühling' }),
+      },
+    });
+
+    return {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    };
+  }
+
+  test('stands between its Collection and its History, which closes and opens again', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    const ids = await bilingualEntry(mainWindow);
+    await navigateToEntryUpdate(mainWindow, ids);
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await waitForLayout(mainWindow);
+
+    // Three panes: the list of the Collection's Entries, the editor, and the
+    // History of this Entry.
+    await expect(entryRow(mainWindow, 'Spring opening hours')).toBeVisible();
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveValue(
+      'Spring opening hours'
+    );
+    // The panes of the screen sit inside the one pane the Project's layout
+    // draws, so the innermost match is the pane meant here.
+    const history = mainWindow
+      .locator('[data-slot="pane"]', {
+        has: mainWindow.getByRole('button', { name: 'Close the History' }),
+      })
+      .last();
+    await expect(history).toBeVisible();
+
+    // The editor takes the History's room once it is closed, and the button in
+    // its head opens it again.
+    const editorWidth = async (): Promise<number> => {
+      const box = await mainWindow
+        .locator('[data-slot="pane"]', {
+          has: mainWindow.getByLabel('Title', { exact: true }),
+        })
+        .last()
+        .boundingBox();
+      return box?.width ?? 0;
+    };
+    const withHistory = await editorWidth();
+    const open = mainWindow.getByRole('button', {
+      name: 'Show the History of this Entry',
+    });
+    await expect(open).toBeHidden();
+
+    await mainWindow.getByRole('button', { name: 'Close the History' }).click();
+    await expect(history).toBeHidden();
+    await expect(open).toBeVisible();
+    await waitForLayout(mainWindow);
+    expect(await editorWidth()).toBeGreaterThan(withHistory);
+
+    await open.click();
+    await expect(history).toBeVisible();
+    await expect(open).toBeHidden();
+
+    // Nothing of the three panes is cut off at the smallest window the app
+    // supports: every pane stands inside the panel and each one has room.
+    const measured = await mainWindow.evaluate(() => {
+      const panel = document.querySelector('[data-slot="panel"]');
+      const panes = Array.from(
+        document.querySelectorAll('[data-slot="panel"] [data-slot="pane"]')
+      );
+      if (panel === null || panes.length === 0) {
+        throw new Error('The panel draws no panes');
+      }
+      const box = panel.getBoundingClientRect();
+      return {
+        panel: { left: box.left, right: box.right },
+        panes: panes.map((pane) => {
+          const rect = pane.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, width: rect.width };
+        }),
+      };
+    });
+    for (const pane of measured.panes) {
+      // Every pane has room of its own and none of them reaches past the
+      // panel it sits in, which is what a collision or a clip would show as.
+      expect(pane.width).toBeGreaterThan(0);
+      expect(pane.left).toBeGreaterThanOrEqual(measured.panel.left);
+      expect(pane.right).toBeLessThanOrEqual(measured.panel.right);
+    }
+  });
+
+  test('names the Release each change of the Entry first went out in', async ({
+    mainWindow,
+  }) => {
+    const ids = await bilingualEntry(mainWindow);
+    // One Release, so the change that created the Entry is published and the
+    // change after it is not.
+    await createReleaseViaIpc(mainWindow, { projectId: ids.projectId });
+    await updateEntryViaIpc(mainWindow, {
+      projectId: ids.projectId,
+      collectionId: ids.collectionId,
+      id: ids.entryId,
+      values: {
+        title: stringValue({ en: 'Spring opening hours', de: 'Frühjahr' }),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, ids);
+
+    // Every change of this Entry has a row of its own, newest first, and the
+    // Release stands above the changes it included.
+    const changes = mainWindow.locator('[data-slot="entry-change"]');
+    await expect(changes).toHaveCount(3);
+    await expect(changes.nth(0)).toContainText('You changed an Entry');
+    await expect(changes.nth(1)).toContainText('In Release 0.1.0');
+    await expect(changes.nth(2)).toContainText('You added an Entry');
+  });
+
+  test('marks an Entry that misses a required Value in its row', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Only English' }) },
+    });
+    // Core refuses an Entry until every language of the Project holds each
+    // required Value, so an Entry that misses one is an Entry whose Project
+    // gained a language after it was written, which is the case the badge
+    // exists for.
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+
+    await navigateToCollection(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+
+    // One badge rather than a badge per language, and what is missing is said
+    // in words rather than by its color.
+    const row = entryRow(mainWindow, 'Only English');
+    await expect(row.getByText('Missing')).toBeVisible();
+    await expect(row).toContainText('German is missing 1 Value');
+
+    // An Entry that holds every Value carries no badge.
+    await updateEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+      values: { title: stringValue({ en: 'Only English', de: 'Nur Deutsch' }) },
+    });
+    await reloadWindow(mainWindow);
+    await expect(
+      entryRow(mainWindow, 'Only English').getByText('Missing')
+    ).toBeHidden();
+  });
+
+  test('offers every language of the Project as one dropdown where a row of them would not fit', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Only English' }) },
+    });
+    // Every language Core supports, which is what the switch has to answer for
+    // at the smallest window the app supports. They are added after the Entry
+    // was written, since Core refuses one that misses a required Value.
+    let grown = project;
+    for (const language of supportedLanguageSchema.options) {
+      if (language !== 'en') {
+        grown = await addProjectLanguageViaIpc(mainWindow, grown, language);
+      }
+    }
+
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await waitForLayout(mainWindow);
+
+    // The languages do not fit side by side, so the switch is one dropdown
+    // that keeps each language's mark.
+    const switcher = languageSwitch(mainWindow);
+    const picker = switcher.getByRole('combobox');
+    await expect(picker).toBeVisible();
+    await expect(switcher.getByRole('button', { name: /^EN/ })).toHaveCount(0);
+
+    await chooseLanguage(mainWindow, 'de');
+    await expect(mainWindow.getByText('Missing in German')).toBeVisible();
+    await expect(
+      mainWindow.getByText('In English: Only English')
+    ).toBeVisible();
+  });
+
+  test('keeps the focus in the list of sections after one is removed', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [hero.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Service' }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: { headline: stringValue({ en: 'First' }) },
+          },
+          {
+            componentId: hero.id,
+            values: { headline: stringValue({ en: 'Second' }) },
+          },
+        ]),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+
+    // Each section is a group of its own, headed by its Component and its
+    // place in the list.
+    const sections = mainWindow.locator('[data-slot="section"]');
+    await expect(sections).toHaveCount(2);
+    await expect(sections.first()).toContainText('Hero');
+    await expect(sections.first()).toContainText('Section 1 of 2');
+
+    // Removing the first one leaves the focus on the section that takes its
+    // place rather than on the page.
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Hero section' })
+      .first()
+      .click();
+    await expect(sections).toHaveCount(1);
+    await expect(sections.first()).toBeFocused();
+    await expect(
+      mainWindow.getByLabel('Headline', { exact: true })
+    ).toHaveValue('Second');
+
+    // And the last one leaves it on Add section, the one thing left to press.
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Hero section' })
+      .click();
+    await expect(sections).toHaveCount(0);
+    await expect(
+      mainWindow.getByRole('button', { name: 'Add section' })
+    ).toBeFocused();
+    await expect(mainWindow.getByText('No sections yet.')).toBeVisible();
+  });
+
+  test('counts a required Value a section misses, in the language it misses it', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero', de: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline', de: 'Überschrift' },
+        }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'Pages', de: 'Seiten' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+        dynamicFieldDefinition({
+          ofComponents: [hero.id],
+          label: { en: 'Sections', de: 'Abschnitte' },
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Service', de: 'Service' }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: {
+              headline: stringValue({ en: 'Book online', de: 'Jetzt buchen' }),
+            },
+          },
+        ]),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+
+    // Emptying a Value inside a section blocks Save the same way one of the
+    // Entry's own fields does, because Core refuses the Entry for either.
+    await chooseLanguage(mainWindow, 'de');
+    await mainWindow.getByLabel('Headline', { exact: true }).fill('');
+    await expect(
+      mainWindow.getByText('German is missing 1 Value')
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Update Article' })
+    ).toBeDisabled();
+
+    // And the field inside the section says so where it stands.
+    await expect(mainWindow.getByText('Missing in German')).toBeVisible();
+    await expect(mainWindow.getByText('In English: Book online')).toBeVisible();
   });
 });

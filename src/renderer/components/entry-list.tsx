@@ -33,31 +33,6 @@ import {
 // Entry, only on each of its changes, so saying it would cost a read of every
 // Entry's history, see contributing/renderer/loading-and-updating-data.md.
 
-/** The catalog's `t`, as a component reads it through `useLingui`. */
-type Translate = ReturnType<typeof useLingui>['t'];
-
-/**
- * What a row says about the Values its Entry is missing, in the words a screen
- * reader hears: the language and how many, as ci writes it.
- */
-function missingText(
-  missing: Map<SupportedLanguage, number>,
-  t: Translate
-): string | null {
-  const found = [...missing.entries()].find(([, count]) => count > 0);
-
-  if (found === undefined) {
-    return null;
-  }
-
-  const [language, count] = found;
-  const name = languageName(language);
-  return t`${name} is missing ${plural(count, {
-    one: '# Value',
-    other: '# Values',
-  })}`;
-}
-
 /**
  * One Entry of the list: its title, when it last changed, and the badge for a
  * required Value it is still missing.
@@ -92,7 +67,21 @@ function EntryRow({
     fieldDefinitions,
     language: user?.language ?? project.settings.language.default,
   });
-  const says = missing === null ? null : missingText(missing, t);
+  // The first language that misses a Value, and how many, which is what a
+  // screen reader hears for the badge. The badge itself has no room for it.
+  const found =
+    missing === null
+      ? undefined
+      : [...missing.entries()].find(([, count]) => count > 0);
+  const language = found === undefined ? '' : languageName(found[0]);
+  const missingValues = found?.[1] ?? 0;
+  const says =
+    found === undefined
+      ? null
+      : t`${language} is missing ${plural(missingValues, {
+          one: '# Value',
+          other: '# Values',
+        })}`;
 
   return (
     <Link
@@ -222,7 +211,13 @@ export function EntryListPane({
   );
 
   return (
-    <>
+    // The rows are the way from one Entry to the next, which is what makes
+    // this a navigation rather than a column of content, and what keeps every
+    // part of the screen inside a landmark.
+    <nav
+      aria-label={collection === undefined ? t`Entries` : collectionName}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <PaneHead>
         <h1 className="flex min-w-0 flex-1 items-baseline gap-2 text-label">
           <span className="truncate">{collectionName}</span>
@@ -299,7 +294,7 @@ export function EntryListPane({
           )}
         </div>
       </ScrollArea>
-    </>
+    </nav>
   );
 }
 

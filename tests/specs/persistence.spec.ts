@@ -6,7 +6,7 @@ import {
   createCollectionViaIpc,
   navigateToCollection,
 } from '../helpers/collection.js';
-import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
+import { createEntryViaIpc, entryRow, stringValue } from '../helpers/entry.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -43,9 +43,7 @@ test.describe('Persistence', () => {
         projectId: project.id,
         collectionId: collection.id,
       });
-      await expect(
-        window.getByRole('cell', { name: 'Persisted entry' })
-      ).toBeVisible();
+      await expect(entryRow(window, 'Persisted entry')).toBeVisible();
     } finally {
       // The relaunched app is not covered by the fixture teardown, so close it
       await closeApp(app);

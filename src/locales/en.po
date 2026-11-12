@@ -6,11 +6,6 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
-#. placeholder {0}: state.missing
-#: src/renderer/components/language-switch.tsx
-msgid "{0, plural, one {# Value} other {# Values}}"
-msgstr "{0, plural, one {# Value} other {# Values}}"
-
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} added {thing}"
 msgstr "{author} added {thing}"
@@ -57,10 +52,6 @@ msgstr "{count, plural, one {# Asset} other {# Assets}}"
 msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
 
-#: src/renderer/components/entry-list.tsx
-msgid "{count, plural, one {# Value} other {# Values}}"
-msgstr "{count, plural, one {# Value} other {# Values}}"
-
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "{defaultName}, the default"
 msgstr "{defaultName}, the default"
@@ -77,7 +68,9 @@ msgstr "{images, plural, one {# image} other {# images}} and {otherFiles, plural
 msgid "{incoming, plural, one {# incoming change} other {# incoming changes}}"
 msgstr "{incoming, plural, one {# incoming change} other {# incoming changes}}"
 
+#: src/renderer/components/entry-list.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
 msgid "{language} is missing {missingValues, plural, one {# Value} other {# Values}}"
 msgstr "{language} is missing {missingValues, plural, one {# Value} other {# Values}}"
 
@@ -105,10 +98,6 @@ msgstr "{min} to {max} characters"
 msgid "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
 msgstr "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
-msgid "{missingLanguageName} is missing {missingValues, plural, one {# Value} other {# Values}}"
-msgstr "{missingLanguageName} is missing {missingValues, plural, one {# Value} other {# Values}}"
-
 #: src/renderer/components/component-impact.tsx
 msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
@@ -121,9 +110,17 @@ msgstr "{name}, {when}"
 msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 
+#: src/renderer/components/language-switch.tsx
+msgid "{name}, missing {missingValues, plural, one {# Value} other {# Values}}"
+msgstr "{name}, missing {missingValues, plural, one {# Value} other {# Values}}"
+
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "{name}, section {position} of {total}"
 msgstr "{name}, section {position} of {total}"
+
+#: src/renderer/components/language-switch.tsx
+msgid "{name}, with a Value that was refused"
+msgstr "{name}, with a Value that was refused"
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "{notSynced, plural, one {# change isn't synced. Removing loses it.} other {# changes aren't synced. Removing loses them.}}"
@@ -1197,6 +1194,7 @@ msgstr "Enter an email address, such as name@example.com."
 msgid "Enter an IPv4 address, such as 192.168.0.1."
 msgstr "Enter an IPv4 address, such as 192.168.0.1."
 
+#: src/renderer/components/entry-list.tsx
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Entries"
 msgstr "Entries"
@@ -1385,6 +1383,10 @@ msgstr "Help"
 #: src/renderer/routes/projects/$projectId/history.tsx
 msgid "History"
 msgstr "History"
+
+#: src/renderer/components/entry-history.tsx
+msgid "History of this Entry"
+msgstr "History of this Entry"
 
 #: src/renderer/lib/schemaChange.ts
 msgid "holds a Value another Entry already holds, and this Field is now unique"

@@ -150,12 +150,12 @@ function CreateEntryPage(): React.JSX.Element {
   const [missingLanguage, missingValues] = [
     ...missingByLanguage.entries(),
   ].find(([, count]) => count > 0) ?? [undefined, 0];
-  const missingLanguageName =
+  const language =
     missingLanguage === undefined ? undefined : languageName(missingLanguage);
   const blockedBy =
-    missingLanguageName === undefined
+    language === undefined
       ? undefined
-      : t`${missingLanguageName} is missing ${plural(missingValues, { one: '# Value', other: '# Values' })}`;
+      : t`${language} is missing ${plural(missingValues, { one: '# Value', other: '# Values' })}`;
 
   // The language the whole Entry is written in, which stays in the address, so
   // the language a new Entry was started in survives a reload.

@@ -19,6 +19,7 @@ import {
   type ReferenceFieldDefinition,
   type SupportedLanguage,
   type TelephoneFieldDefinition,
+  type TextareaFieldDefinition,
   type TextFieldDefinition,
   type TimeFieldDefinition,
   type ToggleFieldDefinition,
@@ -47,6 +48,32 @@ export function textFieldDefinition(
     inputWidth: '12',
     valueType: 'string',
     fieldType: 'text',
+    defaultValue: null,
+    min: null,
+    max: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required multi-line text FieldDefinition with a caller-supplied id.
+ * Mirrors `textFieldDefinition` but with `fieldType` "textarea", which Core
+ * stores as the same value type with the same bounds.
+ */
+export function textareaFieldDefinition(
+  overrides: Partial<TextareaFieldDefinition> = {}
+): TextareaFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'teaser',
+    label: { en: 'Teaser' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'textarea',
     defaultValue: null,
     min: null,
     max: null,

@@ -17,6 +17,7 @@ import {
 import { parseColor, toBytes } from '../helpers/color.js';
 import {
   createEntryViaIpc,
+  entryRow,
   fillEntryForm,
   navigateToEntryCreate,
   stringValue,
@@ -521,16 +522,10 @@ test.describe("A Project's sidebar", () => {
     await expect(search).toBeFocused();
 
     // What filters inside a screen is untouched by it.
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Spring opening hours' })
-    ).toBeVisible();
+    await expect(entryRow(mainWindow, 'Spring opening hours')).toBeVisible();
     await mainWindow.getByLabel('Filter Articles').fill('Winter');
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Winter tyres' })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('cell', { name: 'Spring opening hours' })
-    ).toBeHidden();
+    await expect(entryRow(mainWindow, 'Winter tyres')).toBeVisible();
+    await expect(entryRow(mainWindow, 'Spring opening hours')).toBeHidden();
   });
 
   test('marks the open Collection, keeps the focus ring inside and cuts a long name', async ({

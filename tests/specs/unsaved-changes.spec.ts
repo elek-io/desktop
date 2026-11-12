@@ -12,6 +12,7 @@ import {
 } from '../helpers/component.js';
 import {
   createEntryViaIpc,
+  navigateToEntryCreate,
   navigateToEntryUpdate,
   stringValue,
 } from '../helpers/entry.js';
@@ -115,7 +116,7 @@ test.describe('A form that cannot be saved yet', () => {
     await title.press('Enter');
 
     expect(await recordedCoreCalls(electronApp)).toEqual([]);
-    // Still on the page, which a saved Entry would have left.
+    // Still on the Entry, and still saying what it is missing.
     await expect(mainWindow).toHaveURL((url) =>
       url.hash.endsWith(`/${ids.entryId}/update`)
     );
@@ -384,19 +385,32 @@ test.describe('Leaving a page with changes nobody saved', () => {
 
   test('asks nothing after the form saved itself', async ({ mainWindow }) => {
     const ids = await projectWithEntry(mainWindow);
-    await navigateToEntryUpdate(mainWindow, ids);
+    await navigateToEntryCreate(mainWindow, ids);
 
     await mainWindow
       .getByLabel('Title', { exact: true })
       .fill('A title that is saved');
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
-    // Saving leaves this page for the list of Entries. That navigation is the
+    // Creating leaves this page for the Collection. That navigation is the
     // form's own, so the guard lets it through rather than asking about the
     // changes it just saved.
     await expect(mainWindow).toHaveURL((url) =>
       url.hash.endsWith(`/collections/${ids.collectionId}`)
     );
+    await expect(discardDialog(mainWindow)).toBeHidden();
+
+    // An Entry that already exists stays open after it saved, beside its
+    // list, so leaving it afterwards asks nothing either: the form is pristine
+    // again with what went in.
+    await navigateToEntryUpdate(mainWindow, ids);
+    await mainWindow
+      .getByLabel('Title', { exact: true })
+      .fill('A stored title that is saved');
+    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
+    await leaveThePage(mainWindow).click();
+    await expect(mainWindow).toHaveURL((url) => url.hash === '#/projects');
     await expect(discardDialog(mainWindow)).toBeHidden();
 
     // The Profile stays open after it saved, so leaving it afterwards asks

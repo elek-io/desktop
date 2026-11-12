@@ -235,49 +235,57 @@ function UpdateEntryPage(): ReactElement {
   return (
     <>
       <Pane name={t`this Entry`}>
-        <PaneHead className="pb-1.5">
-          <h1 className="min-w-0 flex-1 truncate text-h3">{title}</h1>
-          {isHistoryOpen ? null : (
-            <Button
-              variant="ghost"
-              size="icon"
-              Icon={History}
-              aria-label={t`Show the History of this Entry`}
-              onClick={() => setIsHistoryOpen(true)}
-            />
-          )}
-          <FormActions form={updateEntryForm} id={formId} blockedBy={blockedBy}>
-            <SubmitButton requireDirty Icon={Check}>
-              <Trans>Update {entryName}</Trans>
-            </SubmitButton>
-          </FormActions>
-        </PaneHead>
-        {/* The switch stands below the title and above the fields, which is
+        {/* The editor is what the screen is about, so it is the one main
+        landmark, with the list of Entries and the History beside it. */}
+        <main className="flex min-h-0 flex-1 flex-col">
+          <PaneHead className="pb-1.5">
+            <h1 className="min-w-0 flex-1 truncate text-h3">{title}</h1>
+            {isHistoryOpen ? null : (
+              <Button
+                variant="ghost"
+                size="icon"
+                Icon={History}
+                aria-label={t`Show the History of this Entry`}
+                onClick={() => setIsHistoryOpen(true)}
+              />
+            )}
+            <FormActions
+              form={updateEntryForm}
+              id={formId}
+              blockedBy={blockedBy}
+            >
+              <SubmitButton requireDirty Icon={Check}>
+                <Trans>Update {entryName}</Trans>
+              </SubmitButton>
+            </FormActions>
+          </PaneHead>
+          {/* The switch stands below the title and above the fields, which is
         where ci draws it, so it is the first thing in the editor. */}
-        <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
-          <LanguageSwitch
-            languages={supportedLanguages.map((candidate) => ({
-              language: candidate,
-              missing: missingByLanguage.get(candidate) ?? 0,
-              hasError: refused.has(candidate),
-            }))}
-            language={shownLanguage}
-            onLanguageChange={setLanguage}
-          />
-        </div>
-        <ScrollArea className="flex-1">
-          <EntryForm
-            id={formId}
-            entryForm={updateEntryForm}
-            fieldDefinitions={collection.fieldDefinitions}
-            project={project}
-            language={shownLanguage}
-            isViewOnly={isUpdatingEntry}
-            onFormSubmit={onUpdateEntry}
-            blockedBy={blockedBy}
-            unsavedChangesTitle={title}
-          />
-        </ScrollArea>
+          <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
+            <LanguageSwitch
+              languages={supportedLanguages.map((candidate) => ({
+                language: candidate,
+                missing: missingByLanguage.get(candidate) ?? 0,
+                hasError: refused.has(candidate),
+              }))}
+              language={shownLanguage}
+              onLanguageChange={setLanguage}
+            />
+          </div>
+          <ScrollArea className="flex-1">
+            <EntryForm
+              id={formId}
+              entryForm={updateEntryForm}
+              fieldDefinitions={collection.fieldDefinitions}
+              project={project}
+              language={shownLanguage}
+              isViewOnly={isUpdatingEntry}
+              onFormSubmit={onUpdateEntry}
+              blockedBy={blockedBy}
+              unsavedChangesTitle={title}
+            />
+          </ScrollArea>
+        </main>
       </Pane>
       {isHistoryOpen ? (
         <Pane width="list" name={t`the History of this Entry`}>

@@ -153,7 +153,12 @@ export function EntryHistoryPane({
   const { t } = useLingui();
 
   return (
-    <>
+    // Beside the Entry rather than part of it, which is what keeps this pane
+    // inside a landmark of its own.
+    <aside
+      aria-label={t`History of this Entry`}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <PaneHead>
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
           <span className="text-label">
@@ -180,6 +185,6 @@ export function EntryHistoryPane({
           )}
         </div>
       </ScrollArea>
-    </>
+    </aside>
   );
 }
