@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -7,11 +7,12 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import type { ReactNode } from 'react';
-import type {
-  ControllerRenderProps,
-  FieldPath,
-  FieldValues,
-  UseFormReturn,
+import {
+  useWatch,
+  type ControllerRenderProps,
+  type FieldPath,
+  type FieldValues,
+  type UseFormReturn,
 } from 'react-hook-form';
 
 import { DragHandle } from '@renderer/components/drag-and-drop';
@@ -25,13 +26,13 @@ import {
 import { Button } from '@renderer/components/ui/button';
 import { ButtonGroup } from '@renderer/components/ui/button-group';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
-import { TranslatableField } from '@renderer/components/ui/translatable-field';
 import { useAppFormMode } from '@renderer/hooks/useAppFormContext';
+import { useFormLanguage } from '@renderer/hooks/useFormLanguage';
 import { useProject } from '@renderer/hooks/useProject';
 import { unknownRefusalText } from '@renderer/lib/refusedValueText';
-import { cn, fieldWidth } from '@renderer/lib/utils';
+import { cn, fieldWidth, languageName } from '@renderer/lib/utils';
 
-import type { FieldDefinition, SupportedLanguage } from '@elek-io/core';
+import type { FieldDefinition } from '@elek-io/core';
 
 // A field drawn from a field definition, and the non-editable preview of one.
 // Both go through the one field shell, so a generated field and a hand-written
@@ -94,13 +95,10 @@ export interface FieldFromDefinitionProps<
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   /**
    * The path to the field's `content`, without a language. Which type's Value
-   * is per-language is its folder's to know, so the language below is appended
-   * here rather than at every call site.
+   * is per-language is its folder's to know, so the language is appended here
+   * rather than at every call site.
    */
   name: FieldPath<TFieldValues>;
-  /** The language being edited, appended to `name` for a per-language Value. */
-  language: SupportedLanguage;
-  supportedLanguages: SupportedLanguage[];
   className?: string;
 }
 
@@ -109,7 +107,9 @@ export interface FieldFromDefinitionProps<
  * control from the type's folder, the description and the error, all in the one
  * field shell.
  *
- * The same field fills an Entry and a section of a dynamic field.
+ * The same field fills an Entry and a section of a dynamic field. The language
+ * it edits comes from the switch above the whole form rather than from a dialog
+ * of its own, see `useFormLanguage`.
  */
 export function FieldFromDefinition<
   TFieldValues extends FieldValues,
@@ -117,29 +117,47 @@ export function FieldFromDefinition<
 >({
   form,
   name,
-  language,
   fieldDefinition,
-  supportedLanguages,
   className,
 }: FieldFromDefinitionProps<
   TFieldValues,
   TTransformedValues
 >): React.ReactElement {
-  const { translateContent } = useProject();
+  const { t } = useLingui();
+  const { translateContent, formatInUserLocale } = useProject();
   // A view-only form disables its fields through a disabled fieldset, which
   // only turns off native controls, so a control that is not one (the markdown
   // editor's contenteditable) is told here. Every control takes `disabled`, so
   // the mode is folded in once rather than per type.
   const mode = useAppFormMode();
+  const { language, defaultLanguage } = useFormLanguage();
   const module = fieldModule(fieldDefinition);
-  // A per-language Value is bound one level deeper, at the language being
-  // edited, because TranslatableField derives the sibling languages from that
-  // last segment. A dynamic field's Value is one flat array, so it binds to
-  // `content` itself. FieldPath cannot reduce the appended path for an
+  // A per-language Value is bound one level deeper, at the language the switch
+  // above the fields shows. A dynamic field's Value is one flat array, so it
+  // binds to `content` itself. FieldPath cannot reduce the appended path for an
   // unresolved generic, so it is asserted here.
   const leafName = module.translatable
     ? (`${name}.${language}` as FieldPath<TFieldValues>)
     : name;
+  // The path of the same Value in the Project's default language, which stands
+  // below this one while this language is still missing it. A field that cannot
+  // be translated from anything points at the path it already draws, so there
+  // is no second path to watch for it.
+  const translateFromName =
+    module.translatable && language !== defaultLanguage
+      ? (`${name}.${defaultLanguage}` as FieldPath<TFieldValues>)
+      : leafName;
+  // Both are watched rather than read once, because whether this field is
+  // missing its Value and what it would be translated from both change while
+  // somebody types, in this language and in the default one.
+  const shownValue: unknown = useWatch({
+    control: form.control,
+    name: leafName,
+  });
+  const defaultLanguageValue: unknown = useWatch({
+    control: form.control,
+    name: translateFromName,
+  });
   const label = translateContent({
     key: 'fieldDefinition.label',
     record: fieldDefinition.label,
@@ -174,6 +192,27 @@ export function FieldFromDefinition<
   const coreRefusalText = (refusal: FieldRefusal): string =>
     coreRefusalTextOf(fieldDefinition, refusal);
 
+  // Whether this field is one of the Values the language on screen is still
+  // missing, which is the same question the count under Save answers, asked
+  // for this one field.
+  const isMissing =
+    fieldDefinition.isRequired !== false && module.isEmpty(shownValue);
+  // What the Value reads as in the Project's default language, so somebody
+  // translating has the text they are translating in front of them. It stands
+  // only below a Value that is missing, and never below the default language
+  // itself, which is what it would be read from.
+  const translateFrom =
+    isMissing && translateFromName !== leafName
+      ? module.renderValue({
+          content: { [defaultLanguage]: defaultLanguageValue },
+          fieldDefinition,
+          language: defaultLanguage,
+          formatInUserLocale,
+        })
+      : null;
+  const defaultLanguageName = languageName(defaultLanguage);
+  const shownLanguageName = languageName(language);
+
   return (
     <AppField
       form={form}
@@ -182,33 +221,19 @@ export function FieldFromDefinition<
       rules={module.rules(fieldDefinition)}
       coreRefusalText={coreRefusalText}
       {...(description === null ? {} : { description })}
+      {...(isMissing ? { warning: t`Missing in ${shownLanguageName}` } : {})}
+      {...(translateFrom === null
+        ? {}
+        : {
+            translateFrom: t`In ${defaultLanguageName}: ${translateFrom}`,
+          })}
       className={cn(
         `col-span-12 ${fieldWidth(fieldDefinition.inputWidth)}`,
         className
       )}
     >
       {({ field, controlProps }: AppFieldRenderProps<TFieldValues>) =>
-        module.translatable ? (
-          <TranslatableField
-            form={form}
-            field={field}
-            controlProps={controlProps}
-            title={label}
-            description={description}
-            supportedLanguages={supportedLanguages}
-            errors={form.formState.errors}
-            coreRefusalText={coreRefusalText}
-            // The Entry renderer requires every supported language, so the
-            // dialog marks each one required.
-            dialogItemRequired
-            renderControl={renderControl}
-          />
-        ) : (
-          // A non-translatable type (only `dynamic` today) renders straight
-          // through its folder, bound to `content` itself, with no language
-          // dialog.
-          renderControl(field, controlProps, label)
-        )
+        renderControl(field, controlProps, label)
       }
     </AppField>
   );

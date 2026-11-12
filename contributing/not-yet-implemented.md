@@ -107,11 +107,6 @@ See [`renderer/markdown-editor.md`](./renderer/markdown-editor.md) for the edito
 - **Client today**: groups are display only. The entry form and collection editor render existing groups as a `FieldSet`, but there is no UI to create a group, move fields into or out of one, or reorder groups.
 - **Where to start**: the state layer is already in place. `field-definitions-editor.tsx` binds `fieldDefinitions` as a single `Controller`-bound `FieldDefinitionOrGroup[]` value, edited through typed `appendDefinition` / `removeDefinition` / `moveDefinition` helpers, which replaced the opaque `{ id }` rows that did not scale to authoring. Group authoring means adding helpers alongside those (create a group, move a definition into or out of one) and the UI to drive them. Only a Collection takes a group at all, since Core's `componentFileSchema` holds a flat `FieldDefinition[]`. Do not move the array out to a `useReducer` outside react-hook-form: it would sit outside the resolver, so the Collection schema's refinements would not run and `formState.isDirty` would not flip. See [`forms.md`](./renderer/forms.md#why-it-is-built-this-way) and [`dynamic-form-field-generation.md`](./renderer/dynamic-form-field-generation.md).
 
-## Entry table: value columns render empty
-
-- **Client today**: `EntryTable` ([`entry-table.tsx`](../src/renderer/components/entry-table.tsx)) computes a display value per field slug but the value columns define no `cell` renderer, so those cells render empty. Only the fixed columns show data.
-- **Where to start**: add a `cell` renderer per column that formats the value by field type (text, reference count, toggle, date).
-
 ## A Collection's icon: two names of Lucide's catalog
 
 - **Core support**: `supportedIconSchema` takes any icon name in Lucide's spelling, at most 64 characters, and Core holds no list of Lucide's own names.

@@ -60,6 +60,32 @@ export function collectFieldErrorMessages(
   return found;
 }
 
+/**
+ * Which of the Project's languages hold an error somewhere in the form.
+ *
+ * A translatable Value is bound at `<path>.<language>`, so the language of a
+ * refused Value is a segment of its path, whichever field and whichever
+ * section it sits in. It is what marks a language in the switch above the
+ * fields, so an error in a language nobody is looking at is still visible.
+ */
+export function languagesWithErrors<TLanguage extends string>(
+  errors: unknown,
+  languages: readonly TLanguage[]
+): Set<TLanguage> {
+  const found = new Set<TLanguage>();
+
+  for (const message of collectFieldErrorMessages(errors)) {
+    const segments = new Set(message.path.split('.'));
+    for (const language of languages) {
+      if (segments.has(language)) {
+        found.add(language);
+      }
+    }
+  }
+
+  return found;
+}
+
 /** Whether `path` is `prefix` itself or sits below it. */
 export function isAtOrBelow(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}.`);

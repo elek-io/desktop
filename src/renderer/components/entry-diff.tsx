@@ -166,6 +166,7 @@ export function EntryDiff({
     return (
       <DiffContainer type="create" commit={commitAfter}>
         <EntryForm
+          language={project.settings.language.default}
           entryForm={entryFormAfter}
           fieldDefinitions={collection.fieldDefinitions}
           project={project}
@@ -180,6 +181,7 @@ export function EntryDiff({
     return (
       <DiffContainer type="delete" commit={commitBefore}>
         <EntryForm
+          language={project.settings.language.default}
           entryForm={entryFormBefore}
           fieldDefinitions={collection.fieldDefinitions}
           project={project}
@@ -195,6 +197,7 @@ export function EntryDiff({
       <>
         <DiffContainer type="before" commit={commitBefore}>
           <EntryForm
+            language={project.settings.language.default}
             entryForm={entryFormBefore}
             fieldDefinitions={collection.fieldDefinitions}
             project={project}
@@ -204,6 +207,7 @@ export function EntryDiff({
 
         <DiffContainer type="after" commit={commitAfter}>
           <EntryForm
+            language={project.settings.language.default}
             entryForm={entryFormAfter}
             fieldDefinitions={collection.fieldDefinitions}
             project={project}

@@ -56,6 +56,9 @@ export const badgeVariants = cva(
         secondary:
           'bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80',
         destructive: 'border-error-border bg-error-surface text-error',
+        // What a row of a list says it is missing, which ci draws in the
+        // warning color with the warning icon beside the word.
+        warning: 'border-warning-border bg-warning-surface text-warning',
         outline:
           'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
         ghost:
@@ -113,6 +116,10 @@ export const toggleVariants = cva(
       size: {
         default:
           'h-8 min-w-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
+        // The height ci gives a segment of a segmented control, such as a
+        // language of the switch above an Entry's fields, which is also the
+        // Button's own `xs`.
+        xs: 'h-6 min-w-6 gap-1 rounded-[min(var(--radius-md),8px)] px-2 text-xs',
         sm: 'h-7 min-w-7 px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5',
         lg: 'h-10 min-w-10 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
       },

@@ -1,10 +1,10 @@
 import { arrayMove } from '@dnd-kit/sortable';
 import { Trans, useLingui } from '@lingui/react/macro';
 import {
-  ChevronDownIcon,
-  ChevronUpIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
   ListPlusIcon,
-  TrashIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import * as React from 'react';
 import {
@@ -17,7 +17,6 @@ import {
 import { FieldFromDefinition } from '@renderer/components/fields/field-from-definition';
 import { defaultEntryValues } from '@renderer/components/fields/value-defaults';
 import { Button } from '@renderer/components/ui/button';
-import { ButtonGroup } from '@renderer/components/ui/button-group';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -114,6 +113,11 @@ export function DynamicControl<TFieldValues extends FieldValues>({
     translateContent,
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
+  // Each section's own group, so the focus can go to the one that takes a
+  // removed section's place, and the two it falls back to.
+  const sectionsById = React.useRef(new Map<string, HTMLDivElement>());
+  const addSectionRef = React.useRef<HTMLButtonElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
   // The surrounding AppForm is the provider, so the inner fields reach the same
   // form without this leaf having to be handed it through the registry.
   const form = useFormContext<TFieldValues>();
@@ -140,7 +144,6 @@ export function DynamicControl<TFieldValues extends FieldValues>({
     ? field.value
     : [];
   const supportedLanguages = project.settings.language.supported;
-  const defaultLanguage = project.settings.language.default;
 
   const components = componentList.list;
   const componentsById = new Map(
@@ -210,8 +213,24 @@ export function DynamicControl<TFieldValues extends FieldValues>({
     ]);
   }
 
+  /**
+   * Removes one section and leaves the focus in the list: on the section that
+   * takes its place, else the one before it, else Add section, else the list
+   * itself.
+   *
+   * The sections that stay are keyed by their own id, so each keeps its element
+   * and can be focused straight away. See
+   * contributing/renderer/forms.md#keeping-focus-after-a-row-is-removed.
+   */
   function removeSection(index: number): void {
-    setSections(sections().filter((_item, itemIndex) => itemIndex !== index));
+    const current = sections();
+    const staying = current.filter((_item, itemIndex) => itemIndex !== index);
+    setSections(staying);
+
+    const next = staying[index] ?? staying[index - 1];
+    const section =
+      next === undefined ? undefined : sectionsById.current.get(next.id);
+    (section ?? addSectionRef.current ?? listRef.current)?.focus();
   }
 
   function moveSection(index: number, offset: number): void {
@@ -225,17 +244,21 @@ export function DynamicControl<TFieldValues extends FieldValues>({
 
   return (
     <div
-      className="grid gap-4"
+      ref={listRef}
+      className="grid gap-3"
       role="group"
       aria-label={label}
+      // Focusable only to be focused: it is where the focus lands once the
+      // last section was removed and nothing else is left to take it.
+      tabIndex={-1}
       {...(id === undefined ? {} : { id })}
       {...(describedBy === undefined
         ? {}
         : { 'aria-describedby': describedBy })}
     >
       {items.length === 0 ? (
-        <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-          <Trans>No sections yet. Add one to start building this page.</Trans>
+        <p className="text-muted-foreground">
+          <Trans>No sections yet.</Trans>
         </p>
       ) : (
         items.map((item, index) => {
@@ -249,53 +272,69 @@ export function DynamicControl<TFieldValues extends FieldValues>({
             // the whole section with it: the button that was pressed keeps both
             // its focus and the section it belongs to, and pressing it again
             // moves the same section on rather than undoing the move.
-            <div key={item.id} className="rounded-lg border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">
-                  <span>{name}</span>
-                  <span className="ml-2 font-normal text-muted-foreground">
+            <div
+              key={item.id}
+              data-slot="section"
+              role="group"
+              aria-label={t`${name}, section ${position} of ${total}`}
+              // Focused rather than tabbed to, so removing the section above
+              // leaves the focus here instead of on the page.
+              tabIndex={-1}
+              ref={(group) => {
+                if (group === null) {
+                  sectionsById.current.delete(item.id);
+                  return;
+                }
+                sectionsById.current.set(item.id, group);
+              }}
+              className="rounded-xl border"
+            >
+              {/* The section's own head, ruled off its fields, with the three
+              ways to move it at the right, as ci draws them. */}
+              <div className="flex items-center gap-2 border-b py-2.5 pr-2 pl-4">
+                <p className="flex min-w-0 flex-1 items-baseline gap-2">
+                  <span className="truncate text-label">{name}</span>
+                  <span className="text-small whitespace-nowrap text-muted-foreground">
                     {t`Section ${position} of ${total}`}
                   </span>
                 </p>
-                <ButtonGroup>
-                  <Button
-                    Icon={ChevronUpIcon}
-                    variant="secondary"
-                    size="icon"
-                    disabled={disabled || index === 0}
-                    onClick={() => moveSection(index, -1)}
-                  >
-                    <span className="sr-only">
-                      <Trans>Move the {name} section up</Trans>
-                    </span>
-                  </Button>
-                  <Button
-                    Icon={ChevronDownIcon}
-                    variant="secondary"
-                    size="icon"
-                    disabled={disabled || index === items.length - 1}
-                    onClick={() => moveSection(index, 1)}
-                  >
-                    <span className="sr-only">
-                      <Trans>Move the {name} section down</Trans>
-                    </span>
-                  </Button>
-                  <Button
-                    Icon={TrashIcon}
-                    variant="destructive"
-                    size="icon"
-                    disabled={disabled}
-                    onClick={() => removeSection(index)}
-                  >
-                    <span className="sr-only">
-                      <Trans>Remove the {name} section</Trans>
-                    </span>
-                  </Button>
-                </ButtonGroup>
+                <Button
+                  Icon={ArrowUpIcon}
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={disabled || index === 0}
+                  onClick={() => moveSection(index, -1)}
+                >
+                  <span className="sr-only">
+                    <Trans>Move the {name} section up</Trans>
+                  </span>
+                </Button>
+                <Button
+                  Icon={ArrowDownIcon}
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={disabled || index === items.length - 1}
+                  onClick={() => moveSection(index, 1)}
+                >
+                  <span className="sr-only">
+                    <Trans>Move the {name} section down</Trans>
+                  </span>
+                </Button>
+                <Button
+                  Icon={Trash2Icon}
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={disabled}
+                  onClick={() => removeSection(index)}
+                >
+                  <span className="sr-only">
+                    <Trans>Remove the {name} section</Trans>
+                  </span>
+                </Button>
               </div>
 
               {component === undefined ? null : (
-                <div className="@container mt-4 grid grid-cols-12 gap-x-6 gap-y-8">
+                <div className="@container grid grid-cols-12 gap-x-6 gap-y-4 p-4">
                   {component.fieldDefinitions.map((definition) => (
                     <FieldFromDefinition
                       key={definition.id}
@@ -306,18 +345,16 @@ export function DynamicControl<TFieldValues extends FieldValues>({
                         index,
                         definition
                       )}
-                      language={defaultLanguage}
-                      supportedLanguages={supportedLanguages}
                     />
                   ))}
                 </div>
               )}
               {component !== undefined &&
               component.fieldDefinitions.length === 0 ? (
-                <p className="mt-4 text-sm text-muted-foreground">
+                <p className="p-4 text-muted-foreground">
                   <Trans>
                     This Component has no fields yet, so this section holds
-                    nothing. Add fields to it to fill this section in.
+                    nothing.
                   </Trans>
                 </p>
               ) : null}
@@ -327,7 +364,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
       )}
 
       {allowedComponents.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground">
           <Trans>
             This Project has no Component this field allows, so no section can
             be added. Create one, or allow another one on this field.
@@ -338,8 +375,11 @@ export function DynamicControl<TFieldValues extends FieldValues>({
           <DropdownMenuTrigger
             render={
               <Button
+                ref={addSectionRef}
                 Icon={ListPlusIcon}
-                variant="secondary"
+                variant="outline"
+                size="sm"
+                className="w-fit"
                 disabled={disabled || maxReached}
                 {...(invalid === undefined ? {} : { 'aria-invalid': invalid })}
               />
@@ -363,7 +403,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
         </DropdownMenu>
       )}
       {maxReached ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground">
           {t`This field holds at most ${sectionMaximum} sections. Remove one to add another.`}
         </p>
       ) : null}

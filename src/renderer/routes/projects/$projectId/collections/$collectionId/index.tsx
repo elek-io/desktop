@@ -1,17 +1,8 @@
-import { Trans } from '@lingui/react/macro';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { Plus, Settings } from 'lucide-react';
+import { Trans, useLingui } from '@lingui/react/macro';
+import { createFileRoute } from '@tanstack/react-router';
 import { type ReactElement } from 'react';
 
-import {
-  EntryTable,
-  EntryTableSkeleton,
-} from '@renderer/components/entry-table';
-import { Page } from '@renderer/components/page';
-import { Button } from '@renderer/components/ui/button';
-import { useProject } from '@renderer/hooks/useProject';
-import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { queryOptions } from '@renderer/queries';
+import { Pane } from '@renderer/components/pane';
 
 export const Route = createFileRoute(
   '/projects/$projectId/collections/$collectionId/'
@@ -19,111 +10,24 @@ export const Route = createFileRoute(
   component: ProjectCollectionIndexPage,
 });
 
+/**
+ * What stands beside the list of Entries while none is open.
+ *
+ * In plain text without the gradient, because the Collection itself is not
+ * empty, which is the same reason a filter without matches says so plainly.
+ * The list beside it holds both ways on, the Entry to open and the one that
+ * creates a new one, so nothing here repeats either.
+ */
 function ProjectCollectionIndexPage(): ReactElement {
-  const router = useRouter();
-  const { projectId, collectionId } = Route.useParams();
-  const {
-    projectQuery: { data: project, isPending: isReadingProject },
-    translateContent,
-  } = useProject();
-  const { data: collection, isPending: isReadingCollection } = useQueryNoError(
-    queryOptions.collections.read({
-      projectId: projectId,
-      id: collectionId,
-    })
-  );
-  const { data: entries, isPending: isListingEntries } = useQueryNoError(
-    queryOptions.entries.list({ projectId, collectionId, limit: 0 })
-  );
-
-  function Title(): string {
-    if (isReadingCollection === false) {
-      return translateContent({
-        key: 'collection.name.plural',
-        record: collection.name.plural,
-      });
-    }
-
-    return '';
-  }
-
-  function Description(): ReactElement {
-    return (
-      <>
-        {isReadingCollection === false
-          ? translateContent({
-              key: 'collection.description',
-              record: collection.description,
-            })
-          : ''}
-      </>
-    );
-  }
-
-  // The Collection's name in singular, so the button's sentence takes one
-  // placeholder rather than being assembled around it.
-  const entryName =
-    isReadingCollection === false
-      ? translateContent({
-          key: 'currentCollection.name.singular',
-          record: collection.name.singular,
-        })
-      : '';
-
-  function Actions(): ReactElement {
-    return (
-      <>
-        <Button
-          Icon={Plus}
-          onClick={async () =>
-            router.navigate({
-              to: '/projects/$projectId/collections/$collectionId/create',
-              params: {
-                projectId,
-                collectionId,
-              },
-            })
-          }
-        >
-          {isReadingCollection === false ? (
-            <Trans>Create {entryName}</Trans>
-          ) : (
-            <Trans>Create Entry</Trans>
-          )}
-        </Button>
-
-        <Button
-          Icon={Settings}
-          variant="secondary"
-          onClick={async () =>
-            router.navigate({
-              to: '/projects/$projectId/collections/$collectionId/update',
-              params: {
-                projectId,
-                collectionId,
-              },
-            })
-          }
-        >
-          <Trans>Configure</Trans>
-        </Button>
-      </>
-    );
-  }
+  const { t } = useLingui();
 
   return (
-    <Page title={Title()} description={<Description />} actions={<Actions />}>
-      {isReadingProject === false &&
-      isReadingCollection === false &&
-      isListingEntries === false ? (
-        <EntryTable
-          project={project}
-          collection={collection}
-          entries={entries}
-        />
-      ) : (
-        <EntryTableSkeleton />
-      )}
-    </Page>
+    <Pane name={t`this Collection`}>
+      <div className="flex flex-1 items-center justify-center p-(--pane-edge)">
+        <p className="text-center text-muted-foreground">
+          <Trans>No Entry chosen</Trans>
+        </p>
+      </div>
+    </Pane>
   );
 }

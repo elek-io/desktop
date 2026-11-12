@@ -6,6 +6,11 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
+#. placeholder {0}: state.missing
+#: src/renderer/components/language-switch.tsx
+msgid "{0, plural, one {# Value} other {# Values}}"
+msgstr "{0, plural, one {# Value} other {# Values}}"
+
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} added {thing}"
 msgstr "{author} added {thing}"
@@ -52,6 +57,10 @@ msgstr "{count, plural, one {# Asset} other {# Assets}}"
 msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
 
+#: src/renderer/components/entry-list.tsx
+msgid "{count, plural, one {# Value} other {# Values}}"
+msgstr "{count, plural, one {# Value} other {# Values}}"
+
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "{defaultName}, the default"
 msgstr "{defaultName}, the default"
@@ -96,6 +105,10 @@ msgstr "{min} to {max} characters"
 msgid "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
 msgstr "{missing, plural, one {# field is still empty} other {# fields are still empty}}"
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+msgid "{missingLanguageName} is missing {missingValues, plural, one {# Value} other {# Values}}"
+msgstr "{missingLanguageName} is missing {missingValues, plural, one {# Value} other {# Values}}"
+
 #: src/renderer/components/component-impact.tsx
 msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
@@ -107,6 +120,10 @@ msgstr "{name}, {when}"
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
+
+#: src/renderer/components/fields/dynamic/control.tsx
+msgid "{name}, section {position} of {total}"
+msgstr "{name}, section {position} of {total}"
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "{notSynced, plural, one {# change isn't synced. Removing loses it.} other {# changes aren't synced. Removing loses them.}}"
@@ -244,6 +261,10 @@ msgstr "A lowercase version without any special characters of the Collection nam
 #: src/renderer/components/forms/collection-form.tsx
 msgid "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
 msgstr "A lowercase version without any special characters of the Entry's name. It's used to identify this Collection's Entries and needs to be unique."
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+msgid "a new Entry"
+msgstr "a new Entry"
 
 #: src/renderer/routes/projects/index.tsx
 msgid "A Project holds the content of one website or app. It is a folder of files on this computer, and you can work on it offline."
@@ -667,6 +688,10 @@ msgstr "Close {fileName}"
 msgid "Close Add Asset"
 msgstr "Close Add Asset"
 
+#: src/renderer/components/entry-history.tsx
+msgid "Close the History"
+msgstr "Close the History"
+
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Code block"
 msgstr "Code block"
@@ -745,7 +770,6 @@ msgstr "Component slug"
 msgid "Components"
 msgstr "Components"
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Configure"
 msgstr "Configure"
@@ -904,14 +928,10 @@ msgstr "Could not stop the local API"
 msgid "Create"
 msgstr "Create"
 
+#: src/renderer/components/entry-list.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
 msgid "Create {entryName}"
 msgstr "Create {entryName}"
-
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
-msgid "Create a new {entryName}"
-msgstr "Create a new {entryName}"
 
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 msgid "Create a new Collection"
@@ -936,10 +956,6 @@ msgstr "Create Collection"
 msgid "Create Component"
 msgstr "Create Component"
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
-msgid "Create Entry"
-msgstr "Create Entry"
-
 #: src/renderer/routes/projects/create.tsx
 #: src/renderer/routes/projects/index.tsx
 msgid "Create Project"
@@ -954,7 +970,6 @@ msgid "Create your first Project"
 msgstr "Create your first Project"
 
 #: src/renderer/components/diff-container.tsx
-#: src/renderer/components/entry-table.tsx
 msgid "Created"
 msgstr "Created"
 
@@ -1259,7 +1274,7 @@ msgstr "Fields of a Component cannot be unique, since the same Component is used
 msgid "Fill in this field."
 msgstr "Fill in this field."
 
-#: src/renderer/components/entry-table.tsx
+#: src/renderer/components/entry-list.tsx
 msgid "Filter {collectionName}"
 msgstr "Filter {collectionName}"
 
@@ -1365,10 +1380,7 @@ msgstr "Headings"
 msgid "Help"
 msgstr "Help"
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
-msgid "Here you can edit this Entries Values"
-msgstr "Here you can edit this Entries Values"
-
+#: src/renderer/components/entry-history.tsx
 #: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/history.tsx
 msgid "History"
@@ -1418,6 +1430,14 @@ msgstr "images only"
 msgid "Images only."
 msgstr "Images only."
 
+#: src/renderer/components/fields/field-from-definition.tsx
+msgid "In {defaultLanguageName}: {translateFrom}"
+msgstr "In {defaultLanguageName}: {translateFrom}"
+
+#: src/renderer/components/entry-history.tsx
+msgid "In Release {version}"
+msgstr "In Release {version}"
+
 #: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Inline code"
@@ -1456,6 +1476,7 @@ msgstr "Keep editing"
 msgid "Label"
 msgstr "Label"
 
+#: src/renderer/components/language-switch.tsx
 #: src/renderer/components/user-dropdown.tsx
 msgid "Language"
 msgstr "Language"
@@ -1505,9 +1526,13 @@ msgstr "Lists"
 msgid "Loading"
 msgstr "Loading"
 
-#: src/renderer/components/entry-table.tsx
+#: src/renderer/components/entry-list.tsx
 msgid "Loading Entries"
 msgstr "Loading Entries"
+
+#: src/renderer/components/entry-history.tsx
+msgid "Loading the History"
+msgstr "Loading the History"
 
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "Loading this Project's Components"
@@ -1561,6 +1586,14 @@ msgstr "Minimum"
 #: src/renderer/lib/release.ts
 msgid "Minor"
 msgstr "Minor"
+
+#: src/renderer/components/entry-list.tsx
+msgid "Missing"
+msgstr "Missing"
+
+#: src/renderer/components/fields/field-from-definition.tsx
+msgid "Missing in {shownLanguageName}"
+msgstr "Missing in {shownLanguageName}"
 
 #: src/renderer/components/ui/breadcrumb.tsx
 msgid "More"
@@ -1665,6 +1698,7 @@ msgid "No Components yet"
 msgstr "No Components yet"
 
 #: src/renderer/components/fields/entry/control.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
 msgid "No Entry chosen"
 msgstr "No Entry chosen"
 
@@ -1696,13 +1730,13 @@ msgstr "No Release yet"
 msgid "No Releases yet"
 msgstr "No Releases yet"
 
-#: src/renderer/components/entry-table.tsx
+#: src/renderer/components/entry-list.tsx
 msgid "No results."
 msgstr "No results."
 
 #: src/renderer/components/fields/dynamic/control.tsx
-msgid "No sections yet. Add one to start building this page."
-msgstr "No sections yet. Add one to start building this page."
+msgid "No sections yet."
+msgstr "No sections yet."
 
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "No text based Fields to generate from yet. Add one first or leave this empty."
@@ -1786,6 +1820,10 @@ msgstr "Number fields cannot be unique."
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
 msgid "Object changes"
 msgstr "Object changes"
+
+#: src/renderer/components/entry-history.tsx
+msgid "of this Entry"
+msgstr "of this Entry"
 
 #: src/renderer/routes/projects/index.tsx
 msgid "Offline"
@@ -2225,6 +2263,10 @@ msgstr "Set up sync in Settings"
 msgid "Settings"
 msgstr "Settings"
 
+#: src/renderer/components/entry-list.tsx
+msgid "Settings of the {collectionName} Collection"
+msgstr "Settings of the {collectionName} Collection"
+
 #: src/renderer/routes/projects/index.tsx
 msgid "Share changes with everyone on the Project."
 msgstr "Share changes with everyone on the Project."
@@ -2233,13 +2275,13 @@ msgstr "Share changes with everyone on the Project."
 msgid "Share feedback"
 msgstr "Share feedback"
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+msgid "Show the History of this Entry"
+msgstr "Show the History of this Entry"
+
 #: src/renderer/components/project-sidebar.tsx
 msgid "Show why"
 msgstr "Show why"
-
-#: src/renderer/components/entry-table.tsx
-msgid "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
-msgstr "Showing {shownCount} of {totalCount} total {collectionName} ({selectedCount} selected)"
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "Shown below the name on the Projects page."
@@ -2366,6 +2408,10 @@ msgstr "The default language can't be deleted. Please select another language as
 #: src/renderer/lib/release.ts
 msgid "The default language changed"
 msgstr "The default language changed"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId.tsx
+msgid "the Entries of this Collection"
+msgstr "the Entries of this Collection"
 
 #: src/renderer/components/fields/entry/control.tsx
 msgid "The Entries this field allows."
@@ -2494,6 +2540,10 @@ msgstr "The Git repository refused access, so ask whoever set up this Project."
 #: src/renderer/components/fields/range/index.tsx
 msgid "The highest end of the slider."
 msgstr "The highest end of the slider."
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+msgid "the History of this Entry"
+msgstr "the History of this Entry"
 
 #: src/renderer/components/fields/select/definition.tsx
 msgid "The initial option for the field."
@@ -2656,6 +2706,10 @@ msgstr "this change"
 msgid "This change conflicts with the current state. Please review and try again."
 msgstr "This change conflicts with the current state. Please review and try again."
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
+msgid "this Collection"
+msgstr "this Collection"
+
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 msgid "This Collection could not be created. Please review your changes and try again."
 msgstr "This Collection could not be created. Please review your changes and try again."
@@ -2681,8 +2735,8 @@ msgid "This Component could not be saved. Please review your changes and try aga
 msgstr "This Component could not be saved. Please review your changes and try again."
 
 #: src/renderer/components/fields/dynamic/control.tsx
-msgid "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
-msgstr "This Component has no fields yet, so this section holds nothing. Add fields to it to fill this section in."
+msgid "This Component has no fields yet, so this section holds nothing."
+msgstr "This Component has no fields yet, so this section holds nothing."
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "This computer"
@@ -2693,6 +2747,14 @@ msgstr "This computer"
 #: src/renderer/routes/projects/$projectId/settings.tsx
 msgid "This computer only"
 msgstr "This computer only"
+
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
+msgid "this Entry"
+msgstr "this Entry"
+
+#: src/renderer/components/entry-history.tsx
+msgid "This Entry has not changed since it was created."
+msgstr "This Entry has not changed since it was created."
 
 #: src/renderer/components/fields/entry/control.tsx
 msgid "This Entry is no longer available"
@@ -2861,10 +2923,6 @@ msgstr "up to {max}"
 msgid "Update {entryName}"
 msgstr "Update {entryName}"
 
-#: src/renderer/components/entry-table.tsx
-msgid "Updated"
-msgstr "Updated"
-
 #: src/renderer/lib/coreErrorText.ts
 msgid "Upgrading this Project did not work."
 msgstr "Upgrading this Project did not work."
@@ -2916,10 +2974,6 @@ msgstr "Videos only."
 #: src/renderer/components/project-switcher.tsx
 msgid "View all Projects"
 msgstr "View all Projects"
-
-#: src/renderer/components/entry-table.tsx
-msgid "Visible Values"
-msgstr "Visible Values"
 
 #: src/renderer/components/report-dialog.tsx
 msgid "We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment."

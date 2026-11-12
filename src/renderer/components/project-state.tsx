@@ -106,7 +106,8 @@ export function StateIcon({
 export function StateMarker({
   variant,
 }: {
-  variant: 'not-synced' | 'synced' | 'release' | 'release-muted' | 'none';
+  variant:
+    'not-synced' | 'synced' | 'release' | 'release-muted' | 'plain' | 'none';
 }): React.JSX.Element {
   return (
     <span
@@ -115,6 +116,9 @@ export function StateMarker({
         'size-[7px] flex-none rounded-[1.5px]',
         variant === 'not-synced' && 'border-[1.5px] border-foreground bg-card',
         variant === 'synced' && 'bg-muted-foreground',
+        // ci's plain marker, for a row that says what it is in words and
+        // claims nothing by its marker, such as one change of an Entry.
+        variant === 'plain' && 'bg-muted-foreground',
         variant === 'release' && 'bg-brand',
         variant === 'release-muted' && 'bg-muted-foreground',
         variant === 'none' && 'bg-border'

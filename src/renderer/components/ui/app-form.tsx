@@ -120,9 +120,15 @@ export interface FieldShellProps {
   description?: ReactNode;
   /**
    * Something about the Value that keeps nobody from saving, such as a
-   * translation it is still missing.
+   * translation it is still missing. A field that shows one also takes the
+   * warning border and surface on its control.
    */
   warning?: ReactNode;
+  /**
+   * The same Value in another language, to translate from, which stands below
+   * the warning in the muted small role as ci draws it.
+   */
+  translateFrom?: ReactNode;
   /** The message of the one error this field shows, if any. */
   error?: string | undefined;
   /** A field whose label, description and control sit side by side. */
@@ -150,6 +156,7 @@ export function FieldShell({
   rules,
   description,
   warning,
+  translateFrom,
   error,
   orientation = 'vertical',
   className,
@@ -159,14 +166,30 @@ export function FieldShell({
   const controlId = `${id}-control`;
   const rulesId = `${id}-rules`;
   const warningId = `${id}-warning`;
+  const translateFromId = `${id}-translate-from`;
   const descriptionId = `${id}-description`;
   const errorId = `${id}-error`;
   const rulesLine = fieldRulesLine(rules);
+  const warningPart =
+    warning === undefined || warning === null ? null : (
+      <FieldWarning id={warningId}>{warning}</FieldWarning>
+    );
+  const translateFromPart =
+    translateFrom === undefined || translateFrom === null ? null : (
+      <p
+        data-slot="field-translate-from"
+        id={translateFromId}
+        className="text-small text-muted-foreground"
+      >
+        {translateFrom}
+      </p>
+    );
   // In the order they stand on screen, so what a screen reader reads after the
   // control follows what somebody sees around it.
   const describedBy = [
     rulesLine === null ? null : rulesId,
-    warning === undefined || warning === null ? null : warningId,
+    warningPart === null ? null : warningId,
+    translateFromPart === null ? null : translateFromId,
     description === undefined || description === null ? null : descriptionId,
     error === undefined ? null : errorId,
   ]
@@ -184,16 +207,18 @@ export function FieldShell({
     // Offered to every control. One whose role does not take it drops it
     // again, which is what a field type's `acceptsAriaRequired` answers.
     ...(rules.required ? { 'aria-required': true } : {}),
+    // A warned field takes the warning border and surface, which is what ci
+    // draws on the input of a Value a language is still missing. The warning
+    // line below it says the same in words, so the color is never alone.
+    ...(warningPart === null
+      ? {}
+      : { className: 'border-warning-border bg-warning-surface' }),
   });
   const headerPart = (
     <FieldHeader {...(rulesLine === null ? {} : { rules: rulesLine, rulesId })}>
       <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
     </FieldHeader>
   );
-  const warningPart =
-    warning === undefined || warning === null ? null : (
-      <FieldWarning id={warningId}>{warning}</FieldWarning>
-    );
   const descriptionPart =
     description === undefined || description === null ? null : (
       <FieldDescription id={descriptionId}>{description}</FieldDescription>
@@ -216,6 +241,7 @@ export function FieldShell({
         <FieldContent>
           {headerPart}
           {warningPart}
+          {translateFromPart}
           {descriptionPart}
           {errorPart}
         </FieldContent>
@@ -229,6 +255,7 @@ export function FieldShell({
       {headerPart}
       {control}
       {warningPart}
+      {translateFromPart}
       {descriptionPart}
       {errorPart}
     </Field>
