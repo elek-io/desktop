@@ -103,6 +103,36 @@ label: translatableDefault({
 
 This is how the field definition forms initialize their `label` and `description` defaults. See [Dynamic Form Field Generation](./dynamic-form-field-generation.md) for the matching field-name convention (`...content.<language>`) that the translatable inputs rely on.
 
+## One language at a time
+
+A form edits one language, and one switch above its fields sets it for the whole
+form rather than each field opening a dialog of its own.
+
+- **The language lives in the route's search params**, checked with
+  `validateSearch` against [`lib/entryLanguage.ts`](../../src/renderer/lib/entryLanguage.ts).
+  So coming back to an Entry opens the language that was left open, a reload
+  keeps it, and a link can name one. A code the Project does not support falls
+  back to its default language rather than failing the route, and the switch
+  replaces the address rather than pushing it, so the way back leads out of the
+  Entry rather than through every language that was looked at.
+- **Every field reads it from one context**, `useFormLanguage()`
+  ([`hooks/useFormLanguage.ts`](../../src/renderer/hooks/useFormLanguage.ts)),
+  which `EntryForm` provides. A translatable field binds `<path>.<language>`,
+  and `shouldUnregister` stays off, so the Values of the languages that are not
+  on screen are still in the form and a save keeps them.
+- **The switch marks each language that misses a required Value or holds a
+  refused one**, with the warning mark ci draws and in words a screen reader
+  hears. Which languages hold a refusal comes from `languagesWithErrors`
+  ([`lib/formErrors.ts`](../../src/renderer/lib/formErrors.ts)): a translatable
+  Value is bound at `<path>.<language>`, so the language of a refused Value is a
+  segment of its path, whichever field and whichever section it sits in.
+- **It is a row of segments while they fit and one dropdown otherwise**, which
+  Nils decided on 2026-11-01 because Core supports 27 languages while the
+  editor is 318 px wide at the smallest window the app supports. Which of the two is on screen
+  comes from measuring the row against the room it has, in
+  [`components/language-switch.tsx`](../../src/renderer/components/language-switch.tsx),
+  rather than from a number of languages written out there.
+
 ## The app's own words (Lingui)
 
 Every word elek.io Desktop shows comes from one message catalog, read through [Lingui](https://lingui.dev). That covers the renderer and the main process, which shows the native box that says Desktop could not start. What stays in the code reads the same in every language and says so at the line it sits on: elek.io's own names and a third party's, a version marker, a keyboard shortcut's symbols, a language code and a file size's unit symbol.

@@ -198,8 +198,12 @@ which owns the policies that used to be pasted at each call site:
 
 ## Detached submit buttons
 
-A form's primary action usually lives in the `Page` header or a dialog or sheet
-footer, outside the `<form>` subtree. That is the normal case, not the exception.
+A form's primary action usually lives in the head of the pane it stands in, a
+`Page` head or one a screen draws itself, or in a dialog or sheet footer, all
+outside the `<form>` subtree. That is the normal case, not the exception. An
+Entry's Save sits in the editor's own head, beside the button that opens the
+History, with the language switch below it, which is why that screen draws its
+head rather than taking `Page`'s.
 
 `SubmitButton` is the only submit control. It sets `type="submit"` and associates
 back with `form={id}`, the HTML form-association mechanism, so a click in the
@@ -270,7 +274,10 @@ const blockedBy = missing === 0 ? undefined : t`...`;
   - A form whose fields are generated from field definitions names the language,
     as ci's example does. `missingRequiredValues` in
     [`components/fields/missing-values.ts`](../../src/renderer/components/fields/missing-values.ts)
-    answers that per language of the Project.
+    answers that per language of the Project, a dynamic field's sections
+    included, and each field marks itself as missing its Value from the same
+    answer, see
+    [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#a-value-that-holds-nothing).
   - A form of hand-written fields counts them, since none of them belongs to a
     language. `emptyFieldsReason` in
     [`lib/emptyFields.ts`](../../src/renderer/lib/emptyFields.ts) words that
@@ -278,6 +285,24 @@ const blockedBy = missing === 0 ? undefined : t`...`;
     fields a form counts stays the form's own, as `missingProjectValues` is.
 
   Both run without a validator, so either is cheap on every change.
+
+## Keeping focus after a row is removed
+
+A form that holds a list of rows somebody can remove, which is a dynamic
+field's sections today, leaves the focus inside that list rather than on the
+page: the row that takes the removed one's place, else the one before it, else
+the control that adds one, else the list itself. A focus that falls to the body
+loses a keyboard user their place, which the redesign rules out.
+
+- Each row is a `role="group"` with `tabIndex={-1}`, named by what it is and
+  where it stands, such as "Hero, section 1 of 3". It is focusable only to be
+  focused, so the tab order is unchanged.
+- The rows that stay are keyed by their own id, so each keeps its element and
+  can be focused straight after the list was written, see
+  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-sections-of-a-page-the-dynamic-field).
+- The list itself is focusable the same way, which is where the focus lands once
+  the last row is gone and there is nothing to add from, as a field whose
+  Project holds no Component it allows.
 
 ## A form is read-only while it saves
 
@@ -380,12 +405,15 @@ words them.
 ## When an error has no field to land on
 
 A form is only honest if pressing Save either saves or says why not. Two paths
-used to end nowhere, and `AppForm` closes both. One case stays short of that on
-a Project with more than one language: a refusal placed on a language a field is
-not drawing is set on that language's own field, which only that field's
-translations dialog renders, so nothing of it reaches the page but the dialog
-trigger's invalid state, until the switch ci draws above an Entry's fields
-replaces the dialog.
+used to end nowhere, and `AppForm` closes both. On an Entry with more than one
+language a refusal lands on the language's own field, which the form only draws
+while that language is the one on screen, so the switch above the fields marks
+the language it sits in and says so for a screen reader, see
+[internationalization.md](./internationalization.md#one-language-at-a-time).
+The hand-written name and description fields of a Collection, a Component and a
+field definition still open a dialog per field, and a refusal in a language they
+are not drawing reaches the page as that trigger's invalid state alone, until
+the rebuild of those screens puts them on one switch too.
 
 **A validation error with no mounted message.** zod validates the whole form
 value, so an error can land on a path that no field renders. The field
@@ -697,10 +725,21 @@ draws a label, a rule, a warning, a description or an error.
   `controlProps`, so the label's `htmlFor` names the real focusable element by
   construction rather than by a caller remembering to wire it.
 - **`aria-describedby` names only the parts that are on screen**, in the order
-  they stand in: the rules, the warning, the description, the error. A field
-  with none of them says nothing, instead of pointing at elements that are not
-  there. `aria-invalid` is always said, since a control that was valid and then
-  is not has to change rather than gain the state.
+  they stand in: the rules, the warning, the Value to translate from, the
+  description, the error. A field with none of them says nothing, instead of
+  pointing at elements that are not there. `aria-invalid` is always said, since
+  a control that was valid and then is not has to change rather than gain the
+  state.
+- **A warned field takes the warning border and surface on its control**, which
+  ci draws on the input of a Value a language is still missing. The shell puts
+  those classes into `controlProps.className` wherever it draws a warning, so
+  the look and the words always arrive together and the color is never the only
+  thing that says it.
+- **`translateFrom` is the same Value in another language**, which stands below
+  the warning in the muted small role, as "In English: ...". It is what somebody
+  translating reads from, and it is only ever shown below a Value that is
+  missing, see
+  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-path-a-value-is-bound-to).
 - **`name` is typed against the form that is passed in.** A path the form does
   not hold is a compile error at the call site. A shared form body that stays
   generic over its caller's values asserts only the name (`as FieldPath<T>`),

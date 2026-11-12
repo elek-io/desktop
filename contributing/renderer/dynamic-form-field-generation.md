@@ -151,23 +151,24 @@ Everything the app knows about one field type lives in that type's own folder un
 
 A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fields/module.ts) is the contract), and `FieldTypeModule<T>` is generic over the field type, so **every member sees only its own narrowed field definition and no member checks its type again**:
 
-| Member                 | Answers                                                        |
-| ---------------------- | -------------------------------------------------------------- |
-| `Control`              | The control, with this type's Value contract                   |
-| `translatable`         | Whether the Value is per-language                              |
-| `acceptsAriaRequired`  | Whether the control's role takes `aria-required`               |
-| `label`                | Not a member: the field's label, handed to `Control` as a prop |
-| `rules`                | What a field of this type says it needs, beside its label      |
-| `defaultContent`       | The Value's content for a new Entry                            |
-| `previewContent`       | The static content the Collection's preview shows              |
-| `listCell`             | What a row of the list of Entries shows for this Value         |
-| `titleText`            | This Value's text where an Entry is named by one of its Values |
-| `coreRefusalText`      | This type's words for a refusal Core wrote its own English for |
-| `DefinitionDraft`      | The authoring form for a new definition of this type           |
-| `forbiddenInComponent` | That Core refuses this type inside a Component                 |
-| `allowedComponentIds`  | Which Components a definition allows as a section              |
-| `withoutDefinition`    | How a definition forgets another one the editor removed        |
-| `EditSheet`            | The sheet that edits a definition of this type after it exists |
+| Member                 | Answers                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| `Control`              | The control, with this type's Value contract                     |
+| `translatable`         | Whether the Value is per-language                                |
+| `acceptsAriaRequired`  | Whether the control's role takes `aria-required`                 |
+| `label`                | Not a member: the field's label, handed to `Control` as a prop   |
+| `rules`                | What a field of this type says it needs, beside its label        |
+| `defaultContent`       | The Value's content for a new Entry                              |
+| `previewContent`       | The static content the Collection's preview shows                |
+| `isEmpty`              | Whether one language's content of this Value holds nothing       |
+| `renderValue`          | This Value in one language as text, where it is shown not edited |
+| `titleText`            | This Value's text where an Entry is named by one of its Values   |
+| `coreRefusalText`      | This type's words for a refusal Core wrote its own English for   |
+| `DefinitionDraft`      | The authoring form for a new definition of this type             |
+| `forbiddenInComponent` | That Core refuses this type inside a Component                   |
+| `allowedComponentIds`  | Which Components a definition allows as a section                |
+| `withoutDefinition`    | How a definition forgets another one the editor removed          |
+| `EditSheet`            | The sheet that edits a definition of this type after it exists   |
 
 The last four are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components and the one that can be edited at all. `coreRefusalText` is optional too, and three types carry one: `slug`, `entry` and `markdown` are where the refusals Core words itself land, see [Where a refusal's words come from](#where-a-refusals-words-come-from). `DefinitionDraft` is optional too, for a type Core defines and the client cannot author yet, and every type carries one today.
 
@@ -198,7 +199,7 @@ The contracts more than one type shares, such as "a per-language record holding 
 
 A type's control is value-typed: it receives the already-bound `field` (value/onChange/onBlur/ref) plus a `controlProps` bag (`id`, `aria-describedby`, `aria-invalid`, and `aria-required` on the controls that accept it) to place on the real input, and the field's `label` as text. The shell offers `aria-required` to every control of a required field and `FieldFromDefinition` drops it again where the type's `acceptsAriaRequired` says its role does not take it, so required is said in one place and emitted only where it is allowed. It does not know or build a form path. The path lives at the single `Controller` in `FieldFromDefinition`, which is what lets one control serve both a hand-written form and a generated one.
 
-`label` is there for a control whose element takes no name from a `<label>`: a group of radio buttons, a combobox, the markdown editor's editable element and each button of a picker all say it themselves, with `aria-label`. Inside the translations dialog it is the language being edited, so two controls of one field never read alike.
+`label` is there for a control whose element takes no name from a `<label>`: a group of radio buttons, a combobox, the markdown editor's editable element and each button of a picker all say it themselves, with `aria-label`.
 
 The controls more than one type shares are in [`components/ui/field-controls.tsx`](../../src/renderer/components/ui/field-controls.tsx) with their value contracts, see [forms.md](./forms.md#the-shared-controls-and-their-value-contracts). A control a single type owns is in that type's folder, as `control.tsx` where it is more than a few lines. Do not hand-roll a raw `<Input>` in a control.
 
@@ -213,7 +214,7 @@ The controls more than one type shares are in [`components/ui/field-controls.tsx
 
 - **`FieldFromDefinition`** ([`fields/field-from-definition.tsx`](../../src/renderer/components/fields/field-from-definition.tsx)) is the entry point: one `AppField` built from a field definition and bound to any path, so the same field fills an Entry and a section of a dynamic field. It owns the single `Controller` at `name`, reaches the type's folder for the control, and decides `disabled`, which is the definition's `isDisabled` OR the field's own disabled state OR the enclosing `AppForm`'s view mode. Folding the mode in here rather than per type is what keeps a non-native control, the markdown `contenteditable`, from staying editable in a diff, see [forms.md](./forms.md#view-only-forms-and-diffs).
 - **`FieldDefinitionPreview`** ([same file](../../src/renderer/components/fields/field-from-definition.tsx)) is the Collection and Component editors' non-editable preview. It draws the one field shell with no form behind it (`FieldShell`) plus the drag, edit and delete chrome: the control holds a static Value from the type's `previewContent`, so there are no phantom form paths and the label still names a real, disabled control, which is what makes those previews addressable by `getByLabel`. Its edit control is rendered only where the caller passes `onEdit`, which the editor does for a type whose folder carries an `EditSheet`, see [Growing a dynamic field](#growing-a-dynamic-field). A `dynamic` definition draws its sections editor rather than one input, so its preview carries no labelled form control and the `id` lands on that editor's group instead.
-- **`TranslatableField`** ([`components/ui/translatable-field.tsx`](../../src/renderer/components/ui/translatable-field.tsx)) is the single per-language wrapper. With one Project language it renders the control directly; with more it adds a dialog that edits every supported language. It owns the multi-field name convention (the name's last dot-segment is the language, so the sibling paths derive from it) and the `hasErrorsInTranslations` traversal that flags the dialog trigger when a hidden translation is invalid. `TranslatableFormInputField` and `TranslatableFormTextareaField` are thin presets over it for the hand-written string and textarea cases.
+- **No generated field opens a dialog for its translations.** One switch above the whole form sets the language every translatable field is bound to, and a field reads it from `useFormLanguage()`, see [internationalization.md](./internationalization.md#one-language-at-a-time). `TranslatableFormInputField` and `TranslatableFormTextareaField` are what is left of the per-field dialog, for the hand-written name and description fields of a Collection, a Component and a field definition, which the stories that rebuild those screens take off it too.
 
 ### Example Usage
 
@@ -234,19 +235,27 @@ return (
         fieldDefinition={fieldDefinition}
         form={form}
         name={`values.${fieldDefinition.slug}.content`}
-        language={project.settings.language.default}
-        supportedLanguages={project.settings.language.supported}
       />
     ))}
   </AppForm>
 );
 ```
 
-`FieldFromDefinition` takes the form via the `form` prop (not `control`), a required `name` and the `language` being edited, see below.
+`FieldFromDefinition` takes the form via the `form` prop (not `control`) and a required `name`. The language it edits comes from the form around it rather than from a prop, see below.
 
 ### The path a Value is bound to
 
-`name` is the path to the field's `content`, without a language, and `language` is the language being edited. `FieldFromDefinition` appends the language itself when the type's folder says the Value is translatable, so no call site has to know which types are. That matters because the one type that is not, `dynamic`, binds to `content` itself: its Value is a flat array of Component items and has no language to end at, while `TranslatableField` derives the sibling languages from the last segment of the path and so needs one for every other type.
+`name` is the path to the field's `content`, without a language. `FieldFromDefinition` appends the language the form is in when the type's folder says the Value is translatable, so no call site has to know which types are. That matters because the one type that is not, `dynamic`, binds to `content` itself: its Value is a flat array of Component items and has no language to end at.
+
+The language comes from `useFormLanguage()` ([`hooks/useFormLanguage.ts`](../../src/renderer/hooks/useFormLanguage.ts)), which `EntryForm` provides from the switch above the fields, so one switch takes a whole Entry into another language and every field of it stays bound to the same one. A generated field outside such a form is a programming error rather than a case with a default, which is why the hook throws instead of falling back to a language of its own.
+
+Each field also watches the same Value in the Project's default language, which is what stands below a Value the language on screen is still missing, as "In English: ...". A field that cannot be translated from anything, which is the default language itself and the `dynamic` type, watches the path it already draws, so no field carries a second subscription it has no use for.
+
+### A Value that holds nothing
+
+Whether one language's content of a Value holds nothing is the field type's own answer, `isEmpty`, which every folder takes from one of the contracts in [`fields/empty-values.ts`](../../src/renderer/components/fields/empty-values.ts): nothing at all, an empty text or an empty list for most types, and Core's own `isEmptyParagraphOnly` for markdown. Nothing there reads a field type either.
+
+One function over the field definitions, the Values and the Project's languages answers how many required Values each language is still missing, in [`fields/missing-values.ts`](../../src/renderer/components/fields/missing-values.ts). It is what Save's block reads for its reason, what the language switch marks a language by and what puts the Missing badge on a row of the list of Entries, so those three can never disagree. It walks a dynamic field's sections as well, through the Components they are built from, because Core demands each required Value of a section in every language too. [`tests/specs/missing-values.spec.ts`](../../tests/specs/missing-values.spec.ts) holds it against Core's own schema for every field type, both ways: what it calls empty Core refuses, and what it calls filled Core takes.
 
 ### The sections of a page: the dynamic field
 

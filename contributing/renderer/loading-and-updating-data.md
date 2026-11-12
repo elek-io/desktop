@@ -39,8 +39,19 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
 // uncommitted git changes of a project
 ['projects', projectId, 'current', 'changes'];
 
-// commit history of a project
+// commit history of a project, and of one of its Entries
 ['projects', projectId, 'history'];
+[
+  'projects',
+  projectId,
+  'current',
+  'collections',
+  collectionId,
+  'current',
+  'entries',
+  entryId,
+  'history',
+];
 
 // the Releases of a project, and what a Release would publish right now
 ['projects', projectId, 'current', 'releases', 'list'];
@@ -239,7 +250,19 @@ return (
 
 This ensures the page structure renders immediately, with placeholders that are replaced by real data as it loads.
 
-**Lists load fully and paginate client side.** List queries pass `limit: 0`, so Core returns the whole list into a single cached `'list'` query (kept fresh by `staleTime: Infinity` and updated in place by `mergeListWithObject`, not refetched). Any pagination or filtering a list view offers is therefore applied client side over that already-loaded list, not by refetching a page from Core. The Entry table is the current example: it feeds the full list to TanStack Table with `getPaginationRowModel()` (a fixed page size) and `getFilteredRowModel()` (the filter input drives `state.globalFilter`), resets the page index when the filter changes, and sets `autoResetPageIndex: false` because it rebuilds its `data` array each render (the default auto-reset would read that as a data change and snap the page back to the first one). Filter Projects is the simpler case: it narrows the loaded list by the name and the description, and a filter with no matches says so in plain text in the list's place rather than in an empty state, because the page itself is not empty.
+**Lists load fully and filter client side.** List queries pass `limit: 0`, so Core returns the whole list into a single cached `'list'` query (kept fresh by `staleTime: Infinity` and updated in place by `mergeListWithObject`, not refetched). Any filtering a list view offers is therefore applied client side over that already-loaded list, not by refetching a page from Core. The Entries of a Collection are the current example: the list beside the editor holds a row per Entry and scrolls, as ci's list of 296 px does, and its filter narrows the rows by the title each Entry is named by. Filter Projects is the same shape: it narrows the loaded list by the name and the description. A filter with no matches says so in plain text in the list's place rather than in an empty state, because the page itself is not empty.
+
+**A read beside what a screen shows runs beside it, never before it.** The
+History of an Entry is the case: it is a query of its own in the editor's route,
+so the Entry's form draws without waiting for a read of the Project's git
+history, and the pane shows still rows until it answers. An Entry's history
+costs 25 to 90 ms, which is only acceptable because it never holds up the
+Entry's form.
+
+**An Entry's row says when it last changed, not who by.** Core stores an author
+on each change of an Entry rather than on the Entry, so naming the author in the
+list would cost a read of every Entry's history, which is the one read per row
+this app does not do.
 
 ### A read that fails belongs to its pane
 
@@ -433,6 +456,12 @@ only one with words on screen, see
 This is distinct from validation. Validation is surfaced on click through the
 field's own error, not by keeping the button blocked, so an invalid but changed
 form still shows its Save button available and reports the errors when submitted.
+
+**An Entry stays open after it saved.** ci's three panes put the list of the
+Collection's Entries beside the editor, so the next Entry is one click away and
+there is nothing to go back to: the toast answers the save, the History pane
+gains the change, and the form is pristine again. A create form is the one that
+leaves, for the Collection it just added to.
 
 **A form that stays open after it saved is pristine again.** `isDirty` is what
 both `requireDirty` and the guard that asks before unsaved changes are lost
