@@ -61,7 +61,7 @@ import {
   updateEntryViaIpc,
 } from '../helpers/entry.js';
 import { stubCoreReject, stubCoreRejectWithType } from '../helpers/ipc.js';
-import { mainPanel, reloadWindow } from '../helpers/navigation.js';
+import { bootOnHash, mainPanel, reloadWindow } from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
   createProjectViaIpc,
@@ -156,6 +156,10 @@ test.describe('Entries', () => {
       projectId: project.id,
       collectionId: collection.id,
     });
+
+    // One language is nothing to switch between, so the editor carries no
+    // switch at all.
+    await expect(languageSwitch(mainWindow)).toHaveCount(0);
 
     await fillEntryForm(mainWindow, { Title: 'Hello World' });
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
@@ -885,6 +889,23 @@ test.describe('Entries', () => {
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     await chooseLanguage(mainWindow, 'en');
     await expect(title).toHaveValue('Hello');
+
+    // An address naming a language the Project does not hold, and one Core
+    // does not know at all, each open the Project's default language rather
+    // than failing the route.
+    const [opened] = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const address = `#/projects/${project.id}/collections/${collection.id}/${opened?.id ?? ''}/update`;
+    const openWith = async (named: string, settled: string): Promise<void> => {
+      await bootOnHash(mainWindow, `${address}?language=${named}`, settled);
+      await expect(title).toHaveValue('Hello');
+    };
+    // A language the Project does not hold, which stays in the address, and
+    // one Core does not know at all, which is dropped from it.
+    await openWith('fr', `${address}?language=fr`);
+    await openWith('not-a-language', address);
   });
 
   test('marks the language that misses a Value, in the switch and at the field', async ({
