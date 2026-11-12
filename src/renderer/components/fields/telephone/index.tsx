@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
-  contentAsStored,
+  storedText,
   emptyPreview,
   textTitle,
   translatableContent,
@@ -55,7 +56,8 @@ export const telephoneField: FieldTypeModule<'telephone'> = {
   defaultContent: (fieldDefinition, supportedLanguages) =>
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
-  listCell: contentAsStored,
+  isEmpty: holdsNothing,
+  renderValue: storedText,
   titleText: textTitle,
   DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
 };

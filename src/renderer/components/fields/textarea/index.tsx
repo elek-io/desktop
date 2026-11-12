@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans } from '@lingui/react/macro';
 
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { textRules } from '@renderer/components/fields/rules';
 import {
-  contentAsStored,
+  storedText,
   emptyPreview,
   textTitle,
   translatableContent,
@@ -74,7 +75,8 @@ export const textareaField: FieldTypeModule<'textarea'> = {
   defaultContent: (fieldDefinition, supportedLanguages) =>
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
-  listCell: contentAsStored,
+  isEmpty: holdsNothing,
+  renderValue: storedText,
   titleText: textTitle,
   DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
 };

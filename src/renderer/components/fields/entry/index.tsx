@@ -1,6 +1,7 @@
 import { plural, t } from '@lingui/core/macro';
 
 import { coreRefusals } from '@renderer/components/fields/core-refusals';
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { countRules } from '@renderer/components/fields/rules';
 import {
   noTitle,
@@ -33,10 +34,13 @@ export const entryField: FieldTypeModule<'entry'> = {
   defaultContent: (_fieldDefinition, supportedLanguages) =>
     translatableContent([], supportedLanguages),
   previewContent: () => [],
-  listCell: ({ content, language }) => {
+  isEmpty: holdsNothing,
+  // As the Asset field says it: how many Entries the field points at, in one
+  // sentence.
+  renderValue: ({ content, language }) => {
     const count = referenceCount({ content, language });
     return count === 0
-      ? undefined
+      ? null
       : t`${plural(count, { one: '# Entry', other: '# Entries' })}`;
   },
   titleText: noTitle,

@@ -1,6 +1,7 @@
 import { t } from '@lingui/core/macro';
 
 import { coreRefusals } from '@renderer/components/fields/core-refusals';
+import { holdsNoMarkdown } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
   contentInLanguage,
@@ -48,11 +49,12 @@ export const markdownField: FieldTypeModule<'markdown'> = {
       {} as Record<SupportedLanguage, MdAstRoot | null>
     ),
   previewContent: emptyPreview,
-  // A tree cannot be shown in a row, so the list shows its plain text.
-  listCell: ({ content, language }) => {
+  isEmpty: holdsNoMarkdown,
+  // A tree is not read as it is stored, so it is read as its plain text.
+  renderValue: ({ content, language }) => {
     const tree = contentInLanguage(content, language);
     return tree === null || tree === undefined
-      ? undefined
+      ? null
       : extractText(tree as MdAstRoot);
   },
   titleText: noTitle,

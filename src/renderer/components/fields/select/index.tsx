@@ -1,6 +1,7 @@
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
-  contentAsStored,
+  storedText,
   textTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
@@ -31,7 +32,8 @@ export const selectField: FieldTypeModule<'select'> = {
     fieldDefinition.valueType === 'number'
       ? fieldDefinition.defaultValue
       : null,
-  listCell: contentAsStored,
+  isEmpty: holdsNothing,
+  renderValue: storedText,
   // A string option's words can name an Entry. A number option's cannot, which
   // textTitle answers on its own, since it only takes text.
   titleText: textTitle,

@@ -1,9 +1,10 @@
 import { t } from '@lingui/core/macro';
 
 import { coreRefusals } from '@renderer/components/fields/core-refusals';
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
-  contentAsStored,
+  storedText,
   emptyPreview,
   textTitle,
   translatableContent,
@@ -37,7 +38,8 @@ export const slugField: FieldTypeModule<'slug'> = {
   defaultContent: (fieldDefinition, supportedLanguages) =>
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
-  listCell: contentAsStored,
+  isEmpty: holdsNothing,
+  renderValue: storedText,
   titleText: textTitle,
   // A slug is the one definition that points at sibling definitions, so it is
   // the one that has to forget a definition the editor removed. Core's

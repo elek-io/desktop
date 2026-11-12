@@ -2,8 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import {
-  contentAsStored,
+  noText,
   noTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
@@ -69,7 +70,10 @@ export const toggleField: FieldTypeModule<'toggle'> = {
   defaultContent: (fieldDefinition, supportedLanguages) =>
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: (fieldDefinition) => fieldDefinition.defaultValue,
-  listCell: contentAsStored,
+  isEmpty: holdsNothing,
+  // A toggle is always on or off, so no field of one is ever marked as missing
+  // a Value and nothing is ever read below it.
+  renderValue: noText,
   titleText: noTitle,
   DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
 };

@@ -38,6 +38,7 @@ import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { DEFAULT_COLLECTION_ICON } from '@renderer/lib/collectionIcons';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { queryOptions } from '@renderer/queries';
 
@@ -147,7 +148,7 @@ function ProjectCollectionUpdate(): ReactElement {
     // and which dirties the form.
     defaultValues: {
       projectId,
-      icon: 'home',
+      icon: DEFAULT_COLLECTION_ICON,
       name: {
         singular: {},
         plural: {},

@@ -132,7 +132,7 @@ export function EntryTable({
         if (fieldDefinition === undefined) {
           continue;
         }
-        row[slug] = fieldModule(fieldDefinition).listCell({
+        row[slug] = fieldModule(fieldDefinition).renderValue({
           content: value.content,
           fieldDefinition,
           language: project.settings.language.default,

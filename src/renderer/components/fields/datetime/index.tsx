@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans } from '@lingui/react/macro';
 
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
   emptyPreview,
-  temporalCell,
+  temporalText,
   textTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
@@ -67,8 +68,9 @@ export const datetimeField: FieldTypeModule<'datetime'> = {
   defaultContent: (fieldDefinition, supportedLanguages) =>
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
-  listCell: ({ content, language, formatInUserLocale }) =>
-    temporalCell({
+  isEmpty: holdsNothing,
+  renderValue: ({ content, language, formatInUserLocale }) =>
+    temporalText({
       content,
       language,
       pattern: 'Pp',

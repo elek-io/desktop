@@ -2,9 +2,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { numberRules } from '@renderer/components/fields/rules';
 import {
-  contentAsStored,
+  storedText,
   noTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
@@ -79,7 +80,8 @@ export const numberField: FieldTypeModule<'number'> = {
   defaultContent: (fieldDefinition, supportedLanguages) =>
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: (fieldDefinition) => fieldDefinition.defaultValue,
-  listCell: contentAsStored,
+  isEmpty: holdsNothing,
+  renderValue: storedText,
   titleText: noTitle,
   DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
 };

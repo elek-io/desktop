@@ -8,6 +8,7 @@ import {
 import { CollectionForm } from '@renderer/components/forms/collection-form';
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { DEFAULT_COLLECTION_ICON } from '@renderer/lib/collectionIcons';
 import { translatableDefault } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
@@ -82,7 +83,7 @@ export function CollectionDiff({
     resolver: zodResolver(updateCollectionSchema),
     defaultValues: {
       projectId: project.id,
-      icon: 'home',
+      icon: DEFAULT_COLLECTION_ICON,
       name: {
         singular: translatableDefault({
           supportedLanguages: project.settings.language.supported,
@@ -134,7 +135,7 @@ export function CollectionDiff({
     resolver: zodResolver(updateCollectionSchema),
     defaultValues: {
       projectId: project.id,
-      icon: 'home',
+      icon: DEFAULT_COLLECTION_ICON,
       name: {
         singular: translatableDefault({
           supportedLanguages: project.settings.language.supported,

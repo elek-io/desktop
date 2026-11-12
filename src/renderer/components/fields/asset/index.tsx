@@ -1,5 +1,6 @@
 import { plural, t } from '@lingui/core/macro';
 
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { countRules } from '@renderer/components/fields/rules';
 import {
   noTitle,
@@ -37,13 +38,14 @@ export const assetField: FieldTypeModule<'asset'> = {
   defaultContent: (_fieldDefinition, supportedLanguages) =>
     translatableContent([], supportedLanguages),
   previewContent: () => [],
-  // A reference cannot be shown as it is stored, so the list says how many
-  // Assets the field points at, as one sentence rather than a count joined to
-  // a noun, so a language that inflects the noun with the count can.
-  listCell: ({ content, language }) => {
+  isEmpty: holdsNothing,
+  // A reference cannot be read as it is stored, so it says how many Assets the
+  // field points at, as one sentence rather than a count joined to a noun, so
+  // a language that inflects the noun with the count can.
+  renderValue: ({ content, language }) => {
     const count = referenceCount({ content, language });
     return count === 0
-      ? undefined
+      ? null
       : t`${plural(count, { one: '# Asset', other: '# Assets' })}`;
   },
   titleText: noTitle,

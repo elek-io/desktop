@@ -21,22 +21,13 @@ import {
   TranslatableFormInputField,
   TranslatableFormTextareaField,
 } from '@renderer/components/ui/translatable-field';
+import { COLLECTION_ICON_NAMES } from '@renderer/lib/collectionIcons';
 
 import { type Project } from '@elek-io/core';
 
-/**
- * The icons a Collection can be given here.
- *
- * Core takes any icon name Lucide ships, and holds no list of them, so the
- * names a Collection is offered are the app's own. These two are what Core
- * used to allow and what every stored Collection carries, see
- * contributing/not-yet-implemented.md.
- */
-const ICON_NAMES = ['home', 'plus'] as const;
-
-/** Those icons as the value-to-label map a select needs. */
+/** The icons a Collection is offered, as the value-to-label map a select needs. */
 const iconItems: Record<string, string> = Object.fromEntries(
-  ICON_NAMES.map((name) => [name, name])
+  COLLECTION_ICON_NAMES.map((name) => [name, name])
 );
 
 interface CollectionFormProps<
@@ -116,7 +107,7 @@ export function CollectionForm<
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ICON_NAMES.map((name) => {
+                  {COLLECTION_ICON_NAMES.map((name) => {
                     return (
                       <SelectItem key={name} value={name}>
                         {name}

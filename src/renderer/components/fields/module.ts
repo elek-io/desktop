@@ -48,12 +48,12 @@ export interface FieldTypeControlProps<
   label: string;
 }
 
-/** What one Value contributes to a row of the list of Entries. */
-export interface FieldTypeListCellProps<T extends FieldType> {
+/** What one Value reads as where it is shown rather than edited. */
+export interface FieldTypeRenderValueProps<T extends FieldType> {
   /** The Value's content, which is a per-language record for every type but `dynamic`. */
   content: unknown;
   fieldDefinition: DefinitionOf<T>;
-  /** The language the list shows, which is the Project's default. */
+  /** The language to read, such as the Project's default. */
   language: SupportedLanguage;
   /** Formats a date in the user's locale, with a date-fns pattern. */
   formatInUserLocale: (date: Date, pattern: string) => string;
@@ -133,10 +133,24 @@ export interface FieldTypeModule<T extends FieldType> {
    */
   previewContent: (fieldDefinition: DefinitionOf<T>) => unknown;
   /**
-   * What one row of the list of Entries shows for this Value, or `undefined`
-   * for an empty cell.
+   * Whether one language's content of this Value holds nothing, which is what
+   * Core refuses a required field for.
+   *
+   * A type picks its contract in `empty-values.ts`, and markdown's calls
+   * Core's own check. It is handed one language's content for every type but
+   * `dynamic`, whose Value is one flat list, and it runs without a validator,
+   * so the answer is cheap on every change. See
+   * contributing/renderer/forms.md#a-missing-value-and-saves-block.
    */
-  listCell: (props: FieldTypeListCellProps<T>) => unknown;
+  isEmpty: (content: unknown) => boolean;
+  /**
+   * This Value in one language as text, or `null` where the type shows none.
+   *
+   * It is what stands below a field whose Value is missing in the language on
+   * screen, as the Value to translate from, so a type that can never be
+   * missing answers `null`.
+   */
+  renderValue: (props: FieldTypeRenderValueProps<T>) => string | null;
   /**
    * This Value's text where an Entry is named by one of its Values, or `null`
    * where the type names no Entry. See `entryTitle` in `entry-title.ts`.

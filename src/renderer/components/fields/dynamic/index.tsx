@@ -1,5 +1,6 @@
+import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { countRules } from '@renderer/components/fields/rules';
-import { noTitle } from '@renderer/components/fields/value-contracts';
+import { noText, noTitle } from '@renderer/components/fields/value-contracts';
 
 import { resolveOfComponents } from '@elek-io/core';
 
@@ -34,8 +35,12 @@ export const dynamicField: FieldTypeModule<'dynamic'> = {
   // than being pre-filled with a section nobody asked for.
   defaultContent: () => [],
   previewContent: () => null,
-  // Sections cannot be shown in a row of the list of Entries.
-  listCell: () => undefined,
+  // Its Value is one flat list rather than content per language, so an empty
+  // list is what Core refuses a required dynamic field for.
+  isEmpty: holdsNothing,
+  // Sections are not read as one line of text, and this field is the one that
+  // is not per-language, so it is never translated from another language.
+  renderValue: noText,
   titleText: noTitle,
   // An empty `ofComponents` allows every Component of the Project, which is
   // Core's own rule rather than ours, so it is read off Core.

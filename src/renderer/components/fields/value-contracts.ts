@@ -30,15 +30,34 @@ export function translatableContent(
   return translatableDefault({ supportedLanguages, defaultValue });
 }
 
-/** One language's content, shown in the list of Entries as it is stored. */
-export function contentAsStored({
+/**
+ * One language's content as text, for a Value shown rather than edited: a text
+ * as it is stored and a number as it reads.
+ *
+ * `null` where the language holds nothing, so nothing stands where there is
+ * nothing to read.
+ */
+export function storedText({
   content,
   language,
 }: {
   content: unknown;
   language: SupportedLanguage;
-}): unknown {
-  return contentInLanguage(content, language);
+}): string | null {
+  const value = contentInLanguage(content, language);
+
+  if (typeof value === 'string') {
+    return value === '' ? null : value;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  return null;
+}
+
+/** A Value of a type that is never read as text. */
+export function noText(): null {
+  return null;
 }
 
 /**
@@ -93,10 +112,10 @@ export function referenceCount({
 /**
  * A date, datetime or time Value in the user's locale, parsed with the type's
  * own anchor and shown with its own date-fns pattern. The stored string is
- * returned unchanged where it is not a date at all, so a list never shows
+ * returned unchanged where it is not a date at all, so nothing ever reads
  * "Invalid Date".
  */
-export function temporalCell({
+export function temporalText({
   content,
   language,
   pattern,
@@ -108,10 +127,10 @@ export function temporalCell({
   pattern: string;
   anchor: (value: string) => string;
   formatInUserLocale: (date: Date, pattern: string) => string;
-}): unknown {
+}): string | null {
   const value = contentInLanguage(content, language);
   if (typeof value !== 'string' || value === '') {
-    return value;
+    return null;
   }
   const date = new Date(anchor(value));
   return isNaN(date.getTime()) ? value : formatInUserLocale(date, pattern);

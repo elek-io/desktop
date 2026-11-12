@@ -25,6 +25,7 @@ import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
+import { DEFAULT_COLLECTION_ICON } from '@renderer/lib/collectionIcons';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { translatableDefault } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
@@ -92,7 +93,7 @@ function ProjectCollectionCreate(): ReactElement {
     resolver: zodResolver(generatedCreateCollectionSchema),
     defaultValues: {
       projectId,
-      icon: 'home',
+      icon: DEFAULT_COLLECTION_ICON,
       name: {
         singular: {},
         plural: {},
