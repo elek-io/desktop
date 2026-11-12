@@ -608,11 +608,13 @@ test.describe('Components', () => {
     ).toHaveValue('Only one');
 
     // The same field on create, where a section has been added and removed
-    // again and Save is not blocked by a reason.
+    // again. A new Entry is missing the same required Value, so Save is
+    // blocked there too rather than being pressed and refused.
     await navigateToEntryCreate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
+    const create = mainWindow.getByRole('button', { name: 'Create Article' });
     await mainWindow.getByLabel('Title', { exact: true }).fill('Another');
     await addSection.click();
     await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
@@ -620,15 +622,19 @@ test.describe('Components', () => {
     await mainWindow
       .getByRole('button', { name: 'Remove the Teaser section' })
       .click();
-    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
-    // On create the press runs, so the message lands on the field and marks
-    // its control, rather than the press doing nothing at all, and it says what
-    // the field needs rather than what the validator measured. Nothing is
-    // mounted inside the field on arrival here, which is what hid the message
-    // when only the update route was driven.
-    await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(mainWindow.getByText('Fill in this field.')).toBeVisible();
+    await expect(create).toBeDisabled();
+    await expect(
+      mainWindow.locator('[data-slot="form-blocked-reason"]')
+    ).toHaveText('English is missing 1 Value');
+    await create.click({ force: true });
+
+    // Nothing was created, and the field was never marked, which is what tells
+    // a blocked form from one that is checked when Save is pressed.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/create`)
+    );
+    await expect(addSection).toHaveAttribute('aria-invalid', 'false');
   });
 
   test('authors a dynamic Field on a Collection through the Add Field sheet', async ({

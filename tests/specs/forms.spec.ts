@@ -483,7 +483,7 @@ test.describe('A form filled from its query', () => {
       {
         slot: 'field-rules',
         followsControl: false,
-        text: 'Required',
+        text: 'Required, at least 3 characters',
       },
       {
         slot: 'field-warning',
@@ -519,7 +519,7 @@ test.describe('A form filled from its query', () => {
       true,
       true,
     ]);
-    expect(refused.parts[0]?.text).toBe('Required');
+    expect(refused.parts[0]?.text).toBe('Required, at least 3 characters');
     expect(refused.parts[1]?.text).toBe('What the Entry is called');
     expect(refused.parts[2]?.text).not.toBe('');
   });
