@@ -32,10 +32,12 @@ import { cn } from '@renderer/lib/utils';
 
 import { type SupportedLanguage } from '@elek-io/core';
 
-// The per-language dialog a translatable field opens today. One switch above a
-// whole Entry replaces it, see the redesign of the Entry.
+// The per-language dialog the hand-written name and description fields of a
+// Collection, a Component and a field definition still open. A generated field
+// opens none: one switch above the whole form sets the language every one of
+// them is bound to, and the rebuild of those screens puts them on it too.
 //
-// See contributing/renderer/dynamic-form-field-generation.md.
+// See contributing/renderer/internationalization.md#one-language-at-a-time.
 
 export interface TranslatableFieldProps<
   TFieldValues extends FieldValues,
@@ -66,11 +68,11 @@ export interface TranslatableFieldProps<
 }
 
 /**
- * The single per-language field wrapper. With one Project language it renders the
- * control directly, with more it adds a dialog that edits every language. It owns
- * the multi-field name convention, where the name's last dot-segment is the
- * current language and the sibling paths derive from it, so the control stays
- * value-typed.
+ * The per-language wrapper a hand-written field takes. With one Project
+ * language it renders the control directly, with more it adds a dialog that
+ * edits every language. It owns the multi-field name convention, where the
+ * name's last dot-segment is the current language and the sibling paths derive
+ * from it, so the control stays value-typed.
  */
 export function TranslatableField<
   TFieldValues extends FieldValues,
