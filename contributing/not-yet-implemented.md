@@ -112,6 +112,12 @@ See [`renderer/markdown-editor.md`](./renderer/markdown-editor.md) for the edito
 - **Client today**: `EntryTable` ([`entry-table.tsx`](../src/renderer/components/entry-table.tsx)) computes a display value per field slug but the value columns define no `cell` renderer, so those cells render empty. Only the fixed columns show data.
 - **Where to start**: add a `cell` renderer per column that formats the value by field type (text, reference count, toggle, date).
 
+## A Collection's icon: two names of Lucide's catalog
+
+- **Core support**: `supportedIconSchema` takes any icon name in Lucide's spelling, at most 64 characters, and Core holds no list of Lucide's own names.
+- **Client today**: the Collection form offers `home` and `plus`, the two names Core used to allow, from `ICON_NAMES` in [`collection-form.tsx`](../src/renderer/components/forms/collection-form.tsx). Nothing reads `collection.icon` to draw it either, so every Collection shows the same icon in the sidebar.
+- **Where to start**: the select becomes a picker over Lucide's own catalog, which `lucide-react` already ships, and the chosen icon is drawn where a Collection is named.
+
 ## Range field: fixed step
 
 - **Core support**: pending. The range field has `min` and `max` but no `step`.

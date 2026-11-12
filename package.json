@@ -43,7 +43,7 @@
     "test:report": "playwright show-report"
   },
   "dependencies": {
-    "@elek-io/core": "0.26.0",
+    "@elek-io/core": "0.28.0",
     "@lingui/core": "6.11.0",
     "dugite": "3.3.2",
     "electron-updater": "6.8.11",
