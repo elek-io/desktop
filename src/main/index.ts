@@ -846,6 +846,7 @@ class Main {
       'core:entries:list': core.entries.list.bind(core.entries),
       'core:entries:create': core.entries.create.bind(core.entries),
       'core:entries:read': core.entries.read.bind(core.entries),
+      'core:entries:history': core.entries.history.bind(core.entries),
       'core:entries:update': core.entries.update.bind(core.entries),
       'core:entries:delete': core.entries.delete.bind(core.entries),
     } as const;

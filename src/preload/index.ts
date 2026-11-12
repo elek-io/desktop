@@ -160,6 +160,8 @@ const ipc: ContextBridgeApi = {
       create: async (...args) =>
         ipcRenderer.invoke('core:entries:create', ...args),
       read: async (...args) => ipcRenderer.invoke('core:entries:read', ...args),
+      history: async (...args) =>
+        ipcRenderer.invoke('core:entries:history', ...args),
       update: async (...args) =>
         ipcRenderer.invoke('core:entries:update', ...args),
       delete: async (...args) =>

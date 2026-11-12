@@ -4,6 +4,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type {
   CountEntriesProps,
   Entry,
+  EntryHistoryProps,
   ListEntriesProps,
   PaginatedList,
   ReadEntryProps,
@@ -84,6 +85,33 @@ export const entryOptions = {
       },
       throwOnError: true,
     }),
+  /**
+   * The changes of one Entry, newest first, each with the first Release that
+   * included it or none yet.
+   *
+   * It is read beside the Entry rather than before it, in a query of its own,
+   * so the Entry's form draws without waiting for a read of the Project's git
+   * history. Every mutation of this Entry invalidates the key, which is how the
+   * History pane follows a save.
+   */
+  history: (props: EntryHistoryProps) =>
+    queryOptions({
+      queryKey: [
+        'projects',
+        props.projectId,
+        'current',
+        'collections',
+        props.collectionId,
+        'current',
+        'entries',
+        props.id,
+        'history',
+      ],
+      queryFn: async () => {
+        return await window.ipc.core.entries.history(props);
+      },
+      throwOnError: true,
+    }),
   update: customMutationOptions({
     mutationFn: window.ipc.core.entries.update,
     meta: {
@@ -94,7 +122,7 @@ export const entryOptions = {
       success: () => t`Entry saved`,
       error: () => t`Could not save the Entry`,
     },
-    onSuccess: (updatedEntry, variables, _result, context) => {
+    onSuccess: async (updatedEntry, variables, _result, context) => {
       // Update Entry in cache individually
       context.client.setQueryData(
         [
@@ -125,6 +153,17 @@ export const entryOptions = {
         ],
         (oldList) => mergeListWithObject(oldList, updatedEntry, 'update')
       );
+
+      // The save is one more change of this Entry, and which commits its
+      // history holds is Core's answer rather than ours to add to, so it is
+      // read again.
+      await context.client.invalidateQueries({
+        queryKey: entryOptions.history({
+          projectId: variables.projectId,
+          collectionId: variables.collectionId,
+          id: updatedEntry.id,
+        }).queryKey,
+      });
     },
   }),
   delete: customMutationOptions({

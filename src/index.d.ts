@@ -122,6 +122,7 @@ declare global {
         list: ElekIoCore['entries']['list'];
         create: ElekIoCore['entries']['create'];
         read: ElekIoCore['entries']['read'];
+        history: ElekIoCore['entries']['history'];
         update: ElekIoCore['entries']['update'];
         delete: ElekIoCore['entries']['delete'];
       };
