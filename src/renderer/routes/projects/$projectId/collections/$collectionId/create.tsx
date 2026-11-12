@@ -197,7 +197,7 @@ function CreateEntryPage(): React.JSX.Element {
     <Pane name={t`a new Entry`}>
       <PaneHead className="pb-1.5">
         <h1 className="min-w-0 flex-1 truncate text-h3">
-          <Trans>Create {entryName}</Trans>
+          <Trans>Create a new {entryName}</Trans>
         </h1>
         <FormActions form={createEntryForm} id={formId} blockedBy={blockedBy}>
           <SubmitButton requireDirty Icon={Check}>
@@ -205,17 +205,22 @@ function CreateEntryPage(): React.JSX.Element {
           </SubmitButton>
         </FormActions>
       </PaneHead>
-      <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
-        <LanguageSwitch
-          languages={supportedLanguages.map((candidate) => ({
-            language: candidate,
-            missing: missingByLanguage.get(candidate) ?? 0,
-            hasError: refused.has(candidate),
-          }))}
-          language={shownLanguage}
-          onLanguageChange={setLanguage}
-        />
-      </div>
+      {/* The switch stands below the title and above the fields, which is
+      where ci draws it. A Project of one language has nothing to switch
+      between, so it carries no row. */}
+      {supportedLanguages.length > 1 ? (
+        <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
+          <LanguageSwitch
+            languages={supportedLanguages.map((candidate) => ({
+              language: candidate,
+              missing: missingByLanguage.get(candidate) ?? 0,
+              hasError: refused.has(candidate),
+            }))}
+            language={shownLanguage}
+            onLanguageChange={setLanguage}
+          />
+        </div>
+      ) : null}
       <ScrollArea className="flex-1">
         <EntryForm
           id={formId}

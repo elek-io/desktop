@@ -930,6 +930,10 @@ msgstr "Create"
 msgid "Create {entryName}"
 msgstr "Create {entryName}"
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
+msgid "Create a new {entryName}"
+msgstr "Create a new {entryName}"
+
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 msgid "Create a new Collection"
 msgstr "Create a new Collection"

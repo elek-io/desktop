@@ -260,18 +260,21 @@ function UpdateEntryPage(): ReactElement {
             </FormActions>
           </PaneHead>
           {/* The switch stands below the title and above the fields, which is
-        where ci draws it, so it is the first thing in the editor. */}
-          <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
-            <LanguageSwitch
-              languages={supportedLanguages.map((candidate) => ({
-                language: candidate,
-                missing: missingByLanguage.get(candidate) ?? 0,
-                hasError: refused.has(candidate),
-              }))}
-              language={shownLanguage}
-              onLanguageChange={setLanguage}
-            />
-          </div>
+          where ci draws it, so it is the first thing in the editor. A Project of
+          one language has nothing to switch between, so it carries no row. */}
+          {supportedLanguages.length > 1 ? (
+            <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
+              <LanguageSwitch
+                languages={supportedLanguages.map((candidate) => ({
+                  language: candidate,
+                  missing: missingByLanguage.get(candidate) ?? 0,
+                  hasError: refused.has(candidate),
+                }))}
+                language={shownLanguage}
+                onLanguageChange={setLanguage}
+              />
+            </div>
+          ) : null}
           <ScrollArea className="flex-1">
             <EntryForm
               id={formId}
