@@ -106,7 +106,6 @@ export function missingRequiredValues({
   };
 
   for (const fieldDefinition of fieldDefinitions) {
-    const module = fieldModule(fieldDefinition);
     const content = contentOf(values[fieldDefinition.slug]);
 
     // A section's own required Values count whether or not the field holding
@@ -129,15 +128,10 @@ export function missingRequiredValues({
       continue;
     }
 
-    if (module.translatable === false) {
-      if (module.isEmpty(content)) {
-        count(defaultLanguage);
-      }
-      continue;
-    }
-
     for (const language of supportedLanguages) {
-      if (module.isEmpty(contentInLanguage(content, language))) {
+      if (
+        isMissingValue({ fieldDefinition, content, language, defaultLanguage })
+      ) {
         count(language);
       }
     }
@@ -150,25 +144,37 @@ export function missingRequiredValues({
  * Whether one field of an Entry misses its required Value in one language,
  * which is what marks that field.
  *
- * The same question as above, for the one field drawing itself, so the mark
- * below a field and the count under Save never disagree.
+ * It is the one question the count above asks per language, so the field that
+ * draws itself asks it too and the mark below a field and the count under Save
+ * can never disagree.
  */
 export function isMissingValue({
   fieldDefinition,
   content,
   language,
+  defaultLanguage,
 }: {
   fieldDefinition: FieldDefinition;
   /** The Value's content, which is the per-language record where there is one. */
   content: unknown;
   language: SupportedLanguage;
+  /**
+   * The Project's default language, which a Value belonging to no language
+   * counts under, because that is the language a form opens in.
+   */
+  defaultLanguage: SupportedLanguage;
 }): boolean {
   if (fieldDefinition.isRequired === false) {
     return false;
   }
   const module = fieldModule(fieldDefinition);
 
-  return module.isEmpty(
-    module.translatable ? contentInLanguage(content, language) : content
-  );
+  if (module.translatable === false) {
+    // One Value for every language, so it is missing under the default
+    // language alone rather than under each of them, which would count one
+    // Value as several and mark it in a language it says nothing about.
+    return language === defaultLanguage && module.isEmpty(content);
+  }
+
+  return module.isEmpty(contentInLanguage(content, language));
 }

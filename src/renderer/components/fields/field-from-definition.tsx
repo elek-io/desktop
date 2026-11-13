@@ -17,6 +17,7 @@ import {
 
 import { DragHandle } from '@renderer/components/drag-and-drop';
 import { fieldModule } from '@renderer/components/fields';
+import { isMissingValue } from '@renderer/components/fields/missing-values';
 import {
   AppField,
   FieldShell,
@@ -26,7 +27,10 @@ import {
 import { Button } from '@renderer/components/ui/button';
 import { ButtonGroup } from '@renderer/components/ui/button-group';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
-import { useAppFormMode } from '@renderer/hooks/useAppFormContext';
+import {
+  useAppFormMode,
+  useErrorTarget,
+} from '@renderer/hooks/useAppFormContext';
 import { useFormLanguage } from '@renderer/hooks/useFormLanguage';
 import { useProject } from '@renderer/hooks/useProject';
 import { unknownRefusalText } from '@renderer/lib/refusedValueText';
@@ -149,10 +153,12 @@ export function FieldFromDefinition<
       : leafName;
   // Both are watched rather than read once, because whether this field is
   // missing its Value and what it would be translated from both change while
-  // somebody types, in this language and in the default one.
-  const shownValue: unknown = useWatch({
+  // somebody types, in this language and in the default one. The whole Value is
+  // watched rather than the language on screen, because that is what the one
+  // answer to a missing Value reads, in whichever language it answers for.
+  const value: unknown = useWatch({
     control: form.control,
-    name: leafName,
+    name,
   });
   const defaultLanguageValue: unknown = useWatch({
     control: form.control,
@@ -193,10 +199,14 @@ export function FieldFromDefinition<
     coreRefusalTextOf(fieldDefinition, refusal);
 
   // Whether this field is one of the Values the language on screen is still
-  // missing, which is the same question the count under Save answers, asked
-  // for this one field.
-  const isMissing =
-    fieldDefinition.isRequired !== false && module.isEmpty(shownValue);
+  // missing. It is the one answer the count under Save and the switch above
+  // the fields read, asked for this one field, so the three never disagree.
+  const isMissing = isMissingValue({
+    fieldDefinition,
+    content: value,
+    language,
+    defaultLanguage,
+  });
   // What the Value reads as in the Project's default language, so somebody
   // translating has the text they are translating in front of them. It stands
   // only below a Value that is missing, and never below the default language
@@ -212,6 +222,12 @@ export function FieldFromDefinition<
       : null;
   const defaultLanguageName = languageName(defaultLanguage);
   const shownLanguageName = languageName(language);
+  // The whole Value is claimed, not only the language on screen, because a
+  // refusal in a language this form is not drawing is answered by the mark the
+  // switch above the fields puts on that language rather than by the form's
+  // backstop for a bug, see
+  // contributing/renderer/forms.md#when-an-error-has-no-field-to-land-on.
+  useErrorTarget(name);
 
   return (
     <AppField

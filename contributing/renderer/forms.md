@@ -275,8 +275,8 @@ const blockedBy = missing === 0 ? undefined : t`...`;
     as ci's example does. `missingRequiredValues` in
     [`components/fields/missing-values.ts`](../../src/renderer/components/fields/missing-values.ts)
     answers that per language of the Project, a dynamic field's sections
-    included, and each field marks itself as missing its Value from the same
-    answer, see
+    included, and each field marks itself through `isMissingValue` beside it,
+    which is the one question that count asks per language, see
     [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#a-value-that-holds-nothing).
   - A form of hand-written fields counts them, since none of them belongs to a
     language. `emptyFieldsReason` in
@@ -424,11 +424,13 @@ focus. Save simply did nothing.
 
 `AppForm` now passes `handleSubmit` an `onInvalid`. Every component that renders
 messages claims the paths it covers through `useErrorTarget(name)` (`AppField`
-claims its own path, `TranslatableField` claims its base path because the dialog
-trigger flags a hidden language). On a failed submit `AppForm` flattens
-`formState.errors`, subtracts everything a claimed path covers, and says one
-sentence in a focused `role="alert"` at the top of the form where anything is
-left, plus an error through Core's logger so it is loud in a dev run.
+claims its own path, and a generated field and `TranslatableField` claim the
+whole Value above the language they draw, because the switch above the fields
+marks a hidden language and the dialog trigger flags one). On a failed submit
+`AppForm` flattens `formState.errors`, subtracts everything a claimed path
+covers, and says one sentence in a focused `role="alert"` at the top of the form
+where anything is left, plus an error through Core's logger so it is loud in a
+dev run.
 
 **The sentence carries no path, and the log record carries every one of them.**
 An internal path says nothing to the person reading it, while it is the one
