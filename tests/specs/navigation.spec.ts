@@ -720,25 +720,37 @@ test.describe("A Project's sidebar", () => {
         }
         content.scrollTop = content.scrollHeight;
       });
-      await waitForLayout(mainWindow);
-
-      const atBottom = await mainWindow.evaluate(() => {
-        const content = document.querySelector(
-          '[data-slot="sidebar"] [data-slot="sidebar-content"]'
-        );
-        if (content === null) {
-          throw new Error('The sidebar has no navigation');
-        }
-
-        return {
-          above: getComputedStyle(content, '::before').opacity,
-          below: getComputedStyle(content, '::after').opacity,
-        };
-      });
 
       // At the end of the list the two swap: rows sit above it, none below.
-      expect(atBottom.above, theme).toBe('1');
-      expect(atBottom.below, theme).toBe('0');
+      //
+      // Read until it settles rather than once. The opacity of a rule follows
+      // the scroll position itself, which the style a page can read catches up
+      // with a frame or more after the scroll, and how many frames that takes
+      // is the system's own business. Where the list stands is read with it, so
+      // a scroll that did not take reads apart from a rule that did not follow
+      // one that did.
+      await expect
+        .poll(
+          async () =>
+            mainWindow.evaluate(() => {
+              const content = document.querySelector(
+                '[data-slot="sidebar"] [data-slot="sidebar-content"]'
+              );
+              if (content === null) {
+                throw new Error('The sidebar has no navigation');
+              }
+
+              return {
+                above: getComputedStyle(content, '::before').opacity,
+                below: getComputedStyle(content, '::after').opacity,
+                atEnd:
+                  Math.round(content.scrollTop) ===
+                  Math.round(content.scrollHeight - content.clientHeight),
+              };
+            }),
+          { message: theme }
+        )
+        .toEqual({ above: '1', below: '0', atEnd: true });
     }
   });
 });
