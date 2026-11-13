@@ -64,6 +64,12 @@ interface ProbedElement {
    * comes after this element in document order.
    */
   compareDocumentPosition(other: ProbedElement): number;
+  /**
+   * What the element runs now, transitions included, and with `subtree` what
+   * everything inside it runs too. One spec waits for the Project card's to
+   * end, since the card fades a control in once its check has answered.
+   */
+  getAnimations(options?: { subtree?: boolean }): ArrayLike<ProbedAnimation>;
 }
 
 /**

@@ -6,7 +6,11 @@ import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
 import { createComponentViaIpc } from '../helpers/component.js';
 import { createEntryViaIpc, stringValue } from '../helpers/entry.js';
-import { navigate } from '../helpers/navigation.js';
+import {
+  navigate,
+  projectCard,
+  waitForProjectCard,
+} from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
   createProjectViaIpc,
@@ -16,20 +20,66 @@ import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import { MINIMUM_WINDOW_SIZE, resizeWindow } from '../helpers/window.js';
 
+/** What a route's `arrange` hands the scan. */
+interface Arranged {
+  /** The hash the scan opens. */
+  hash: string;
+  /** The name of the Project the route is inside, where it is inside one. */
+  project?: string;
+}
+
+/**
+ * Wait until a route inside a Project has settled, so the scan reads the route
+ * itself rather than what stands in for it while the Project is read.
+ *
+ * Until the Project is read, the sidebar is a skeleton, and a screen that
+ * needs the Project draws nothing, so a scan then finds no heading and no main
+ * landmark. Once it is read, the card checks the Project's Git repository, and
+ * Sync and Check now fade in when the check answers. A scan that catches one
+ * of them mid-fade measures a contrast neither keeps.
+ */
+async function waitForArrangedRoute(
+  page: Page,
+  arranged: Arranged
+): Promise<void> {
+  if (arranged.project === undefined) {
+    return;
+  }
+
+  await waitForProjectCard(page, arranged.project);
+  // The card draws a skeleton line until its check has answered. The check
+  // asks the Git repository, so it is given the slack of a slow network.
+  await expect(projectCard(page).locator('[data-slot="skeleton"]')).toHaveCount(
+    0,
+    { timeout: 20000 }
+  );
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () =>
+          document
+            .querySelector('[data-slot="project-card"]')
+            ?.getAnimations({ subtree: true }).length ?? 0
+      )
+    )
+    .toBe(0);
+}
+
 // Per-route accessibility assertions, opt-in ahead of the fixture-wide axe
 // assertion the @todo still defers (see testing.md). Each route enforces every
 // axe rule, color-contrast included. Add a route here once it is clean enough
 // to enforce.
 //
-// `arrange` seeds whatever the route needs and returns the hash to scan, so a
-// route inside a Project can be enforced too.
+// `arrange` seeds whatever the route needs and returns the hash to scan, with
+// the Project the route is inside, so a route inside a Project can be enforced
+// too.
 const enforcedRoutes: {
   name: string;
-  arrange: (page: Page) => Promise<string> | string;
+  arrange: (page: Page) => Promise<Arranged> | Arranged;
 }[] = [
   {
     name: '#/projects',
-    arrange: () => '#/projects',
+    arrange: () => ({ hash: '#/projects' }),
   },
   // A Project's Releases, empty, which also puts the Project sidebar and a
   // Project's breadcrumb under the scan.
@@ -37,7 +87,10 @@ const enforcedRoutes: {
     name: '#/projects/:projectId/releases',
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
-      return `#/projects/${project.id}/releases`;
+      return {
+        hash: `#/projects/${project.id}/releases`,
+        project: project.name,
+      };
     },
   },
   // A Project's Components, empty.
@@ -45,7 +98,10 @@ const enforcedRoutes: {
     name: '#/projects/:projectId/components',
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
-      return `#/projects/${project.id}/components`;
+      return {
+        hash: `#/projects/${project.id}/components`,
+        project: project.name,
+      };
     },
   },
   // The Component create form, which puts the field definitions editor and its
@@ -54,7 +110,10 @@ const enforcedRoutes: {
     name: '#/projects/:projectId/components/create',
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
-      return `#/projects/${project.id}/components/create`;
+      return {
+        hash: `#/projects/${project.id}/components/create`,
+        project: project.name,
+      };
     },
   },
   // One Component's configure form, with a field definition preview and its
@@ -66,7 +125,10 @@ const enforcedRoutes: {
       const component = await createComponentViaIpc(page, {
         projectId: project.id,
       });
-      return `#/projects/${project.id}/components/${component.id}`;
+      return {
+        hash: `#/projects/${project.id}/components/${component.id}`,
+        project: project.name,
+      };
     },
   },
 ];
@@ -81,19 +143,19 @@ const enforcedRoutes: {
  */
 const firstDayRoutes: {
   name: string;
-  arrange: (page: Page) => Promise<string> | string;
+  arrange: (page: Page) => Promise<Arranged> | Arranged;
 }[] = [
   // The first start, which is the one screen before a User exists.
   {
     name: '#/welcome',
-    arrange: () => '#/welcome',
+    arrange: () => ({ hash: '#/welcome' }),
   },
   // The Projects page with nothing on it, which is the Welcome screen.
   {
     name: '#/projects, empty',
     arrange: async (page) => {
       await setUserViaIpc(page);
-      return '#/projects';
+      return { hash: '#/projects' };
     },
   },
   // The Projects page with cards, one of them on a Git repository nothing can
@@ -108,7 +170,7 @@ const firstDayRoutes: {
         id: synced.id,
         url: 'https://example.invalid/on-a-host.git',
       });
-      return '#/projects';
+      return { hash: '#/projects' };
     },
   },
   // Create Project, with the address its second option asks for shown.
@@ -116,7 +178,7 @@ const firstDayRoutes: {
     name: '#/projects/create',
     arrange: async (page) => {
       await setUserViaIpc(page);
-      return '#/projects/create';
+      return { hash: '#/projects/create' };
     },
   },
 ];
@@ -131,7 +193,7 @@ const firstDayRoutes: {
  */
 const projectAndProfileRoutes: {
   name: string;
-  arrange: (page: Page) => Promise<string> | string;
+  arrange: (page: Page) => Promise<Arranged> | Arranged;
 }[] = [
   // Assets, with one card open, so the grid, the card that is marked current
   // and the pane's form are all under the scan.
@@ -143,7 +205,10 @@ const projectAndProfileRoutes: {
         projectId: project.id,
         filePath: makeTempFile(test.info(), 'showroom.png', pngBytes),
       });
-      return `#/projects/${project.id}/assets/${asset.id}`;
+      return {
+        hash: `#/projects/${project.id}/assets/${asset.id}`,
+        project: project.name,
+      };
     },
   },
   // An Entry in its three panes, with a Value one language is missing, so the
@@ -164,21 +229,30 @@ const projectAndProfileRoutes: {
       // The language is added after the Entry was written, which is how an
       // Entry ends up missing a required Value: Core refuses one that does.
       await addProjectLanguageViaIpc(page, project, 'de');
-      return `#/projects/${project.id}/collections/${collection.id}/${entry.id}/update?language=de`;
+      return {
+        hash: `#/projects/${project.id}/collections/${collection.id}/${entry.id}/update?language=de`,
+        project: project.name,
+      };
     },
   },
   {
     name: '#/projects/:projectId/dashboard',
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
-      return `#/projects/${project.id}/dashboard`;
+      return {
+        hash: `#/projects/${project.id}/dashboard`,
+        project: project.name,
+      };
     },
   },
   {
     name: '#/projects/:projectId/settings/general',
     arrange: async (page) => {
       const project = await createProjectViaIpc(page);
-      return `#/projects/${project.id}/settings/general`;
+      return {
+        hash: `#/projects/${project.id}/settings/general`,
+        project: project.name,
+      };
     },
   },
   // Sync with an address that carries a password, so the masked part is under
@@ -191,12 +265,15 @@ const projectAndProfileRoutes: {
         id: project.id,
         url: 'https://mara-klein:a-token@example.invalid/website.git',
       });
-      return `#/projects/${project.id}/settings/version-control`;
+      return {
+        hash: `#/projects/${project.id}/settings/version-control`,
+        project: project.name,
+      };
     },
   },
   {
     name: '#/user/profile',
-    arrange: () => '#/user/profile',
+    arrange: () => ({ hash: '#/user/profile' }),
   },
 ];
 
@@ -206,7 +283,9 @@ test.describe('Accessibility', () => {
       // A User keeps the app chrome in its normal state, matching what the scan
       // was validated against, and every seed below needs one.
       await setUserViaIpc(mainWindow);
-      await navigate(mainWindow, await route.arrange(mainWindow));
+      const arranged = await route.arrange(mainWindow);
+      await navigate(mainWindow, arranged.hash);
+      await waitForArrangedRoute(mainWindow, arranged);
       await expectNoAxeViolations(mainWindow);
     });
   }
@@ -218,9 +297,11 @@ test.describe('Accessibility', () => {
         mainWindow,
       }) => {
         await setUserViaIpc(mainWindow);
-        await navigate(mainWindow, await route.arrange(mainWindow));
+        const arranged = await route.arrange(mainWindow);
+        await navigate(mainWindow, arranged.hash);
         await setTheme(mainWindow, theme);
         await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+        await waitForArrangedRoute(mainWindow, arranged);
         await expectNoAxeViolations(mainWindow);
       });
     }
@@ -232,12 +313,13 @@ test.describe('Accessibility', () => {
         electronApp,
         mainWindow,
       }) => {
-        const hash = await route.arrange(mainWindow);
-        await navigate(mainWindow, hash);
+        const arranged = await route.arrange(mainWindow);
+        await navigate(mainWindow, arranged.hash);
         await setTheme(mainWindow, theme);
         await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+        await waitForArrangedRoute(mainWindow, arranged);
 
-        if (hash === '#/projects/create') {
+        if (arranged.hash === '#/projects/create') {
           // The address stands inside the option that asks for it, so it is on
           // screen only once that option is chosen.
           await mainWindow
