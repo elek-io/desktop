@@ -239,6 +239,11 @@ test.describe("A Project's sidebar", () => {
     });
 
     await navigateToProjectDashboard(mainWindow, project.id);
+    // Measured on the sidebar of the Project rather than the skeleton's, which
+    // draws the same rows and search with a shorter card. React replaces it
+    // once the Project is read, so a measure taken across that moment would
+    // mix the two.
+    await waitForProjectCard(mainWindow, project.name);
     const sidebar = projectSidebar(mainWindow);
     await expect(sidebar.getByRole('link', { name: /^Events/ })).toBeVisible();
 
@@ -503,6 +508,9 @@ test.describe("A Project's sidebar", () => {
       projectId: project.id,
       collectionId: collection.id,
     });
+    // The search of the Project's sidebar rather than the skeleton's, which
+    // React replaces once the Project is read and takes the focus with it.
+    await waitForProjectCard(mainWindow, project.name);
 
     // Disabled, and it says why rather than only looking unavailable. It keeps
     // `aria-disabled` rather than `disabled`, so it stays reachable and the
@@ -558,6 +566,9 @@ test.describe("A Project's sidebar", () => {
         projectId: project.id,
         collectionId: collection.id,
       });
+      // The row of the Project's sidebar rather than the skeleton's, which
+      // React replaces once the Project is read, focus and all.
+      await waitForProjectCard(mainWindow, project.name);
 
       // Marked for assistive technology by the route it leads to, and drawn as
       // ci draws it: the card surface with a hairline in light mode, and the
@@ -607,6 +618,10 @@ test.describe("A Project's sidebar", () => {
       // muted surface already stands out from the ground.
       expect(surfaces.hairline.length, theme).toBe(theme === 'light' ? 1 : 0);
     }
+
+    // The row draws its number once the Collection's Entries are counted,
+    // which is a read of its own, and the measure below needs that number.
+    await expect(row).toHaveAccessibleName(/1 Entry$/);
 
     // The ring is drawn inside the row, because the list it sits in would clip
     // one drawn outside it. Reached with the keyboard, which is what

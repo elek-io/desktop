@@ -7,7 +7,7 @@ import { colors } from '@elek-io/branding';
 
 import { test } from '../fixtures/electronApp.js';
 import { contrastRatio, over, parseColor, toBytes } from '../helpers/color.js';
-import { navigate } from '../helpers/navigation.js';
+import { navigate, waitForProjectCard } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { openReportDialogFromHeader } from '../helpers/report.js';
 import { setTheme } from '../helpers/theme.js';
@@ -210,6 +210,11 @@ test.describe('Branding', () => {
       await expect(
         mainWindow.getByRole('button', { name: 'Help' })
       ).toBeVisible();
+      // Inside the Project, the card draws its own icons only once the Project
+      // is read, and the skeleton standing in for it until then has fewer.
+      if (screen !== '#/projects') {
+        await waitForProjectCard(mainWindow, project.name);
+      }
       await mainWindow.getByRole('button', { name: /Test User/ }).click();
       await expect(mainWindow.getByRole('menu')).toBeVisible();
 
