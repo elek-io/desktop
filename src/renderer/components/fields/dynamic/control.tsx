@@ -215,8 +215,8 @@ export function DynamicControl<TFieldValues extends FieldValues>({
 
   /**
    * Removes one section and leaves the focus in the list: on the section that
-   * takes its place, else the one before it, else Add section, else the list
-   * itself.
+   * takes its place, else the one before it, else Add section where that can
+   * take it, else the list itself.
    *
    * The sections that stay are keyed by their own id, so each keeps its element
    * and can be focused straight away. See
@@ -230,7 +230,12 @@ export function DynamicControl<TFieldValues extends FieldValues>({
     const next = staying[index] ?? staying[index - 1];
     const section =
       next === undefined ? undefined : sectionsById.current.get(next.id);
-    (section ?? addSectionRef.current ?? listRef.current)?.focus();
+    // Add section is still disabled where the removal is what frees it, since
+    // React has not re-rendered it yet, and a disabled control takes no focus.
+    // So the list takes it rather than the page.
+    const addSection =
+      addSectionRef.current?.disabled === false ? addSectionRef.current : null;
+    (section ?? addSection ?? listRef.current)?.focus();
   }
 
   function moveSection(index: number, offset: number): void {

@@ -291,8 +291,9 @@ const blockedBy = missing === 0 ? undefined : t`...`;
 A form that holds a list of rows somebody can remove, which is a dynamic
 field's sections today, leaves the focus inside that list rather than on the
 page: the row that takes the removed one's place, else the one before it, else
-the control that adds one, else the list itself. A focus that falls to the body
-loses a keyboard user their place, which the redesign rules out.
+the control that adds one where that control can take the focus, else the list
+itself. A focus that falls to the body loses a keyboard user their place, which
+the redesign rules out.
 
 - Each row is a `role="group"` with `tabIndex={-1}`, named by what it is and
   where it stands, such as "Hero, section 1 of 3". It is focusable only to be
@@ -302,7 +303,10 @@ loses a keyboard user their place, which the redesign rules out.
   [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-sections-of-a-page-the-dynamic-field).
 - The list itself is focusable the same way, which is where the focus lands once
   the last row is gone and there is nothing to add from, as a field whose
-  Project holds no Component it allows.
+  Project holds no Component it allows, and where the control that adds one
+  cannot take the focus. A list at its maximum is that second case: the removal
+  is what frees the control again, so at the moment the focus is placed it is
+  still disabled and a disabled control takes none.
 
 ## A form is read-only while it saves
 
