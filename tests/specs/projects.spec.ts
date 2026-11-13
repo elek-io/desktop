@@ -932,6 +932,13 @@ test.describe('Projects', () => {
     ).toBeEnabled();
     await mainWindow.getByRole('button', { name: 'Save' }).click();
 
+    // Wait for the save to come back before booting fresh. Core writes the
+    // Project only after the click returns, so a boot that reads it first gets
+    // the old name.
+    await expect(
+      mainWindow.getByText('Project Renamed Project saved')
+    ).toBeVisible();
+
     // A successful Project update stays on the settings page, so prove the
     // change persisted through a read surface: boot fresh on the Projects list,
     // which re-reads from Core, and see the renamed card with the old name gone.
@@ -1120,8 +1127,14 @@ test.describe('Projects', () => {
 
     // Saving persists the set as it now stands. A reload re-reads from Core and
     // shows 'en' and the added 'es' (de gone, en stayed), guarding the
-    // default-remove guard, the picker and the supported-set persistence.
+    // default-remove guard, the picker and the supported-set persistence. The
+    // reload waits for the save to come back, since Core writes the Project
+    // only after the click returns, and a reload that reads it first gets the
+    // old set.
     await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      mainWindow.getByText('Project Test Project saved')
+    ).toBeVisible();
     await reloadWindow(mainWindow);
     await expect(
       mainWindow.getByRole('button', { name: 'Remove en' })
