@@ -52,32 +52,31 @@ function needsAttention(state: LanguageState): boolean {
 }
 
 /**
- * What a screen reader hears for one language: its word, and what it is
- * missing.
+ * What one language says about itself: its word, and what it is missing or had
+ * refused.
  *
- * The visible part of a segment is the language's code, which is what fits
- * beside the others, so its word is said as well rather than instead, which is
- * what WCAG 2.5.3 asks of a name that carries more than its label.
+ * One sentence for both shapes of the switch, read as a string, because a
+ * segment hides it beside the code it shows while an option of the dropdown
+ * takes it as its name.
  */
-function LanguageText({ state }: { state: LanguageState }): ReactElement {
+function useLanguageText(): (state: LanguageState) => string {
   const { t } = useLingui();
-  const name = languageName(state.language);
-  const missingValues = state.missing;
 
-  if (missingValues > 0) {
-    return (
-      <span className="sr-only">{t`${name}, missing ${plural(missingValues, {
+  return (state) => {
+    const name = languageName(state.language);
+    const missingValues = state.missing;
+
+    if (missingValues > 0) {
+      return t`${name}, missing ${plural(missingValues, {
         one: '# Value',
         other: '# Values',
-      })}`}</span>
-    );
-  }
-  if (state.hasError) {
-    return (
-      <span className="sr-only">{t`${name}, with a Value that was refused`}</span>
-    );
-  }
-  return <span className="sr-only">{name}</span>;
+      })}`;
+    }
+    if (state.hasError) {
+      return t`${name}, with a Value that was refused`;
+    }
+    return name;
+  };
 }
 
 /** The warning mark a language with something missing carries, as ci draws it. */
@@ -101,6 +100,7 @@ function LanguageSegments({
   onLanguageChange,
 }: LanguageSwitchProps): ReactElement {
   const { t } = useLingui();
+  const languageText = useLanguageText();
 
   return (
     <ToggleGroup
@@ -119,9 +119,12 @@ function LanguageSegments({
     >
       {languages.map((state) => (
         <ToggleGroupItem key={state.language} value={state.language} size="xs">
+          {/* The code is what fits beside the others, so the sentence is said
+          as well rather than instead, which is what WCAG 2.5.3 asks of a name
+          that carries more than its label. */}
           {state.language.toUpperCase()}
           {needsAttention(state) ? <AttentionMark /> : null}
-          <LanguageText state={state} />
+          <span className="sr-only">{languageText(state)}</span>
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -141,6 +144,7 @@ function LanguageDropdown({
   onLanguageChange,
 }: LanguageSwitchProps): ReactElement {
   const { t } = useLingui();
+  const languageText = useLanguageText();
   const chosen = languages.find((state) => state.language === language);
   const items = Object.fromEntries(
     languages.map((state) => [state.language, languageName(state.language)])
@@ -167,10 +171,16 @@ function LanguageDropdown({
       </SelectTrigger>
       <SelectContent>
         {languages.map((state) => (
-          <SelectItem key={state.language} value={state.language}>
+          // An option shows the language's name, so what it is missing is its
+          // name rather than a line beside it, which would say the language
+          // twice.
+          <SelectItem
+            key={state.language}
+            value={state.language}
+            aria-label={languageText(state)}
+          >
             {languageName(state.language)}
             {needsAttention(state) ? <AttentionMark /> : null}
-            <LanguageText state={state} />
           </SelectItem>
         ))}
       </SelectContent>
@@ -182,9 +192,9 @@ function LanguageDropdown({
  * One switch for the language of a whole page.
  *
  * It shows the Project's languages side by side while they fit, and otherwise
- * as one dropdown, which Nils decided on 2026-11-01 because Core supports 27
- * languages while the editor is 318 px wide at the smallest window the app
- * supports.
+ * as one dropdown, which Nils decided on 2026-11-01 because Core supports far
+ * more languages than the 318 px the editor is wide at the smallest window the
+ * app supports.
  * Which of the two is on screen comes from measuring the row against the room
  * it has rather than from a number of languages written out here, so a wider
  * window shows more of them side by side.

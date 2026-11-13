@@ -127,9 +127,9 @@ form rather than each field opening a dialog of its own.
   Value is bound at `<path>.<language>`, so the language of a refused Value is a
   segment of its path, whichever field and whichever section it sits in.
 - **It is a row of segments while they fit and one dropdown otherwise**, which
-  Nils decided on 2026-11-01 because Core supports 27 languages while the
-  editor is 318 px wide at the smallest window the app supports. Which of the two is on screen
-  comes from measuring the row against the room it has, in
+  Nils decided on 2026-11-01 because Core supports far more languages than the
+  318 px the editor is wide at the smallest window the app supports. Which of
+  the two is on screen comes from measuring the row against the room it has, in
   [`components/language-switch.tsx`](../../src/renderer/components/language-switch.tsx),
   rather than from a number of languages written out there.
 
