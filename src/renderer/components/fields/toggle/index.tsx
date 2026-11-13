@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { msg } from '@lingui/core/macro';
+import { msg, t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import {
-  noText,
+  contentInLanguage,
   noTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
@@ -60,7 +60,7 @@ const spec: DefinitionSpec<ToggleFieldDefinition> = {
 export const toggleField: FieldTypeModule<'toggle'> = {
   translatable: true,
   // A switch carries the `switch` role, which Base UI draws as a button, so it
-  // takes no `aria-required`. A toggle can never be empty anyway.
+  // takes no `aria-required`.
   acceptsAriaRequired: false,
   // A toggle is always on or off, so it shows no rule, as ci rules.
   rules: alwaysFilledFieldRules,
@@ -71,9 +71,17 @@ export const toggleField: FieldTypeModule<'toggle'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: (fieldDefinition) => fieldDefinition.defaultValue,
   isEmpty: holdsNothing,
-  // A toggle is always on or off, so no field of one is ever marked as missing
-  // a Value and nothing is ever read below it.
-  renderValue: noText,
+  // A toggle holds a Value as soon as it has one, and a language a Project
+  // gained has none at all, which Core refuses like any other missing Value. So
+  // the field is marked there, and what the default language is set to is read
+  // below it as the word the switch stands for.
+  renderValue: ({ content, language }) => {
+    const value = contentInLanguage(content, language);
+    if (typeof value !== 'boolean') {
+      return null;
+    }
+    return value ? t`On` : t`Off`;
+  },
   titleText: noTitle,
   DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
 };

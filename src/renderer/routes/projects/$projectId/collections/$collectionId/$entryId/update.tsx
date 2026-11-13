@@ -51,7 +51,6 @@ function UpdateEntryPage(): ReactElement {
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     userQuery: { data: user },
-    translateContent,
   } = useProject();
   const { data: collection, isPending: isReadingCollection } = useQueryNoError(
     queryOptions.collections.read({
@@ -70,6 +69,12 @@ function UpdateEntryPage(): ReactElement {
   // the form draws without waiting for a read of the Project's git history.
   const { data: changes, isPending: isReadingChanges } = useQueryNoError(
     queryOptions.entries.history({ projectId, collectionId, id: entryId })
+  );
+  // The Project's Releases, which is where the author of a Release is. The
+  // sidebar above every pane reads the same query, so this is what it already
+  // holds rather than a read of its own.
+  const { data: releases, isPending: isReadingReleases } = useQueryNoError(
+    queryOptions.releases.list({ projectId })
   );
   // A dynamic field's Values are checked against the field definitions of the
   // Components it embeds, so the schema needs Core's resolver for them.
@@ -219,15 +224,6 @@ function UpdateEntryPage(): ReactElement {
   // because it says nothing about which Entry is open.
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
 
-  // The Collection's name in singular, or the domain term while the Collection
-  // is still loading, so the sentence below takes one placeholder.
-  const entryName = collection
-    ? translateContent({
-        key: 'collection.name.singular',
-        record: collection.name.singular,
-      })
-    : t`Entry`;
-
   if (isReadingProject || isReadingCollection || isReadingComponents) {
     return <></>;
   }
@@ -254,8 +250,11 @@ function UpdateEntryPage(): ReactElement {
               id={formId}
               blockedBy={blockedBy}
             >
+              {/* "Save", as ci draws it, rather than the Collection's own
+              name: the title beside it needs the room, and the Entry the
+              button saves is the one the title names. */}
               <SubmitButton requireDirty Icon={Check}>
-                <Trans>Update {entryName}</Trans>
+                <Trans>Save</Trans>
               </SubmitButton>
             </FormActions>
           </PaneHead>
@@ -294,6 +293,7 @@ function UpdateEntryPage(): ReactElement {
         <Pane width="list" name={t`the History of this Entry`}>
           <EntryHistoryPane
             changes={isReadingChanges ? undefined : changes}
+            releases={isReadingReleases ? undefined : releases.list}
             onClose={() => setIsHistoryOpen(false)}
           />
         </Pane>

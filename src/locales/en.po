@@ -134,6 +134,10 @@ msgstr "{notSynced, plural, one {# change not synced} other {# changes not synce
 msgid "{projectName} was created, but not synced"
 msgstr "{projectName} was created, but not synced"
 
+#: src/renderer/components/entry-history.tsx
+msgid "{published}, by {author}"
+msgstr "{published}, by {author}"
+
 #: src/renderer/lib/refusedValueText.ts
 msgid "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
 msgstr "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
@@ -1207,7 +1211,6 @@ msgstr "Entries"
 msgid "Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again."
 msgstr "Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again."
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/create.tsx
 msgid "Entry"
 msgstr "Entry"
@@ -1831,6 +1834,10 @@ msgstr "Object changes"
 msgid "of this Entry"
 msgstr "of this Entry"
 
+#: src/renderer/components/fields/toggle/index.tsx
+msgid "Off"
+msgstr "Off"
+
 #: src/renderer/routes/projects/index.tsx
 msgid "Offline"
 msgstr "Offline"
@@ -1838,6 +1845,10 @@ msgstr "Offline"
 #: src/renderer/components/forms/project-form.tsx
 msgid "Ok"
 msgstr "Ok"
+
+#: src/renderer/components/fields/toggle/index.tsx
+msgid "On"
+msgstr "On"
 
 #: src/renderer/routes/projects/index.tsx
 msgid "On this computer"
@@ -2189,6 +2200,7 @@ msgid "Retry"
 msgstr "Retry"
 
 #: src/renderer/components/asset-pane.tsx
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 #: src/renderer/routes/user/profile.tsx
@@ -2924,10 +2936,6 @@ msgstr "Up to {0, plural, one {# Entry} other {# Entries}}."
 #: src/renderer/lib/fieldRules.ts
 msgid "up to {max}"
 msgstr "up to {max}"
-
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
-msgid "Update {entryName}"
-msgstr "Update {entryName}"
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "Upgrading this Project did not work."

@@ -10,7 +10,7 @@ import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useProject } from '@renderer/hooks/useProject';
 import { changeSentence } from '@renderer/lib/changeSentence';
 
-import type { GitCommitWithRelease } from '@elek-io/core';
+import type { GitCommitWithRelease, ReleaseListItem } from '@elek-io/core';
 
 // The History of one Entry, in the pane ci draws on the right: every change of
 // this Entry, newest first, and the Release that first included each of them.
@@ -62,13 +62,22 @@ function HistoryRow({
  */
 function EntryChanges({
   changes,
+  releases,
 }: {
   changes: GitCommitWithRelease[];
+  releases: ReleaseListItem[] | undefined;
 }): ReactElement {
+  const { t } = useLingui();
   const {
     formatDatetime,
     userQuery: { data: user },
   } = useProject();
+  // Who published each Release, which a change carries only the Release's id,
+  // version and time of. Both address the same Release by its tag, so the two
+  // join on `tagId`.
+  const releasedBy = new Map(
+    (releases ?? []).map((release) => [release.tagId, release.author.name])
+  );
 
   if (changes.length === 0) {
     return (
@@ -89,6 +98,17 @@ function EntryChanges({
         const leadsItsRelease =
           release !== null && release.tagId !== previous?.release?.tagId;
         const version = release?.version ?? '';
+        // When the Release went out and who published it, as ci writes the
+        // line. The author stands out of it while the Releases are still being
+        // read, rather than the pane holding its changes back for it.
+        const published =
+          release === null
+            ? ''
+            : formatDatetime({ datetime: release.datetime }).relative;
+        const author =
+          release === null ? undefined : releasedBy.get(release.tagId);
+        const releasedWhen =
+          author === undefined ? published : t`${published}, by ${author}`;
 
         return (
           <div key={change.hash} className="flex flex-col">
@@ -96,11 +116,7 @@ function EntryChanges({
               <HistoryRow
                 marker={<StateMarker variant="release" />}
                 says={<Trans>In Release {version}</Trans>}
-                when={
-                  formatDatetime({
-                    datetime: release.datetime,
-                  }).relative
-                }
+                when={releasedWhen}
               />
             ) : null}
             <HistoryRow
@@ -137,6 +153,12 @@ function EntryHistorySkeleton(): ReactElement {
 export interface EntryHistoryPaneProps {
   /** The Entry's changes, or `undefined` while they are still being read. */
   changes: GitCommitWithRelease[] | undefined;
+  /**
+   * The Project's Releases, which is where a Release's author is. `undefined`
+   * while they are still being read, and then a Release row names its version
+   * and its time alone rather than holding up the changes.
+   */
+  releases: ReleaseListItem[] | undefined;
   onClose: () => void;
 }
 
@@ -148,6 +170,7 @@ export interface EntryHistoryPaneProps {
  */
 export function EntryHistoryPane({
   changes,
+  releases,
   onClose,
 }: EntryHistoryPaneProps): ReactElement {
   const { t } = useLingui();
@@ -181,7 +204,7 @@ export function EntryHistoryPane({
           {changes === undefined ? (
             <EntryHistorySkeleton />
           ) : (
-            <EntryChanges changes={changes} />
+            <EntryChanges changes={changes} releases={releases} />
           )}
         </div>
       </ScrollArea>
