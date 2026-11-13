@@ -560,7 +560,7 @@ test.describe('A form filled from its query', () => {
     // Save is held by the same fact, so the defaults cannot be written over
     // what is stored.
     await expect(
-      mainWindow.getByRole('button', { name: 'Update Article' })
+      mainWindow.getByRole('button', { name: 'Save', exact: true })
     ).toBeDisabled();
   });
 

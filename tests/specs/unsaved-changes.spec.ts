@@ -92,7 +92,7 @@ test.describe('A form that cannot be saved yet', () => {
     await navigateToEntryUpdate(mainWindow, ids);
 
     const title = mainWindow.getByLabel('Title', { exact: true });
-    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
 
     // Nothing is missing yet, so Save waits only for a change.
     await expect(blockedReason(mainWindow)).toBeHidden();
@@ -136,7 +136,7 @@ test.describe('A form that cannot be saved yet', () => {
     await navigateToEntryUpdate(mainWindow, ids);
 
     const title = mainWindow.getByLabel('Title', { exact: true });
-    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
 
     // An unchanged form blocks Save too, and says nothing: there is nothing to
     // save rather than something to fix.
@@ -175,7 +175,7 @@ test.describe('A form that cannot be saved yet', () => {
     await navigateToEntryUpdate(mainWindow, ids);
 
     const title = mainWindow.getByLabel('Title', { exact: true });
-    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
 
     // The save never answers, so the form stays mid-save to be read instead of
     // racing the navigation a finished save ends in.
@@ -407,7 +407,7 @@ test.describe('Leaving a page with changes nobody saved', () => {
     await mainWindow
       .getByLabel('Title', { exact: true })
       .fill('A stored title that is saved');
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     await leaveThePage(mainWindow).click();
     await expect(mainWindow).toHaveURL((url) => url.hash === '#/projects');

@@ -795,7 +795,7 @@ test.describe('The markdown field', () => {
     // change and the text has to come back as it went in.
     await editor.click();
     await fillEntryForm(mainWindow, { Title: 'Seeded, renamed' });
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const stored = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
@@ -872,7 +872,7 @@ test.describe('The markdown field', () => {
     // added and the alignment it filled in.
     await editor.click();
     await fillEntryForm(mainWindow, { Title: 'Seeded from outside, renamed' });
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const storedAfter = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
@@ -986,7 +986,7 @@ test.describe('The markdown field', () => {
       // route is only read once it is on screen, since a save that went
       // through leaves this route.
       await fillEntryForm(window, { Title: 'Imported, renamed' });
-      await window.getByRole('button', { name: 'Update Article' }).click();
+      await window.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(
         window.getByText(
           "This field can't hold what's in it. Please report it, so we can fix it."

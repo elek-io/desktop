@@ -49,6 +49,29 @@ export async function windowSize(
 }
 
 /**
+ * What the window the app opened can keep: Electron's own minimum, which it
+ * enforces, and the work area of the screen the window stands on, which no
+ * window is bigger than.
+ */
+async function windowLimits(app: ElectronApplication): Promise<{
+  minimum: { width: number; height: number };
+  room: { width: number; height: number };
+}> {
+  return app.evaluate(({ BrowserWindow, screen }) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    const [width = 0, height = 0] = window?.getMinimumSize() ?? [];
+    const display =
+      window === undefined
+        ? screen.getPrimaryDisplay()
+        : screen.getDisplayMatching(window.getBounds());
+    return {
+      minimum: { width, height },
+      room: display.workAreaSize,
+    };
+  });
+}
+
+/**
  * Ask the window for a size, wait until it keeps it, and return the size it
  * settled at.
  *
@@ -59,36 +82,50 @@ export async function windowSize(
  * trip of its own after the one that asks, and anything but the size it settled
  * at means asking again.
  *
- * What counts as settled is the asked size raised to the window's own minimum,
- * which Electron enforces. The minimum is read off the window rather than
- * written out here, so what it should be stays the spec's own assertion.
+ * What is asked for is the size raised to the window's own minimum and lowered
+ * to the work area of its screen, which is how the app sizes the window it
+ * opens too: a screen too small for the asked size gets its whole work area
+ * rather than a window hanging off it, and macOS keeps no window bigger than
+ * its screen at all. Both limits are read off the running app rather than
+ * written out here, so what either should be stays the spec's own assertion,
+ * and the size the window settled at is returned for a spec that measures
+ * against it.
  */
 export async function resizeWindow(
   app: ElectronApplication,
   page: Page,
   size: { width: number; height: number }
 ): Promise<{ width: number; height: number }> {
-  let settled = size;
+  const { minimum, room } = await windowLimits(app);
+  // One pixel inside the work area, because a window asked for the size of its
+  // screen comes back a pixel smaller on X11: on a screen of 1280 by 800, a
+  // window asked for 1280 by 800 reports 1279 by 799, while one asked for that
+  // reports it. The window's own minimum wins over both, since Electron
+  // enforces it whatever the screen is.
+  const largest = {
+    width: Math.max(room.width - 1, minimum.width),
+    height: Math.max(room.height - 1, minimum.height),
+  };
+  const asked = {
+    width: Math.min(Math.max(size.width, minimum.width), largest.width),
+    height: Math.min(Math.max(size.height, minimum.height), largest.height),
+  };
+  let settled = asked;
 
   await expect
     .poll(
       async () => {
-        const wanted = await app.evaluate(({ BrowserWindow }, target) => {
+        const asking = await app.evaluate(({ BrowserWindow }, target) => {
           const window = BrowserWindow.getAllWindows()[0];
           if (window === undefined) {
-            return null;
+            return false;
           }
 
           window.setSize(target.width, target.height);
+          return true;
+        }, asked);
 
-          const [minimumWidth = 0, minimumHeight = 0] = window.getMinimumSize();
-          return {
-            width: Math.max(target.width, minimumWidth),
-            height: Math.max(target.height, minimumHeight),
-          };
-        }, size);
-
-        if (wanted === null) {
+        if (asking === false) {
           return false;
         }
 
@@ -98,11 +135,14 @@ export async function resizeWindow(
         // leave the caller measuring a window of another size.
         await waitForLayout(page);
         settled = await windowSize(app);
-        return (
-          settled.width === wanted.width && settled.height === wanted.height
-        );
+        return settled.width === asked.width && settled.height === asked.height;
       },
-      { message: `the window never kept ${size.width}x${size.height}` }
+      {
+        // The room says why a size was lowered, so a window that will not keep
+        // what its screen has room for reads apart from one that was asked for
+        // more than that.
+        message: `the window never kept ${asked.width}x${asked.height}, asked for ${size.width}x${size.height} on a screen with room for ${room.width}x${room.height}`,
+      }
     )
     .toBe(true);
 

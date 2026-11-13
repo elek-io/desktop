@@ -587,7 +587,7 @@ test.describe('Components', () => {
     // required Value and Save is blocked with the reason below it, see
     // contributing/renderer/forms.md#saves-block.
     const addSection = mainWindow.getByRole('button', { name: 'Add section' });
-    const save = mainWindow.getByRole('button', { name: 'Update Article' });
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
     await expect(save).toBeDisabled();
     await expect(
       mainWindow.locator('[data-slot="form-blocked-reason"]')
@@ -1407,7 +1407,7 @@ test.describe('Components', () => {
     // An optional Field's label carries an " - optional" suffix, so it is
     // matched by prefix.
     await mainWindow.getByLabel('Tagline').fill('Content without a server');
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
 
     await navigateToEntryUpdate(mainWindow, {

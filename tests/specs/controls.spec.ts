@@ -476,6 +476,50 @@ test.describe('Every control', () => {
     );
   });
 
+  test('draws a warned control with the warning border and surface', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    // A new Entry holds no Value yet, so its required field is one the
+    // language on screen is missing, which is what ci warns on.
+    await navigate(
+      mainWindow,
+      `#/projects/${project.id}/collections/${collection.id}/create`
+    );
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(mainWindow, theme);
+      await expect(mainWindow.getByText('Missing in English')).toBeVisible();
+
+      const measured = await mainWindow.evaluate(() => {
+        const input = document.querySelector('[data-slot="input"]');
+        if (input === null) {
+          throw new Error('The form draws no input');
+        }
+        const style = getComputedStyle(input);
+        return {
+          border: style.borderTopColor,
+          background: style.backgroundColor,
+        };
+      });
+
+      // An input's border is what says where the field is, so a warned one
+      // takes the warning color itself rather than its border tint, which ci
+      // asks 3:1 of. The surface stays the fill behind it.
+      expect(toBytes(parseColor(measured.border)), theme).toEqual(
+        toBytes(parseColor(colors[theme].warning.oklch))
+      );
+      expect(toBytes(parseColor(measured.background)), theme).toEqual(
+        toBytes(parseColor(colors[theme]['warning-surface'].oklch))
+      );
+    }
+  });
+
   test('fills its field with a row, an editor and the rules of the field', async ({
     electronApp,
     mainWindow,
@@ -483,7 +527,8 @@ test.describe('Every control', () => {
     await anEntryOfEveryControl(mainWindow, testInfo);
     // An Entry now stands between the list of its Collection and its History,
     // so the editor is 296 px narrower than the panel. The row below is
-    // measured at the width ci draws it at, which a wider window gives it.
+    // measured at the width ci draws it at, which a wider window gives it, as
+    // wide as the screen has room for.
     await resizeWindow(electronApp, mainWindow, { width: 1600, height: 900 });
     await waitForLayout(mainWindow);
 

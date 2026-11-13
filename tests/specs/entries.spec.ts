@@ -35,6 +35,7 @@ import {
   telephoneFieldDefinition,
   textFieldDefinition,
   timeFieldDefinition,
+  toggleFieldDefinition,
   updateCollectionViaIpc,
   urlFieldDefinition,
 } from '../helpers/collection.js';
@@ -44,6 +45,7 @@ import {
 } from '../helpers/component.js';
 import {
   assetReferenceValue,
+  booleanValue,
   chooseLanguage,
   componentValue,
   createEntryViaIpc,
@@ -67,6 +69,7 @@ import {
   createProjectViaIpc,
 } from '../helpers/project.js';
 import { createReleaseViaIpc } from '../helpers/release.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import {
   MINIMUM_WINDOW_SIZE,
@@ -112,6 +115,50 @@ function expectErrorOf(
   labelText: string
 ): ReturnType<typeof expect.poll<string | null>> {
   return expect.poll(async () => errorOf(page, labelText));
+}
+
+/**
+ * Where each pane of the screen stands inside the panel that holds them, and
+ * anything inside one that is laid out wider than its own box.
+ *
+ * A pane reaching past the panel is a collision, a width of zero is a pane
+ * with no room, and content wider than its box with nothing to scroll it is a
+ * clip. Each is what the smallest window the app supports is measured for.
+ */
+async function panesOfThePanel(page: Page): Promise<{
+  panel: { left: number; right: number };
+  panes: { left: number; right: number; width: number }[];
+  overflowing: { slot: string | null; over: number }[];
+}> {
+  return page.evaluate(() => {
+    const panel = document.querySelector('[data-slot="panel"]');
+    const panes = Array.from(
+      document.querySelectorAll('[data-slot="panel"] [data-slot="pane"]')
+    );
+    if (panel === null || panes.length === 0) {
+      throw new Error('The panel draws no panes');
+    }
+    const box = panel.getBoundingClientRect();
+    return {
+      panel: { left: box.left, right: box.right },
+      panes: panes.map((pane) => {
+        const rect = pane.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width };
+      }),
+      overflowing: Array.from(
+        document.querySelectorAll('[data-slot="panel"] *')
+      )
+        .filter(
+          (element) =>
+            element.scrollWidth - element.clientWidth > 1 &&
+            getComputedStyle(element).overflowX === 'visible'
+        )
+        .map((element) => ({
+          slot: element.getAttribute('data-slot'),
+          over: element.scrollWidth - element.clientWidth,
+        })),
+    };
+  });
 }
 
 /**
@@ -269,17 +316,17 @@ test.describe('Entries', () => {
       'Original title'
     );
 
-    // Nothing edited yet, so Update is gated
+    // Nothing edited yet, so Save is gated
     await expect(
-      mainWindow.getByRole('button', { name: 'Update Article' })
+      mainWindow.getByRole('button', { name: 'Save', exact: true })
     ).toBeDisabled();
 
-    // Editing the Title dirties the form, so Update enables
+    // Editing the Title dirties the form, so Save enables
     await fillEntryForm(mainWindow, { Title: 'Edited title' });
     await expect(
-      mainWindow.getByRole('button', { name: 'Update Article' })
+      mainWindow.getByRole('button', { name: 'Save', exact: true })
     ).toBeEnabled();
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     // The toast is how Core's success surfaces (the update did not throw). The
     // Entry stays open beside its list, which is what ci's three panes are
@@ -730,7 +777,7 @@ test.describe('Entries', () => {
       await window
         .getByLabel('Title', { exact: true })
         .fill('Spring service, edited');
-      await window.getByRole('button', { name: 'Update Article' }).click();
+      await window.getByRole('button', { name: 'Save', exact: true }).click();
 
       // Each field says it in its own type's words, which is the one thing the
       // error map cannot do: Core's message arrives with the issue and outranks
@@ -885,7 +932,7 @@ test.describe('Entries', () => {
     await expect(title).toHaveValue('Hallo');
     // Saving keeps the Values of the language that is not on screen.
     await title.fill('Hallo Welt');
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     await chooseLanguage(mainWindow, 'en');
     await expect(title).toHaveValue('Hello');
@@ -1076,7 +1123,8 @@ test.describe('Entries', () => {
     // Back-filling alone does not dirty the form (opening an Entry after a
     // schema change is not a user edit), so the update stays dirty-gated.
     const updateButton = mainWindow.getByRole('button', {
-      name: 'Update Article',
+      name: 'Save',
+      exact: true,
     });
     await expect(updateButton).toBeDisabled();
 
@@ -1333,7 +1381,7 @@ test.describe('Entries', () => {
 
     // The Entry saves again, which is the repair the message after a refused
     // synchronize asks for.
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const [saved] = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
@@ -1432,7 +1480,7 @@ test.describe('Entries', () => {
     await mainWindow.keyboard.press('Enter');
     await expect(mainWindow.getByText('No Entry chosen')).toBeVisible();
 
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(mainWindow.getByText('Entry saved')).toBeVisible();
     const [saved] = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
@@ -1518,7 +1566,7 @@ test.describe('Entries', () => {
       'Service'
     );
     await fillEntryForm(mainWindow, { Title: 'Service and repairs' });
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     // The section's own field carries the message, and the dynamic field it
     // sits in is not marked at all.
@@ -1626,7 +1674,7 @@ test.describe('Entries', () => {
     // Too short rather than empty, so the Value reaches the validator instead
     // of blocking Save as a Value that is missing.
     await headline.fill('Ab');
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     // The inner field says what is wrong and is marked invalid, while the
     // field holding the sections says nothing and is not.
@@ -2577,30 +2625,25 @@ test.describe('An Entry in three panes', () => {
     await expect(open).toBeHidden();
 
     // Nothing of the three panes is cut off at the smallest window the app
-    // supports: every pane stands inside the panel and each one has room.
-    const measured = await mainWindow.evaluate(() => {
-      const panel = document.querySelector('[data-slot="panel"]');
-      const panes = Array.from(
-        document.querySelectorAll('[data-slot="panel"] [data-slot="pane"]')
-      );
-      if (panel === null || panes.length === 0) {
-        throw new Error('The panel draws no panes');
+    // supports, in either mode: every pane stands inside the panel and each
+    // one has room.
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(mainWindow, theme);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await waitForLayout(mainWindow);
+      await expect(entryRow(mainWindow, 'Spring opening hours')).toBeVisible();
+
+      const measured = await panesOfThePanel(mainWindow);
+      for (const pane of measured.panes) {
+        // Every pane has room of its own and none of them reaches past the
+        // panel it sits in, which is what a collision or a clip would show as.
+        expect(pane.width, theme).toBeGreaterThan(0);
+        expect(pane.left, theme).toBeGreaterThanOrEqual(measured.panel.left);
+        expect(pane.right, theme).toBeLessThanOrEqual(measured.panel.right);
       }
-      const box = panel.getBoundingClientRect();
-      return {
-        panel: { left: box.left, right: box.right },
-        panes: panes.map((pane) => {
-          const rect = pane.getBoundingClientRect();
-          return { left: rect.left, right: rect.right, width: rect.width };
-        }),
-      };
-    });
-    for (const pane of measured.panes) {
-      // Every pane has room of its own and none of them reaches past the
-      // panel it sits in, which is what a collision or a clip would show as.
-      expect(pane.width).toBeGreaterThan(0);
-      expect(pane.left).toBeGreaterThanOrEqual(measured.panel.left);
-      expect(pane.right).toBeLessThanOrEqual(measured.panel.right);
+      // And nothing inside them is laid out wider than the box it is drawn
+      // in, which is what a clip of a pane's own content shows as.
+      expect(measured.overflowing, theme).toEqual([]);
     }
   });
 
@@ -2629,6 +2672,10 @@ test.describe('An Entry in three panes', () => {
     await expect(changes.nth(0)).toContainText('You changed an Entry');
     await expect(changes.nth(1)).toContainText('In Release 0.1.0');
     await expect(changes.nth(2)).toContainText('You added an Entry');
+
+    // The Release's row says when it went out and who published it, which the
+    // Project's Releases hold rather than the change itself.
+    await expect(changes.nth(1)).toContainText('by Test User');
   });
 
   test('marks an Entry that misses a required Value in its row', async ({
@@ -2713,11 +2760,42 @@ test.describe('An Entry in three panes', () => {
     await expect(picker).toBeVisible();
     await expect(switcher.getByRole('button', { name: /^EN/ })).toHaveCount(0);
 
-    await chooseLanguage(mainWindow, 'de');
+    // The dropdown is as wide as the editor leaves it, and the three panes
+    // stand as they do with two languages, in either mode.
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(mainWindow, theme);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await waitForLayout(mainWindow);
+      await expect(picker).toBeVisible();
+
+      const measured = await panesOfThePanel(mainWindow);
+      for (const pane of measured.panes) {
+        expect(pane.width, theme).toBeGreaterThan(0);
+        expect(pane.left, theme).toBeGreaterThanOrEqual(measured.panel.left);
+        expect(pane.right, theme).toBeLessThanOrEqual(measured.panel.right);
+      }
+      expect(measured.overflowing, theme).toEqual([]);
+    }
+
+    // Each language keeps its mark on its own option, and the language that
+    // holds every Value carries none. What is missing is in each option's
+    // name, said once rather than beside the name it already shows.
+    await picker.click();
+    const german = mainWindow.getByRole('option', { name: /^German/ });
+    await expect(german).toHaveAccessibleName('German, missing 1 Value');
+    await expect(german.locator('svg.text-warning')).toHaveCount(1);
+    const english = mainWindow.getByRole('option', { name: 'English' });
+    await expect(english).toHaveAccessibleName('English');
+    await expect(english.locator('svg.text-warning')).toHaveCount(0);
+
+    // And the closed trigger carries the mark of the language it shows, so
+    // what is missing is visible without opening it.
+    await german.click();
     await expect(mainWindow.getByText('Missing in German')).toBeVisible();
     await expect(
       mainWindow.getByText('In English: Only English')
     ).toBeVisible();
+    await expect(picker.locator('svg.text-warning')).toHaveCount(1);
   });
 
   test('keeps the focus in the list of sections after one is removed', async ({
@@ -2794,6 +2872,68 @@ test.describe('An Entry in three panes', () => {
     await expect(mainWindow.getByText('No sections yet.')).toBeVisible();
   });
 
+  test('keeps the focus in the list where Add section cannot take it', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    // A field that holds one section at most, so Add section is disabled while
+    // that section stands and the removal is what frees it again.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({
+          ofComponents: [hero.id],
+          label: { en: 'Sections' },
+          max: 1,
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Service' }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: { headline: stringValue({ en: 'First' }) },
+          },
+        ]),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    const sections = mainWindow.locator('[data-slot="section"]');
+    await expect(sections).toHaveCount(1);
+    await expect(
+      mainWindow.getByRole('button', { name: 'Add section' })
+    ).toBeDisabled();
+
+    // Removing it leaves the focus on the list of sections rather than on the
+    // page, since the trigger that adds one is still disabled at that moment.
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Hero section' })
+      .click();
+    await expect(sections).toHaveCount(0);
+    await expect(
+      mainWindow.getByRole('group', { name: 'Sections' })
+    ).toBeFocused();
+  });
+
   test('counts a required Value a section misses, in the language it misses it', async ({
     mainWindow,
   }) => {
@@ -2857,11 +2997,202 @@ test.describe('An Entry in three panes', () => {
       mainWindow.getByText('German is missing 1 Value')
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('button', { name: 'Update Article' })
+      mainWindow.getByRole('button', { name: 'Save', exact: true })
     ).toBeDisabled();
 
     // And the field inside the section says so where it stands.
     await expect(mainWindow.getByText('Missing in German')).toBeVisible();
     await expect(mainWindow.getByText('In English: Book online')).toBeVisible();
+  });
+
+  test('marks a Value that belongs to no language in the language it is counted under', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero', de: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline', de: 'Überschrift' },
+        }),
+      ],
+    });
+    // A required dynamic field, whose Value is one list for every language
+    // rather than one per language.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'Pages', de: 'Seiten' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+        dynamicFieldDefinition({
+          isRequired: true,
+          ofComponents: [hero.id],
+          label: { en: 'Sections', de: 'Abschnitte' },
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Service', de: 'Service' }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: {
+              headline: stringValue({ en: 'Book online', de: 'Jetzt buchen' }),
+            },
+          },
+        ]),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+
+    // Removing the only section leaves the field without its required Value,
+    // on the German screen.
+    await chooseLanguage(mainWindow, 'de');
+    await mainWindow
+      .getByRole('button', { name: 'Remove the Hero section' })
+      .click();
+
+    // The Value belongs to no language, so it counts under the Project's
+    // default and the field is marked there rather than in the language that
+    // happens to be on screen. What the field says and what the line under
+    // Save says name the same language.
+    await expect(
+      mainWindow.getByText('English is missing 1 Value')
+    ).toBeVisible();
+    await expect(mainWindow.getByText('Missing in German')).toHaveCount(0);
+
+    await chooseLanguage(mainWindow, 'en');
+    await expect(mainWindow.getByText('Missing in English')).toBeVisible();
+    await expect(
+      mainWindow.getByText('English is missing 1 Value')
+    ).toBeVisible();
+  });
+
+  test('marks a required toggle in a language the Project gained, and reads the default language below it', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // A required toggle beside an optional Title, so the toggle is the one
+    // Value a language can miss.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ isRequired: false }),
+        toggleFieldDefinition({ slug: 'featured', label: { en: 'Featured' } }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Only English' }),
+        featured: booleanValue({ en: false }),
+      },
+    });
+    // A toggle holds a Value as soon as it has one, and a language the Project
+    // gains has none at all, which is the one case a toggle is missing in.
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await chooseLanguage(mainWindow, 'de');
+
+    // Core refuses the Entry for it, so it is counted, marked, and what the
+    // default language is set to stands below it as the word the switch is in.
+    // The line under Save is read where it stands, since the Entry's own row
+    // in the list beside it says the same for a screen reader.
+    await expect(
+      mainWindow.locator('[data-slot="form-blocked-reason"]')
+    ).toHaveText('German is missing 1 Value');
+    await expect(mainWindow.getByText('Missing in German')).toBeVisible();
+    await expect(mainWindow.getByText('In English: Off')).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Save', exact: true })
+    ).toBeDisabled();
+  });
+
+  test('marks the language of a Value that was refused, without reporting a bug', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    // A Title of at least three characters, so a Value that is there and too
+    // short is refused rather than counted as missing.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: {
+        en: 'Articles created by the E2E tests',
+        de: 'Von den E2E-Tests erstellte Artikel',
+      },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' }, min: 3 }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours', de: 'Frühling' }),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    const title = mainWindow.getByLabel('Title', { exact: true });
+
+    // German too short, then back to English, where nothing is wrong, and
+    // saved from there.
+    await chooseLanguage(mainWindow, 'de');
+    await title.fill('Ab');
+    await chooseLanguage(mainWindow, 'en');
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+    // The refusal lands on the German field, which this screen is not drawing,
+    // so the switch marks German and the form says nothing about a bug.
+    const german = languageSwitch(mainWindow).getByRole('button', {
+      name: /^DE\b/,
+    });
+    await expect(german).toHaveAccessibleName(
+      /German, with a Value that was refused/
+    );
+    await expect(
+      mainWindow.getByText('none of its fields says why')
+    ).toHaveCount(0);
+    await expect(mainWindow.getByRole('alert')).toHaveCount(0);
+
+    // And the field itself says why, in the language it was refused in.
+    await chooseLanguage(mainWindow, 'de');
+    await expectErrorOf(mainWindow, 'Title').toBe('Use at least 3 characters.');
   });
 });

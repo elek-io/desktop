@@ -90,6 +90,7 @@ interface ProbedStyle {
   readonly top: string;
   readonly width: string;
   readonly flexShrink: string;
+  readonly overflowX: string;
   readonly overflowY: string;
   readonly borderTopColor: string;
   readonly borderTopWidth: string;

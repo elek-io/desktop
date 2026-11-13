@@ -339,6 +339,35 @@ test.describe('A Value that holds nothing', () => {
     expect(coreTakes(sections.definition, sections.something)).toBe(true);
   });
 
+  test('agrees with Core about a toggle in a language a Project gained', () => {
+    // A toggle is on or off, so nothing in its place only happens where the
+    // Project gained a language after the Entry was written. The contract
+    // reads that language as empty, and Core refuses the Entry for it, which
+    // is why a toggle is marked and counted there like any other field.
+    const toggle = toggleFieldDefinition();
+    const grown: ProjectLanguages = ['en', 'de'];
+    const schema = getValueSchemaFromFieldDefinition(toggle, grown, () => []);
+    const asStored = (content: unknown): unknown => ({
+      id: '2f1a3d4e-5b6c-4d7e-8f90-a1b2c3d4e5f6',
+      objectType: 'value',
+      valueType: toggle.valueType,
+      fieldDefinitionId: toggle.id,
+      content,
+    });
+
+    expect(holdsNothing(undefined)).toBe(true);
+    expect(schema.safeParse(asStored({ en: false })).success).toBe(false);
+    expect(schema.safeParse(asStored({ en: false, de: null })).success).toBe(
+      false
+    );
+
+    // And a toggle both languages hold is one Core takes.
+    expect(holdsNothing(false)).toBe(false);
+    expect(schema.safeParse(asStored({ en: false, de: true })).success).toBe(
+      true
+    );
+  });
+
   test('reads an optional Value Core takes as empty all the same', () => {
     // An optional field is nullable in Core, so nothing is fine there. The
     // contract still calls it empty, and the one function over the field

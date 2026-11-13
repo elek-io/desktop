@@ -26,6 +26,17 @@ export function stringValue(
 }
 
 /**
+ * Build a translatable boolean Entry Value, which is what a toggle field holds.
+ * Core takes no `null` here and no language left out, so pass each language the
+ * Project supports to write an Entry Core takes.
+ */
+export function booleanValue(
+  content: Partial<Record<SupportedLanguage, boolean>>
+): CreateEntryProps['values'][string] {
+  return { objectType: 'value', valueType: 'boolean', content };
+}
+
+/**
  * Build a translatable temporal Entry Value (date, datetime or time). Core
  * stores all three as an ISO string in a translatable string Value (see Core's
  * fields docs), so the shape matches `stringValue`. Named for temporal fields to
