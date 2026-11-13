@@ -49,9 +49,12 @@ export async function windowSize(
 }
 
 /**
- * What the window the app opened can keep: Electron's own minimum, which it
- * enforces, and the work area of the screen the window stands on, which no
- * window is bigger than.
+ * What bounds a resize of the window the app opened: Electron's own minimum,
+ * which it enforces, and the work area of the screen the window stands on,
+ * which some systems keep no window bigger than.
+ *
+ * Read for the message a resize that never settles fails with, so a size no
+ * screen has room for reads apart from one a window manager swallowed.
  */
 async function windowLimits(app: ElectronApplication): Promise<{
   minimum: { width: number; height: number };
@@ -82,14 +85,16 @@ async function windowLimits(app: ElectronApplication): Promise<{
  * trip of its own after the one that asks, and anything but the size it settled
  * at means asking again.
  *
- * What is asked for is the size raised to the window's own minimum and lowered
- * to the work area of its screen, which is how the app sizes the window it
- * opens too: a screen too small for the asked size gets its whole work area
- * rather than a window hanging off it, and macOS keeps no window bigger than
- * its screen at all. Both limits are read off the running app rather than
- * written out here, so what either should be stays the spec's own assertion,
- * and the size the window settled at is returned for a spec that measures
- * against it.
+ * What counts as settled is the asked size raised to the window's own minimum,
+ * which Electron enforces. The minimum is read off the window rather than
+ * written out here, so what it should be stays the spec's own assertion.
+ *
+ * The size is not lowered to the screen. X11 and Windows keep a window bigger
+ * than its screen, so lowering it would measure a narrower window than those
+ * systems give, while macOS keeps none, so a size beyond its screen never
+ * settles there. A spec therefore asks for a size every screen has room for,
+ * which the smallest window the app supports is, and takes the room it needs
+ * from the panes it closes rather than from the window.
  */
 export async function resizeWindow(
   app: ElectronApplication,
@@ -97,18 +102,9 @@ export async function resizeWindow(
   size: { width: number; height: number }
 ): Promise<{ width: number; height: number }> {
   const { minimum, room } = await windowLimits(app);
-  // One pixel inside the work area, because a window asked for the size of its
-  // screen comes back a pixel smaller on X11: on a screen of 1280 by 800, a
-  // window asked for 1280 by 800 reports 1279 by 799, while one asked for that
-  // reports it. The window's own minimum wins over both, since Electron
-  // enforces it whatever the screen is.
-  const largest = {
-    width: Math.max(room.width - 1, minimum.width),
-    height: Math.max(room.height - 1, minimum.height),
-  };
   const asked = {
-    width: Math.min(Math.max(size.width, minimum.width), largest.width),
-    height: Math.min(Math.max(size.height, minimum.height), largest.height),
+    width: Math.max(size.width, minimum.width),
+    height: Math.max(size.height, minimum.height),
   };
   let settled = asked;
 
@@ -138,10 +134,10 @@ export async function resizeWindow(
         return settled.width === asked.width && settled.height === asked.height;
       },
       {
-        // The room says why a size was lowered, so a window that will not keep
-        // what its screen has room for reads apart from one that was asked for
-        // more than that.
-        message: `the window never kept ${asked.width}x${asked.height}, asked for ${size.width}x${size.height} on a screen with room for ${room.width}x${room.height}`,
+        // The room is named, because a size the screen has no room for is the
+        // one reason a window never keeps it that nothing about the app can
+        // change.
+        message: `the window never kept ${asked.width}x${asked.height} on a screen with room for ${room.width}x${room.height}`,
       }
     )
     .toBe(true);

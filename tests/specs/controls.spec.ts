@@ -525,11 +525,17 @@ test.describe('Every control', () => {
     mainWindow,
   }, testInfo) => {
     await anEntryOfEveryControl(mainWindow, testInfo);
-    // An Entry now stands between the list of its Collection and its History,
-    // so the editor is 296 px narrower than the panel. The row below is
-    // measured at the width ci draws it at, which a wider window gives it, as
-    // wide as the screen has room for.
-    await resizeWindow(electronApp, mainWindow, { width: 1600, height: 900 });
+    // An Entry stands between the list of its Collection and its History, so
+    // the editor is 592 px narrower than the panel. A row is measured at the
+    // width ci draws it at, which the editor gets here from closing the
+    // History rather than from a wider window: every screen has room for the
+    // smallest window the app supports, and only some have room for more, so a
+    // window wide enough for this row is a window some runners cannot keep.
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await mainWindow.getByRole('button', { name: 'Close the History' }).click();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Show the History of this Entry' })
+    ).toBeVisible();
     await waitForLayout(mainWindow);
 
     const measured = await mainWindow.evaluate(() => {
