@@ -35,6 +35,7 @@ import {
   projectCard,
   projectSidebar,
   verifyCurrentRouteHash,
+  waitForProjectCard,
 } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
@@ -1210,15 +1211,8 @@ test.describe('The Project card', () => {
       await navigateToProjectDashboard(mainWindow, project.id);
       await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
       await waitForLayout(mainWindow);
-      // The filled card, not the skeleton that stands in for it while the
-      // Project is still being read: both draw the card's own slot, so waiting
-      // on that alone lets the probe below run against a card that has no
-      // initials to measure yet. The switcher named after the Project is drawn
-      // by the filled card alone, and it is given the slack of a slow read on
-      // a slow machine rather than the default.
-      await expect(
-        projectCard(mainWindow).getByRole('button', { name: project.name })
-      ).toBeVisible({ timeout: 20000 });
+      // The filled card, so the probe below has initials to measure.
+      await waitForProjectCard(mainWindow, project.name);
 
       const lockup = await mainWindow
         .getByRole('banner')

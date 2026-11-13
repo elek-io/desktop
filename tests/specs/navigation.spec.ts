@@ -32,6 +32,7 @@ import {
   navigationRows,
   projectSidebar,
   verifyCurrentRouteHash,
+  waitForProjectCard,
 } from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
@@ -668,6 +669,9 @@ test.describe("A Project's sidebar", () => {
       await setTheme(mainWindow, theme);
       await navigateToProjectDashboard(mainWindow, project.id);
       await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      // The sidebar of the Project rather than the skeleton's, which draws the
+      // same rows and is replaced, scrolled or not, once the Project is read.
+      await waitForProjectCard(mainWindow, project.name);
       await expect(
         sidebar.getByRole('link', { name: /^Sets 8/ })
       ).toBeVisible();

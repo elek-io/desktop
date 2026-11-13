@@ -14,6 +14,25 @@ export function projectCard(page: Page): Locator {
 }
 
 /**
+ * Wait until the sidebar shows the Project, rather than the skeleton that
+ * stands in for it while the Project is still being read.
+ *
+ * The skeleton draws the card's slot and the whole navigation too, and React
+ * replaces both once the read lands, so a navigation a spec scrolled before
+ * that is gone. Only the filled card draws the switcher named after the
+ * Project. The read runs Git, so it is given the slack of a slow read on a
+ * slow machine rather than the default.
+ */
+export async function waitForProjectCard(
+  page: Page,
+  projectName: string
+): Promise<void> {
+  await expect(
+    projectCard(page).getByRole('button', { name: projectName })
+  ).toBeVisible({ timeout: 20000 });
+}
+
+/**
  * The main panel, which is what a screen itself draws.
  *
  * Anything a screen shows is looked for in here rather than in the window,
