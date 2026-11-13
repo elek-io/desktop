@@ -34,7 +34,45 @@ export async function setUserViaIpc(
     ...overrides,
   };
 
-  return page.evaluate(async (user) => window.ipc.core.user.set(user), props);
+  const user = await page.evaluate(
+    async (props) => window.ipc.core.user.set(props),
+    props
+  );
+
+  // The gate in front of every screen settles on the first start while there is
+  // no User, so a window sitting there is sent on: the renderer reads the User
+  // on its next load. Every other screen is left where it is.
+  if (new URL(page.url()).hash === '#/welcome') {
+    await page.reload();
+    await expect(page).toHaveURL(/#\/projects$/);
+  }
+
+  return user;
+}
+
+/** Route to the first start, which is where every address settles without a User. */
+export async function navigateToFirstStart(page: Page): Promise<void> {
+  await navigate(page, '#/welcome');
+}
+
+/**
+ * Walk the first start, which is the one way to get a User through the app.
+ *
+ * Nothing in Desktop can be written before one exists, so every spec that
+ * drives a screen after it either comes through here or seeds a User with
+ * `setUserViaIpc`.
+ */
+export async function completeFirstStart(
+  page: Page,
+  props: { name?: string; email?: string } = {}
+): Promise<void> {
+  const { name = 'Test User', email = 'test@elek.io' } = props;
+
+  await navigateToFirstStart(page);
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByLabel('Email address', { exact: true }).fill(email);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(/#\/projects$/);
 }
 
 /** Route to the User profile page and confirm the app rendered there. */

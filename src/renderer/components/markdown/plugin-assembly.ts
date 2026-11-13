@@ -64,7 +64,6 @@ import {
   remarkHtmlTransformer,
   remarkInlineLinkPlugin,
   remarkLineBreak,
-  remarkMarker,
   remarkPreserveEmptyLinePlugin,
   sinkListItemCommand,
   splitListItemCommand,
@@ -273,6 +272,13 @@ export function buildEditorPlugins(
     slices.push(footnoteDefinitionSchema, footnoteReferenceSchema);
   }
 
+  // Emphasis and strong take no marker plugin. Milkdown's `remarkMarker`
+  // keeps the `*` or `_` an author typed by reading it out of the markdown
+  // text a tree was parsed from. A tree from Core was never parsed from text,
+  // so it reads a character off nothing and throws before the field can be
+  // opened. Nothing is lost with it gone: Core stores no marker, and a paste
+  // rebuilds its content from the DOM, which carries none either, so each
+  // mark takes the default its own schema sets.
   if (features.emphasis) {
     slices.push(
       emphasisAttr,
@@ -291,10 +297,6 @@ export function buildEditorPlugins(
       toggleStrongCommand,
       strongKeymap
     );
-  }
-  // Preserves the author's emphasis/strong marker style (* vs _) on round trip
-  if (features.emphasis || features.strong) {
-    slices.push(remarkMarker);
   }
   if (features.inlineCode) {
     slices.push(

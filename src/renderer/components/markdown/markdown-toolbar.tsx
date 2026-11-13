@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro';
 import { editorViewCtx, type CmdKey } from '@milkdown/kit/core';
 import {
   createCodeBlockCommand,
@@ -44,6 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu';
+import { Toggle } from '@renderer/components/ui/toggle';
 
 import type { MarkdownFieldDefinition } from '@elek-io/core';
 
@@ -52,21 +54,34 @@ import { EntryReferencePicker } from './entry-reference-picker';
 import { LinkDialog } from './link-dialog';
 import { insertAssetReferenceCommand } from './plugins/asset-reference';
 import { insertEntryReferenceCommand } from './plugins/entry-reference';
+import type { ActiveMarkFormats } from './plugins/mark-formats';
 
 export interface MarkdownToolbarProps {
   fieldDefinition: MarkdownFieldDefinition;
+  /** Which inline formats the cursor or the selection is inside right now. */
+  activeFormats: ActiveMarkFormats;
   disabled: boolean;
 }
 
 /**
  * Compact toolbar over the markdown editor. Renders only the affordances the
- * field's features enable. Buttons use onMouseDown with preventDefault so the
- * editor selection survives the click.
+ * field's features enable.
+ *
+ * A button that turns an inline format on and off is a Toggle, pressed while
+ * that format is on, so somebody can see and hear what the text already is.
+ * Every button runs on click, so the keyboard reaches it, and prevents the
+ * default of the mouse press before it, so the editor's selection survives.
+ *
+ * Both kinds are the same square, since ci gives every button of the bar one
+ * size.
  */
 export const MarkdownToolbar = ({
   fieldDefinition,
+  activeFormats,
   disabled,
 }: MarkdownToolbarProps): ReactElement | null => {
+  const { t } = useLingui();
+
   const features = fieldDefinition.features;
   const [isLoading, getEditor] = useInstance();
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -93,16 +108,44 @@ export const MarkdownToolbar = ({
       key={label}
       type="button"
       variant="ghost"
-      size="icon"
+      size="icon-sm"
       disabled={disabled}
-      onMouseDown={(event) => {
-        event.preventDefault();
-        onRun();
-      }}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onRun}
     >
       {icon}
       <span className="sr-only">{label}</span>
     </Button>
+  );
+
+  /**
+   * A button for an inline format, pressed while that format is on.
+   *
+   * ci gives a pressed button the muted surface and a ring in the input color,
+   * so it is never color alone, and `aria-pressed` says the same thing to a
+   * screen reader.
+   */
+  const formatToggle = (
+    label: string,
+    icon: ReactNode,
+    isPressed: boolean,
+    onRun: () => void
+  ): ReactElement => (
+    <Toggle
+      key={label}
+      type="button"
+      size="sm"
+      // The same square as the plain buttons beside it, which hold nothing but
+      // an icon either.
+      className="px-0"
+      disabled={disabled}
+      pressed={isPressed}
+      onMouseDown={(event) => event.preventDefault()}
+      onPressedChange={onRun}
+    >
+      {icon}
+      <span className="sr-only">{label}</span>
+    </Toggle>
   );
 
   const hasMarks =
@@ -127,36 +170,40 @@ export const MarkdownToolbar = ({
   }
 
   return (
-    <div className="flex flex-row flex-wrap items-center gap-1 border-b border-zinc-200 p-1 dark:border-zinc-700">
+    <div className="flex flex-row flex-wrap items-center gap-0.5 border-b border-border p-1 text-muted-foreground">
       {features.headings.length > 0 ? (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={disabled}
-            >
-              <HeadingIcon />
-              <span className="sr-only">Heading</span>
-            </Button>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={disabled}
+              />
+            }
+          >
+            <HeadingIcon />
+            <span className="sr-only">
+              <Trans>Heading</Trans>
+            </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem
-              onSelect={() => {
+              onClick={() => {
                 run(turnIntoTextCommand.key);
               }}
             >
-              <PilcrowIcon /> Paragraph
+              <PilcrowIcon /> <Trans>Paragraph</Trans>
             </DropdownMenuItem>
             {features.headings.map((depth) => (
               <DropdownMenuItem
                 key={depth}
-                onSelect={() => {
+                onClick={() => {
                   run(wrapInHeadingCommand.key, depth);
                 }}
               >
-                Heading {depth}
+                <Trans>Heading {depth}</Trans>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -164,69 +211,84 @@ export const MarkdownToolbar = ({
       ) : null}
 
       {features.strong
-        ? button('Bold', <BoldIcon />, () => {
+        ? formatToggle(t`Bold`, <BoldIcon />, activeFormats.strong, () => {
             run(toggleStrongCommand.key);
           })
         : null}
       {features.emphasis
-        ? button('Italic', <ItalicIcon />, () => {
-            run(toggleEmphasisCommand.key);
-          })
+        ? formatToggle(
+            t`Italic`,
+            <ItalicIcon />,
+            activeFormats.emphasis,
+            () => {
+              run(toggleEmphasisCommand.key);
+            }
+          )
         : null}
       {features.inlineCode
-        ? button('Inline code', <CodeIcon />, () => {
-            run(toggleInlineCodeCommand.key);
-          })
+        ? formatToggle(
+            t`Inline code`,
+            <CodeIcon />,
+            activeFormats.inlineCode,
+            () => {
+              run(toggleInlineCodeCommand.key);
+            }
+          )
         : null}
       {features.strikethrough
-        ? button('Strikethrough', <StrikethroughIcon />, () => {
-            run(toggleStrikethroughCommand.key);
-          })
+        ? formatToggle(
+            t`Strikethrough`,
+            <StrikethroughIcon />,
+            activeFormats.strikethrough,
+            () => {
+              run(toggleStrikethroughCommand.key);
+            }
+          )
         : null}
 
       {features.lists
-        ? button('Bullet list', <ListIcon />, () => {
+        ? button(t`Bullet list`, <ListIcon />, () => {
             run(wrapInBulletListCommand.key);
           })
         : null}
       {features.lists
-        ? button('Ordered list', <ListOrderedIcon />, () => {
+        ? button(t`Ordered list`, <ListOrderedIcon />, () => {
             run(wrapInOrderedListCommand.key);
           })
         : null}
       {features.blockquotes
-        ? button('Blockquote', <TextQuoteIcon />, () => {
+        ? button(t`Blockquote`, <TextQuoteIcon />, () => {
             run(wrapInBlockquoteCommand.key);
           })
         : null}
       {features.codeBlocks
-        ? button('Code block', <SquareCodeIcon />, () => {
+        ? button(t`Code block`, <SquareCodeIcon />, () => {
             run(createCodeBlockCommand.key);
           })
         : null}
       {features.tables
-        ? button('Table', <TableIcon />, () => {
+        ? button(t`Table`, <TableIcon />, () => {
             run(insertTableCommand.key, {});
           })
         : null}
       {features.thematicBreak
-        ? button('Thematic break', <MinusIcon />, () => {
+        ? button(t`Thematic break`, <MinusIcon />, () => {
             run(insertHrCommand.key);
           })
         : null}
 
       {features.externalLinks
-        ? button('Link', <LinkIcon />, () => {
+        ? button(t`Link`, <LinkIcon />, () => {
             setIsLinkDialogOpen(true);
           })
         : null}
       {features.assetReferences
-        ? button('Reference an Asset', <ImagePlusIcon />, () => {
+        ? button(t`Reference an Asset`, <ImagePlusIcon />, () => {
             setIsAssetPickerOpen(true);
           })
         : null}
       {features.entryReferences
-        ? button('Reference an Entry', <ListPlusIcon />, () => {
+        ? button(t`Reference an Entry`, <ListPlusIcon />, () => {
             setIsEntryPickerOpen(true);
           })
         : null}

@@ -1,13 +1,14 @@
+import { Trans } from '@lingui/react/macro';
 import { Plus } from 'lucide-react';
 import { useId, useState, type ReactElement } from 'react';
 
+import {
+  authorableFieldTypes,
+  fieldModule,
+  fieldTypesForbiddenInComponents,
+} from '@renderer/components/fields';
 import { type FieldDefinitionsOwner } from '@renderer/components/forms/default-field-definition-form';
 import { type DefinitionDraftProps } from '@renderer/components/forms/field-definition-draft';
-import {
-  FIELD_DEFINITION_REGISTRY,
-  fieldTypesForbiddenInComponents,
-  unauthorableFieldTypes,
-} from '@renderer/components/forms/field-definition-registry';
 import { SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import { Label } from '@renderer/components/ui/label';
@@ -37,6 +38,11 @@ import {
   type Project,
 } from '@elek-io/core';
 
+// The select reads the label of the chosen field type from here.
+const fieldTypeItems: Record<string, string> = Object.fromEntries(
+  fieldTypeSchema.options.map((option) => [option, option])
+);
+
 // The Add Field sheet: a field-type picker, the matching registry entry rendered
 // in the body, and one detached SubmitButton in the footer.
 //
@@ -60,7 +66,12 @@ export function AddFieldSheet({
   onAppend,
 }: AddFieldSheetProps): ReactElement {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedFieldType, setSelectedFieldType] = useState<FieldType>('text');
+  const [selectedFieldType, setSelectedFieldType] = useState<FieldType>(
+    // The type the picker opens on, which is a Core field type rather than a
+    // word.
+    // eslint-disable-next-line lingui/no-unlocalized-strings
+    'text'
+  );
   const addFieldFormId = useId();
   // A plain state control, not a react-hook-form field, so it uses a bare Label
   // and Select and wires its own ids.
@@ -94,41 +105,59 @@ export function AddFieldSheet({
   // A type is offered unless the client cannot author it at all, or the object
   // it would be added to cannot hold it.
   const isUnavailable = (fieldType: FieldType): boolean =>
-    unauthorableFieldTypes.has(fieldType) ||
+    authorableFieldTypes.has(fieldType) === false ||
     (owner === 'component' && fieldTypesForbiddenInComponents.has(fieldType));
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button
-          Icon={Plus}
-          onClick={(event) => {
-            event.preventDefault();
-            setIsOpen(true);
-          }}
-        >
-          Add Field
-        </Button>
+      <SheetTrigger
+        render={
+          <Button
+            Icon={Plus}
+            onClick={(event) => {
+              event.preventDefault();
+              setIsOpen(true);
+            }}
+          />
+        }
+      >
+        <Trans>Add Field</Trans>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>
-            {owner === 'collection'
-              ? 'Add a Field to this Collection'
-              : 'Add a Field to this Component'}
+            {owner === 'collection' ? (
+              <Trans>Add a Field to this Collection</Trans>
+            ) : (
+              <Trans>Add a Field to this Component</Trans>
+            )}
           </SheetTitle>
           <SheetDescription>
-            {owner === 'collection'
-              ? 'A Field says what every Entry of this Collection holds, and how somebody fills it in.'
-              : 'A Field says what every section built from this Component holds, and how somebody fills it in. A Component cannot hold a slug Field and none of its Fields can be unique.'}
+            {owner === 'collection' ? (
+              <Trans>
+                A Field says what every Entry of this Collection holds, and how
+                somebody fills it in.
+              </Trans>
+            ) : (
+              <Trans>
+                A Field says what every section built from this Component holds,
+                and how somebody fills it in. A Component cannot hold a slug
+                Field and none of its Fields can be unique.
+              </Trans>
+            )}
           </SheetDescription>
           <div className="grid gap-2">
-            <Label htmlFor={inputTypeId} isRequired>
-              Input type
+            <Label htmlFor={inputTypeId}>
+              <Trans>Input type</Trans>
             </Label>
             <Select
+              items={fieldTypeItems}
               value={selectedFieldType}
-              onValueChange={(value: FieldType) => setSelectedFieldType(value)}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  setSelectedFieldType(value);
+                }
+              }}
             >
               <SelectTrigger
                 id={inputTypeId}
@@ -149,7 +178,9 @@ export function AddFieldSheet({
               </SelectContent>
             </Select>
             <p id={inputTypeHintId} className="text-sm text-muted-foreground">
-              The type of input the user is able to enter for this Field.
+              <Trans>
+                The type of input the user is able to enter for this Field.
+              </Trans>
             </p>
           </div>
         </SheetHeader>
@@ -157,12 +188,14 @@ export function AddFieldSheet({
         {/* Keyed by type so switching the picker remounts the body with the
         right schema and defaults. One live form, not 18. */}
         <SheetBody key={selectedFieldType}>
-          {FIELD_DEFINITION_REGISTRY[selectedFieldType](draftProps)}
+          {fieldModule({ fieldType: selectedFieldType }).DefinitionDraft?.(
+            draftProps
+          )}
         </SheetBody>
 
         <SheetFooter>
           <SubmitButton className="w-full" form={addFieldFormId}>
-            Add definition
+            <Trans>Add definition</Trans>
           </SubmitButton>
         </SheetFooter>
       </SheetContent>

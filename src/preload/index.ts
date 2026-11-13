@@ -32,6 +32,24 @@ const ipc: ContextBridgeApi = {
           options
         ),
     },
+    window: {
+      setTheme: async (...args) =>
+        ipcRenderer.invoke('electron:window:setTheme', ...args),
+      setUnsavedChanges: async (...args) =>
+        ipcRenderer.invoke('electron:window:setUnsavedChanges', ...args),
+      answerClose: async (...args) =>
+        ipcRenderer.invoke('electron:window:answerClose', ...args),
+      // The one channel the main process sends on. The channel name is written
+      // here rather than taken from the renderer, so the renderer can listen to
+      // this one thing and to nothing else.
+      onAskedToClose: (listener) => {
+        const handler = (): void => listener();
+        ipcRenderer.on('electron:window:askBeforeClose', handler);
+        return () => {
+          ipcRenderer.off('electron:window:askBeforeClose', handler);
+        };
+      },
+    },
   },
   core: {
     api: {
@@ -91,6 +109,8 @@ const ipc: ContextBridgeApi = {
         ipcRenderer.invoke('core:releases:create', ...args),
     },
     assets: {
+      count: async (...args) =>
+        ipcRenderer.invoke('core:assets:count', ...args),
       list: async (...args) => ipcRenderer.invoke('core:assets:list', ...args),
       create: async (...args) =>
         ipcRenderer.invoke('core:assets:create', ...args),
@@ -134,10 +154,14 @@ const ipc: ContextBridgeApi = {
         ipcRenderer.invoke('core:components:delete', ...args),
     },
     entries: {
+      count: async (...args) =>
+        ipcRenderer.invoke('core:entries:count', ...args),
       list: async (...args) => ipcRenderer.invoke('core:entries:list', ...args),
       create: async (...args) =>
         ipcRenderer.invoke('core:entries:create', ...args),
       read: async (...args) => ipcRenderer.invoke('core:entries:read', ...args),
+      history: async (...args) =>
+        ipcRenderer.invoke('core:entries:history', ...args),
       update: async (...args) =>
         ipcRenderer.invoke('core:entries:update', ...args),
       delete: async (...args) =>

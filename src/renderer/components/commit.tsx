@@ -1,9 +1,9 @@
 'use client';
 
-import { QuestionMarkIcon } from '@radix-ui/react-icons';
 import { Link, type LinkProps } from '@tanstack/react-router';
 import {
   CircleFadingArrowUp,
+  CircleQuestionMarkIcon,
   FileQuestion,
   PartyPopper,
   Pencil,
@@ -76,8 +76,8 @@ export function Commit({ commit, ...props }: CommitProps): React.JSX.Element {
 export function CommitSkeleton(): React.JSX.Element {
   return (
     <div className="relative flex items-center space-x-4 rounded-md px-3 py-1">
-      <div className="relative z-10 rounded-full border border-primary bg-white p-2 dark:bg-zinc-900">
-        <QuestionMarkIcon className="h-4 w-4" />
+      <div className="relative z-10 rounded-full border border-primary bg-card p-2">
+        <CircleQuestionMarkIcon className="size-4" />
       </div>
       <div>
         <Skeleton className="mb-2 h-4 w-24 rounded" />

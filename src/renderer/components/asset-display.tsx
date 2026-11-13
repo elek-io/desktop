@@ -1,4 +1,12 @@
-import { FileQuestion, FolderArchive } from 'lucide-react';
+import { useLingui } from '@lingui/react/macro';
+import {
+  AudioLines,
+  FileArchive,
+  FileQuestion,
+  FileText,
+  Play,
+  type LucideIcon,
+} from 'lucide-react';
 import { forwardRef, useEffect, useRef } from 'react';
 
 import { cn } from '@renderer/lib/utils';
@@ -35,18 +43,48 @@ function toLocalFileSrc(absolutePath: string): string {
   return `elek-io-local-file://${encodedPath}`;
 }
 
+/**
+ * What an Asset looks like: a preview where Desktop has one, images and video
+ * with the play mark, and an icon for a PDF, an audio file and an archive, as
+ * ci draws them.
+ */
 export function AssetDisplay(
   props: Asset & {
+    /**
+     * Classes for the box the Asset is drawn in, which is what gives it its
+     * size. A caller that names none gets a 4 by 3 box as wide as it has room
+     * for. The Asset fills that box, so a size on the box reaches what is
+     * drawn in it, including the icon that stands for a type with no preview.
+     */
     className?: string | undefined;
     /**
-     * If set to true, GIFs will be displayed as static images (no animation).
-     * Video and audio files will be displayed without controls and not be played automatically.
+     * How the Asset fills its box. ci's previews fill theirs, so a field's row
+     * and a picker's card ask for `cover`, while an Asset shown whole keeps
+     * its own shape with `contain`, which is the default.
+     */
+    fit?: 'contain' | 'cover';
+    /**
+     * Draws a still rather than something that plays: a GIF as one frame, and
+     * a video without controls that does not start by itself, carrying the
+     * play mark ci draws on it.
      */
     static?: boolean;
   }
 ): React.JSX.Element {
+  const { t } = useLingui();
+
   const absolutePath = toLocalFileSrc(props.absolutePath);
   const ref = useRef(null);
+
+  // The caller's classes land on the box rather than on the media inside it,
+  // so a row or a card that asks for 64 by 40 px gets a box of that size
+  // instead of a 4 by 3 one around it. `overflow-hidden` keeps an Asset that
+  // fills the box inside the box's own corners.
+  const box = cn('flex aspect-4/3 basis-full overflow-hidden', props.className);
+  const media = cn(
+    'h-full w-full',
+    props.fit === 'cover' ? 'object-cover' : 'object-contain'
+  );
 
   if (props.mimeType === 'image/gif' && props.static === true) {
     const gif = new Image();
@@ -74,7 +112,7 @@ export function AssetDisplay(
             ref={forwardedRef}
             width={gif.width}
             height={gif.height}
-            className={cn('h-full w-full object-contain', props.className)}
+            className={media}
           />
         );
       }
@@ -82,19 +120,21 @@ export function AssetDisplay(
     StaticGifCanvas.displayName = 'StaticGifCanvas';
 
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={box}>
         <StaticGifCanvas ref={ref} />
       </div>
     );
   }
 
+  const assetName = props.name;
+
   if (props.mimeType.startsWith('image/')) {
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={box}>
         <img
           src={absolutePath}
-          alt={`Asset "${props.name}"`}
-          className={cn('h-full w-full object-contain', props.className)}
+          alt={t`Asset "${assetName}"`}
+          className={media}
         />
       </div>
     );
@@ -102,57 +142,60 @@ export function AssetDisplay(
 
   if (props.mimeType.startsWith('video/')) {
     return (
-      <div className="flex aspect-4/3 basis-full">
+      <div className={cn(box, 'relative')}>
         <video
           muted
           controls={props.static === true ? false : true}
           autoPlay={props.static === true ? false : true}
-          className={cn('', props.className)}
+          className={media}
         >
           <source src={absolutePath} type={props.mimeType} />
         </video>
+        {/* The play mark ci draws on a video, so a still first frame is not
+        taken for an image. */}
+        {props.static === true ? (
+          <span className="absolute inset-0 m-auto grid size-8 place-items-center rounded-full bg-black/45 text-white">
+            <Play className="size-3" />
+          </span>
+        ) : null}
       </div>
     );
   }
 
   if (props.mimeType.startsWith('audio/')) {
-    return (
-      <div className="flex aspect-4/3 basis-full">
-        <audio
-          muted
-          controls={props.static === true ? false : true}
-          autoPlay={props.static === true ? false : true}
-          className={cn('', props.className)}
-        >
-          <source src={absolutePath} type={props.mimeType} />
-        </audio>
-      </div>
-    );
+    return <TypeMark icon={AudioLines} className={box} />;
   }
 
   if (props.mimeType === 'application/pdf') {
-    return (
-      <div className="flex aspect-4/3 basis-full">
-        <embed
-          src={absolutePath}
-          type={props.mimeType}
-          className={cn('h-full w-full object-contain', props.className)}
-        />
-      </div>
-    );
+    return <TypeMark icon={FileText} className={box} />;
   }
 
   if (props.mimeType === 'application/zip') {
-    return (
-      <div className="flex aspect-4/3 basis-full">
-        <FolderArchive className="m-auto h-10 w-10" />
-      </div>
-    );
+    return <TypeMark icon={FileArchive} className={box} />;
   }
 
+  return <TypeMark icon={FileQuestion} className={box} />;
+}
+
+/**
+ * What stands in for a file Desktop has no preview of: an icon on the muted
+ * surface, as ci draws a PDF, an audio file and an archive.
+ */
+function TypeMark({
+  icon: Icon,
+  className,
+}: {
+  icon: LucideIcon;
+  className: string;
+}): React.JSX.Element {
   return (
-    <div className="flex aspect-4/3 basis-full">
-      <FileQuestion className="m-auto h-10 w-10" />
+    <div
+      className={cn(
+        className,
+        'grid place-items-center bg-muted text-muted-foreground'
+      )}
+    >
+      <Icon className="size-6" />
     </div>
   );
 }

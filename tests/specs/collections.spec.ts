@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 
+import { type FieldType } from '@elek-io/core';
+
 import { test } from '../fixtures/electronApp.js';
 import {
   addFieldDefinition,
@@ -21,7 +23,7 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { stubCoreReject } from '../helpers/ipc.js';
-import { reloadWindow } from '../helpers/navigation.js';
+import { mainPanel, reloadWindow } from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
   createProjectViaIpc,
@@ -52,11 +54,13 @@ test.describe('Collections', () => {
     // verifies only the desktop app's part: the create reached Core, and the UI
     // reflects the result by listing the new Collection in the sidebar. Scope to
     // the sidebar (a complementary landmark) so the matching breadcrumb crumb on
-    // the detail page does not make the link locator ambiguous.
+    // the detail page does not make the link locator ambiguous. The row carries
+    // how many Entries the Collection holds, so its name starts with the
+    // Collection's own name rather than being it.
     await expect(
       mainWindow
         .getByRole('complementary')
-        .getByRole('link', { name: 'Articles' })
+        .getByRole('link', { name: /^Articles/ })
     ).toBeVisible();
   });
 
@@ -114,7 +118,7 @@ test.describe('Collections', () => {
     await expect(
       mainWindow
         .getByRole('complementary')
-        .getByRole('link', { name: 'Guides' })
+        .getByRole('link', { name: /^Guides/ })
     ).toBeVisible();
   });
 
@@ -152,14 +156,14 @@ test.describe('Collections', () => {
 
     // The delete redirecting to the Collections list is how Core's success
     // surfaces (it did not throw). The UI reflects the removal: the Collection
-    // is gone from the sidebar and the empty state shows. Its seeded Entry went
-    // with it (Core's cascade, which Core tests), so there is no Collection left
-    // to view Entries under.
+    // is gone from the sidebar and the bare route says there is none. Its
+    // seeded Entry went with it (Core's cascade, which Core tests), so there is
+    // no Collection left to view Entries under.
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/collections$/);
     await expect(
-      mainWindow.getByRole('link', { name: 'Articles' })
+      mainWindow.getByRole('link', { name: /^Articles/ })
     ).toBeHidden();
-    await expect(mainWindow.getByText('No Collections found')).toBeVisible();
+    await expect(mainWindow.getByText('No Collections yet')).toBeVisible();
   });
 
   test('surfaces a blocked delete in place when another Collection references in', async ({
@@ -214,6 +218,14 @@ test.describe('Collections', () => {
     await expect(
       mainWindow.getByText('still reference Entries in this one')
     ).toBeVisible();
+    // Confirming closed the confirmation, so the error is the only thing left
+    // on screen rather than the second of two stacked dialogs. The role is not
+    // what to look for: the error dialog marks the rest of the document
+    // aria-hidden, which takes a still open confirmation out of the role tree
+    // while it is on screen.
+    await expect(
+      mainWindow.locator('[data-slot="alert-dialog-content"]')
+    ).toBeHidden();
     await dismissDialog(mainWindow);
 
     // The Collection was not deleted: we stay on its settings page.
@@ -382,7 +394,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'select'. The picker is
-    // the first combobox in the sheet (its header); the options render in a Radix
+    // the first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow
@@ -485,7 +497,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'range'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
+    // first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow
@@ -542,7 +554,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'date'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
+    // first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow.getByRole('option', { name: 'date', exact: true }).click();
@@ -651,7 +663,7 @@ test.describe('Collections', () => {
     await expect(sheet).toBeVisible();
 
     // Switch the Input type from the default 'text' to 'asset'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
+    // first combobox in the sheet (its header); the options render in a
     // portal, so locate them on the page, not inside the dialog.
     await sheet.getByRole('combobox').first().click();
     await mainWindow
@@ -910,13 +922,15 @@ test.describe('Collections', () => {
     );
 
     // The Project got no commit for the refused update: the History lists the
-    // three creates that arranged this test and no Collection update.
+    // three creates that arranged this test and no Collection update. Both are
+    // looked for in the main panel, because the Project's sidebar beside it
+    // carries a Create Collection link of its own.
     await navigateToHistory(mainWindow, project.id);
     await expect(
-      mainWindow.getByRole('link', { name: /create collection/i })
+      mainPanel(mainWindow).getByRole('link', { name: /create collection/i })
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('link', { name: /update collection/i })
+      mainPanel(mainWindow).getByRole('link', { name: /update collection/i })
     ).toHaveCount(0);
 
     // Routing there reloaded the renderer, so the Entry form re-reads from Core:
@@ -1106,16 +1120,22 @@ test.describe('Collections', () => {
 
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
-    // The Field definitions area reports the error, naming the path it sits at.
-    // Assert the path, which is the app's own copy, not Core's message text.
+    // The Field definitions area reports the error, in a message of its own.
+    // The path it sits at is internal, so it stays out of what is on screen
+    // and goes to the log instead, see contributing/renderer/forms.md.
+    const reported = mainWindow
+      .locator('[data-slot="field-error"] [data-slot="form-message"]')
+      .first();
+    await expect(reported).toBeVisible();
+    await expect(reported).not.toHaveText('');
     await expect(
       mainWindow.getByText('fieldDefinitions.0.label.de')
-    ).toBeVisible();
+    ).toBeHidden();
 
     // It reports there and not through AppForm's whole-form backstop, which
     // proves the error found a real home rather than the catch-all.
     await expect(
-      mainWindow.getByText('not shown on any of its fields')
+      mainWindow.getByText('none of its fields says why')
     ).toBeHidden();
 
     // Nothing was saved, so the route stays on the update form with the values
@@ -1125,34 +1145,80 @@ test.describe('Collections', () => {
     );
   });
 
-  // Core pins `isUnique` to false for every number backed field, so the switch
-  // shows a fixed fact instead of offering a choice that would only fail on save.
-  test('locks the Unique switch for number and range fields', async ({
+  // Core pins `isUnique` for some field types, so the switch shows a fixed fact
+  // instead of offering a choice that would only fail on save, and says why.
+  // Every type Core pins is listed, because a locked switch with no reason
+  // leaves an editor with an operable control and a validator's own words.
+  const pinnedUniqueness: { fieldType: FieldType; reason: string }[] = [
+    { fieldType: 'slug', reason: 'Slugs are always unique' },
+    { fieldType: 'toggle', reason: 'Toggles cannot be unique' },
+    { fieldType: 'number', reason: 'Number fields cannot be unique.' },
+    { fieldType: 'range', reason: 'Number fields cannot be unique.' },
+    { fieldType: 'asset', reason: 'Reference fields cannot be unique.' },
+    { fieldType: 'entry', reason: 'Reference fields cannot be unique.' },
+    { fieldType: 'markdown', reason: 'Markdown fields cannot be unique.' },
+    { fieldType: 'dynamic', reason: 'Dynamic fields cannot be unique.' },
+  ];
+
+  test('locks the Unique switch and says why, for every type Core pins', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     await navigateToCollectionCreate(mainWindow, project.id);
 
-    const numberSheet = await openAddFieldSheet(mainWindow, 'number');
+    for (const { fieldType, reason } of pinnedUniqueness) {
+      const sheet = await openAddFieldSheet(mainWindow, fieldType);
+      await expect(
+        sheet.getByRole('switch', { name: 'Unique' }),
+        `${fieldType} offers Unique as a choice`
+      ).toBeDisabled();
+      await expect(
+        sheet.getByText(reason),
+        `${fieldType} locks Unique without saying why`
+      ).toBeVisible();
+      await mainWindow.keyboard.press('Escape');
+      await expect(sheet).toBeHidden();
+    }
+
+    // A select's options are either text or numbers, and only the numeric
+    // variant is pinned, so the one type carries both answers.
+    const selectSheet = await openAddFieldSheet(mainWindow, 'select');
     await expect(
-      numberSheet.getByRole('switch', { name: 'Unique' })
+      selectSheet.getByRole('switch', { name: 'Unique' })
+    ).toBeEnabled();
+    await selectSheet
+      .getByRole('combobox', { name: /Type of options/ })
+      .click();
+    await mainWindow.getByRole('option', { name: 'Number' }).click();
+    await expect(
+      selectSheet.getByRole('switch', { name: 'Unique' })
     ).toBeDisabled();
     await expect(
-      numberSheet.getByText('Number fields cannot be unique.')
+      selectSheet.getByText('Number fields cannot be unique.')
     ).toBeVisible();
     await mainWindow.keyboard.press('Escape');
-    await expect(numberSheet).toBeHidden();
+    await expect(selectSheet).toBeHidden();
 
-    // Range is number backed too, and additionally always required, so both
-    // switches are locked and each explains itself.
+    // And the lock is not blanket: a text field's uniqueness is a real choice,
+    // offered with nothing to explain.
+    const textSheet = await openAddFieldSheet(mainWindow, 'text');
+    await expect(
+      textSheet.getByRole('switch', { name: 'Unique' })
+    ).toBeEnabled();
+    await expect(textSheet.getByText('cannot be unique')).toBeHidden();
+  });
+
+  // Range is the one type Core also pins to required, and the same note
+  // mechanism says so.
+  test('locks the Required switch of a range field and says why', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+
     const rangeSheet = await openAddFieldSheet(mainWindow, 'range');
-    await expect(
-      rangeSheet.getByRole('switch', { name: 'Unique' })
-    ).toBeDisabled();
-    await expect(
-      rangeSheet.getByText('Number fields cannot be unique.')
-    ).toBeVisible();
     await expect(
       rangeSheet.getByRole('switch', { name: 'Required' })
     ).toBeDisabled();

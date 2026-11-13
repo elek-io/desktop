@@ -1,4 +1,5 @@
 import { arrayMove } from '@dnd-kit/sortable';
+import { useLingui } from '@lingui/react/macro';
 import { useState, type ReactElement } from 'react';
 import {
   useController,
@@ -11,23 +12,20 @@ import {
   DraggableComponent,
   SortableFieldArray,
 } from '@renderer/components/drag-and-drop';
+import { fieldModule } from '@renderer/components/fields';
+import { FieldDefinitionPreview } from '@renderer/components/fields/field-from-definition';
 import { AddFieldSheet } from '@renderer/components/forms/add-field-sheet';
-import { AllowComponentsSheet } from '@renderer/components/forms/allow-components-sheet';
 import { type FieldDefinitionsOwner } from '@renderer/components/forms/default-field-definition-form';
 import { PageSection } from '@renderer/components/page-section';
+import { FieldSubtreeError } from '@renderer/components/ui/app-form';
 import {
   FieldGroup,
   FieldLegend,
   FieldSet,
 } from '@renderer/components/ui/field';
-import {
-  FormFieldDefinitionPreview,
-  FormSubtreeMessage,
-} from '@renderer/components/ui/form';
 import { useProject } from '@renderer/hooks/useProject';
 
 import {
-  type DynamicFieldDefinition,
   type FieldDefinition,
   type FieldDefinitionOrGroup,
   type Project,
@@ -76,6 +74,8 @@ export function FieldDefinitionsEditor<
   TFieldValues,
   TTransformedValues
 >): ReactElement {
+  const { t } = useLingui();
+
   const { translateContent } = useProject();
   // Which definition's allowed Components are being grown, by its own id. The
   // sheet is mounted for that one definition rather than one per preview, so
@@ -86,7 +86,8 @@ export function FieldDefinitionsEditor<
   // Every form this serves holds the array under this key, but FieldPath cannot
   // resolve a literal path for an unresolved generic, so the name is asserted
   // once here. Casting the name rather than the whole form is the documented
-  // way out, as AssetForm does. See contributing/renderer/forms.md#form-typing.
+  // way out, as CollectionForm does. See
+  // contributing/renderer/forms.md#form-typing.
   const name = 'fieldDefinitions' as FieldPath<TFieldValues>;
   const { field: fieldDefinitionsField } = useController({
     control: form.control,
@@ -113,23 +114,12 @@ export function FieldDefinitionsEditor<
       )
     );
   };
-  // Removing a definition also scrubs it from every slug field's
-  // ofFieldDefinitions. Core's slugSourceReferencesSuperRefinement rejects a
-  // source id that no longer exists in the Collection, and a fieldDefinitions[i]
-  // error has no control to land on here, so a stale id would silently block
-  // every later save with no visible reason. A Component holds no slug field at
-  // all (Core forbids one), so there it finds nothing to scrub.
+  // Removing a definition also asks every other definition to forget it, which
+  // only a slug field has to do. Each type's folder answers that, so this never
+  // reads a field type.
   const removeDefinition = (id: string): void => {
     const withoutSource = (definition: FieldDefinition): FieldDefinition =>
-      definition.fieldType === 'slug' &&
-      definition.ofFieldDefinitions.includes(id)
-        ? {
-            ...definition,
-            ofFieldDefinitions: definition.ofFieldDefinitions.filter(
-              (sourceId) => sourceId !== id
-            ),
-          }
-        : definition;
+      fieldModule(definition).withoutDefinition?.(definition, id) ?? definition;
 
     fieldDefinitionsField.onChange(
       definitions
@@ -164,28 +154,50 @@ export function FieldDefinitionsEditor<
     moveDefinition(current.id, target.id);
   };
 
-  const subject =
-    owner === 'collection'
-      ? 'every Entry of this Collection'
-      : 'every section built from this Component';
-
   // The definition the sheet is open on. Read out of the array each render, so
   // the sheet sees the ids and the allowed Components the array holds now.
   const growing = definitions.find(
-    (definition): definition is DynamicFieldDefinition =>
-      'isGroup' in definition === false &&
-      definition.fieldType === 'dynamic' &&
-      definition.id === growingDefinitionId
+    (definition): definition is FieldDefinition =>
+      'isGroup' in definition === false && definition.id === growingDefinitionId
   );
+  // Which definitions can be edited after they exist is each type's own answer:
+  // a type whose folder carries a sheet is offered the control, every other one
+  // is offered none rather than a disabled one.
+  const editSheetOf = (
+    definition: FieldDefinition
+  ):
+    | ((props: {
+        onChange: (changed: FieldDefinition) => void;
+        onClose: () => void;
+      }) => ReactElement)
+    | undefined => {
+    const EditSheet = fieldModule(definition).EditSheet;
+    if (EditSheet === undefined) {
+      return undefined;
+    }
+    return ({ onChange, onClose }) => (
+      <EditSheet
+        fieldDefinition={definition}
+        onChange={onChange}
+        onClose={onClose}
+      />
+    );
+  };
 
   return (
     <PageSection
       title={
         owner === 'collection'
-          ? "Define this Collection's Fields"
-          : "Define this Component's Fields"
+          ? t`Define this Collection's Fields`
+          : t`Define this Component's Fields`
       }
-      description={`Add Fields to say what ${subject} holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`}
+      // One sentence per owner rather than a phrase dropped into one, since a
+      // phrase that carries grammar cannot be translated on its own.
+      description={
+        owner === 'collection'
+          ? t`Add Fields to say what every Entry of this Collection holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`
+          : t`Add Fields to say what every section built from this Component holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`
+      }
       actions={
         isViewOnly ? (
           <></>
@@ -202,11 +214,11 @@ export function FieldDefinitionsEditor<
       {/* The definitions render as previews, not as bound fields, so a Core
       refinement that lands on the array or on a definition inside it (a
       duplicate slug, a stale slug source, a language a field is missing) has no
-      FormMessage to land on. Without this, such an error would make Save a
+      AppField to land on. Without this, such an error would make Save a
       silent no-op. See contributing/renderer/forms.md. */}
-      <FormSubtreeMessage form={form} name={name} className="mt-6" />
+      <FieldSubtreeError form={form} name={name} className="mt-6" />
 
-      <div className="mt-6 grid grid-cols-12 gap-6">
+      <div className="@container mt-6 grid grid-cols-12 gap-6">
         <SortableFieldArray items={definitions} onReorder={moveDefinition}>
           {definitions.map((fieldDefinition, index) => {
             // Groups are presentational. Authoring them is not supported yet,
@@ -226,7 +238,7 @@ export function FieldDefinitionsEditor<
                     </FieldLegend>
                     <FieldGroup className="grid grid-cols-12 gap-6">
                       {fieldDefinition.fieldDefinitions.map((member) => (
-                        <FormFieldDefinitionPreview
+                        <FieldDefinitionPreview
                           key={member.id}
                           fieldDefinition={member}
                         />
@@ -242,15 +254,14 @@ export function FieldDefinitionsEditor<
                 key={fieldDefinition.id}
                 id={fieldDefinition.id}
               >
-                <FormFieldDefinitionPreview
+                <FieldDefinitionPreview
                   fieldDefinition={fieldDefinition}
                   isDraggable={isViewOnly === false}
-                  // The only editable part of a definition is which Components
-                  // a dynamic Field allows, so every other type is offered no
-                  // edit control rather than a disabled one.
+                  // A type whose folder carries an edit sheet is the only one
+                  // offered an edit control at all.
                   onEdit={
                     isViewOnly === false &&
-                    fieldDefinition.fieldType === 'dynamic'
+                    editSheetOf(fieldDefinition) !== undefined
                       ? () => setGrowingDefinitionId(fieldDefinition.id)
                       : undefined
                   }
@@ -278,17 +289,15 @@ export function FieldDefinitionsEditor<
 
       {/* Keyed by the definition, so the sheet's form is seeded from the one it
       was opened on rather than from whichever was opened first. */}
-      {growing === undefined ? null : (
-        <AllowComponentsSheet
-          key={growing.id}
-          fieldDefinition={growing}
-          onAllow={(definition) => {
-            replaceDefinition(definition);
-            setGrowingDefinitionId(null);
-          }}
-          onClose={() => setGrowingDefinitionId(null)}
-        />
-      )}
+      {growing === undefined
+        ? null
+        : editSheetOf(growing)?.({
+            onChange: (definition) => {
+              replaceDefinition(definition);
+              setGrowingDefinitionId(null);
+            },
+            onClose: () => setGrowingDefinitionId(null),
+          })}
     </PageSection>
   );
 }

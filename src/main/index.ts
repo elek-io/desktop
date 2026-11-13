@@ -1,9 +1,11 @@
+import { t } from '@lingui/core/macro';
 import {
   app,
   BrowserWindow,
   type BrowserWindowConstructorOptions,
   dialog,
   ipcMain,
+  nativeTheme,
   net,
   protocol,
   screen,
@@ -12,14 +14,45 @@ import {
 import { realpath } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import Path from 'path';
+import { type ZodType } from 'zod';
 
+import { colors } from '@elek-io/branding';
 import ElekIoCore, { CoreError } from '@elek-io/core';
 
 import icon from '../../resources/icon.png?asset';
+import { activateAppLocale } from '../shared/i18n.js';
 import { serializeCoreError } from '../shared/ipcError.js';
 import { errorLogAttributes } from '../shared/logError.js';
+import {
+  unsavedChangesSchema,
+  windowCloseAnswerSchema,
+} from '../shared/windowClose.js';
+import { windowThemeSchema, type WindowTheme } from '../shared/windowTheme.js';
 
 // import { updateElectronApp } from 'update-electron-app';
+
+/**
+ * The smallest window elek.io Desktop supports, in CSS pixels at 100% zoom.
+ * Below it a screen starts to collide or clip.
+ */
+const minimumWindowSize = { width: 1168, height: 560 } as const;
+
+/**
+ * The height of the bar the window controls get to themselves, the first of the
+ * header's two bars. The same on every system, so the header does not change
+ * with it.
+ */
+const windowControlsBarHeight = 32;
+
+/**
+ * Where macOS puts the traffic lights. They are drawn by the system rather than
+ * by the renderer, so their place is set here: 16 px from the left edge, and
+ * 10 px down, which centers the 12 px buttons in the 32 px bar.
+ */
+const trafficLightPosition = { x: 16, y: 10 } as const;
+
+/** Where somebody reports a start that failed, since the in-app report needs a running app. */
+const issuesUrl = 'https://github.com/elek-io/desktop/issues';
 
 class Main {
   public readonly customFileProtocol: string = 'elek-io-local-file';
@@ -40,6 +73,33 @@ class Main {
       ? 'https://api.elek.io'
       : 'https://api.dev.elek.io';
   private core: ElekIoCore | null = null;
+  /**
+   * The start, from the `ready` event to the first window being loaded, or
+   * `null` until Electron is ready.
+   *
+   * An activation waits for it before it counts the windows, so a dock click
+   * that lands while the start is still running never opens a window beside
+   * the one the start is about to create, see `onAppActivate`.
+   */
+  private startup: Promise<void> | null = null;
+  /**
+   * Whether the window holds something nobody saved, as the renderer last said
+   * over `electron:window:setUnsavedChanges`.
+   *
+   * One field for one window, which is all the app opens. A close is held only
+   * while this is true, so the renderer that says it is the renderer that
+   * answers the question, and a renderer with nothing unsaved holds nothing.
+   */
+  private hasUnsavedChanges = false;
+  /**
+   * Whether what is closing the window is a quit, so Discard ends the app
+   * rather than leaving it running without a window on macOS.
+   *
+   * Electron aborts a quit when a window refuses to close and emits nothing to
+   * say so, so this is cleared again when the question is answered with Keep
+   * editing.
+   */
+  private isQuitting = false;
 
   constructor() {
     // Allow the vite dev server to do HMR in development
@@ -54,12 +114,17 @@ class Main {
 
     // Register app events
     app.on('ready', () => {
-      void this.onAppReady().catch(async (error: unknown) =>
+      // Held, because an activation has to wait for it rather than count the
+      // windows while it runs, see `onAppActivate`.
+      this.startup = this.onAppReady().catch(async (error: unknown) =>
         this.onAppReadyFailed(error)
       );
     });
     app.on('activate', () => {
       void this.onAppActivate();
+    });
+    app.on('before-quit', () => {
+      this.isQuitting = true;
     });
     app.on('window-all-closed', () => this.onAppAllWindowsClosed());
     app.on('web-contents-created', (event, webContents) =>
@@ -123,11 +188,11 @@ class Main {
     // IPC calls as soon as it mounts, so registering after the load would leave
     // a startup gap where a call arrives before its handler exists and rejects
     // with "No handler registered", which throwOnError turns into the root error
-    // boundary on launch. The handlers only touch the window when invoked, so it
-    // just needs to exist here, not be loaded yet.
-    const window = this.createWindow();
-    this.registerIpcMain(window, this.core);
-    await this.loadWindow(window);
+    // boundary on launch. They are registered once for the process and hold no
+    // window of their own, so every window the app goes on to create is served
+    // by them, see `windowOf`.
+    this.registerIpcMain(this.core);
+    await this.loadWindow(this.createWindow());
   }
 
   /**
@@ -137,10 +202,17 @@ class Main {
    * box too. When Core got far enough to exist, the error also goes to its log
    * file, and disposing Core flushes that record before the process exits. Core
    * may be what failed, so the console and the box never depend on it.
+   *
+   * The box takes the system's language rather than the User's. Nothing read a
+   * User at this point, and Core may be what failed, so the system is the only
+   * language on hand. `app.getLocale()` answers once Electron is ready, which
+   * it is here, since this only runs from the `ready` handler.
    */
   private async onAppReadyFailed(error: unknown): Promise<void> {
     // eslint-disable-next-line no-console
     console.error('Failed to initialize the app', error);
+
+    activateAppLocale(app.getLocale());
 
     if (this.core !== null) {
       try {
@@ -155,10 +227,13 @@ class Main {
       }
     }
 
-    dialog.showErrorBox(
-      'elek.io Desktop could not start',
-      `${error instanceof Error ? error.message : String(error)}\n\nIf this keeps happening, please open an issue at https://github.com/elek-io/desktop/issues`
-    );
+    // Composed outside the call, so the box's arguments stay a catalog message
+    // and a value rather than a literal, which is what the lint rule asks for.
+    const reason = error instanceof Error ? error.message : String(error);
+    const advice = t`If this keeps happening, please open an issue at ${issuesUrl}`;
+    const detail = `${reason}\n\n${advice}`;
+
+    dialog.showErrorBox(t`elek.io Desktop could not start`, detail);
     app.exit(1);
   }
 
@@ -197,6 +272,16 @@ class Main {
    * or clicking on the application's dock or taskbar icon.
    */
   private async onAppActivate(): Promise<void> {
+    // The start is asynchronous and this arrives whenever the icon is clicked,
+    // so it can land before the start created its window. Counting windows
+    // then would make a second one, which the app has no state for: both
+    // renderers would claim the one `hasUnsavedChanges` field, and a clean
+    // window's answer would clear what the edited one claimed. So the start is
+    // waited for first, and the count below is taken once there is something
+    // to count.
+    await app.whenReady();
+    await this.startup;
+
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -257,6 +342,11 @@ class Main {
     const options: BrowserWindowConstructorOptions = {
       width: initialWindowSize.width,
       height: initialWindowSize.height,
+      // Electron enforces the smallest window the app supports, so no screen
+      // can be dragged into collapsing. The zoom levels the app offers have to
+      // stay above it too, since the minimum is in CSS pixels.
+      minWidth: minimumWindowSize.width,
+      minHeight: minimumWindowSize.height,
     };
 
     // Overwrite webPreferences to always load the correct preload script
@@ -273,15 +363,59 @@ class Main {
     }
     options.frame = false;
     options.titleBarStyle = 'hidden';
-    options.titleBarOverlay = true;
+    // The window controls keep the header's first bar to themselves, as high as
+    // that bar on every system. Which theme the renderer resolved to is only
+    // known once it mounts and calls `electron:window:setTheme`, so the overlay
+    // starts on the system's preference.
+    options.titleBarOverlay = this.titleBarOverlayFor(
+      nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+    );
+    if (process.platform === 'darwin') {
+      options.trafficLightPosition = trafficLightPosition;
+    }
 
     const window = new BrowserWindow(options);
 
     window.webContents.on('will-navigate', (event, urlToLoad) =>
       this.onWindowWebContentsWillNavigate(window, event, urlToLoad)
     );
+    window.on('close', (event) => this.onWindowClose(window, event));
+    // A fresh document has saved nothing yet and has not said anything about
+    // itself, so a reload leaves no claim of the document before it behind.
+    window.webContents.on('did-finish-load', () => {
+      this.hasUnsavedChanges = false;
+    });
 
     return window;
+  }
+
+  /**
+   * Holds the window open while the renderer still has something nobody saved,
+   * and asks the renderer to put the question on screen.
+   *
+   * The question is ci's own discard dialog in the window, named by the page,
+   * rather than a native box, which could draw neither a red Discard nor a
+   * ghost Keep editing and would not know what page is open. So this process
+   * only stops the close and hands the question over, and closes once the
+   * renderer answers with Discard over `electron:window:answerClose`.
+   *
+   * A close is held only while the renderer said there is something unsaved,
+   * which is a claim only a living renderer makes. A crashed one can show no
+   * question, so nothing of it is held either and the window closes.
+   *
+   * `close` is emitted before the document's own unload events, which is why
+   * the leave guard in the renderer keeps TanStack Router's `beforeunload` off:
+   * a `beforeunload` that cancels would stop the close again after this handler
+   * let it through, and without a `will-prevent-unload` handler nobody would be
+   * told.
+   */
+  private onWindowClose(window: BrowserWindow, event: Electron.Event): void {
+    if (this.hasUnsavedChanges === false || window.webContents.isCrashed()) {
+      return;
+    }
+
+    event.preventDefault();
+    window.webContents.send('electron:window:askBeforeClose');
   }
 
   /**
@@ -313,6 +447,21 @@ class Main {
         window.webContents.openDevTools();
       }
     } catch (error) {
+      // A window closed while its load still runs rejects that load too, and
+      // that is no failed start: nothing is left to load into, and the box a
+      // failed start shows would ask somebody who is already closing the app
+      // to acknowledge it. A close takes the window's web contents down first
+      // and the window itself a tick later, so the rejection can arrive while
+      // only the contents are gone, which is why both are asked.
+      if (window.isDestroyed() || window.webContents.isDestroyed()) {
+        this.core?.logger.warn({
+          source: 'desktop',
+          message: 'Loading the window stopped, because it was closed',
+          meta: errorLogAttributes(error),
+        });
+        return;
+      }
+
       // Electron rejects a pending load with ERR_ABORTED as soon as another
       // main frame navigation starts, even one the navigation guard blocks. Our
       // document is already showing by then, since only it can start one, so
@@ -331,6 +480,26 @@ class Main {
       }
       throw error;
     }
+  }
+
+  /**
+   * The style of the window controls overlay for one theme.
+   *
+   * Both colors come from the brand package, the ground the header sits on and
+   * the text color on it, so the overlay carries no color of its own. Electron
+   * ignores them on macOS, where the traffic lights are drawn in the system's
+   * colors, and takes the height everywhere.
+   */
+  private titleBarOverlayFor(theme: WindowTheme): {
+    color: string;
+    symbolColor: string;
+    height: number;
+  } {
+    return {
+      color: colors[theme].sidebar.hex,
+      symbolColor: colors[theme].foreground.hex,
+      height: windowControlsBarHeight,
+    };
   }
 
   /**
@@ -359,7 +528,19 @@ class Main {
       windowProps.height = Math.round(windowProps.width * aspectRatioFactor);
     }
 
-    return windowProps;
+    // The window opens at least at the smallest size the app supports and at
+    // most at the size of the screen, so a small display gets its whole work
+    // area instead of a window hanging off it.
+    return {
+      width: Math.min(
+        Math.max(windowProps.width, minimumWindowSize.width),
+        displaySize.width
+      ),
+      height: Math.min(
+        Math.max(windowProps.height, minimumWindowSize.height),
+        displaySize.height
+      ),
+    };
   }
 
   /**
@@ -488,12 +669,122 @@ class Main {
   }
 
   /**
+   * What the renderer sent on one of the channels that drive the window, or a
+   * rejected call.
+   *
+   * The renderer is the process that runs content somebody else wrote, so
+   * nothing it sends over one of those channels is taken as it arrives. A value
+   * the schema does not accept rejects the call and is logged like the other
+   * refusals in this process, and the rejection's message says which value was
+   * refused, which is what the caller sees.
+   */
+  private fromRenderer<T>(
+    core: ElekIoCore,
+    schema: ZodType<T>,
+    value: unknown,
+    refusal: string
+  ): T {
+    const parsed = schema.safeParse(value);
+
+    if (parsed.success === false) {
+      const errorMessage = `${refusal}: ${JSON.stringify(value)}`;
+      core.logger.error({
+        source: 'desktop',
+        message: errorMessage,
+      });
+      throw new Error(errorMessage);
+    }
+
+    return parsed.data;
+  }
+
+  /**
+   * The window the renderer that called is drawn in, or `null` when the call
+   * came from something that is no window.
+   *
+   * Asked per call rather than captured once. The handlers are registered a
+   * single time, while a window is created again whenever the app is activated
+   * without one, which macOS does from the dock. A window held from
+   * registration is destroyed by then and everything done to it throws, so
+   * every handler that drives a window reads it off the call instead.
+   */
+  private windowOf(
+    event: Electron.IpcMainInvokeEvent
+  ): Electron.BrowserWindow | null {
+    return BrowserWindow.fromWebContents(event.sender);
+  }
+
+  /**
    * Registers IPC handlers for the main process
    */
-  private registerIpcMain(
-    window: Electron.BrowserWindow,
-    core: ElekIoCore
-  ): void {
+  private registerIpcMain(core: ElekIoCore): void {
+    // The three things the renderer may say about its window, and the only
+    // channels outside the map below, because they drive the window rather than
+    // Core. Each takes one named value, which is parsed here, so neither a
+    // color nor any other window option crosses from the renderer.
+    ipcMain.handle('electron:window:setTheme', (event, theme: unknown) => {
+      const parsed = this.fromRenderer(
+        core,
+        windowThemeSchema,
+        theme,
+        'Refused to set a title bar theme that is neither "light" nor "dark"'
+      );
+
+      // Only Windows and Linux draw a Window Controls Overlay this can restyle.
+      // macOS draws its traffic lights in the system's own colors and has no
+      // `setTitleBarOverlay`.
+      if (process.platform === 'darwin') {
+        return;
+      }
+
+      this.windowOf(event)?.setTitleBarOverlay(this.titleBarOverlayFor(parsed));
+    });
+
+    // Whether the window holds something nobody saved, which decides whether a
+    // close is held for the question. See `onWindowClose`.
+    ipcMain.handle(
+      'electron:window:setUnsavedChanges',
+      (_event, hasUnsavedChanges: unknown) => {
+        this.hasUnsavedChanges = this.fromRenderer(
+          core,
+          unsavedChangesSchema,
+          hasUnsavedChanges,
+          'Refused to set whether the window holds unsaved changes to something that is neither true nor false'
+        );
+      }
+    );
+
+    // The answer to the question the renderer put on screen for a close this
+    // process held.
+    ipcMain.handle('electron:window:answerClose', (event, answer: unknown) => {
+      const parsed = this.fromRenderer(
+        core,
+        windowCloseAnswerSchema,
+        answer,
+        'Refused an answer to the question before closing that is neither "discard" nor "keep"'
+      );
+
+      if (parsed === 'keep') {
+        // The window stays and so does what was typed. A quit this close
+        // belonged to was aborted with it, so the next close is just a close.
+        this.isQuitting = false;
+        return;
+      }
+
+      // What was typed is let go of, so the close this process held goes
+      // through. The window that asked is the one that is closed, and it is
+      // closed from here rather than from the renderer, which cannot close its
+      // own window.
+      this.hasUnsavedChanges = false;
+
+      if (this.isQuitting) {
+        app.quit();
+        return;
+      }
+
+      this.windowOf(event)?.close();
+    });
+
     const channelToHandlerMap = {
       'electron:dialog:showOpenDialog': dialog.showOpenDialog,
       'electron:dialog:showSaveDialog': dialog.showSaveDialog,
@@ -527,6 +818,7 @@ class Main {
       'core:releases:list': core.releases.list.bind(core.releases),
       'core:releases:prepare': core.releases.prepare.bind(core.releases),
       'core:releases:create': core.releases.create.bind(core.releases),
+      'core:assets:count': core.assets.count.bind(core.assets),
       'core:assets:list': core.assets.list.bind(core.assets),
       'core:assets:create': core.assets.create.bind(core.assets),
       'core:assets:read': core.assets.read.bind(core.assets),
@@ -550,9 +842,11 @@ class Main {
         core.components.resolveComponentId.bind(core.components),
       'core:components:update': core.components.update.bind(core.components),
       'core:components:delete': core.components.delete.bind(core.components),
+      'core:entries:count': core.entries.count.bind(core.entries),
       'core:entries:list': core.entries.list.bind(core.entries),
       'core:entries:create': core.entries.create.bind(core.entries),
       'core:entries:read': core.entries.read.bind(core.entries),
+      'core:entries:history': core.entries.history.bind(core.entries),
       'core:entries:update': core.entries.update.bind(core.entries),
       'core:entries:delete': core.entries.delete.bind(core.entries),
     } as const;
@@ -564,14 +858,20 @@ class Main {
         ...args: unknown[]
       ) => unknown;
 
-      ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
+      ipcMain.handle(channel, async (event, ...args: unknown[]) => {
         try {
-          // Prepend window argument for dialog calls
+          // A file dialog belongs to the window that asked for it, which the
+          // call says rather than the registration, see `windowOf`. Without a
+          // window it is shown on its own instead of over one that is gone.
           if (
             channel === 'electron:dialog:showOpenDialog' ||
             channel === 'electron:dialog:showSaveDialog'
           ) {
-            return await handler(window, ...args);
+            const senderWindow = this.windowOf(event);
+
+            return await (senderWindow === null
+              ? handler(...args)
+              : handler(senderWindow, ...args));
           }
 
           return await handler(...args);

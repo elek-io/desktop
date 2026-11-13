@@ -5,7 +5,15 @@ import { BreadcrumbContext } from '@renderer/hooks/useBreadcrumb';
 
 export interface Breadcrumb {
   label: string;
+  /** The route the crumb was registered from, which keys it to its match. */
   path: string;
+  /**
+   * Where the crumb leads, where that is not the route it stands for. The one
+   * crumb that needs it is the Projects step of the Profile's trail: the
+   * Profile sits outside the Projects route, so no match of its own carries
+   * that step, see contributing/renderer/breadcrumb-navigation.md.
+   */
+  to?: string;
 }
 
 export function BreadcrumbProvider({
@@ -29,13 +37,16 @@ export function BreadcrumbProvider({
       .filter((crumb): crumb is Breadcrumb => crumb !== null);
   }, [matches, breadcrumbMap]);
 
-  const setBreadcrumb = useCallback((path: string, label: string) => {
-    setBreadcrumbMap((prev) => {
-      const next = new Map(prev);
-      next.set(path, { path, label });
-      return next;
-    });
-  }, []);
+  const setBreadcrumb = useCallback(
+    (path: string, label: string, to?: string) => {
+      setBreadcrumbMap((prev) => {
+        const next = new Map(prev);
+        next.set(path, { path, label, ...(to === undefined ? {} : { to }) });
+        return next;
+      });
+    },
+    []
+  );
 
   const clearBreadcrumb = useCallback((path: string) => {
     setBreadcrumbMap((prev) => {

@@ -27,6 +27,7 @@ import {
 } from '../helpers/component.js';
 import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
 import {
+  chooseLanguage,
   componentValue,
   createEntryViaIpc,
   listEntriesViaIpc,
@@ -35,7 +36,7 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { stubCoreRejectWithType } from '../helpers/ipc.js';
-import { navigate } from '../helpers/navigation.js';
+import { navigate, projectSidebar } from '../helpers/navigation.js';
 import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -68,6 +69,15 @@ test.describe('Components', () => {
     const project = await createProjectViaIpc(mainWindow);
 
     await navigateToComponentCreate(mainWindow, project.id);
+
+    // The sidebar's Components row carries Core's number, so it stands at zero
+    // while the Project has none.
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*0$/,
+      })
+    ).toBeVisible();
+
     await mainWindow
       .getByLabel('Component name', { exact: true })
       .fill('Teaser');
@@ -84,6 +94,13 @@ test.describe('Components', () => {
     // A uuid detail route (never 'create') means Core accepted the Component
     // with its field definition. Core owns file and commit correctness.
     await expect(mainWindow).toHaveURL(componentRoute);
+
+    // The row follows the create without the Project being opened again.
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*1$/,
+      })
+    ).toBeVisible();
 
     // The list names it by the name somebody gave it, not by its id.
     await navigateToComponents(mainWindow, project.id);
@@ -248,11 +265,24 @@ test.describe('Components', () => {
       projectId: project.id,
       componentId: component.id,
     });
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*1$/,
+      })
+    ).toBeVisible();
+
     await mainWindow.getByRole('button', { name: 'Delete Component' }).click();
     await confirmDialog(mainWindow, 'Yes, delete this Component');
 
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
     await expect(mainWindow.getByText('No Components yet')).toBeVisible();
+
+    // And the sidebar's row follows the delete too.
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', {
+        name: /^Components\s*0$/,
+      })
+    ).toBeVisible();
   });
 
   test('refuses deleting a Component a Collection still uses, in place', async ({
@@ -362,9 +392,7 @@ test.describe('Components', () => {
     await mainWindow.getByLabel('Title', { exact: true }).fill('Home');
 
     // No section yet, so the field says so instead of looking broken.
-    await expect(
-      mainWindow.getByText('No sections yet. Add one to start building')
-    ).toBeVisible();
+    await expect(mainWindow.getByText('No sections yet.')).toBeVisible();
 
     // A section is added from the Components the field allows, each named by its
     // own name in the menu.
@@ -552,17 +580,19 @@ test.describe('Components', () => {
     await mainWindow
       .getByRole('button', { name: 'Remove the Teaser section' })
       .click();
-    await expect(
-      mainWindow.getByText('No sections yet. Add one to start building')
-    ).toBeVisible();
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
+    await expect(mainWindow.getByText('No sections yet.')).toBeVisible();
 
-    // The field is required, so an empty list cannot be saved. The message
-    // lands on the field and marks its control, rather than the press doing
-    // nothing at all. It is zod's own text, as every other field's is.
+    // The field is required, so an empty list cannot be saved. On the update
+    // route that is said before Save is pressed, since the Entry is missing a
+    // required Value and Save is blocked with the reason below it, see
+    // contributing/renderer/forms.md#saves-block.
     const addSection = mainWindow.getByRole('button', { name: 'Add section' });
-    await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(mainWindow.getByText(/too small/i)).toBeVisible();
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
+    await expect(save).toBeDisabled();
+    await expect(
+      mainWindow.locator('[data-slot="form-blocked-reason"]')
+    ).toHaveText('English is missing 1 Value');
+    await save.click({ force: true });
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/[^/]+/${entry.id}/update$`)
     );
@@ -577,13 +607,14 @@ test.describe('Components', () => {
       mainWindow.getByLabel('Headline', { exact: true })
     ).toHaveValue('Only one');
 
-    // The same on create, where a section has been added and removed again.
-    // Nothing is mounted inside the field on arrival there, which is what hid
-    // the message on the update route alone.
+    // The same field on create, where a section has been added and removed
+    // again. A new Entry is missing the same required Value, so Save is
+    // blocked there too rather than being pressed and refused.
     await navigateToEntryCreate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
+    const create = mainWindow.getByRole('button', { name: 'Create Article' });
     await mainWindow.getByLabel('Title', { exact: true }).fill('Another');
     await addSection.click();
     await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
@@ -591,9 +622,19 @@ test.describe('Components', () => {
     await mainWindow
       .getByRole('button', { name: 'Remove the Teaser section' })
       .click();
-    await mainWindow.getByRole('button', { name: 'Create Article' }).click();
-    await expect(addSection).toHaveAttribute('aria-invalid', 'true');
-    await expect(mainWindow.getByText(/too small/i)).toBeVisible();
+
+    await expect(create).toBeDisabled();
+    await expect(
+      mainWindow.locator('[data-slot="form-blocked-reason"]')
+    ).toHaveText('English is missing 1 Value');
+    await create.click({ force: true });
+
+    // Nothing was created, and the field was never marked, which is what tells
+    // a blocked form from one that is checked when Save is pressed.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/create`)
+    );
+    await expect(addSection).toHaveAttribute('aria-invalid', 'false');
   });
 
   test('authors a dynamic Field on a Collection through the Add Field sheet', async ({
@@ -1163,8 +1204,10 @@ test.describe('Components', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeVisible();
+    // The message as its own sentence on the screen, not the copy of it inside
+    // the stack the error screen also shows.
     await expect(
-      mainWindow.getByText('E2E injected Internal failure')
+      mainWindow.getByText('E2E injected Internal failure', { exact: true })
     ).toBeVisible();
     await expect(
       mainWindow.getByText('Could not save this Component')
@@ -1345,24 +1388,17 @@ test.describe('Components', () => {
     );
 
     // Reading the Entry back through its own form shows the same, and the
-    // second language is reached through the field's translations dialog.
+    // second language is reached through the switch above its fields.
     await navigateToEntryUpdate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
       entryId: entry.id,
     });
-    await expect(
-      mainWindow.getByLabel('Headline', { exact: true })
-    ).toHaveValue('We are live');
-    await mainWindow
-      .getByRole('button', { name: 'Edit translations for Headline' })
-      .click();
-    const translations = mainWindow.getByRole('dialog', { name: 'Headline' });
-    await expect(translations.getByLabel('de', { exact: true })).toHaveValue(
-      'Wir sind live'
-    );
-    await translations.getByRole('button', { name: 'Done' }).click();
-    await expect(translations).toBeHidden();
+    const headline = mainWindow.getByLabel('Headline', { exact: true });
+    await expect(headline).toHaveValue('We are live');
+    await chooseLanguage(mainWindow, 'de');
+    await expect(headline).toHaveValue('Wir sind live');
+    await chooseLanguage(mainWindow, 'en');
 
     // The Entry can now gain a section of the Component that was just allowed.
     await mainWindow.getByRole('button', { name: 'Add section' }).click();
@@ -1371,10 +1407,8 @@ test.describe('Components', () => {
     // An optional Field's label carries an " - optional" suffix, so it is
     // matched by prefix.
     await mainWindow.getByLabel('Tagline').fill('Content without a server');
-    await mainWindow.getByRole('button', { name: 'Update Article' }).click();
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
-    );
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(mainWindow.getByText('Entry saved')).toBeVisible();
 
     await navigateToEntryUpdate(mainWindow, {
       projectId: project.id,

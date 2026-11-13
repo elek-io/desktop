@@ -12,7 +12,8 @@ The base configuration for all queries and mutations is in [`client.ts`](../../s
 
 **Key Settings:**
 
-- `staleTime: Infinity` (line 9) - Queries remain "fresh" indefinitely and won't automatically refetch. This is appropriate for local data that only changes through user actions.
+- `staleTime: Infinity` - Queries remain "fresh" indefinitely and won't automatically refetch. This is appropriate for local data that only changes through user actions.
+- A `QueryCache` whose `onError` marks every read that failed, which is how a pane's error boundary tells a failed read from a failed write (see [A read that fails belongs to its pane](#a-read-that-fails-belongs-to-its-pane)).
 
 ### Query and Mutation Options
 
@@ -21,11 +22,11 @@ All `queryOptions` and `mutationOptions` are centrally defined in the [`options/
 - Typed wrappers around IPC calls
 - Query keys for cache management
 - Automatic cache updates on mutations - Mutations automatically update related queries' cache data. For example, when you create a Project, both the individual Project cache AND the Projects list cache are updated without requiring a refetch.
-- Metadata for toast notifications (method and objectType)
+- Metadata for the log records (method and objectType), and the sentence each of a mutation's two toasts says
 
 ### Query Key Structure
 
-Query keys follow a consistent hierarchy so individual items, lists and historical states can be cached and invalidated independently. Each level is followed by a state marker (`'current'` for HEAD or a commit hash for a historical state), and list queries end in `'list'`:
+Query keys follow a consistent hierarchy so individual items, lists and historical states can be cached and invalidated independently. Each level is followed by a state marker (`'current'` for HEAD or a commit hash for a historical state), list queries end in `'list'` and a count of what a level holds ends in `'count'`:
 
 ```typescript
 // all projects
@@ -38,15 +39,31 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
 // uncommitted git changes of a project
 ['projects', projectId, 'current', 'changes'];
 
-// commit history of a project
+// commit history of a project, and of one of its Entries
 ['projects', projectId, 'history'];
+[
+  'projects',
+  projectId,
+  'current',
+  'collections',
+  collectionId,
+  'current',
+  'entries',
+  entryId,
+  'history',
+];
 
 // the Releases of a project, and what a Release would publish right now
 ['projects', projectId, 'current', 'releases', 'list'];
 ['projects', projectId, 'current', 'releases', 'pending'];
 
-// components in a project, and one Component at HEAD
+// the Assets of a project, and how many there are
+['projects', projectId, 'current', 'assets', 'list'];
+['projects', projectId, 'current', 'assets', 'count'];
+
+// components in a project, how many there are, and one Component at HEAD
 ['projects', projectId, 'current', 'components', 'list'];
+['projects', projectId, 'current', 'components', 'count'];
 ['projects', projectId, 'current', 'components', componentId, 'current'];
 
 // collections in a project
@@ -67,6 +84,18 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
   'list',
 ];
 
+// how many Entries a collection holds
+[
+  'projects',
+  projectId,
+  'current',
+  'collections',
+  collectionId,
+  'current',
+  'entries',
+  'count',
+];
+
 // an entry at HEAD
 [
   'projects',
@@ -80,6 +109,30 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
   'current',
 ];
 ```
+
+### The counts beside the sidebar's rows
+
+The Project's sidebar says how many things each of its rows leads to, and each
+number is Core's rather than the length of a list the renderer happens to hold:
+
+| Row              | Where its number comes from                                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Assets           | `assets.count`, one directory read of the sidecars                                                                                 |
+| Components       | `components.count`                                                                                                                 |
+| Every Collection | `entries.count` of that Collection, one query per row through [`useQueriesNoError`](../../src/renderer/hooks/useQueriesNoError.ts) |
+| Releases         | `releases.list`, because Core counts no Releases. It is the query the Releases screen reads, so both show the same number          |
+
+**A count is invalidated, not incremented.** Every mutation that adds or removes
+one of the counted things invalidates that count's key from its `onSuccess`,
+beside the direct cache update it does for the list, so the number comes back
+from Core instead of being guessed from what the renderer knows. That is what
+makes a count follow a create and a delete without the Project being opened
+again. `tests/specs/navigation.spec.ts` drives it through an Entry create and an
+Asset delete, `tests/specs/components.spec.ts` through a Component create and a
+Component delete, and `tests/specs/releases.spec.ts` through a Release.
+
+A synchronize and a Release invalidate everything under the Project, so both
+carry the counts with them without naming them.
 
 ## Querying Data
 
@@ -96,17 +149,17 @@ For accessing the current user and project data, prefer using the `useUser()` an
 
 #### UserProvider and useUser Hook
 
-The [`UserProvider`](../../src/renderer/providers/UserProvider.tsx) wraps the entire application at the root level (see [`routes/__root.tsx:131`](../../src/renderer/routes/__root.tsx)). It provides:
+The [`UserProvider`](../../src/renderer/providers/UserProvider.tsx) wraps the entire application at the root level, in `RootComponent` (see [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx)). It provides:
 
 - `userQuery: UseQueryResultNoError<User | null>` - The current user query result
 - `formatDatetime: (props: FormatDatetimeProps) => { relative: string; absolute: string }` - Formats datetime strings according to the user's locale
 
-**Example:** See [`components/user-header.tsx`](../../src/renderer/components/user-header.tsx)
+**Example:** See `HeaderUser` in [`components/app-header.tsx`](../../src/renderer/components/app-header.tsx)
 
 ```typescript
 import { useUser } from '@renderer/hooks/useUser';
 
-function UserHeader() {
+function HeaderUser() {
   const { userQuery, formatDatetime } = useUser();
 
   // Access user data
@@ -126,12 +179,13 @@ function UserHeader() {
 
 #### ProjectProvider and useProject Hook
 
-The [`ProjectProvider`](../../src/renderer/providers/ProjectProvider.tsx) wraps all project-specific routes (see [`routes/projects/$projectId.tsx:32`](../../src/renderer/routes/projects/$projectId.tsx)). It provides:
+The [`ProjectProvider`](../../src/renderer/providers/ProjectProvider.tsx) wraps all project-specific routes, in `ProjectLayout` (see [`routes/projects/$projectId.tsx`](../../src/renderer/routes/projects/$projectId.tsx)). It provides:
 
 - `projectId: string` - The current project ID from the route
 - `projectQuery: UseQueryResultNoError<Project>` - The current project query result
 - `userQuery: UseQueryResultNoError<User | null>` - The current user query result (inherited from UserProvider)
 - `formatDatetime: (props: FormatDatetimeProps) => { relative: string; absolute: string }` - Datetime formatter (inherited from UserProvider)
+- `formatRelativeShort: (datetime) => string | null` - How long ago a moment was, in the shortest words the User's language has for it, or `null` under a minute (inherited from UserProvider)
 - `translateContent: (props: TranslateContentProps) => string` - Translates user-defined content to the current user's language, falling back to the project's default language, then English
 
 **Example:** See [`components/project-sidebar.tsx`](../../src/renderer/components/project-sidebar.tsx)
@@ -166,11 +220,15 @@ const { data: history } = useQueryNoError(
 // history?.fullHistory is the full git log, history?.history is Project-only changes
 ```
 
+**A commit names its object by id only, so a change row reads it.** `ChangeRow` in [`change-list.tsx`](../../src/renderer/components/change-list.tsx) names the Entry, Collection, Component or Asset the change was about, which the commit message carries as an `objectType` and an `id`. The read passes the row's own `commitHash`, so the object is read as it stood at that change, and a `read` of HEAD would fail for one that has since been deleted or whose Collection has. A `delete` commit took the object out of the Project altogether, so that row runs no read and keeps what its sentence says.
+
 ### Non-Blocking Page Loads
 
 We prioritize fast, responsive UI by rendering pages immediately without waiting for data to load. Navigation between pages should feel instantaneous.
 
 **Pattern:** Show Skeleton components while data loads, then replace them with actual content when ready.
+
+**Nothing moves while a pane loads.** [`Skeleton`](../../src/renderer/components/ui/skeleton.tsx) is a still placeholder in the muted surface, not a pulse, because the design rules out motion while a page loads. It is the one skeleton: a screen does not write its own `bg-muted` placeholder, and a list uses `SkeletonRows` from the same file, which draws the rows of a list in the geometry of a real row and carries the `aria-busy` label that says what is being read. `tests/specs/panes.spec.ts` drives one loading pane, the History's list of changes, and reads both the computed animation of every skeleton on that screen and whether the document runs any animation at all, so a pulse put back on that screen fails a test. A pulse somewhere no spec drives does not.
 
 **Example:** See [`routes/projects/index.tsx`](../../src/renderer/routes/projects/index.tsx)
 
@@ -180,19 +238,72 @@ const { data: projects, isPending: isListingProjects } = useQueryNoError(
 );
 
 return (
-  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+  <ProjectGrid>
     {isListingProjects
-      ? [1, 2, 3, 4, 5].map((i) => <ProjectCardSkeleton key={i} />)
-      : projects.list.map((project) => (
+      ? [1, 2, 3].map((key) => <ProjectCardSkeleton key={key} />)
+      : shown.map((project) => (
           <ProjectCard key={project.id} project={project} />
         ))}
-  </div>
+  </ProjectGrid>
 );
 ```
 
 This ensures the page structure renders immediately, with placeholders that are replaced by real data as it loads.
 
-**Lists load fully and paginate client side.** List queries pass `limit: 0`, so Core returns the whole list into a single cached `'list'` query (kept fresh by `staleTime: Infinity` and updated in place by `mergeListWithObject`, not refetched). Any pagination or filtering a list view offers is therefore applied client side over that already-loaded list, not by refetching a page from Core. The Entry table is the current example: it feeds the full list to TanStack Table with `getPaginationRowModel()` (a fixed page size) and `getFilteredRowModel()` (the filter input drives `state.globalFilter`), resets the page index when the filter changes, and sets `autoResetPageIndex: false` because it rebuilds its `data` array each render (the default auto-reset would read that as a data change and snap the page back to the first one).
+**Lists load fully and filter client side.** List queries pass `limit: 0`, so Core returns the whole list into a single cached `'list'` query (kept fresh by `staleTime: Infinity` and updated in place by `mergeListWithObject`, not refetched). Any filtering a list view offers is therefore applied client side over that already-loaded list, not by refetching a page from Core. The Entries of a Collection are the current example: the list beside the editor holds a row per Entry and scrolls, as ci's list of 296 px does, and its filter narrows the rows by the title each Entry is named by. Filter Projects is the same shape: it narrows the loaded list by the name and the description. A filter with no matches says so in plain text in the list's place rather than in an empty state, because the page itself is not empty.
+
+**A read beside what a screen shows runs beside it, never before it.** The
+History of an Entry is the case: it is a query of its own in the editor's route,
+so the Entry's form draws without waiting for a read of the Project's git
+history, and the pane shows still rows until it answers. An Entry's history
+costs 25 to 90 ms, which is only acceptable because it never holds up the
+Entry's form.
+
+**An Entry's row says when it last changed, not who by.** Core stores an author
+on each change of an Entry rather than on the Entry, so naming the author in the
+list would cost a read of every Entry's history, which is the one read per row
+this app does not do.
+
+### A read that fails belongs to its pane
+
+A query failure is not fatal to the view. The pane that read it keeps its place in the window and says in one sentence that it cannot be read, with Try again, while the header, the sidebar and every other pane carry on. That comes from [`Pane`](../../src/renderer/components/pane.tsx), which puts a `CatchBoundary` inside a `QueryErrorResetBoundary` around whatever it holds, and it is why no screen writes an `isError` branch of its own.
+
+Two rules follow for a screen:
+
+- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does. The Project card's own reads are the exception, below.
+- **Read inside the pane that shows the data.** A boundary catches only what is thrown below it, so a read in a layout above two panes takes both of them. That is right when both depend on it, and wrong when one does.
+
+A failed write and a component that throws are not a read: they still replace the whole view with the root error screen, which offers Report an issue. How the two are told apart, and what a pane's name in the sentence comes from, is in [Error Handling](../error-handling.md#a-read-that-failed-the-pane-says-so).
+
+### The reads a screen catches: a Project card's own
+
+A Project's card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app whose own options carry `throwOnError: false`, it retries nothing, and a card reads it with a plain `useQuery` rather than `useQueryNoError`. The card's read of the Releases is answered the same way, opted out for that read alone, since nothing else catches a failed `releases.list`. What that buys, and what each of them logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-reads-a-screen-catches-a-project-cards-own).
+
+Four places draw it, the sidebar's card for the open Project, one card per Project on the Projects page, the Remove confirm of a Project's Settings and the change rows of its Dashboard, and all of them read it through [`useProjectState`](../../src/renderer/hooks/useProjectState.ts), which is also where that log is written. Each one runs its own, so a slow or failing read holds up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder, and one Project whose Releases cannot be read leaves every other card standing.
+
+### What a Project card reads
+
+| Line                  | Where it comes from                                                                                                                                |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Changes not synced    | `projects.getChanges().ahead`                                                                                                                      |
+| Incoming changes      | `projects.getChanges().behind`                                                                                                                     |
+| Everything synced     | Both of the above empty, which is a state of its own rather than two lines saying zero                                                             |
+| The last Release      | `releases.list`, the newest item of type `release`. A preview Release tags `draft` without publishing it, so it is not the Release a Project is at |
+| When it last checked  | `dataUpdatedAt` of the check, worded by `formatRelativeShort` and re-read on a clock of its own every 30 seconds                                   |
+| Can't reach / refused | The check's own failure, by its `CoreError` type                                                                                                   |
+
+The check refetches every three minutes, as it did before the card drew it, and Check now refetches at once.
+
+**Those four are the only readers of that query**, through the one hook, and it is keyed per Project, so each Project has one check however many of them are on screen. The History itself reads neither `getChanges` nor `ahead` and `behind`, and it lists the Project's commits with no group for what is not synced, so there is no second number to agree with today. The Dashboard's change rows mark what is synced off this same query, which is what keeps their markers and the card's count behind one number.
+
+| Line                                     | Which card shows it                                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Where it syncs, by the Git host's name   | The Projects page's cards                                                                                      |
+| Changes not synced, incoming, all synced | Both                                                                                                           |
+| Can't reach, refused access              | Both                                                                                                           |
+| The last Release                         | Both, in cyan in the sidebar's card and in gray on the Projects page, because a list has one highlight at most |
+| When it last checked, and Check now      | The sidebar's card only                                                                                        |
+| A sync of its own that failed            | The sidebar's card only                                                                                        |
 
 ### Error Handling - Prefer useQueryNoError
 
@@ -215,7 +326,7 @@ if (isPending) return <LoadingSkeleton />;
 return <div>{collection.name}</div>;
 ```
 
-See the hook's JSDoc for implementation details. Errors are caught by the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx).
+See the hook's JSDoc for implementation details. A failed read is caught by the boundary of the pane it was read in, and by the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx) where it was read above every pane.
 
 For fetching a variable-length list of same-typed queries (for example one `entries.list` per Collection), use the sibling [`useQueriesNoError`](../../src/renderer/hooks/useQueriesNoError.ts) hook, which applies the same error narrowing to an array of query options.
 
@@ -259,13 +370,29 @@ const { mutateAsync: createProject, isPending: isCreatingProject } = useMutation
 
 ## Mutating Data
 
-### Form Mutations with Existing Data
+### Filling a form from its query
 
-When building forms to update existing data, we need to handle the loading state gracefully. Forms need to be populated with current values, but those values come from a query that may not be resolved yet.
+A form that edits something that was stored has to show what is stored, and that
+comes from a query which may not have answered yet. Every form does it the same
+way, through [`useAppForm`](../../src/renderer/hooks/useAppForm.ts):
 
-**Pattern:** Use `<fieldset disabled={isPending}>` to disable the entire form while data loads, instead of showing loading spinners or skeleton forms.
+- **`values`** holds the loaded object. react-hook-form fills the form from it
+  whenever it changes, deep-compared, so an answer equal to what the form
+  already holds does nothing at all.
+- **`resetOptions: { keepDirtyValues: true }`** is pinned by the hook. A field
+  somebody has touched keeps what they typed, and every field they have not
+  takes the new state, so a read that arrives beside an editor does not replace
+  what is being written: a synchronize reads every query of a Project again, and
+  before this the open form took the new state without a word. What it keeps is
+  the value and not the dirtiness, see
+  [Gating Save](#gating-save).
+- **`disabled`** holds the query's pending state. The form shows at once with
+  its fields disabled, rather than appearing empty and filling in a moment
+  later, and `SubmitButton` disables with it, so a form cannot be saved before
+  it knows what it holds.
 
-**Example:** See [`routes/user/profile.tsx`](../../src/renderer/routes/user/profile.tsx)
+**Example:** see
+[`routes/user/profile.tsx`](../../src/renderer/routes/user/profile.tsx)
 
 ```typescript
 // Source the user from the useUser() hook (see "Using Context Providers" above)
@@ -273,47 +400,98 @@ const {
   userQuery: { data: user, isPending: isGettingUser },
 } = useUser();
 
-const setUserForm = useForm<SetUserProps>({
-  defaultValues: { /* ... */ }
+const setUserForm = useAppForm<SetUserProps>({
+  resolver: zodResolver(setUserSchema),
+  defaultValues: {
+    /* every bound key, so each control is controlled from the first render */
+  },
+  // exactOptionalPropertyTypes forbids passing `values: undefined`, so the key
+  // is left off entirely while the query is pending.
+  ...(user === null || user === undefined ? {} : { values: user }),
+  disabled: isGettingUser,
 });
-
-// Reset the form with user data once it loads
-useEffect(() => {
-  if (user) {
-    setUserForm.reset(user);
-  }
-}, [user, setUserForm]);
-
-return (
-  <Form {...setUserForm}>
-    <form>
-      <fieldset disabled={isGettingUser}>
-        {/* Form fields here - automatically disabled while loading */}
-        <FormField name="name" /* ... */ />
-        <FormField name="email" /* ... */ />
-      </fieldset>
-    </form>
-  </Form>
-);
 ```
 
-**Benefits:**
+Two rules follow:
 
-- No need for skeleton components in forms
-- Form structure renders immediately
-- Native browser styling for disabled state
-- Prevents user interaction during loading
-- Cleaner code with less conditional rendering
+- **Never call `reset()` in an effect**, which is a lint error. It is what
+  overwrote a Value somebody was writing: the effect re-ran on every answer,
+  equal or not, and replaced the whole form.
+- **Fill exactly the keys the form holds.** react-hook-form infers the form's
+  value type from its resolver, and a `values` carrying keys the schema does not
+  have takes part in that inference and makes the resolver unassignable. The
+  diff views are the case: they pass the handful of keys their form edits rather
+  than the whole stored object.
 
-### Gating Save on `formState.isDirty`
+`mode="view"` is a different thing and stays for the read-only diffs: it renders
+a form read-only through a disabled `<fieldset>` and makes submit a no-op, see
+[forms.md](./forms.md#view-only-forms-and-diffs). A form that is only still
+loading is not view-only, it is disabled.
 
-Every mutation Save/Update button is disabled until the form is dirty, with `disabled={<form>.formState.isDirty === false}`. An unchanged form has nothing to commit, so submitting it would make Core reject an empty change. The gate is app-wide and consistent across the project, collection, entry, user and version-control update forms, so a form that reset from loaded data starts with Save disabled and enables it the moment the user edits a field.
+A form that is not filled from a query at all, a create form, needs neither
+`values` nor `disabled`, unless its defaults depend on something loaded. The
+Collection, Component and Entry create forms do: a translatable key per Project
+language, and a default Value per field definition, both of which the Project and
+the Collection answer.
 
-This is distinct from validation. Validation is surfaced on click through `FormMessage`, not by keeping the button disabled, so an invalid but changed form still shows its Save button enabled and reports the errors when submitted. Only the "nothing changed yet" state disables Save.
+[`tests/specs/forms.spec.ts`](../../tests/specs/forms.spec.ts) drives it: an
+Entry is changed behind an open form, a synchronize reads it again, and the field
+being written keeps what was typed while the field nobody touched takes the new
+state.
+
+### Gating Save
+
+Every mutation Save/Update button is a `SubmitButton` inside a `FormActions`,
+which blocks it while the form is submitting and while the form is still filling
+from its query. `requireDirty` adds the third gate per form: an update form uses
+it, so Save stays blocked until something changes, because an unchanged form has
+nothing to commit and Core would reject an empty change. Create forms do not, so
+the button is available immediately and validation happens on click.
+
+Blocked means `aria-disabled` rather than `disabled`, so Save keeps its place in
+the tab order. The fourth gate is a reason the page gives the form, which is the
+only one with words on screen, see
+[forms.md](./forms.md#saves-block).
+
+This is distinct from validation. Validation is surfaced on click through the
+field's own error, not by keeping the button blocked, so an invalid but changed
+form still shows its Save button available and reports the errors when submitted.
+
+**An Entry stays open after it saved.** ci's three panes put the list of the
+Collection's Entries beside the editor, so the next Entry is one click away and
+there is nothing to go back to: the toast answers the save, the History pane
+gains the change, and the form is pristine again. A create form is the one that
+leaves, for the Collection it just added to.
+
+**A form that stays open after it saved is pristine again.** `isDirty` is what
+both `requireDirty` and the guard that asks before unsaved changes are lost
+read, so a form that kept it set after a save would offer Save with nothing left
+to save and ask about changes that are already stored. Two things clear it: the
+state the save brings back, which fills the form through `values`, and the
+`form.reset(values)` a submit handler calls after the mutation resolved. The
+General and the Sync page of a Project's Settings, and the Profile, do the
+second as well, so the form is pristine the moment the save is through rather
+than when its data comes back.
+
+**`keepDirtyValues` keeps a dirty field's value, not its dirtiness.** Every reset
+goes through it, the `reset()` above as much as the one `values` runs, because
+react-hook-form merges `useForm`'s own `resetOptions` into both. A refetch
+therefore never overwrites what somebody is typing, which is what the option is
+pinned for, while `isDirty` comes back as `false` either way unless `keepDirty`
+is passed as well. That is why a form takes no edit while its own save runs: one
+typed in between would stay on screen while the form counted as clean, so Save
+would be unavailable and leaving would ask nothing, see
+[forms.md](./forms.md#a-form-is-read-only-while-it-saves).
+
+**A reset that has to drop a value passes `{ keepDirtyValues: false }`.** The
+Asset pane is the one form that does, because what it holds is not all stored:
+Replace file puts the picked path into the form, and the save that carried it to
+Core leaves nothing pending. The value it keeps is what the save brought back,
+and no edit can be newer, since the form took none while the save ran.
 
 ### Mutation Metadata
 
-All mutations should include metadata for proper toast notifications and logging. Use the `customMutationOptions` wrapper from [`util.ts`](../../src/renderer/queries/util.ts) to not only make sure the metadata is included, but also to automatically add `throwOnError: true` to propagate errors to the nearest error boundary and log all mutations with Core:
+Every mutation carries both `meta` and `toasts`, and `customMutationOptions` from [`util.ts`](../../src/renderer/queries/util.ts) is what requires them. A `toasts.success` of `null` says a change is its own answer and shows none, which only `user.setPreference` uses, see [error-handling.md](../error-handling.md#expected-errors-handled-in-place). It also adds `throwOnError: true`, so a failure propagates to the nearest error boundary, and logs every mutation with Core:
 
 ```typescript
 customMutationOptions({
@@ -324,25 +502,22 @@ customMutationOptions({
     method: 'create',
     objectType: 'project',
   },
+  toasts: {
+    success: (createdProject) => {
+      const { name } = createdProject;
+      return t`Project ${name} created`;
+    },
+    error: () => t`Could not create the Project`,
+  },
   // ...
 });
 ```
 
-This metadata is used by the query client to automatically display success/error toasts and log all mutations for debugging.
+`meta` is what the log records carry: `method` and `objectType` go into the record under the names Core uses for them, so one query finds a mutation across both sources.
+
+`toasts` is what the two notifications say. Each sentence is written for the person in front of the app and read from the message catalog when the toast shows, never built from `meta`, so no toast can read as a method and an object. Both are functions, so a mutation with nothing to name takes no argument and still reads the catalog at the moment the toast shows. `success` is handed the answer, the variables and the mutation's `context`, which is how a name stored per language is read in the language the screen reads it in, see [internationalization.md](./internationalization.md#translating-content-translatecontent) and [error-handling.md](../error-handling.md#handling-expected-errors-in-place).
 
 The wrapper awaits the `onSuccess` it is given, so a mutation resolves only once its own cache updates are done. A caller that awaits `mutateAsync` and then closes a dialog or navigates can rely on what it reads next, and a rejection inside `onSuccess` reaches the mutation rather than becoming an unhandled rejection.
-
-Pass `toasts` as well when `{method} {objectType}` is not something to show a
-user. It replaces the text of both notifications and nothing else, so a mutation
-without it reads exactly as before. `releases.create` is the one that uses it,
-since "Release 0.1.0 created" is the outcome an editor should read:
-
-```typescript
-toasts: {
-  success: (result) => `Release ${result.version} created`,
-  error: 'Could not create a Release',
-},
-```
 
 ## Cache Management
 
@@ -350,11 +525,11 @@ toasts: {
 
 All mutations in the [`options/`](../../src/renderer/queries/options/) directory include `onSuccess` handlers that automatically update the cache. This ensures the UI reflects changes immediately without requiring refetches.
 
-A query that fetches something another query owns writes its answer there too. `releases.prepare` has to fetch `origin` before it diffs, which `prepare()` itself never does, so it calls `fetchProjectChanges` from [`projectOptions.ts`](../../src/renderer/queries/options/projectOptions.ts) and puts the result into the `['projects', projectId, 'current', 'changes']` cache from its `queryFn`'s `client`. That is the count behind the sidebar's Synchronize, which otherwise refreshes only every three minutes and would stay disabled right after the dialog told the editor to synchronize. It is written only when the call succeeded, and the fetch itself stays outside the shared query. A failure belongs to the dialog, which answers it in place, while running the fetch as the shared query retries it three times first and leaves the dialog on its skeleton for the whole schedule.
+A query that fetches something another query owns writes its answer there too. `releases.prepare` has to fetch `origin` before it diffs, which `prepare()` itself never does, so it calls `fetchProjectChanges` from [`projectOptions.ts`](../../src/renderer/queries/options/projectOptions.ts) and puts the result into the `['projects', projectId, 'current', 'changes']` cache from its `queryFn`'s `client`. That is the count behind the Project card's Sync, which otherwise refreshes only every three minutes and would stay disabled right after the dialog told the editor to synchronize. It is written only when the call succeeded, and the fetch itself stays outside the shared query. A failure belongs to the dialog, which answers it in place, while running the fetch as the shared query retries it three times first and leaves the dialog on its skeleton for the whole schedule.
 
 ### The `mergeListWithObject` Helper
 
-Located at [`util.ts:144-195`](../../src/renderer/queries/util.ts), this helper function merges individual objects into paginated list caches:
+Located in [`util.ts`](../../src/renderer/queries/util.ts), this helper function merges individual objects into paginated list caches:
 
 ```typescript
 function mergeListWithObject<T extends BaseFile>(
@@ -499,9 +674,9 @@ Mutations already have `onSuccess` handlers that update the necessary caches. Us
 
 Data loading and mutations lean on the app's error handling defaults:
 
-- `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
+- `throwOnError: true` is set by default, via `useQueryNoError` for queries and `customMutationOptions` for mutations, so a failure bubbles to the nearest error boundary. For a read that is the pane it was read in, and for everything else the root `ErrorComponent` in [`routes/__root.tsx`](../../src/renderer/routes/__root.tsx). A mutation failure also shows a toast through the global handler.
 - All mutations and navigations, and any error that reaches the boundary, are logged through the Core logger via `window.ipc.core.logger`. That is the only sink, and nothing it writes leaves the machine.
-- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The force-delete and sync-conflict modals do this today.
+- An expected, recoverable Core guard (a `409`/`412` from a normal user action) should not take over the whole view. Such a mutation is built with [`useAppMutation`](../../src/renderer/hooks/useAppMutation.ts) and a `handled` map from `CoreError` type to an in-place handler, never a blanket `throwOnError: false`. The sync dialog, the Profile's Port field and the Entry forms do this today.
 - One query does the same in its own layer. `releases.prepare` catches the `CoreError` types the Release dialog can explain inside its `queryFn` and returns them as a `refused` outcome, re-throwing everything else so its `throwOnError: true` still reaches the boundary. The caught set is the same map the dialog's copy comes from, so the two cannot drift apart.
 
 The full picture, including how `CoreError.type` survives IPC, the step-by-step guide to handling an expected error in place with those worked examples, and exactly where and when things are logged, lives in the dedicated [Error Handling](../error-handling.md) doc.

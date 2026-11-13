@@ -21,6 +21,32 @@ import { isCoreErrorType, parseIpcError } from './ipcError.js';
  * the CoreError itself, so its type is read off the instance instead.
  */
 export function errorLogAttributes(error: unknown): Record<string, unknown> {
+  return attributesOf(error, true);
+}
+
+/**
+ * The same attributes for an error whose own message carries content somebody
+ * wrote, which no log record may hold.
+ *
+ * Milkdown's parser and serializer put the whole node they could not match
+ * into the message they throw, and for a markdown Value that node is the text
+ * itself. The message is therefore left out, and the stack keeps its frames
+ * only, since a stack starts with the message it was thrown with.
+ *
+ * A caller has to know that of its own errors, so this is the exception rather
+ * than the rule. Everything else logs with `errorLogAttributes`, because a
+ * message is what says which failure a stack belongs to.
+ */
+export function errorLogAttributesWithoutMessage(
+  error: unknown
+): Record<string, unknown> {
+  return attributesOf(error, false);
+}
+
+function attributesOf(
+  error: unknown,
+  withMessage: boolean
+): Record<string, unknown> {
   const decoded = parseIpcError(error);
   const { message, stack } = decoded;
   const type =
@@ -28,13 +54,30 @@ export function errorLogAttributes(error: unknown): Record<string, unknown> {
     (error instanceof Error && 'type' in error && isCoreErrorType(error.type)
       ? error.type
       : undefined);
+  const stacktrace = withMessage ? stack : stackFrames(stack);
 
   return {
     ...(type === undefined ? {} : { 'error.type': type }),
     ...(error instanceof Error ? { 'exception.type': error.name } : {}),
-    'exception.message': message,
-    ...(stack === undefined ? {} : { 'exception.stacktrace': stack }),
+    ...(withMessage ? { 'exception.message': message } : {}),
+    ...(stacktrace === undefined ? {} : { 'exception.stacktrace': stacktrace }),
   };
+}
+
+/**
+ * The frames of a stack, without the message it starts with.
+ *
+ * V8 writes a stack as the error's `name: message` followed by one indented
+ * `at ...` line per frame. A message of several lines takes several of them,
+ * so the frames are taken rather than the first line dropped, and a line that
+ * is not a frame is left out rather than kept.
+ */
+function stackFrames(stack: string | undefined): string | undefined {
+  if (stack === undefined) {
+    return undefined;
+  }
+  const frames = stack.split('\n').filter((line) => /^\s+at\s/.test(line));
+  return frames.length === 0 ? undefined : frames.join('\n');
 }
 
 /**

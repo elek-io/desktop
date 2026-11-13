@@ -1,6 +1,7 @@
-import { type ReactElement } from 'react';
+import { type MessageDescriptor } from '@lingui/core';
+import { Trans, useLingui } from '@lingui/react/macro';
+import { type ReactElement, type ReactNode } from 'react';
 import {
-  useForm,
   type DefaultValues,
   type FieldPath,
   type FieldValues,
@@ -8,28 +9,16 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
-import {
-  DefaultFieldDefinitionForm,
-  type AuthorableFieldType,
-  type FieldDefinitionsOwner,
-} from '@renderer/components/forms/default-field-definition-form';
-import { AppForm } from '@renderer/components/ui/app-form';
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@renderer/components/ui/form';
+import { type FieldTypeDefinitionDraftProps } from '@renderer/components/fields/module';
+import { DefaultFieldDefinitionForm } from '@renderer/components/forms/default-field-definition-form';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
 
 import {
   type FieldDefinition,
   type FieldDefinitionBase,
-  type FieldDefinitionOrGroup,
-  type FieldType,
   type SupportedLanguage,
 } from '@elek-io/core';
 
@@ -43,91 +32,86 @@ import {
 // the field name as an already-typed FieldPath, so a spec passes a real key with
 // no cast.
 
-/** A "Default value" control backed by FormInputField. Pass the Core field type,
- * not an HTML one: FormInputField does that mapping internally. */
+/**
+ * A "Default value" control backed by a text input. Pass the HTML input type
+ * the field type's own control uses, which is what makes a numeric default
+ * yield a number.
+ */
 export function DefaultValueInputField<Def extends FieldValues>({
   form,
   name,
   type,
-  isRequired = false,
-  description = 'The initial value for the field.',
-  placeholder,
+  description,
 }: {
   form: UseFormReturn<Def>;
   name: FieldPath<Def>;
-  type: FieldType;
-  isRequired?: boolean;
+  type: React.ComponentProps<'input'>['type'];
   description?: string;
-  placeholder?: string;
 }): ReactElement {
+  const { t } = useLingui();
+  const shown = description ?? t`The initial value for the field.`;
+
   return (
-    <FormField
-      control={form.control}
+    <AppField
+      form={form}
       name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel isRequired={isRequired}>Default value</FormLabel>
-          <FormControl>
-            <FormInputField
-              field={field}
-              type={type}
-              placeholder={placeholder}
-            />
-          </FormControl>
-          <FormDescription>{description}</FormDescription>
-          <FormMessage />
-        </FormItem>
+      label={<Trans>Default value</Trans>}
+      description={shown}
+    >
+      {({ field, controlProps }) => (
+        <TextControl field={field} type={type} {...controlProps} />
       )}
-    />
+    </AppField>
   );
 }
 
-/** A "Minimum" / "Maximum" pair bound to numeric inputs. `isRequired` flips the
- * labels between the optional bounds (text, number) and the mandatory ones
- * (range). */
+/**
+ * A "Minimum" / "Maximum" pair bound to numeric inputs.
+ *
+ * Whether each bound has to be filled is the type's own schema's answer, which
+ * the fields read themselves: a text field's bounds are optional and a range's
+ * are not.
+ *
+ * Each caller passes both sentences whole, rather than a fragment this builds
+ * one out of: a sentence is one entry of the message catalog, so a language
+ * that has to reorder or inflect it can, see
+ * contributing/renderer/internationalization.md.
+ */
 export function MinMaxRow<Def extends FieldValues>({
   form,
   minName,
   maxName,
-  unit,
-  isRequired = false,
+  minDescription,
+  maxDescription,
 }: {
   form: UseFormReturn<Def>;
   minName: FieldPath<Def>;
   maxName: FieldPath<Def>;
-  unit: string;
-  isRequired?: boolean;
+  minDescription: ReactNode;
+  maxDescription: ReactNode;
 }): ReactElement {
   return (
-    <div className="flex flex-row items-center justify-between space-x-2">
-      <FormField
-        control={form.control}
+    <div className="flex flex-row items-start justify-between space-x-2">
+      <AppField
+        form={form}
         name={minName}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired={isRequired}>Minimum</FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="number" />
-            </FormControl>
-            <FormDescription>The minimum {unit}.</FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Minimum</Trans>}
+        description={minDescription}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="number" {...controlProps} />
         )}
-      />
-      <FormField
-        control={form.control}
+      </AppField>
+      <AppField
+        form={form}
         name={maxName}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel isRequired={isRequired}>Maximum</FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="number" />
-            </FormControl>
-            <FormDescription>The maximum {unit}.</FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Maximum</Trans>}
+        description={maxDescription}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="number" {...controlProps} />
         )}
-      />
+      </AppField>
     </div>
   );
 }
@@ -142,7 +126,7 @@ export interface DefinitionExtrasProps<Def extends FieldValues> {
   supportedLanguages: SupportedLanguage[];
   // The definitions already added to the Collection, with their real ids. Only
   // slug reads these, to build its source list.
-  fieldDefinitions: FieldDefinitionOrGroup[];
+  fieldDefinitions: FieldTypeDefinitionDraftProps['fieldDefinitions'];
 }
 
 /**
@@ -151,26 +135,31 @@ export interface DefinitionExtrasProps<Def extends FieldValues> {
  * contributing/renderer/dynamic-form-field-generation.md.
  */
 export interface DefinitionSpec<Def extends FieldDefinitionBase> {
-  authorableFieldType: AuthorableFieldType;
+  /**
+   * The Core schema one definition of this type is checked against. Every
+   * field of the draft reads its own rules off it, so no limit Core keeps on a
+   * field definition is written out again here.
+   *
+   * It stands beside the resolver rather than replacing it, because one field
+   * type's form values and its schema's output diverge (see the markdown
+   * definition), which a single member could not type for every type at once.
+   */
+  schema: unknown;
   // Built with zodResolver where Def is concrete, so DefinitionDraft needs no cast.
   resolver: Resolver<Def>;
   makeDefaults: (supportedLanguages: SupportedLanguage[]) => Def;
   Extras?: (props: DefinitionExtrasProps<Def>) => ReactElement;
+  /**
+   * Why Required is fixed for this field type, where Core pins it to a literal.
+   * Present means the switch shows a fact and says why, rather than offering a
+   * choice nobody has.
+   */
+  requiredNote?: MessageDescriptor;
+  /** Why Unique is fixed for this field type, the same way. */
+  uniquenessNote?: MessageDescriptor;
 }
 
-export interface DefinitionDraftProps {
-  id: string;
-  existingSlugs: string[];
-  // The Collection's or Component's current definitions, threaded to the spec's
-  // Extras.
-  fieldDefinitions: FieldDefinitionOrGroup[];
-  supportedLanguages: SupportedLanguage[];
-  defaultLanguage: SupportedLanguage;
-  // Which object the definition is being added to. The shared base form reads
-  // it for the restrictions Core puts on a Component's fields.
-  owner: FieldDefinitionsOwner;
-  onAdd: (definition: FieldDefinition) => void;
-}
+export type DefinitionDraftProps = FieldTypeDefinitionDraftProps;
 
 /**
  * One authoring form, driven by a single spec. The Add Field sheet remounts it
@@ -188,7 +177,8 @@ export function DefinitionDraft<
   onAdd,
   fieldDefinitions,
 }: DefinitionDraftProps & { spec: DefinitionSpec<Def> }): ReactElement {
-  const form = useForm<Def, unknown, Def>({
+  const { t } = useLingui();
+  const form = useAppForm<Def, Def>({
     resolver: withEmptyDescriptionAsNull(spec.resolver),
     // makeDefaults returns a full Def and DefaultValues<Def> is its DeepPartial,
     // but RHF cannot prove the subtype for an unresolved generic Def.
@@ -198,10 +188,11 @@ export function DefinitionDraft<
   const onSubmit = (definition: Def): void => {
     // Core rejects duplicate slugs when the Collection is saved. Surface it here,
     // where the user can still fix it, as well.
-    if (existingSlugs.includes(definition.slug)) {
+    const slug = definition.slug;
+    if (existingSlugs.includes(slug)) {
       form.setError('slug' as FieldPath<Def>, {
         type: 'duplicate',
-        message: `A Field with the slug "${definition.slug}" already exists`,
+        message: t`A Field with the slug "${slug}" already exists`,
       });
       return;
     }
@@ -211,12 +202,17 @@ export function DefinitionDraft<
   const Extras = spec.Extras;
 
   return (
-    <AppForm id={id} form={form} onSubmit={onSubmit}>
+    <AppForm id={id} form={form} schema={spec.schema} onSubmit={onSubmit}>
       <DefaultFieldDefinitionForm
         form={form}
-        fieldType={spec.authorableFieldType}
         currentLanguage={defaultLanguage}
         supportedLanguages={supportedLanguages}
+        {...(spec.requiredNote === undefined
+          ? {}
+          : { requiredNote: spec.requiredNote })}
+        {...(spec.uniquenessNote === undefined
+          ? {}
+          : { typeUniquenessNote: spec.uniquenessNote })}
         owner={owner}
       >
         {Extras ? (

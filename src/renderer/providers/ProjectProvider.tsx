@@ -3,16 +3,11 @@ import React from 'react';
 import { ProjectContext } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { useUser } from '@renderer/hooks/useUser';
+import {
+  translateContent as translateContentInLanguages,
+  type TranslateContentProps,
+} from '@renderer/lib/translateContent';
 import queryOptions from '@renderer/queries/options';
-
-import type { SupportedLanguage } from '@elek-io/core';
-
-export interface TranslateContentProps {
-  key: string;
-  // This mirrors the shape of Core's partialTranslatableStringSchema and also accepts the nullable per-language
-  // content of Value types (string | null), which is treated as missing below.
-  record: Partial<Record<SupportedLanguage, string | null>>;
-}
 
 export function ProjectProvider({
   projectId,
@@ -21,7 +16,8 @@ export function ProjectProvider({
   projectId: string;
   children: React.ReactNode;
 }): React.JSX.Element {
-  const { userQuery, formatDatetime, formatTemporalFieldValue } = useUser();
+  const { userQuery, formatDatetime, formatInUserLocale, formatRelativeShort } =
+    useUser();
   const projectQuery = useQueryNoError(
     queryOptions.projects.read({ id: projectId })
   );
@@ -31,39 +27,25 @@ export function ProjectProvider({
    *
    * Used to translate user defined content of Collections and Entries.
    *
-   * If the current users translation is not available,
-   * it shows it in the default language of the project.
-   * If this is not available either, show the 'en' value.
-   * If this is also not available, show the key instead along with a note,
-   * that a translation should be added.
+   * The fallback chain itself lives in `lib/translateContent.ts`, which the
+   * query layer's toasts read too, so a toast cannot name an object
+   * differently from the screen it was changed on. This binds it to the two
+   * languages the providers hold, and a query that has not answered yet leaves
+   * its language out.
    */
   const translateContent = React.useCallback(
-    ({ key, record }: TranslateContentProps) => {
-      if (userQuery.isPending === false && userQuery.data !== null) {
-        const toUserLanguage = record[userQuery.data.language];
-        if (toUserLanguage !== undefined && toUserLanguage !== null) {
-          return toUserLanguage;
-        }
-      }
-
-      if (projectQuery.isPending === false) {
-        const toProjectsDefaultLanguage =
-          record[projectQuery.data.settings.language.default];
-        if (
-          toProjectsDefaultLanguage !== undefined &&
-          toProjectsDefaultLanguage !== null
-        ) {
-          return toProjectsDefaultLanguage;
-        }
-      }
-
-      const toEnglish = record['en'];
-      if (toEnglish !== undefined && toEnglish !== null) {
-        return toEnglish;
-      }
-
-      return key;
-    },
+    (props: TranslateContentProps) =>
+      translateContentInLanguages({
+        ...props,
+        userLanguage:
+          userQuery.isPending === false && userQuery.data !== null
+            ? userQuery.data.language
+            : undefined,
+        projectDefaultLanguage:
+          projectQuery.isPending === false
+            ? projectQuery.data.settings.language.default
+            : undefined,
+      }),
     [userQuery, projectQuery]
   );
 
@@ -74,7 +56,8 @@ export function ProjectProvider({
         userQuery,
         projectQuery,
         formatDatetime,
-        formatTemporalFieldValue,
+        formatInUserLocale,
+        formatRelativeShort,
         translateContent,
       }}
     >

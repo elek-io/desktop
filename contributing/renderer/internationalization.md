@@ -30,20 +30,37 @@ const { formatDatetime } = useUser();
 const { relative, absolute } = formatDatetime({ datetime: entry.updated });
 ```
 
-## Formatting field values (`formatTemporalFieldValue`)
+## The shortest words for how long ago (`formatRelativeShort`)
 
-`formatTemporalFieldValue` is provided by the same `UserProvider` and read through `useUser()` or `useProject()`. It takes a raw field value and its `fieldType`, and for `date`, `datetime` and `time` fields returns the value formatted in the current user's locale (date-fns `P`, `Pp` and `p`). Every other field type, and any non-string value, is returned unchanged. Like `formatDatetime`, it falls back to date-fns's en-US default until the user's locale chunk loads. Unlike `formatDatetime` it never shows a `-` placeholder, because a stored field value always exists and should be displayed, not hidden while the user data loads.
+`formatRelativeShort` comes from the same provider and answers how long ago a moment was in the fewest words the User's language has for it, such as "2 min. ago" in English and "vor 2 Min." in German. It takes `Intl.RelativeTimeFormat` with `style: 'short'` rather than date-fns, which writes "less than a minute ago" in full, and picks the largest unit the distance fills.
 
-Date values are stored as `YYYY-MM-DD` with no time or timezone, so they are anchored to local midnight before formatting, otherwise the shown day could shift by one in a negative UTC offset. The [entry table](../../src/renderer/components/entry-table.tsx) uses this so a stored `2026-07-09` renders as a localized date instead of the raw ISO string.
+It answers `null` under a minute, because every language words that as something other than a count, so the caller says it in a sentence of its own from the catalog. The sentence it goes into is one message with a placeholder, the same way `formatDatetime`'s relative words are:
 
 ```tsx
-const { formatTemporalFieldValue } = useProject();
+const { formatRelativeShort } = useProject();
+const ago = formatRelativeShort(checkedAt);
 
-// "07/09/2026" for a date field in the en-US locale
-const shown = formatTemporalFieldValue({
-  value: entry.values.publishedAt,
-  fieldType: 'date',
-});
+return <span>{ago === null ? t`Checked just now` : t`Checked ${ago}`}</span>;
+```
+
+The one caller today is the sidebar's Project card, whose line that says when it last checked the Git repository has 206 px. See [loading-and-updating-data.md](./loading-and-updating-data.md#what-a-project-card-reads).
+
+## Formatting field values (`formatInUserLocale`)
+
+`formatInUserLocale` is provided by the same `UserProvider` and read through `useUser()` or `useProject()`. It takes a `Date` and a date-fns pattern and answers with the formatted string in the current user's locale. Like `formatDatetime`, it falls back to date-fns's en-US default until the user's locale chunk loads. Unlike `formatDatetime` it shows no `-` placeholder, because a stored field value always exists and should be displayed rather than hidden while the user data loads.
+
+Which pattern a Value takes, and how its stored string becomes a date at all, is the field type's own answer and lives in that type's folder, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md). A date Value is stored as `YYYY-MM-DD` with no time or zone, so the `date` folder anchors it to local midnight before formatting, otherwise the shown day could shift by one in a negative UTC offset. A time Value is anchored to an arbitrary day for the same reason, and a datetime carries its own zone. A field hands each type's `renderValue` this formatter, so a stored `2026-07-09` reads as a localized date rather than as the raw ISO string wherever a Value is shown rather than edited.
+
+```tsx
+// In a field type's folder, where the pattern belongs
+listCell: ({ content, language, formatInUserLocale }) =>
+  temporalCell({
+    content,
+    language,
+    pattern: 'P',
+    anchor: (value) => `${value}T00:00:00`,
+    formatInUserLocale,
+  });
 ```
 
 ## Translating content (`translateContent`)
@@ -66,6 +83,10 @@ const title = translateContent({
 });
 ```
 
+The chain itself lives in [`lib/translateContent.ts`](../../src/renderer/lib/translateContent.ts), and the provider only binds the two languages to it. A language a query has not answered yet is skipped rather than ending the chain, so a name resolves as soon as the record can answer it.
+
+Outside the React tree there is no `useProject()`, and that is where a mutation's toast is built. [`queries/translateContentFromCache.ts`](../../src/renderer/queries/translateContentFromCache.ts) takes the same two languages out of the query cache instead, under the keys the providers read them from, and runs the same chain. That is how a toast names a Collection or a Component: by the words every screen names it by, rather than through a second chain that could answer differently. A delete reads the object out of its own cache entry, because the answer to a delete carries nothing. The toast is built before the mutation's own `onSuccess`, so what that handler writes to the cache cannot take the name out of the sentence. An Entry has no name to read, since Core stores none on it, so its toast names the kind of object.
+
 ## Seeding multi-language form state (`translatableDefault`)
 
 When a form needs a `TranslatableString` field initialized for every supported language, use `translatableDefault` from [`lib/utils.ts`](../../src/renderer/lib/utils.ts) instead of building the record by hand:
@@ -81,3 +102,159 @@ label: translatableDefault({
 ```
 
 This is how the field definition forms initialize their `label` and `description` defaults. See [Dynamic Form Field Generation](./dynamic-form-field-generation.md) for the matching field-name convention (`...content.<language>`) that the translatable inputs rely on.
+
+## One language at a time
+
+A form edits one language, and one switch above its fields sets it for the whole
+form rather than each field opening a dialog of its own.
+
+- **The language lives in the route's search params**, checked with
+  `validateSearch` against [`lib/entryLanguage.ts`](../../src/renderer/lib/entryLanguage.ts).
+  So coming back to an Entry opens the language that was left open, a reload
+  keeps it, and a link can name one. A code the Project does not support falls
+  back to its default language rather than failing the route, and the switch
+  replaces the address rather than pushing it, so the way back leads out of the
+  Entry rather than through every language that was looked at.
+- **Every field reads it from one context**, `useFormLanguage()`
+  ([`hooks/useFormLanguage.ts`](../../src/renderer/hooks/useFormLanguage.ts)),
+  which `EntryForm` provides. A translatable field binds `<path>.<language>`,
+  and `shouldUnregister` stays off, so the Values of the languages that are not
+  on screen are still in the form and a save keeps them.
+- **The switch marks each language that misses a required Value or holds a
+  refused one**, with the warning mark ci draws and in words a screen reader
+  hears. Which languages hold a refusal comes from `languagesWithErrors`
+  ([`lib/formErrors.ts`](../../src/renderer/lib/formErrors.ts)): a translatable
+  Value is bound at `<path>.<language>`, so the language of a refused Value is a
+  segment of its path, whichever field and whichever section it sits in.
+- **It is a row of segments while they fit and one dropdown otherwise**, which
+  Nils decided on 2026-11-01 because Core supports far more languages than the
+  318 px the editor is wide at the smallest window the app supports. Which of
+  the two is on screen comes from measuring the row against the room it has, in
+  [`components/language-switch.tsx`](../../src/renderer/components/language-switch.tsx),
+  rather than from a number of languages written out there.
+
+## The app's own words (Lingui)
+
+Every word elek.io Desktop shows comes from one message catalog, read through [Lingui](https://lingui.dev). That covers the renderer and the main process, which shows the native box that says Desktop could not start. What stays in the code reads the same in every language and says so at the line it sits on: elek.io's own names and a third party's, a version marker, a keyboard shortcut's symbols, a language code and a file size's unit symbol.
+
+| Piece                                                                                      | Where                                                      |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| The locales the app carries, and which one answers for a language                          | [`shared/locale.ts`](../../src/shared/locale.ts)           |
+| The catalogs and what activates one                                                        | [`shared/i18n.ts`](../../src/shared/i18n.ts)               |
+| The English catalog                                                                        | [`src/locales/en.po`](../../src/locales/en.po)             |
+| Which locales exist and where their catalogs live                                          | [`lingui.config.ts`](../../lingui.config.ts)               |
+| The plugin that compiles a catalog and turns the macros into runtime calls, in both builds | [`electron.vite.config.ts`](../../electron.vite.config.ts) |
+
+A message is identified by its English text: Lingui hashes the text into the id, so rewording the English asks for a new translation rather than leaving a stale one behind.
+
+Name a language inside a sentence with `languageName` in [`lib/utils.ts`](../../src/renderer/lib/utils.ts), rather than with its code. It asks `Intl.DisplayNames` for the word in the locale the app is read in, so "German is missing 1 Value" reads as German in a German app and no language needs a catalog entry of its own. A language that is labeled rather than spoken about keeps its code, which is what ci draws in the switch above an Entry's fields.
+
+### Adding a string
+
+Write the macro, then run `pnpm i18n:extract`. Nothing else: the catalog is generated from the code, never edited by hand.
+
+```tsx
+import { Trans, useLingui } from '@lingui/react/macro';
+
+function SyncButton({ label }: { label: string }): ReactElement {
+  const { t } = useLingui();
+
+  return (
+    <Button aria-label={t`Sync this Project`}>
+      <Trans>Sync</Trans>
+    </Button>
+  );
+}
+```
+
+- **Text a person reads in the markup** is `<Trans>`. Wrap the whole sentence, inline tags and placeholders included, so it is one entry of the catalog.
+- **Text that goes into a prop**, such as an accessible name, a `title`, an `alt` or a `placeholder`, is `` t`...` `` from `useLingui()`. The hook is what re-renders the component when the language changes.
+- **Outside a component**, in the query layer or in the main process, `` t`...` `` comes from `@lingui/core/macro` instead and reads the active catalog when it is called.
+- **A map of sentences at module scope** holds `` msg`...` `` descriptors, not strings, and renders each one with `i18n._()` where it is shown. A string there would be read before a catalog is active. [`lib/coreErrorText.ts`](../../src/renderer/lib/coreErrorText.ts) and [`lib/release.ts`](../../src/renderer/lib/release.ts) are the examples.
+- **A map of functions** is the other way around that: each entry calls `` t`...` `` when it is asked, which reads the catalog at that moment rather than at module scope. That is what a sentence built around a value needs, and [`lib/refusedValueText.ts`](../../src/renderer/lib/refusedValueText.ts) and [`lib/fieldRules.ts`](../../src/renderer/lib/fieldRules.ts) are the examples.
+
+### The words a refused Value is explained in
+
+A validator writes English of its own, and none of it reaches an Entry's
+fields. zod's goes through one error map, [`lib/refusedValueText.ts`](../../src/renderer/lib/refusedValueText.ts),
+which [`app.tsx`](../../src/renderer/app.tsx) installs once when the renderer
+starts and which words every issue code through the catalog. Core's own, which
+zod lets outrank every map, is worded by the field type the refusal lands on.
+A hand-written field passes no such words, so a Collection's and a Component's
+settings still show what Core wrote about a field definition. The whole
+mechanism is in [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
+
+Two things follow for the catalog. A sentence that counts something, such as how
+many characters a field takes, is one `plural` message rather than a sentence
+with a number spliced in, so each language picks its own forms. And the map is
+read when an issue is raised rather than when it is installed, so a language
+somebody switches to reaches the next refusal without anything being rebuilt.
+
+### Adding a placeholder
+
+A title, a name or a count is a placeholder inside the sentence, never a piece the sentence is assembled from. A word dropped into a sentence cannot be translated on its own, because a language that inflects it needs the whole sentence to do so.
+
+```tsx
+const { name } = project;
+
+// One entry: "Project {name} saved"
+toast.success(t`Project ${name} saved`);
+```
+
+Only a plain identifier may stand in a placeholder, which `lingui/no-expression-in-message` enforces: assign `object.property` or a function's result to a `const` first, so the catalog gets a named placeholder rather than a numbered one.
+
+### Adding a count
+
+A count uses ICU plural rules, so each language picks its own forms.
+
+```ts
+import { plural } from '@lingui/core/macro';
+
+// "1 Collection" / "3 Collections", as one entry of the catalog
+const reach = t`Saving reaches ${plural(count, {
+  one: '# Collection',
+  other: '# Collections',
+})}`;
+```
+
+Where a sentence changes with something that is not a count, such as whether a Collection or a Component owns a field, write one message per case rather than splicing a phrase in.
+
+### How the main process reads the catalog
+
+`@lingui/vite-plugin` runs in the main build as well as the renderer's, so main imports the catalog like any other module and the macros compile there too. That is why `@lingui/core` is a `dependency` rather than a `devDependency`: the main bundle externalizes its imports. `@lingui/react` stays a `devDependency`, because only the renderer imports it and the renderer is bundled. See [build-and-packaging.md](../build-and-packaging.md#the-rule-for-dependencies-vs-devdependencies).
+
+Main's one string is the box shown when the app could not start. It takes the **system's** language through `app.getLocale()`, because nothing read a User at that point and Core may be what failed. The renderer takes the **User's** language instead, which `UserProvider` activates, and sets `lang` on the document to the locale that answered rather than the language asked for: a language Desktop carries no catalog for shows English, so that is what a screen reader has to be told.
+
+### Adding a language
+
+1. Add its code to `locales` in [`lingui.config.ts`](../../lingui.config.ts) and to `appLocales` in [`shared/locale.ts`](../../src/shared/locale.ts).
+2. Run `pnpm i18n:extract`, which writes `src/locales/<code>.po`.
+3. Translate that file and add it to `catalogs` in [`shared/i18n.ts`](../../src/shared/i18n.ts).
+
+No component changes. A message the new catalog does not carry shows English, because `lingui compile` fills a locale's gaps from the source catalog, which is also why a message id can never reach a screen.
+
+### The checks
+
+| Command             | Fails when                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm lint`         | A string a person reads sits in the code rather than the catalog                          |
+| `pnpm i18n:check`   | The catalog is out of step with the code, or a translation is missing after the fallbacks |
+| `pnpm i18n:extract` | Never. It writes the catalog from the code                                                |
+
+`pnpm check` runs both of the first two. The lint rule is `lingui/no-unlocalized-strings`, configured in [`eslint.config.mjs`](../../eslint.config.mjs) with every exception it allows and the reason for each, plus `no-restricted-syntax` selectors for what it lets through:
+
+| It lets through                                                 | Covered by                                                                |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| The attributes of a native element it does not blacklist        | A selector per attribute, `title` among them                              |
+| A pane's name, which arrives under the prop name a field uses   | A selector on `Pane`'s `name`                                             |
+| Everything inside a `<Select>`, which it reads as its own macro | A selector per Select part, for its words, its `items` map and its labels |
+| The message `setError` puts below a field                       | A selector on that call's `message`                                       |
+| A string under `key` or `name`, which is wiring                 | A selector that refuses sentence case there                               |
+| The text of a native dialog nested in an options object         | A selector for a `dialog` call's descendants                              |
+
+Each of those comes in two shapes where it can, the plain string and the braces around a string or a template, since a sentence built around a value is a string outside the catalog too. A single line that genuinely holds no text carries an `eslint-disable-next-line` with its own reason.
+
+Two conventions follow from that table, because a selector cannot tell wiring from words on its own:
+
+- Words an item in a list shows go in a `label` of their own. `key` and `name` are what React and react-hook-form key and address an item by, so the guard exempts them and the words would ride along.
+- A select's options carry their words twice, once as the item's own markup and once in the `items` map the closed trigger reads. Both come from the catalog.

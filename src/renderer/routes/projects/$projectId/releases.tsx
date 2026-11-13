@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute } from '@tanstack/react-router';
 import { Rocket, Tag } from 'lucide-react';
 import { type ReactElement } from 'react';
@@ -8,9 +9,8 @@ import { Badge } from '@renderer/components/ui/badge';
 import { Button } from '@renderer/components/ui/button';
 import {
   Empty,
-  EmptyContent,
+  EmptyActions,
   EmptyDescription,
-  EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty';
@@ -27,8 +27,10 @@ export const Route = createFileRoute('/projects/$projectId/releases')({
 });
 
 function ProjectReleasesPage(): ReactElement {
+  const { t } = useLingui();
+
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Releases');
+  useBreadcrumb(Route, t`Releases`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     formatDatetime,
@@ -39,10 +41,10 @@ function ProjectReleasesPage(): ReactElement {
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         A Release publishes everything saved in this Project as a version a
         website can build from. elek.io sets the version from what changed.
-      </>
+      </Trans>
     );
   }
 
@@ -53,35 +55,50 @@ function ProjectReleasesPage(): ReactElement {
     if (isReadingProject) {
       return (
         <Button Icon={Rocket} disabled>
-          Release
+          <Trans>Release</Trans>
         </Button>
       );
     }
 
     return (
       <ReleaseDialog project={project}>
-        <Button Icon={Rocket}>Release</Button>
+        <Button Icon={Rocket}>
+          <Trans>Release</Trans>
+        </Button>
       </ReleaseDialog>
     );
   }
 
-  // The empty state carries the action while there is no Release, so the two
-  // never repeat each other, see ci's rule for an empty state.
-  function Actions(): ReactElement {
+  // The empty state takes the whole pane, head and all, so nothing repeats the
+  // action it offers, see ci's rule for an empty state.
+  if (isListingReleases === false && releases.total === 0) {
     return (
-      <>
-        {isListingReleases || releases.total === 0 ? null : <ReleaseAction />}
-      </>
+      <Empty>
+        <EmptyMedia>
+          <Rocket />
+        </EmptyMedia>
+        <EmptyTitle>
+          <Trans>No Releases yet</Trans>
+        </EmptyTitle>
+        <EmptyDescription>
+          <Trans>
+            Nothing has been published from this Project yet. A Release takes
+            everything saved here and gives it a version.
+          </Trans>
+        </EmptyDescription>
+        <EmptyActions>
+          <ReleaseAction />
+        </EmptyActions>
+      </Empty>
     );
   }
 
   return (
     <>
       <Page
-        title="Releases"
+        title={t`Releases`}
         description={<Description />}
-        actions={<Actions />}
-        layout="bare"
+        actions={<>{isListingReleases ? null : <ReleaseAction />}</>}
       >
         {isListingReleases ? (
           <div className="grid gap-2">
@@ -89,22 +106,6 @@ function ProjectReleasesPage(): ReactElement {
               <Skeleton key={key} className="h-16 w-full rounded" />
             ))}
           </div>
-        ) : releases.total === 0 ? (
-          <Empty className="border border-dashed">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Rocket />
-              </EmptyMedia>
-              <EmptyTitle>No Releases yet</EmptyTitle>
-              <EmptyDescription>
-                Nothing has been published from this Project yet. A Release
-                takes everything saved here and gives it a version.
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <ReleaseAction />
-            </EmptyContent>
-          </Empty>
         ) : (
           <ul className="grid gap-2">
             {releases.list.map((release) => (
@@ -139,10 +140,12 @@ function ReleaseRow({
           rather than listed as the version a site builds from. elek.io Desktop
           cannot make one, see contributing/not-yet-implemented.md. */}
       {release.type === 'preview' ? (
-        <Badge variant="outline">Preview</Badge>
+        <Badge variant="outline">
+          <Trans>Preview</Trans>
+        </Badge>
       ) : null}
       <span className="ml-auto text-sm text-muted-foreground">
-        Published {published}
+        <Trans>Published {published}</Trans>
       </span>
     </div>
   );

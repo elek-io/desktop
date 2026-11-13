@@ -44,11 +44,13 @@ test.describe('Reporting a bug or feedback', () => {
   test('the report dialog is reachable before a User exists', async ({
     mainWindow,
   }) => {
-    // No setUserViaIpc on purpose. The button sits outside user-header's
-    // `user === null` check because a broken first run is the thing most worth
-    // reporting, and every other spec here seeds a User, so without this one a
-    // refactor that moved the button inside that branch would pass CI.
-    await navigate(mainWindow, '#/projects');
+    // No setUserViaIpc on purpose. Report an issue sits in the header's Help
+    // menu, outside everything that depends on a User, because a broken first
+    // run is the thing most worth reporting, and every other spec here seeds a
+    // User, so without this one a refactor that moved it behind the User would
+    // pass CI. The first start is the one screen then, since the gate settles
+    // every address on it until a User exists.
+    await navigate(mainWindow, '#/welcome');
 
     const dialog = await openReportDialogFromHeader(mainWindow);
     await expect(
@@ -58,8 +60,8 @@ test.describe('Reporting a bug or feedback', () => {
     // Core takes a whole User or null and nothing in between, so with no User
     // the contact is empty rather than absent. Both halves stay fillable, which
     // is what keeps a first run reportable and answerable.
-    await expect(dialog.getByLabel('Name - optional')).toHaveValue('');
-    await expect(dialog.getByLabel('Email - optional')).toHaveValue('');
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('');
+    await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('');
 
     await closeReportDialog(mainWindow);
   });
@@ -76,8 +78,10 @@ test.describe('Reporting a bug or feedback', () => {
     // Core does not read the User for us, so what the dialog shows is exactly
     // what gets sent. Both stay editable, so somebody can be answered at an
     // address their commits are not signed with.
-    await expect(dialog.getByLabel('Name - optional')).toHaveValue('Test User');
-    await expect(dialog.getByLabel('Email - optional')).toHaveValue(
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue(
+      'Test User'
+    );
+    await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue(
       'test@elek.io'
     );
 
@@ -94,7 +98,7 @@ test.describe('Reporting a bug or feedback', () => {
     await switchReportMode(dialog, 'Share feedback');
     await closeReportDialog(mainWindow);
 
-    // Radix never fires onOpenChange for an open driven by the `open` prop, so
+    // The dialog never fires onOpenChange for an open driven by the `open` prop, so
     // the reset runs from an effect instead. Without it this reopens on the
     // feedback form.
     const reopened = await openReportDialogFromHeader(mainWindow);
@@ -116,14 +120,18 @@ test.describe('Reporting a bug or feedback', () => {
     // Each form asks its one question its own way, and the log switch belongs
     // to the bug form alone.
     await expect(dialog.getByLabel('What went wrong?')).toBeVisible();
-    await expect(dialog.getByLabel('Also send my logs')).toBeVisible();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).toBeVisible();
 
     await switchReportMode(dialog, 'Share feedback');
 
     // Feedback never carries logs, in Core as well as here, so there is nothing
     // to consent to.
     await expect(dialog.getByLabel('What went wrong?')).toBeHidden();
-    await expect(dialog.getByLabel('Also send my logs')).toBeHidden();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).toBeHidden();
     await expect(
       dialog.getByLabel('What would you like to tell us?')
     ).toBeVisible();
@@ -142,7 +150,9 @@ test.describe('Reporting a bug or feedback', () => {
     // Nothing the user did not type is attached unless they say so. The error
     // boundary is the one place this defaults the other way, which
     // error-boundary.spec.ts covers.
-    await expect(dialog.getByLabel('Also send my logs')).not.toBeChecked();
+    await expect(
+      dialog.getByRole('switch', { name: 'Also send my logs' })
+    ).not.toBeChecked();
 
     await closeReportDialog(mainWindow);
   });
@@ -183,13 +193,13 @@ test.describe('Reporting a bug or feedback', () => {
     await dialog
       .getByLabel('What went wrong?')
       .fill('Creating a Collection leaves the list empty until I reload.');
-    await dialog.getByLabel('Email - optional').fill('');
+    await dialog.getByLabel('Email', { exact: true }).fill('');
     await dialog.getByRole('button', { name: 'Send report' }).click();
 
     // Core takes a whole User or null, so clearing one half would otherwise
     // send the report with no way back at all. Both empty is fine and means
     // anonymous, one empty is a mistake worth naming.
-    await expect(dialog.getByLabel('Email - optional')).toHaveAttribute(
+    await expect(dialog.getByLabel('Email', { exact: true })).toHaveAttribute(
       'aria-invalid',
       'true'
     );
@@ -266,10 +276,13 @@ test.describe('Reporting a bug or feedback', () => {
       await expect(message).not.toHaveAttribute(attribute);
     }
 
-    // Required-ness is conveyed by the label instead: FormLabel appends
-    // " - optional" to everything that is not required, so the contact block is
-    // marked and the message is the unmarked default.
-    await expect(dialog.getByLabel('Email - optional')).toBeVisible();
+    // Required reaches assistive tech as the ARIA state instead, which never
+    // blocks a submit, and the rules beside the label say it on screen. The
+    // contact block is optional, so neither marks it.
+    await expect(message).toHaveAttribute('aria-required', 'true');
+    const email = dialog.getByLabel('Email', { exact: true });
+    await expect(email).toBeVisible();
+    await expect(email).not.toHaveAttribute('aria-required');
 
     await closeReportDialog(mainWindow);
   });

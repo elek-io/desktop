@@ -1,7 +1,10 @@
+import { t } from '@lingui/core/macro';
 import { queryOptions } from '@tanstack/react-query';
 
 import type {
+  CountEntriesProps,
   Entry,
+  EntryHistoryProps,
   ListEntriesProps,
   PaginatedList,
   ReadEntryProps,
@@ -17,7 +20,11 @@ export const entryOptions = {
       method: 'create',
       objectType: 'entry',
     },
-    onSuccess: (createdEntry, variables, _result, context) => {
+    toasts: {
+      success: () => t`Entry created`,
+      error: () => t`Could not create the Entry`,
+    },
+    onSuccess: async (createdEntry, variables, _result, context) => {
       // Add Entry to cache individually
       context.client.setQueryData(
         [
@@ -48,6 +55,16 @@ export const entryOptions = {
         ],
         (oldList) => mergeListWithObject(oldList, createdEntry)
       );
+
+      // The count behind the Collection's row in the sidebar is Core's number
+      // rather than ours to add to, so it is read again instead of incremented
+      // here.
+      await context.client.invalidateQueries({
+        queryKey: entryOptions.count({
+          projectId: variables.projectId,
+          collectionId: variables.collectionId,
+        }).queryKey,
+      });
     },
   }),
   read: (props: ReadEntryProps) =>
@@ -68,13 +85,44 @@ export const entryOptions = {
       },
       throwOnError: true,
     }),
+  /**
+   * The changes of one Entry, newest first, each with the first Release that
+   * included it or none yet.
+   *
+   * It is read beside the Entry rather than before it, in a query of its own,
+   * so the Entry's form draws without waiting for a read of the Project's git
+   * history. Every mutation of this Entry invalidates the key, which is how the
+   * History pane follows a save.
+   */
+  history: (props: EntryHistoryProps) =>
+    queryOptions({
+      queryKey: [
+        'projects',
+        props.projectId,
+        'current',
+        'collections',
+        props.collectionId,
+        'current',
+        'entries',
+        props.id,
+        'history',
+      ],
+      queryFn: async () => {
+        return await window.ipc.core.entries.history(props);
+      },
+      throwOnError: true,
+    }),
   update: customMutationOptions({
     mutationFn: window.ipc.core.entries.update,
     meta: {
       method: 'update',
       objectType: 'entry',
     },
-    onSuccess: (updatedEntry, variables, _result, context) => {
+    toasts: {
+      success: () => t`Entry saved`,
+      error: () => t`Could not save the Entry`,
+    },
+    onSuccess: async (updatedEntry, variables, _result, context) => {
       // Update Entry in cache individually
       context.client.setQueryData(
         [
@@ -105,6 +153,17 @@ export const entryOptions = {
         ],
         (oldList) => mergeListWithObject(oldList, updatedEntry, 'update')
       );
+
+      // The save is one more change of this Entry, and which commits its
+      // history holds is Core's answer rather than ours to add to, so it is
+      // read again.
+      await context.client.invalidateQueries({
+        queryKey: entryOptions.history({
+          projectId: variables.projectId,
+          collectionId: variables.collectionId,
+          id: updatedEntry.id,
+        }).queryKey,
+      });
     },
   }),
   delete: customMutationOptions({
@@ -113,7 +172,11 @@ export const entryOptions = {
       method: 'delete',
       objectType: 'entry',
     },
-    onSuccess: (_deletedEntry, variables, _result, context) => {
+    toasts: {
+      success: () => t`Entry deleted`,
+      error: () => t`Could not delete the Entry`,
+    },
+    onSuccess: async (_deletedEntry, variables, _result, context) => {
       // Remove Entry from cache individually
       context.client.setQueryData(
         [
@@ -145,6 +208,13 @@ export const entryOptions = {
         (oldList) =>
           mergeListWithObject(oldList, { id: variables.id } as Entry, 'delete')
       );
+
+      await context.client.invalidateQueries({
+        queryKey: entryOptions.count({
+          projectId: variables.projectId,
+          collectionId: variables.collectionId,
+        }).queryKey,
+      });
     },
   }),
   list: (props: ListEntriesProps) =>
@@ -182,6 +252,31 @@ export const entryOptions = {
         });
 
         return entries;
+      },
+      throwOnError: true,
+    }),
+  /**
+   * How many Entries a Collection holds.
+   *
+   * Core counts the Entry files in one directory read, so the Collection's row
+   * in the sidebar says how many there are without every Entry being read for
+   * it. Every mutation that adds or removes one invalidates this key, which is
+   * how the number follows a create and a delete.
+   */
+  count: (props: CountEntriesProps) =>
+    queryOptions({
+      queryKey: [
+        'projects',
+        props.projectId,
+        'current',
+        'collections',
+        props.collectionId,
+        'current',
+        'entries',
+        'count',
+      ],
+      queryFn: async () => {
+        return await window.ipc.core.entries.count(props);
       },
       throwOnError: true,
     }),

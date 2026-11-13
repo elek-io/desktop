@@ -1,3 +1,5 @@
+import { i18n } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { clsx, type ClassValue } from 'clsx';
 import { type Locale } from 'date-fns';
 import type {
@@ -6,9 +8,45 @@ import type {
   RefAttributes,
   SVGProps,
 } from 'react';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
 
 import { type SupportedLanguage } from '@elek-io/core';
+
+/**
+ * The type roles the brand package adds on top of Tailwind's own scale.
+ *
+ * Class names, which no language has a form of its own for.
+ */
+/* eslint-disable lingui/no-unlocalized-strings */
+const TYPE_ROLES = [
+  'display',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'body-lg',
+  'body',
+  'ui',
+  'label',
+  'small',
+  'tag',
+  'code',
+  'code-sm',
+];
+/* eslint-enable lingui/no-unlocalized-strings */
+
+/**
+ * Tailwind's own merge, told that those roles are font sizes.
+ *
+ * `text-small` and the rest are sizes, but tailwind-merge only knows
+ * Tailwind's own scale, so without this it reads them as text colors and drops
+ * the role wherever a color stands beside it, as in
+ * `cn('text-small text-muted-foreground')`. Naming them here keeps a role
+ * conflicting with another role and with `text-sm`, and never with a color.
+ */
+const twMerge = extendTailwindMerge({
+  extend: { classGroups: { 'font-size': [{ text: TYPE_ROLES }] } },
+});
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
@@ -86,18 +124,64 @@ export async function loadLocale(language: SupportedLanguage): Promise<Locale> {
 }
 
 /**
+ * The one size unit that is a word rather than a symbol, so it is the one a
+ * language can have its own form of. Held as a descriptor at module scope and
+ * resolved per call, so it reads the catalog in use rather than the one active
+ * at import time.
+ */
+const BYTES_UNIT = msg`Bytes`;
+
+/**
  * Formats given number of bytes into a human readable format
  *
  * @param bytes Number of bytes
  */
 export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
+  const bytesUnit = i18n._(BYTES_UNIT);
+  if (bytes === 0) return `0 ${bytesUnit}`;
   const k = 1024,
     decimals = 2,
-    sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+    // The remaining unit symbols are the same in every language, so they stay
+    // out of the catalog.
+    // eslint-disable-next-line lingui/no-unlocalized-strings
+    sizes = [bytesUnit, 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
     i = Math.floor(Math.log(bytes) / Math.log(k));
   return (
     parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i]
+  );
+}
+
+/**
+ * A language by its name in the language the app is read in, such as "German"
+ * for `de` while the app is English and "Deutsch" while it is German.
+ *
+ * For a sentence that names a language, which is what ci writes: "German is
+ * missing 1 Value". The names come from the system's own language data through
+ * `Intl.DisplayNames`, so they are not in the catalog and no language has to be
+ * written out here. A code the system has no name for reads as the code, which
+ * is `Intl`'s own fallback. Where a language is labeled rather than spoken
+ * about, such as the switch above an Entry's fields, ci puts its code.
+ */
+export function languageName(language: SupportedLanguage): string {
+  return (
+    new Intl.DisplayNames([i18n.locale], { type: 'language' }).of(language) ??
+    language
+  );
+}
+
+/**
+ * A language by its own name, such as "English" for `en` and "Deutsch" for
+ * `de`, whichever language the app is read in.
+ *
+ * For the list somebody picks the app's language from: ci names each one in its
+ * own language, so a person finds theirs even while the app speaks one they
+ * cannot read. A sentence that speaks about a language uses `languageName`
+ * instead, which names it in the language of the sentence.
+ */
+export function ownLanguageName(language: string): string {
+  return (
+    new Intl.DisplayNames([language], { type: 'language' }).of(language) ??
+    language
   );
 }
 
@@ -112,21 +196,36 @@ export function classNames(...classes: string[]): string {
 }
 
 /**
- * Dynamic class names for field widths
- * @see https://tailwindcss.com/docs/content-configuration#dynamic-class-names
+ * The classes one field's width takes, out of the four widths Core offers.
+ *
+ * Each is a container query rather than a viewport one, because ci measures a
+ * field against the area it sits in and not against the window: the same Entry
+ * is edited in a narrow editor beside two other panes and in a wide one on its
+ * own. A field that would get less than 160 px stacks at full width, which is
+ * what each threshold below is: the width the twelve column grid needs, with
+ * its 24 px gaps, for a field of that span to reach 160 px.
+ *
+ * The class names are written out rather than built, since Tailwind reads them
+ * from the source.
+ *
+ * @see https://tailwindcss.com/docs/responsive-design#container-queries
  */
 export function fieldWidth(
   width: string
-): 'sm:col-span-3' | 'sm:col-span-4' | 'sm:col-span-6' | 'sm:col-span-12' {
+):
+  | '@min-[712px]:col-span-3'
+  | '@min-[528px]:col-span-4'
+  | '@min-[344px]:col-span-6'
+  | 'col-span-12' {
   switch (width) {
     case '3':
-      return 'sm:col-span-3';
+      return '@min-[712px]:col-span-3';
     case '4':
-      return 'sm:col-span-4';
+      return '@min-[528px]:col-span-4';
     case '6':
-      return 'sm:col-span-6';
+      return '@min-[344px]:col-span-6';
     case '12':
-      return 'sm:col-span-12';
+      return 'col-span-12';
     default:
       throw new Error(`Unsupported Field width "${width}"`);
   }

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { Rocket } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
@@ -61,6 +62,8 @@ export function ReleaseDialog({
   project,
   children,
 }: ReleaseDialogProps): ReactElement {
+  const { t } = useLingui();
+
   const [isOpen, setIsOpen] = useState(false);
   const {
     data: pendingRelease,
@@ -105,14 +108,18 @@ export function ReleaseDialog({
         setIsOpen(open);
       }}
     >
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger render={children} />
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create a Release</DialogTitle>
+          <DialogTitle>
+            <Trans>Create a Release</Trans>
+          </DialogTitle>
           <DialogDescription>
-            A Release publishes everything saved in this Project, so a website
-            can build from it. It cannot be undone.
+            <Trans>
+              A Release publishes everything saved in this Project, so a website
+              can build from it. It cannot be undone.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -120,7 +127,7 @@ export function ReleaseDialog({
           {isPreparingRelease || pendingRelease === undefined ? (
             <PendingReleaseSkeleton />
           ) : pendingRelease.status === 'refused' ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-error">
               {describeCoreError(
                 pendingRelease.errorType,
                 RELEASE_READ_REFUSALS,
@@ -132,7 +139,7 @@ export function ReleaseDialog({
           )}
 
           {createError === null ? null : (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-error">
               {describeCoreError(
                 parseIpcError(createError).type,
                 RELEASE_CREATE_REFUSALS,
@@ -143,10 +150,8 @@ export function ReleaseDialog({
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              Close
-            </Button>
+          <DialogClose render={<Button type="button" variant="secondary" />}>
+            <Trans>Close</Trans>
           </DialogClose>
           {pendingRelease?.status === 'refused' &&
           RELEASE_READ_RETRYABLE.has(pendingRelease.errorType) ? (
@@ -155,7 +160,7 @@ export function ReleaseDialog({
               variant="outline"
               onClick={async () => await readPendingReleaseAgain()}
             >
-              Try again
+              <Trans>Try again</Trans>
             </Button>
           ) : null}
           {canRelease ? (
@@ -164,7 +169,7 @@ export function ReleaseDialog({
               isLoading={isCreatingRelease}
               onClick={onCreateRelease}
             >
-              {isCreatingRelease ? 'Creating Release' : 'Create Release'}
+              {isCreatingRelease ? t`Creating Release` : t`Create Release`}
             </Button>
           ) : null}
         </DialogFooter>
@@ -185,13 +190,14 @@ function PendingReleaseSkeleton(): ReactElement {
 
 function PendingReleaseSummary({ diff }: { diff: ReleaseDiff }): ReactElement {
   const changes = describeReleaseChanges(diff);
+  const { currentVersion } = diff;
 
   return (
     <div className="grid gap-4">
       {diff.bump === null || diff.nextVersion === null ? null : (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
-            Version {diff.currentVersion} becomes
+            <Trans>Version {currentVersion} becomes</Trans>
           </span>
           <span className="text-lg font-semibold">{diff.nextVersion}</span>
           <Badge variant="secondary">{bumpWord(diff.bump)}</Badge>
@@ -212,7 +218,9 @@ function ReleaseChangeList({
 }): ReactElement {
   return (
     <div className="grid gap-2">
-      <h3 className="text-sm font-medium">What changed</h3>
+      <h3 className="text-sm font-medium">
+        <Trans>What changed</Trans>
+      </h3>
       {/* Each change in words. The bump of a single change is not repeated
           here: the badge above carries the Release's, and the sentence above
           names the change that drove it. */}

@@ -25,7 +25,6 @@ export function PageSection({
 }: PageSectionProps): ReactElement {
   return (
     <Card
-      asChild
       className={cn(
         {
           'rounded-t-none border-r-0 border-b-0 border-l-0 bg-transparent':
@@ -33,23 +32,22 @@ export function PageSection({
         },
         className
       )}
+      render={<section />}
     >
-      <section>
-        <CardHeader>
-          {props.title !== undefined && props.title !== '' ? (
-            <CardTitle>{props.title}</CardTitle>
-          ) : null}
-          {props.description !== undefined ? (
-            <CardDescription>{props.description}</CardDescription>
-          ) : null}
-          {props.actions !== undefined ? (
-            <CardAction>{props.actions}</CardAction>
-          ) : null}
-        </CardHeader>
-        {props.children !== undefined ? (
-          <CardContent>{props.children}</CardContent>
+      <CardHeader>
+        {props.title !== undefined && props.title !== '' ? (
+          <CardTitle>{props.title}</CardTitle>
         ) : null}
-      </section>
+        {props.description !== undefined ? (
+          <CardDescription>{props.description}</CardDescription>
+        ) : null}
+        {props.actions !== undefined ? (
+          <CardAction>{props.actions}</CardAction>
+        ) : null}
+      </CardHeader>
+      {props.children !== undefined ? (
+        <CardContent>{props.children}</CardContent>
+      ) : null}
     </Card>
   );
 }

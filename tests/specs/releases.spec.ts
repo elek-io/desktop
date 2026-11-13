@@ -21,7 +21,11 @@ import {
   stubCoreRejectWithType,
   stubCoreResolve,
 } from '../helpers/ipc.js';
-import { verifyCurrentRouteHash } from '../helpers/navigation.js';
+import {
+  projectCard,
+  projectSidebar,
+  verifyCurrentRouteHash,
+} from '../helpers/navigation.js';
 import {
   createProjectViaIpc,
   navigateToHistory,
@@ -71,9 +75,15 @@ test.describe('Releases', () => {
     // version below are what the desktop app has to show of Core's answer.
     await createCollectionViaIpc(mainWindow, { projectId: project.id });
 
-    // The page is reached from the Project's sidebar.
+    // The page is reached from the Project's sidebar, whose row carries how
+    // many Releases there are, so its name starts with the row's own name. The
+    // number is Core's, and this Project has published nothing yet.
     await navigateToProjectDashboard(mainWindow, project.id);
-    await mainWindow.getByRole('link', { name: 'Releases' }).click();
+    const releasesRow = projectSidebar(mainWindow).getByRole('link', {
+      name: /^Releases\s*0$/,
+    });
+    await expect(releasesRow).toBeVisible();
+    await releasesRow.click();
     await verifyCurrentRouteHash(
       mainWindow,
       `#/projects/${project.id}/releases`
@@ -116,9 +126,7 @@ test.describe('Releases', () => {
 
     // Every control in the dialog has an accessible name, which is also what
     // lets the locators here find them.
-    await expectNoAxeViolations(mainWindow, {
-      disableRules: ['color-contrast'],
-    });
+    await expectNoAxeViolations(mainWindow);
 
     // Escape closes it from the keyboard and hands focus back to what opened it.
     await dismissDialog(mainWindow);
@@ -132,16 +140,22 @@ test.describe('Releases', () => {
     await expect(dialog).toBeHidden();
 
     // What was published and when, without a reload: the Releases list shows
-    // the version Core wrote and the Project carries it in the sidebar.
+    // the version Core wrote, and the Project carries it in the sidebar, whose
+    // row counts the new Release without the Project being opened again.
     await expect(mainWindow.getByText('No Releases yet')).toBeHidden();
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', { name: /^Releases\s*1$/ })
+    ).toBeVisible();
     await expect(
       mainWindow
         .getByRole('main')
         .getByRole('listitem')
         .filter({ hasText: '0.1.0' })
     ).toBeVisible();
+    // The Project card names the Release it is now at, so the version Core
+    // wrote shows beside the Project rather than only in the list.
     await expect(
-      mainWindow.getByRole('button', { name: 'Test Project 0.1.0' })
+      projectCard(mainWindow).getByText('Release 0.1.0')
     ).toBeVisible();
     const { list, total } = await listReleasesViaIpc(mainWindow, {
       projectId: project.id,
@@ -394,18 +408,14 @@ test.describe('Releases', () => {
     });
 
     // The page is opened while the Project is still level with the remote, so
-    // the sidebar's count says there is nothing to synchronize and Synchronize
-    // is disabled. That count refreshes on its own only every three minutes,
-    // which is longer than an editor takes to act on the refusal below. The
-    // Refresh changes control is enabled once the first read landed, so this
-    // waits for the count rather than for a button that is disabled anyway.
+    // the card's count says there is nothing to sync and Sync is disabled. That
+    // count refreshes on its own only every three minutes, which is longer than
+    // an editor takes to act on the refusal below. The card says it is synced
+    // once the first check landed, so this waits for the count rather than for
+    // a button that is disabled anyway.
     await navigateToReleases(mainWindow, project.id);
-    const synchronize = mainWindow.getByRole('button', {
-      name: 'Synchronize',
-    });
-    await expect(
-      mainWindow.getByRole('button', { name: 'Refresh changes' })
-    ).toBeEnabled();
+    const synchronize = mainWindow.getByRole('button', { name: 'Sync' });
+    await expect(mainWindow.getByText('Everything synced')).toBeVisible();
     await expect(synchronize).toBeDisabled();
 
     // Something to release locally, and a remote that moved on out of band, so
@@ -448,7 +458,7 @@ test.describe('Releases', () => {
     expect(remoteTags(remote.path)).toEqual([]);
 
     // The one thing the refusal asks for can be done right away. The read
-    // fetched, so the count behind Synchronize is the one the dialog just saw
+    // fetched, so the count behind Sync is the one the dialog just saw
     // and not the stale zero the sidebar held when the page opened.
     await dismissDialog(mainWindow);
     await expect(synchronize).toBeEnabled();

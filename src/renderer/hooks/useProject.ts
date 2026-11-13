@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 
 import type { UseQueryResultNoError } from '@renderer/hooks/useQueryNoError';
 import type { UserContextValue } from '@renderer/hooks/useUser';
-import { type TranslateContentProps } from '@renderer/providers/ProjectProvider';
+import { type TranslateContentProps } from '@renderer/lib/translateContent';
 
 import type { Project } from '@elek-io/core';
 

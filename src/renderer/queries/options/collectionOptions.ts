@@ -1,14 +1,62 @@
-import { queryOptions } from '@tanstack/react-query';
+import { t } from '@lingui/core/macro';
+import {
+  queryOptions,
+  type MutationFunctionContext,
+} from '@tanstack/react-query';
 
 import type {
   Collection,
+  DeleteCollectionProps,
   ListCollectionsProps,
   PaginatedList,
   ReadCollectionProps,
 } from '@elek-io/core';
 
 import { queryClient } from '../client';
+import { translateContentFromCache } from '../translateContentFromCache';
 import { customMutationOptions, mergeListWithObject } from '../util';
+
+/**
+ * A Collection's name in plural, which is what the app names a Collection by.
+ *
+ * The name is stored per language, so it is read through the same chain a
+ * screen reads it through, rather than in whichever language happens to be
+ * filled in. See contributing/renderer/internationalization.md.
+ */
+function collectionName(
+  collection: Collection,
+  projectId: string,
+  context: MutationFunctionContext
+): string {
+  return translateContentFromCache(context.client, projectId, {
+    key: 'collection.name.plural',
+    record: collection.name.plural,
+  });
+}
+
+/**
+ * The name a deleted Collection was last shown under, or `undefined` when the
+ * cache no longer holds it.
+ *
+ * A delete answers with nothing, so the Collection itself is only still
+ * reachable under its own read key. The toast is built before the mutation's own
+ * `onSuccess` writes to the cache, see `queries/util.ts`.
+ */
+function deletedCollectionName(
+  variables: DeleteCollectionProps,
+  context: MutationFunctionContext
+): string | undefined {
+  const collection = context.client.getQueryData(
+    collectionOptions.read({ projectId: variables.projectId, id: variables.id })
+      .queryKey
+  );
+
+  if (collection === undefined) {
+    return undefined;
+  }
+
+  return collectionName(collection, variables.projectId, context);
+}
 
 export const collectionOptions = {
   create: customMutationOptions({
@@ -16,6 +64,17 @@ export const collectionOptions = {
     meta: {
       method: 'create',
       objectType: 'collection',
+    },
+    toasts: {
+      success: (createdCollection, variables, context) => {
+        const name = collectionName(
+          createdCollection,
+          variables.projectId,
+          context
+        );
+        return t`Collection ${name} created`;
+      },
+      error: () => t`Could not create the Collection`,
     },
     onSuccess: (createdCollection, variables, _result, context) => {
       // Add Collection to cache individually
@@ -59,6 +118,17 @@ export const collectionOptions = {
       method: 'update',
       objectType: 'collection',
     },
+    toasts: {
+      success: (updatedCollection, variables, context) => {
+        const name = collectionName(
+          updatedCollection,
+          variables.projectId,
+          context
+        );
+        return t`Collection ${name} saved`;
+      },
+      error: () => t`Could not save the Collection`,
+    },
     onSuccess: (updatedCollection, variables, _result, context) => {
       // Update Collection in cache individually
       context.client.setQueryData(
@@ -85,6 +155,18 @@ export const collectionOptions = {
     meta: {
       method: 'delete',
       objectType: 'collection',
+    },
+    toasts: {
+      success: (_deletedCollection, variables, context) => {
+        const name = deletedCollectionName(variables, context);
+
+        if (name === undefined) {
+          return t`Collection deleted`;
+        }
+
+        return t`Collection ${name} deleted`;
+      },
+      error: () => t`Could not delete the Collection`,
     },
     onSuccess: (_deletedCollection, variables, _result, context) => {
       // Remove Collection from cache individually

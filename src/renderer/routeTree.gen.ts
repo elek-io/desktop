@@ -12,12 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as UserRouteImport } from './routes/user'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects/$projectId'
 import { Route as ProjectsCreateRouteImport } from './routes/projects/create'
 import { Route as UserIndexRouteImport } from './routes/user/index'
 import { Route as UserProfileRouteImport } from './routes/user/profile'
 import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects/$projectId/index'
+import { Route as ProjectsProjectIdAssetsRouteImport } from './routes/projects/$projectId/assets'
 import { Route as ProjectsProjectIdCollectionsRouteImport } from './routes/projects/$projectId/collections'
 import { Route as ProjectsProjectIdComponentsRouteImport } from './routes/projects/$projectId/components'
 import { Route as ProjectsProjectIdDashboardRouteImport } from './routes/projects/$projectId/dashboard'
@@ -25,6 +27,8 @@ import { Route as ProjectsProjectIdHistoryRouteImport } from './routes/projects/
 import { Route as ProjectsProjectIdReleasesRouteImport } from './routes/projects/$projectId/releases'
 import { Route as ProjectsProjectIdSettingsRouteImport } from './routes/projects/$projectId/settings'
 import { Route as ProjectsProjectIdAssetsIndexRouteImport } from './routes/projects/$projectId/assets/index'
+import { Route as ProjectsProjectIdAssetsAssetIdRouteImport } from './routes/projects/$projectId/assets/$assetId'
+import { Route as ProjectsProjectIdAssetsNewRouteImport } from './routes/projects/$projectId/assets/new'
 import { Route as ProjectsProjectIdCollectionsIndexRouteImport } from './routes/projects/$projectId/collections/index'
 import { Route as ProjectsProjectIdCollectionsCollectionIdRouteImport } from './routes/projects/$projectId/collections/$collectionId'
 import { Route as ProjectsProjectIdCollectionsCreateRouteImport } from './routes/projects/$projectId/collections/create'
@@ -57,6 +61,11 @@ const UserRoute = UserRouteImport.update({
   path: '/user',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -85,6 +94,11 @@ const UserProfileRoute = UserProfileRouteImport.update({
 const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => ProjectsProjectIdRoute,
+} as any)
+const ProjectsProjectIdAssetsRoute = ProjectsProjectIdAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
   getParentRoute: () => ProjectsProjectIdRoute,
 } as any)
 const ProjectsProjectIdCollectionsRoute =
@@ -125,9 +139,21 @@ const ProjectsProjectIdSettingsRoute =
   } as any)
 const ProjectsProjectIdAssetsIndexRoute =
   ProjectsProjectIdAssetsIndexRouteImport.update({
-    id: '/assets/',
-    path: '/assets/',
-    getParentRoute: () => ProjectsProjectIdRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectIdAssetsRoute,
+  } as any)
+const ProjectsProjectIdAssetsAssetIdRoute =
+  ProjectsProjectIdAssetsAssetIdRouteImport.update({
+    id: '/$assetId',
+    path: '/$assetId',
+    getParentRoute: () => ProjectsProjectIdAssetsRoute,
+  } as any)
+const ProjectsProjectIdAssetsNewRoute =
+  ProjectsProjectIdAssetsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => ProjectsProjectIdAssetsRoute,
   } as any)
 const ProjectsProjectIdCollectionsIndexRoute =
   ProjectsProjectIdCollectionsIndexRouteImport.update({
@@ -230,11 +256,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/user': typeof UserRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/create': typeof ProjectsCreateRoute
   '/user/profile': typeof UserProfileRoute
   '/projects/': typeof ProjectsIndexRoute
   '/user/': typeof UserIndexRoute
+  '/projects/$projectId/assets': typeof ProjectsProjectIdAssetsRouteWithChildren
   '/projects/$projectId/collections': typeof ProjectsProjectIdCollectionsRouteWithChildren
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsRouteWithChildren
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
@@ -242,6 +270,8 @@ export interface FileRoutesByFullPath {
   '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRoute
   '/projects/$projectId/settings': typeof ProjectsProjectIdSettingsRouteWithChildren
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
+  '/projects/$projectId/assets/$assetId': typeof ProjectsProjectIdAssetsAssetIdRoute
+  '/projects/$projectId/assets/new': typeof ProjectsProjectIdAssetsNewRoute
   '/projects/$projectId/collections/$collectionId': typeof ProjectsProjectIdCollectionsCollectionIdRouteWithChildren
   '/projects/$projectId/collections/create': typeof ProjectsProjectIdCollectionsCreateRoute
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
@@ -262,6 +292,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/welcome': typeof WelcomeRoute
   '/projects/create': typeof ProjectsCreateRoute
   '/user/profile': typeof UserProfileRoute
   '/projects': typeof ProjectsIndexRoute
@@ -270,6 +301,8 @@ export interface FileRoutesByTo {
   '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
   '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRoute
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
+  '/projects/$projectId/assets/$assetId': typeof ProjectsProjectIdAssetsAssetIdRoute
+  '/projects/$projectId/assets/new': typeof ProjectsProjectIdAssetsNewRoute
   '/projects/$projectId/collections/create': typeof ProjectsProjectIdCollectionsCreateRoute
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
   '/projects/$projectId/components/create': typeof ProjectsProjectIdComponentsCreateRoute
@@ -291,11 +324,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/user': typeof UserRouteWithChildren
+  '/welcome': typeof WelcomeRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/create': typeof ProjectsCreateRoute
   '/user/profile': typeof UserProfileRoute
   '/projects/': typeof ProjectsIndexRoute
   '/user/': typeof UserIndexRoute
+  '/projects/$projectId/assets': typeof ProjectsProjectIdAssetsRouteWithChildren
   '/projects/$projectId/collections': typeof ProjectsProjectIdCollectionsRouteWithChildren
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsRouteWithChildren
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
@@ -303,6 +338,8 @@ export interface FileRoutesById {
   '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRoute
   '/projects/$projectId/settings': typeof ProjectsProjectIdSettingsRouteWithChildren
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
+  '/projects/$projectId/assets/$assetId': typeof ProjectsProjectIdAssetsAssetIdRoute
+  '/projects/$projectId/assets/new': typeof ProjectsProjectIdAssetsNewRoute
   '/projects/$projectId/collections/$collectionId': typeof ProjectsProjectIdCollectionsCollectionIdRouteWithChildren
   '/projects/$projectId/collections/create': typeof ProjectsProjectIdCollectionsCreateRoute
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
@@ -327,11 +364,13 @@ export interface FileRouteTypes {
     | '/'
     | '/projects'
     | '/user'
+    | '/welcome'
     | '/projects/$projectId'
     | '/projects/create'
     | '/user/profile'
     | '/projects/'
     | '/user/'
+    | '/projects/$projectId/assets'
     | '/projects/$projectId/collections'
     | '/projects/$projectId/components'
     | '/projects/$projectId/dashboard'
@@ -339,6 +378,8 @@ export interface FileRouteTypes {
     | '/projects/$projectId/releases'
     | '/projects/$projectId/settings'
     | '/projects/$projectId/'
+    | '/projects/$projectId/assets/$assetId'
+    | '/projects/$projectId/assets/new'
     | '/projects/$projectId/collections/$collectionId'
     | '/projects/$projectId/collections/create'
     | '/projects/$projectId/components/$componentId'
@@ -359,6 +400,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/welcome'
     | '/projects/create'
     | '/user/profile'
     | '/projects'
@@ -367,6 +409,8 @@ export interface FileRouteTypes {
     | '/projects/$projectId/history'
     | '/projects/$projectId/releases'
     | '/projects/$projectId'
+    | '/projects/$projectId/assets/$assetId'
+    | '/projects/$projectId/assets/new'
     | '/projects/$projectId/collections/create'
     | '/projects/$projectId/components/$componentId'
     | '/projects/$projectId/components/create'
@@ -387,11 +431,13 @@ export interface FileRouteTypes {
     | '/'
     | '/projects'
     | '/user'
+    | '/welcome'
     | '/projects/$projectId'
     | '/projects/create'
     | '/user/profile'
     | '/projects/'
     | '/user/'
+    | '/projects/$projectId/assets'
     | '/projects/$projectId/collections'
     | '/projects/$projectId/components'
     | '/projects/$projectId/dashboard'
@@ -399,6 +445,8 @@ export interface FileRouteTypes {
     | '/projects/$projectId/releases'
     | '/projects/$projectId/settings'
     | '/projects/$projectId/'
+    | '/projects/$projectId/assets/$assetId'
+    | '/projects/$projectId/assets/new'
     | '/projects/$projectId/collections/$collectionId'
     | '/projects/$projectId/collections/create'
     | '/projects/$projectId/components/$componentId'
@@ -422,6 +470,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   UserRoute: typeof UserRouteWithChildren
+  WelcomeRoute: typeof WelcomeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -445,6 +494,13 @@ declare module '@tanstack/react-router' {
       path: '/user'
       fullPath: '/user'
       preLoaderRoute: typeof UserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/': {
@@ -487,6 +543,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/projects/$projectId/'
       preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
+    '/projects/$projectId/assets': {
+      id: '/projects/$projectId/assets'
+      path: '/assets'
+      fullPath: '/projects/$projectId/assets'
+      preLoaderRoute: typeof ProjectsProjectIdAssetsRouteImport
       parentRoute: typeof ProjectsProjectIdRoute
     }
     '/projects/$projectId/collections': {
@@ -533,10 +596,24 @@ declare module '@tanstack/react-router' {
     }
     '/projects/$projectId/assets/': {
       id: '/projects/$projectId/assets/'
-      path: '/assets'
+      path: '/'
       fullPath: '/projects/$projectId/assets/'
       preLoaderRoute: typeof ProjectsProjectIdAssetsIndexRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
+      parentRoute: typeof ProjectsProjectIdAssetsRoute
+    }
+    '/projects/$projectId/assets/$assetId': {
+      id: '/projects/$projectId/assets/$assetId'
+      path: '/$assetId'
+      fullPath: '/projects/$projectId/assets/$assetId'
+      preLoaderRoute: typeof ProjectsProjectIdAssetsAssetIdRouteImport
+      parentRoute: typeof ProjectsProjectIdAssetsRoute
+    }
+    '/projects/$projectId/assets/new': {
+      id: '/projects/$projectId/assets/new'
+      path: '/new'
+      fullPath: '/projects/$projectId/assets/new'
+      preLoaderRoute: typeof ProjectsProjectIdAssetsNewRouteImport
+      parentRoute: typeof ProjectsProjectIdAssetsRoute
     }
     '/projects/$projectId/collections/': {
       id: '/projects/$projectId/collections/'
@@ -652,6 +729,24 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ProjectsProjectIdAssetsRouteChildren {
+  ProjectsProjectIdAssetsAssetIdRoute: typeof ProjectsProjectIdAssetsAssetIdRoute
+  ProjectsProjectIdAssetsNewRoute: typeof ProjectsProjectIdAssetsNewRoute
+  ProjectsProjectIdAssetsIndexRoute: typeof ProjectsProjectIdAssetsIndexRoute
+}
+
+const ProjectsProjectIdAssetsRouteChildren: ProjectsProjectIdAssetsRouteChildren =
+  {
+    ProjectsProjectIdAssetsAssetIdRoute: ProjectsProjectIdAssetsAssetIdRoute,
+    ProjectsProjectIdAssetsNewRoute: ProjectsProjectIdAssetsNewRoute,
+    ProjectsProjectIdAssetsIndexRoute: ProjectsProjectIdAssetsIndexRoute,
+  }
+
+const ProjectsProjectIdAssetsRouteWithChildren =
+  ProjectsProjectIdAssetsRoute._addFileChildren(
+    ProjectsProjectIdAssetsRouteChildren,
+  )
 
 interface ProjectsProjectIdCollectionsCollectionIdEntryIdRouteChildren {
   ProjectsProjectIdCollectionsCollectionIdEntryIdUpdateRoute: typeof ProjectsProjectIdCollectionsCollectionIdEntryIdUpdateRoute
@@ -773,6 +868,7 @@ const ProjectsProjectIdSettingsRouteWithChildren =
   )
 
 interface ProjectsProjectIdRouteChildren {
+  ProjectsProjectIdAssetsRoute: typeof ProjectsProjectIdAssetsRouteWithChildren
   ProjectsProjectIdCollectionsRoute: typeof ProjectsProjectIdCollectionsRouteWithChildren
   ProjectsProjectIdComponentsRoute: typeof ProjectsProjectIdComponentsRouteWithChildren
   ProjectsProjectIdDashboardRoute: typeof ProjectsProjectIdDashboardRoute
@@ -780,10 +876,10 @@ interface ProjectsProjectIdRouteChildren {
   ProjectsProjectIdReleasesRoute: typeof ProjectsProjectIdReleasesRoute
   ProjectsProjectIdSettingsRoute: typeof ProjectsProjectIdSettingsRouteWithChildren
   ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
-  ProjectsProjectIdAssetsIndexRoute: typeof ProjectsProjectIdAssetsIndexRoute
 }
 
 const ProjectsProjectIdRouteChildren: ProjectsProjectIdRouteChildren = {
+  ProjectsProjectIdAssetsRoute: ProjectsProjectIdAssetsRouteWithChildren,
   ProjectsProjectIdCollectionsRoute:
     ProjectsProjectIdCollectionsRouteWithChildren,
   ProjectsProjectIdComponentsRoute:
@@ -793,7 +889,6 @@ const ProjectsProjectIdRouteChildren: ProjectsProjectIdRouteChildren = {
   ProjectsProjectIdReleasesRoute: ProjectsProjectIdReleasesRoute,
   ProjectsProjectIdSettingsRoute: ProjectsProjectIdSettingsRouteWithChildren,
   ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,
-  ProjectsProjectIdAssetsIndexRoute: ProjectsProjectIdAssetsIndexRoute,
 }
 
 const ProjectsProjectIdRouteWithChildren =
@@ -831,6 +926,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   UserRoute: UserRouteWithChildren,
+  WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
