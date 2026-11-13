@@ -209,10 +209,12 @@ export function FieldShell({
     ...(rules.required ? { 'aria-required': true } : {}),
     // A warned field takes the warning border and surface, which is what ci
     // draws on the input of a Value a language is still missing. The warning
-    // line below it says the same in words, so the color is never alone.
+    // line below it says the same in words, so the color is never alone. The
+    // border is the warning color itself, because an input's border is what
+    // says where the field is and ci asks 3:1 of it, see ci's docs/color.md.
     ...(warningPart === null
       ? {}
-      : { className: 'border-warning-border bg-warning-surface' }),
+      : { className: 'border-warning bg-warning-surface' }),
   });
   const headerPart = (
     <FieldHeader {...(rulesLine === null ? {} : { rules: rulesLine, rulesId })}>
