@@ -1359,7 +1359,10 @@ test.describe('Releases', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeVisible();
-    await expect(mainWindow.getByText('Create a Release')).toBeHidden();
+    // The error screen replaced the whole view, so the dialog is gone with it.
+    // Asserted by its role rather than by a word it draws, which a reworded
+    // title would let pass whichever way the dialog went.
+    await expect(dialog).toBeHidden();
   });
 
   test('routes a Release failure of an unhandled type to the root error boundary', async ({
@@ -1389,6 +1392,9 @@ test.describe('Releases', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeVisible();
-    await expect(mainWindow.getByText('Create a Release')).toBeHidden();
+    // The error screen replaced the whole view, so the dialog is gone with it.
+    // Asserted by its role rather than by a word it draws, which a reworded
+    // title would let pass whichever way the dialog went.
+    await expect(dialog).toBeHidden();
   });
 });
