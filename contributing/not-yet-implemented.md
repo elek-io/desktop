@@ -14,7 +14,7 @@ Remove an entry once the feature works end to end.
 ## Reporting a bug or feedback to Cloud
 
 The Desktop and Core halves are both done. The dialog, both forms, the header
-button, the error boundary's "Report this problem", the IPC channel
+button, the error screen's Report an issue, the IPC channel
 `core:cloud:reports:create` and `core.cloud.reports.create()` all work, and
 [`tests/specs/reports.spec.ts`](../tests/specs/reports.spec.ts) drives a real
 send end to end. What is left is on the other side of the wire.
