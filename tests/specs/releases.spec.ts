@@ -538,9 +538,10 @@ test.describe('Releases', () => {
     const chosen = releaseRow(mainWindow, '0.2.0');
     await chosen.click();
 
-    // The row says it is the current one, rather than marking it by its
-    // surface alone.
+    // The chosen row is marked as the one the pane is about, by its surface
+    // and the bar, and says so to a screen reader.
     await expect(chosen).toHaveAttribute('aria-current', 'page');
+    await expect(chosen).toHaveAttribute('data-active', 'true');
 
     // What it is, who published it and when, then the version it moved to and
     // what it changed.
