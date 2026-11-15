@@ -793,6 +793,16 @@ test.describe('Releases', () => {
       expect(measured.overflowing, theme).toEqual([]);
       expect(measured.sideways, theme).toEqual([]);
 
+      // What the chosen Release changed keeps ci's 512 px inside that room,
+      // rather than running as wide as the pane leaves it.
+      expect(
+        await mainWindow
+          .getByRole('main')
+          .locator('[data-slot="release-changes"]')
+          .evaluate((rows) => Math.round(rows.getBoundingClientRect().width)),
+        theme
+      ).toBe(512);
+
       // The dialog over it fits the window too, with its buttons inside it.
       await openReleaseDialog(mainWindow);
       const dialog = mainWindow.getByRole('dialog');

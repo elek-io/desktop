@@ -124,8 +124,10 @@ export function ReleaseSummary({
     },
   ].filter((row) => row.count > 0);
 
+  // 512 px, ci's own width for this block: its 560 px box is border-box over a
+  // 24 px edge, and the page around this one already draws that edge.
   return (
-    <div className="flex max-w-140 flex-col gap-2">
+    <div className="flex max-w-128 flex-col gap-2">
       {bump === null || nextVersion === null ? null : (
         <>
           <span className="text-label">
@@ -188,7 +190,7 @@ export function ReleaseSummarySkeleton(): ReactElement {
       role="status"
       aria-busy="true"
       aria-label={t`Loading the Release`}
-      className="flex max-w-140 flex-col gap-2"
+      className="flex max-w-128 flex-col gap-2"
     >
       <Skeleton className="h-4 w-16 rounded" />
       <Skeleton className="h-7 w-48 rounded" />
