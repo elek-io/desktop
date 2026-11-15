@@ -15,7 +15,7 @@ import {
   referenceValue,
   stringValue,
 } from '../helpers/entry.js';
-import { expectRejects } from '../helpers/ipc.js';
+import { expectRejects, maskViaIpc } from '../helpers/ipc.js';
 import { navigate } from '../helpers/navigation.js';
 import { createProjectViaIpc } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
@@ -117,21 +117,34 @@ test.describe('IPC guards', () => {
     // The channel that masks what the error screen shows takes one string,
     // checked with zod in the main process, so the renderer hands Core nothing
     // it would have to walk. No UI path can send anything else, so the guard
-    // is observed here as a bare throw / no-throw.
-    const masked = await mainWindow.evaluate(async () =>
-      window.ipc.core.logger.mask('nothing to mask here')
-    );
-    expect(masked).toBe('nothing to mask here');
+    // is observed here rather than through a screen.
+    const masked = await maskViaIpc(mainWindow, 'nothing to mask here');
+    expect(masked).toEqual({ accepted: true, text: 'nothing to mask here' });
 
-    for (const refused of [42, null, ['a text'], { text: 'a text' }]) {
-      await expectRejects(
-        mainWindow.evaluate(
-          async (value) =>
-            // What a slip would send, which the type says it cannot.
-            window.ipc.core.logger.mask(value as unknown as string),
-          refused
-        )
-      );
+    // The neighbors of a text are in here on purpose: an empty one, which is
+    // still a text, and each shape that wraps one.
+    expect(await maskViaIpc(mainWindow, '')).toEqual({
+      accepted: true,
+      text: '',
+    });
+
+    for (const refused of [
+      42,
+      0,
+      true,
+      null,
+      undefined,
+      ['a text'],
+      { text: 'a text' },
+    ]) {
+      const answer = await maskViaIpc(mainWindow, refused);
+      const what = `${String(JSON.stringify(refused))} must be refused`;
+
+      expect(answer.accepted, what).toBe(false);
+      // Refused by the parse, which is the only thing between the renderer and
+      // Core here. A channel that stopped parsing would still reject some of
+      // these, by Core tripping over them further in.
+      expect(answer.text, what).toContain('Refused to mask something');
     }
   });
 

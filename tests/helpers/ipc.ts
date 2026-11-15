@@ -1,4 +1,4 @@
-import { expect, type ElectronApplication } from '@playwright/test';
+import { expect, type ElectronApplication, type Page } from '@playwright/test';
 
 import { type CoreErrorType } from '@elek-io/core';
 
@@ -381,4 +381,35 @@ export async function recordedCoreCallProps(
   electronApp: ElectronApplication
 ): Promise<unknown[]> {
   return electronApp.evaluate(() => globalThis.recordedCoreCallProps ?? []);
+}
+
+/**
+ * Hand the masking channel a value and say what the main process did with it.
+ *
+ * `text` is `unknown`, because what this proves is which values the main
+ * process refuses. The bridge's own type takes a string, so a refused value
+ * has to come in untyped.
+ *
+ * The rejection's own message comes back as well, since Electron carries it to
+ * the caller. A spec asserts it rather than only the rejection, because a
+ * channel that stopped parsing would still reject a value Core then tripped
+ * over somewhere else.
+ */
+export async function maskViaIpc(
+  page: Page,
+  text: unknown
+): Promise<{ accepted: boolean; text: string }> {
+  return page.evaluate(async (value) => {
+    try {
+      // The cast is the point of the test: the bridge is typed to the one
+      // thing it takes, so handing it anything else needs the type out of the
+      // way. What the main process does with it is what this measures.
+      return {
+        accepted: true,
+        text: await window.ipc.core.logger.mask(value as string),
+      };
+    } catch (error) {
+      return { accepted: false, text: String(error) };
+    }
+  }, text);
 }
