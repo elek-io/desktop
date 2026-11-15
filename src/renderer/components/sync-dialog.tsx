@@ -1,5 +1,5 @@
+import { i18n } from '@lingui/core';
 import { Trans } from '@lingui/react/macro';
-import { parseIpcError } from '@root/src/shared/ipcError';
 import { Link } from '@tanstack/react-router';
 import { type ReactElement } from 'react';
 
@@ -18,10 +18,10 @@ import {
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { describeCoreError } from '@renderer/lib/coreErrorText';
 import {
+  NOTHING_SYNCED,
   syncConflictReferencesOf,
-  SYNC_REFUSALS,
+  syncRefusalSentence,
   type SyncConflictReference,
 } from '@renderer/lib/sync';
 import { queryOptions } from '@renderer/queries';
@@ -37,13 +37,17 @@ import {
  *
  * It answers a sync the editor started while focus was still on Sync, which is
  * where ci puts a failure somebody is waiting for, and Show why in the Project
- * card reopens it afterwards. One sentence says what stopped the sync and what
- * to do next, each Entry Core named is a link with the field inside it, and one
- * line says that nothing was synced, which holds because Core pushes nothing
- * until every step before it went through.
+ * card reopens it afterwards. One sentence says the one thing that stopped the
+ * sync and what to do next, each Entry Core named is a link with the field
+ * inside it, and one line says that nothing was synced, which holds because
+ * Core pushes nothing until every step before it went through.
  *
- * It never shows Core's error type, Core's own message or what git wrote, since
- * a Git repository's address can carry a credential, see
+ * A refusal Core named no cause for leads with that line instead, since there
+ * is nothing else true to say about it, and then it stands once rather than
+ * twice.
+ *
+ * It never shows Core's error type, the cause's own name, Core's own message or
+ * what git wrote, since a Git repository's address can carry a credential, see
  * contributing/error-handling.md.
  */
 export function SyncDialog({
@@ -56,8 +60,11 @@ export function SyncDialog({
   /** The refusal the dialog is about, held by the Project card. */
   error: unknown;
 }): ReactElement {
-  const { type } = parseIpcError(error);
+  const { text, saysNothingWasSynced } = syncRefusalSentence(error);
   const references = syncConflictReferencesOf(error);
+  // Nothing to put below the sentence where Core named no Entry and the
+  // sentence is already the one that closes the others.
+  const hasBody = references.length > 0 || saysNothingWasSynced === false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,30 +79,30 @@ export function SyncDialog({
           <DialogTitle>
             <Trans>Sync failed</Trans>
           </DialogTitle>
-          <DialogDescription>
-            {/*
-              No fallback sentence, because there is no type to need one: the
-              dialog opens from the mutation's `handled` map alone, which
-              `SYNC_REFUSAL_TYPES` fills and `SYNC_REFUSALS` is exhaustive
-              over, and every other type reaches the error screen instead.
-            */}
-            {describeCoreError(type, SYNC_REFUSALS)}
-          </DialogDescription>
+          {/*
+            The cause Core named, or what a refusal that names none is left
+            with. The dialog opens from the mutation's `handled` map alone,
+            which `SYNC_REFUSAL_TYPES` fills, and every other type reaches the
+            error screen instead.
+          */}
+          <DialogDescription>{text}</DialogDescription>
         </DialogHeader>
 
-        <DialogBody>
-          <div className="grid gap-3">
-            {references.length === 0 ? null : (
-              <SyncConflictList references={references} />
-            )}
+        {hasBody === false ? null : (
+          <DialogBody>
+            <div className="grid gap-3">
+              {references.length === 0 ? null : (
+                <SyncConflictList references={references} />
+              )}
 
-            <p className="text-small text-muted-foreground">
-              <Trans>
-                Nothing was synced, and your changes stay on this computer.
-              </Trans>
-            </p>
-          </div>
-        </DialogBody>
+              {saysNothingWasSynced ? null : (
+                <p className="text-small text-muted-foreground">
+                  {i18n._(NOTHING_SYNCED)}
+                </p>
+              )}
+            </div>
+          </DialogBody>
+        )}
 
         <DialogFooter>
           <DialogClose render={<Button type="button" />}>

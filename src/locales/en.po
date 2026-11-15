@@ -554,6 +554,10 @@ msgstr "Bulleted and numbered lists."
 msgid "Bytes"
 msgstr "Bytes"
 
+#: src/renderer/lib/sync.ts
+msgid "Can't reach elek.io Cloud. Check your internet connection and try again."
+msgstr "Can't reach elek.io Cloud. Check your internet connection and try again."
+
 #: src/renderer/components/project-state.tsx
 msgid "Can't reach the Git repository"
 msgstr "Can't reach the Git repository"
@@ -1158,6 +1162,14 @@ msgstr "Each field below points at an Entry or an Asset that no longer exists, b
 msgid "Edit translations for {title}"
 msgstr "Edit translations for {title}"
 
+#: src/renderer/lib/sync.ts
+msgid "elek.io Cloud could not reach this Project's Git host. Try again later."
+msgstr "elek.io Cloud could not reach this Project's Git host. Try again later."
+
+#: src/renderer/lib/sync.ts
+msgid "elek.io Cloud keeps this Project somewhere other than the address it syncs with. Ask whoever set up this Project to check that address."
+msgstr "elek.io Cloud keeps this Project somewhere other than the address it syncs with. Ask whoever set up this Project to check that address."
+
 #: src/renderer/components/report-dialog.tsx
 msgid "elek.io Cloud rejected this report. Shortening it usually helps."
 msgstr "elek.io Cloud rejected this report. Shortening it usually helps."
@@ -1169,6 +1181,10 @@ msgstr "elek.io Cloud rejected this report. Shortening it, or sending it without
 #: src/main/index.ts
 msgid "elek.io Desktop could not start"
 msgstr "elek.io Desktop could not start"
+
+#: src/renderer/lib/sync.ts
+msgid "elek.io Desktop is set up to read content only, so it cannot sync. Ask whoever set it up on this computer."
+msgstr "elek.io Desktop is set up to read content only, so it cannot sync. Ask whoever set it up on this computer."
 
 #: src/renderer/components/app-header.tsx
 msgid "elek.io Desktop, Projects"
@@ -1328,6 +1344,10 @@ msgstr "Generate from Fields"
 #: src/renderer/components/fields/slug/control.tsx
 msgid "Generate from the source Fields"
 msgstr "Generate from the source Fields"
+
+#: src/renderer/lib/sync.ts
+msgid "Git on this computer is missing a part it needs. Ask whoever set up this computer to install it."
+msgstr "Git on this computer is missing a part it needs. Ask whoever set up this computer to install it."
 
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Git repository"
@@ -1812,7 +1832,7 @@ msgstr "Nothing was saved, and this Collection is exactly as it was. Either anot
 msgid "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
 msgstr "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
 
-#: src/renderer/components/sync-dialog.tsx
+#: src/renderer/lib/sync.ts
 msgid "Nothing was synced, and your changes stay on this computer."
 msgstr "Nothing was synced, and your changes stay on this computer."
 
@@ -2317,6 +2337,14 @@ msgstr "Slugs are always unique, so a single Entry can be identified by it."
 msgid "Some of the information provided was not valid."
 msgstr "Some of the information provided was not valid."
 
+#: src/renderer/lib/sync.ts
+msgid "Somebody else kept syncing with the Git repository while this sync ran. Try again."
+msgstr "Somebody else kept syncing with the Git repository while this sync ran. Try again."
+
+#: src/renderer/lib/sync.ts
+msgid "Something outside elek.io Desktop changed this Project's files, so they cannot be synced as they are. Ask whoever set up this Project."
+msgstr "Something outside elek.io Desktop changed this Project's files, so they cannot be synced as they are. Ask whoever set up this Project."
+
 #: src/renderer/routes/__root.tsx
 msgid "Something went wrong and this screen is all we can show you. Nothing about it was sent to us automatically, so we only find out if you tell us. Reporting it takes a moment: tell us what you were doing, and the logs it sends along show us the error."
 msgstr "Something went wrong and this screen is all we can show you. Nothing about it was sent to us automatically, so we only find out if you tell us. Reporting it takes a moment: tell us what you were doing, and the logs it sends along show us the error."
@@ -2394,6 +2422,10 @@ msgstr "Tell us what you think of elek.io Desktop. We read every one of these."
 #: src/renderer/components/fields/select/definition.tsx
 msgid "Text"
 msgstr "Text"
+
+#: src/renderer/lib/sync.ts
+msgid "The address this Project syncs with names no Project on elek.io Cloud. Ask whoever set up this Project to check it."
+msgstr "The address this Project syncs with names no Project on elek.io Cloud. Ask whoever set up this Project to check it."
 
 #: src/renderer/routes/projects/$projectId/assets/new.tsx
 msgid "the Asset being added"
@@ -2534,13 +2566,17 @@ msgstr "The Git repository could not be reached, so check your connection and th
 msgid "The Git repository could not be reached, so check your connection and try again."
 msgstr "The Git repository could not be reached, so check your connection and try again."
 
+#: src/renderer/lib/sync.ts
+msgid "The Git repository holds a published Release this computer does not have. Sync on the computer that published it, then sync here again."
+msgstr "The Git repository holds a published Release this computer does not have. Sync on the computer that published it, then sync here again."
+
+#: src/renderer/lib/sync.ts
+msgid "The Git repository holds something other than this Project. Ask whoever set up this Project for an empty Git repository."
+msgstr "The Git repository holds something other than this Project. Ask whoever set up this Project for an empty Git repository."
+
 #: src/renderer/routes/projects/create.tsx
 msgid "The Git repository may already hold something, or it may not be able to store the Assets. Ask whoever set it up."
 msgstr "The Git repository may already hold something, or it may not be able to store the Assets. Ask whoever set it up."
-
-#: src/renderer/lib/sync.ts
-msgid "The Git repository may hold something besides this Project, it may not be able to store the Assets, or the same text may have been changed here and somewhere else. Ask whoever set up this Project."
-msgstr "The Git repository may hold something besides this Project, it may not be able to store the Assets, or the same text may have been changed here and somewhere else. Ask whoever set up this Project."
 
 #: src/renderer/components/project-state.tsx
 msgid "The Git repository refused access"
@@ -2554,6 +2590,10 @@ msgstr "The Git repository refused access, so ask whoever set it up."
 #: src/renderer/lib/sync.ts
 msgid "The Git repository refused access, so ask whoever set up this Project."
 msgstr "The Git repository refused access, so ask whoever set up this Project."
+
+#: src/renderer/lib/sync.ts
+msgid "The Git repository will not take this Project's Assets. Ask whoever set up this Project to turn on Git LFS there, or to use another Git host."
+msgstr "The Git repository will not take this Project's Assets. Ask whoever set up this Project to turn on Git LFS there, or to use another Git host."
 
 #: src/renderer/components/fields/range/index.tsx
 msgid "The highest end of the slider."
@@ -2671,6 +2711,10 @@ msgstr "The reference is inserted at the cursor position."
 #: src/renderer/components/report-dialog.tsx
 msgid "The report could not be sent. Your text is still here, so you can try again."
 msgstr "The report could not be sent. Your text is still here, so you can try again."
+
+#: src/renderer/lib/sync.ts
+msgid "The same text was changed here and on another computer, so the two cannot be put together. Ask whoever set up this Project."
+msgstr "The same text was changed here and on another computer, so the two cannot be put together. Ask whoever set up this Project."
 
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "The slug is generated from the selected Fields while creating an Entry, in the order the Fields appear in the Collection. If none are selected, users enter the slug manually."
@@ -2818,6 +2862,10 @@ msgstr "This field takes up to {largest}."
 msgid "This form can't be saved, and none of its fields says why. Please report it, so we can fix it."
 msgstr "This form can't be saved, and none of its fields says why. Please report it, so we can fix it."
 
+#: src/renderer/lib/sync.ts
+msgid "This Git host cannot take all of the changes in one go, which elek.io Desktop needs. Ask whoever set up this Project for another Git host."
+msgstr "This Git host cannot take all of the changes in one go, which elek.io Desktop needs. Ask whoever set up this Project for another Git host."
+
 #: src/renderer/lib/release.ts
 msgid "This is a major Release, because {change}."
 msgstr "This is a major Release, because {change}."
@@ -2861,6 +2909,10 @@ msgstr "This Project has no Component this field allows, so no section can be ad
 #: src/renderer/components/fields/dynamic/definition.tsx
 msgid "This Project has no Components yet. Create one first, then come back to choose it here."
 msgstr "This Project has no Components yet. Create one first, then come back to choose it here."
+
+#: src/renderer/lib/sync.ts
+msgid "This Project is a copy made for building a site, so it cannot sync. Remove it and download the Project again to work on it."
+msgstr "This Project is a copy made for building a site, so it cannot sync. Remove it and download the Project again to work on it."
 
 #: src/renderer/routes/projects/index.tsx
 msgid "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."

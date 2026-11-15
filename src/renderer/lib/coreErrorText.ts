@@ -32,24 +32,41 @@ const GENERIC_CORE_ERROR_TEXT: Record<CoreErrorType, MessageDescriptor> = {
 const DEFAULT_CORE_ERROR_TEXT = msg`Something went wrong. Please try again.`;
 
 /**
- * Returns copy for a decoded CoreError type. A matching `override` wins, then
- * the consumer's `fallback` (its own generic copy), then the app-wide generic,
- * and finally the default for an unknown type.
+ * The message a decoded CoreError type is answered with. A matching `override`
+ * wins, then the consumer's `fallback` (its own generic copy), then the
+ * app-wide generic, and finally the default for an unknown type.
+ *
+ * Held back as the descriptor for a caller that has to know which message
+ * answered rather than only its words. The sync dialog does: a refusal whose
+ * sentence is already the one saying that nothing was synced must not repeat
+ * it below, see [`sync.ts`](./sync.ts).
+ */
+export function coreErrorMessage(
+  type: CoreErrorType | undefined,
+  overrides?: Partial<Record<CoreErrorType, MessageDescriptor>>,
+  fallback?: MessageDescriptor
+): MessageDescriptor {
+  const override = type !== undefined ? overrides?.[type] : undefined;
+  if (override !== undefined) {
+    return override;
+  }
+  if (fallback !== undefined) {
+    return fallback;
+  }
+  if (type !== undefined) {
+    return GENERIC_CORE_ERROR_TEXT[type];
+  }
+  return DEFAULT_CORE_ERROR_TEXT;
+}
+
+/**
+ * Returns copy for a decoded CoreError type, rendered through the active
+ * catalog at the moment it is shown.
  */
 export function describeCoreError(
   type: CoreErrorType | undefined,
   overrides?: Partial<Record<CoreErrorType, MessageDescriptor>>,
   fallback?: MessageDescriptor
 ): string {
-  const override = type !== undefined ? overrides?.[type] : undefined;
-  if (override !== undefined) {
-    return i18n._(override);
-  }
-  if (fallback !== undefined) {
-    return i18n._(fallback);
-  }
-  if (type !== undefined) {
-    return i18n._(GENERIC_CORE_ERROR_TEXT[type]);
-  }
-  return i18n._(DEFAULT_CORE_ERROR_TEXT);
+  return i18n._(coreErrorMessage(type, overrides, fallback));
 }

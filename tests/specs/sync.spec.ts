@@ -5,9 +5,10 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { format } from 'date-fns';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { uuid } from '@elek-io/core';
+import { uuid, type CoreErrorReason } from '@elek-io/core';
 
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import {
@@ -23,6 +24,7 @@ import {
   createEntryViaIpc,
   referenceValue,
   stringValue,
+  updateEntryViaIpc,
 } from '../helpers/entry.js';
 import {
   stubCoreHang,
@@ -75,6 +77,69 @@ import {
 function syncDialog(page: Page): Locator {
   return page.getByRole('alertdialog');
 }
+
+/**
+ * The one sentence the dialog leads with, which says what stopped the sync and
+ * what to do next.
+ *
+ * Addressed as the dialog's own description, so an assertion on its whole text
+ * says that this one sentence stands there and nothing else: a sentence naming
+ * every cause the type could stand for would fail it.
+ */
+function syncDialogSentence(page: Page): Locator {
+  return syncDialog(page).locator('[data-slot="dialog-description"]');
+}
+
+/**
+ * Every cause Core names a refused synchronization with, and the sentence the
+ * dialog leads with for it.
+ *
+ * Written out as an editor reads them, and typed against Core's own list, so a
+ * cause a Core release adds fails this spec's type check until it is here with
+ * a sentence of its own. Core carries a cause on the `PreconditionFailed` it
+ * refuses a sync with, see its git-and-sync doc.
+ *
+ * Three are arranged for real, each in a test of its own: a repository holding
+ * something else, a file something outside the app left in the Project, and the
+ * same text changed on two computers. The rest need a remote that refuses an
+ * atomic push, a Git LFS endpoint, a remote that keeps moving, a read-only
+ * Core, a provisioned copy, a git loader that fails or elek.io Cloud, none of
+ * which a local bare repository can be, so those are injected at the channel.
+ */
+const SYNC_CAUSE_SENTENCES = {
+  remote_holds_something_else:
+    'The Git repository holds something other than this Project. Ask whoever set up this Project for an empty Git repository.',
+  uncommitted_changes:
+    "Something outside elek.io Desktop changed this Project's files, so they cannot be synced as they are. Ask whoever set up this Project.",
+  remote_main_without_draft:
+    'The Git repository holds a published Release this computer does not have. Sync on the computer that published it, then sync here again.',
+  remote_without_atomic_push:
+    'This Git host cannot take all of the changes in one go, which elek.io Desktop needs. Ask whoever set up this Project for another Git host.',
+  git_lfs_endpoint_unusable:
+    "The Git repository will not take this Project's Assets. Ask whoever set up this Project to turn on Git LFS there, or to use another Git host.",
+  textual_conflict:
+    'The same text was changed here and on another computer, so the two cannot be put together. Ask whoever set up this Project.',
+  remote_advanced:
+    'Somebody else kept syncing with the Git repository while this sync ran. Try again.',
+  read_only_mode:
+    'elek.io Desktop is set up to read content only, so it cannot sync. Ask whoever set it up on this computer.',
+  provisioned_copy:
+    'This Project is a copy made for building a site, so it cannot sync. Remove it and download the Project again to work on it.',
+  git_library_missing:
+    'Git on this computer is missing a part it needs. Ask whoever set up this computer to install it.',
+  remote_names_no_project:
+    'The address this Project syncs with names no Project on elek.io Cloud. Ask whoever set up this Project to check it.',
+  project_on_another_host:
+    'elek.io Cloud keeps this Project somewhere other than the address it syncs with. Ask whoever set up this Project to check that address.',
+  cloud_unreachable:
+    "Can't reach elek.io Cloud. Check your internet connection and try again.",
+  git_host_unreachable:
+    "elek.io Cloud could not reach this Project's Git host. Try again later.",
+} satisfies Record<CoreErrorReason, string>;
+
+/** What the dialog says about a sync whatever stopped it. */
+const NOTHING_SYNCED =
+  'Nothing was synced, and your changes stay on this computer.';
 
 /**
  * A Project pointed at a reachable bare origin with one local commit on top,
@@ -221,23 +286,21 @@ test.describe('Sync', () => {
 
     // Core refuses with PreconditionFailed, which the card answers in the sync
     // dialog, not the root error boundary (the fixture's console check confirms
-    // no error escaped). The description names what Core raises that type for,
-    // rather than an unreachable repository, which is an Internal error, and
-    // the dialog says once that nothing was synced.
+    // no error escaped). The description names the one cause Core named it
+    // with, not the others that type stands for, and the dialog says once that
+    // nothing was synced.
     const dialog = syncDialog(mainWindow);
     await expect(
       dialog.getByRole('heading', { name: 'Sync failed' })
     ).toBeVisible();
-    await expect(
-      dialog.getByText(
-        'The Git repository may hold something besides this Project, it may not be able to store the Assets, or the same text may have been changed here and somewhere else. Ask whoever set up this Project.'
-      )
-    ).toBeVisible();
+    await expect(syncDialogSentence(mainWindow)).toHaveText(
+      SYNC_CAUSE_SENTENCES.remote_holds_something_else
+    );
     await expect(
       dialog.getByText(
         'Nothing was synced, and your changes stay on this computer.'
       )
-    ).toBeVisible();
+    ).toHaveCount(1);
 
     // Nothing was pushed: the remote still holds only the branch it came with.
     expect(remoteBranches(remote.path)).toEqual(['main']);
@@ -853,6 +916,204 @@ test.describe('Sync', () => {
     await dialog.getByRole('button', { name: 'Close' }).first().click();
     await expect(dialog).toBeHidden();
     await expect(synchronize).toBeFocused();
+  });
+
+  test('names the files something outside the app left in the Project', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const synchronize = await arrangeSyncableProject(
+      mainWindow,
+      testInfo,
+      project.id
+    );
+
+    // A file nothing in the app wrote, sitting in the Project's folder. Core
+    // counts it as a change nobody committed and refuses to rebase against
+    // one, so this is the second cause a local repository can be arranged
+    // into.
+    writeFileSync(
+      join(
+        testDataDirs(testInfo).dataDir,
+        'projects',
+        project.id,
+        'left-behind.txt'
+      ),
+      'Written outside elek.io Desktop\n'
+    );
+
+    await synchronize.click();
+
+    await expect(syncDialogSentence(mainWindow)).toHaveText(
+      SYNC_CAUSE_SENTENCES.uncommitted_changes
+    );
+    // Not the file Core named in its own message, which is a path on this
+    // computer.
+    await expect(
+      syncDialog(mainWindow).getByText('left-behind.txt')
+    ).toBeHidden();
+  });
+
+  test('names the same text changed on two computers', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Written here' }) },
+    });
+
+    const projectPath = join(
+      testDataDirs(testInfo).dataDir,
+      'projects',
+      project.id
+    );
+    const remote = setupRemote(testInfo, { mirror: projectPath });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: remote.url,
+    });
+
+    // The same Value written differently on the remote, out of band, and then
+    // here, so the rebase meets two changes to one line and stops on them.
+    const relPath = `collections/${collection.id}/${entry.id}.json`;
+    commitFileOnRemote(
+      testInfo,
+      remote.path,
+      {
+        relPath,
+        content: readFileSync(join(projectPath, relPath), 'utf8').replace(
+          'Written here',
+          'Written on another computer'
+        ),
+      },
+      {
+        method: 'update',
+        reference: {
+          objectType: 'entry',
+          id: entry.id,
+          collectionId: collection.id,
+        },
+      }
+    );
+    await updateEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+      values: { title: stringValue({ en: 'Written here again' }) },
+    });
+
+    await navigateToProjectDashboard(mainWindow, project.id);
+    const synchronize = mainWindow.getByRole('button', { name: 'Sync' });
+    await expect(synchronize).toBeEnabled();
+
+    await synchronize.click();
+
+    await expect(syncDialogSentence(mainWindow)).toHaveText(
+      SYNC_CAUSE_SENTENCES.textual_conflict
+    );
+    // Core's own message, which names the rebase, and git's output, which Core
+    // hands it as the cause, both stay out of the dialog.
+    const dialog = syncDialog(mainWindow);
+    await expect(dialog.getByText('Rebase')).toBeHidden();
+    await expect(dialog.getByText(relPath)).toBeHidden();
+    await expect(dialog.getByText(NOTHING_SYNCED)).toHaveCount(1);
+  });
+
+  test('names the one cause Core refused the sync for, and no other', async ({
+    mainWindow,
+    electronApp,
+  }, testInfo) => {
+    // One refusal per cause Core has a value for, each with its own dialog.
+    test.slow();
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const synchronize = await arrangeSyncableProject(
+      mainWindow,
+      testInfo,
+      project.id
+    );
+
+    const dialog = syncDialog(mainWindow);
+
+    for (const [reason, sentence] of Object.entries(SYNC_CAUSE_SENTENCES)) {
+      await stubCoreRejectWithType(
+        electronApp,
+        'core:projects:synchronize',
+        'PreconditionFailed',
+        { reason }
+      );
+
+      await synchronize.click();
+
+      // The whole description, so the sentence for this one cause is all it
+      // says: a sentence listing the causes the type stands for would fail it.
+      await expect(syncDialogSentence(mainWindow)).toHaveText(sentence);
+      // What Core named is a value for code to branch on, so the cause's own
+      // name never reaches the editor, and nor does the type.
+      await expect(dialog.getByText(reason)).toBeHidden();
+      await expect(
+        dialog.getByText('PreconditionFailed', { exact: true })
+      ).toBeHidden();
+      // Said once, below the sentence, for every cause.
+      await expect(dialog.getByText(NOTHING_SYNCED)).toHaveCount(1);
+
+      await dismissAlertDialog(mainWindow);
+    }
+  });
+
+  test('says only that nothing was synced where it has no sentence for the cause', async ({
+    mainWindow,
+    electronApp,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const synchronize = await arrangeSyncableProject(
+      mainWindow,
+      testInfo,
+      project.id
+    );
+
+    const dialog = syncDialog(mainWindow);
+
+    // A cause a Core release added after this build, which has no sentence
+    // here, a name that is an inherited key of any object, which must answer
+    // nothing rather than something of `Object.prototype`, and a refusal that
+    // names no cause at all. Each leaves the one thing that is true whatever
+    // stopped it, and it is said once rather than twice.
+    const refusals: { reason?: string }[] = [
+      { reason: 'a_cause_from_a_newer_core' },
+      { reason: 'toString' },
+      {},
+    ];
+
+    for (const refusal of refusals) {
+      await stubCoreRejectWithType(
+        electronApp,
+        'core:projects:synchronize',
+        'PreconditionFailed',
+        refusal
+      );
+
+      await synchronize.click();
+
+      await expect(syncDialogSentence(mainWindow)).toHaveText(NOTHING_SYNCED);
+      await expect(dialog.getByText(NOTHING_SYNCED)).toHaveCount(1);
+      // No cause named, neither in words nor by the value Core sent.
+      if (refusal.reason !== undefined) {
+        await expect(dialog.getByText(refusal.reason)).toBeHidden();
+      }
+      await expect(dialog.getByRole('listitem')).toHaveCount(0);
+
+      await dismissAlertDialog(mainWindow);
+    }
   });
 });
 
