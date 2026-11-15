@@ -65,6 +65,7 @@ const ipc: ContextBridgeApi = {
       warn: async (...args) => ipcRenderer.invoke('core:logger:warn', ...args),
       error: async (...args) =>
         ipcRenderer.invoke('core:logger:error', ...args),
+      mask: async (...args) => ipcRenderer.invoke('core:logger:mask', ...args),
     },
     user: {
       get: async (...args) => ipcRenderer.invoke('core:user:get', ...args),

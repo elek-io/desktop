@@ -23,6 +23,7 @@ import icon from '../../resources/icon.png?asset';
 import { activateAppLocale } from '../shared/i18n.js';
 import { serializeCoreError } from '../shared/ipcError.js';
 import { errorLogAttributes } from '../shared/logError.js';
+import { maskableTextSchema } from '../shared/maskText.js';
 import {
   unsavedChangesSchema,
   windowCloseAnswerSchema,
@@ -718,10 +719,26 @@ class Main {
    * Registers IPC handlers for the main process
    */
   private registerIpcMain(core: ElekIoCore): void {
-    // The three things the renderer may say about its window, and the only
-    // channels outside the map below, because they drive the window rather than
-    // Core. Each takes one named value, which is parsed here, so neither a
-    // color nor any other window option crosses from the renderer.
+    // The channels outside the map below: the three things the renderer may say
+    // about its window, which drive the window rather than Core, and the one
+    // Core call the renderer hands a text of its own. Each takes one named
+    // value, which is parsed here, so neither a color nor any other window
+    // option crosses from the renderer.
+
+    // What a text must not say once somebody reads or copies it, masked where
+    // Core runs, because the rules read this process's home directory. The
+    // renderer composes the error screen's details and shows what comes back,
+    // see `shared/maskText.ts`.
+    ipcMain.handle('core:logger:mask', (_event, text: unknown) =>
+      core.logger.mask(
+        this.fromRenderer(
+          core,
+          maskableTextSchema,
+          text,
+          'Refused to mask something that is not a text'
+        )
+      )
+    );
     ipcMain.handle('electron:window:setTheme', (event, theme: unknown) => {
       const parsed = this.fromRenderer(
         core,

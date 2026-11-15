@@ -111,6 +111,30 @@ test.describe('IPC guards', () => {
     await expect(mainWindow.getByText('No results.')).toBeVisible();
   });
 
+  test('masking takes a text and refuses everything else', async ({
+    mainWindow,
+  }) => {
+    // The channel that masks what the error screen shows takes one string,
+    // checked with zod in the main process, so the renderer hands Core nothing
+    // it would have to walk. No UI path can send anything else, so the guard
+    // is observed here as a bare throw / no-throw.
+    const masked = await mainWindow.evaluate(async () =>
+      window.ipc.core.logger.mask('nothing to mask here')
+    );
+    expect(masked).toBe('nothing to mask here');
+
+    for (const refused of [42, null, ['a text'], { text: 'a text' }]) {
+      await expectRejects(
+        mainWindow.evaluate(
+          async (value) =>
+            // What a slip would send, which the type says it cannot.
+            window.ipc.core.logger.mask(value as unknown as string),
+          refused
+        )
+      );
+    }
+  });
+
   test('project create is rejected when no user is set', async ({
     mainWindow,
   }) => {

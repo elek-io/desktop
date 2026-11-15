@@ -62,6 +62,12 @@ declare global {
         info: ElekIoCore['logger']['info'];
         warn: ElekIoCore['logger']['warn'];
         error: ElekIoCore['logger']['error'];
+        /**
+         * Masks a text with the rules Core runs over its own log tail, for text
+         * Core wrote that somebody is about to read or copy. See
+         * `shared/maskText.ts`.
+         */
+        mask: ElekIoCore['logger']['mask'];
       };
       user: {
         get: ElekIoCore['user']['get'];
