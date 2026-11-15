@@ -2932,20 +2932,24 @@ msgid "This is a major Release, because {change}."
 msgstr "This is a major Release, because {change}."
 
 #: src/renderer/lib/release.ts
-msgid "This is a major Release, because what a site reads is unchanged."
-msgstr "This is a major Release, because what a site reads is unchanged."
+msgid "This is a major Release, because of the version it moved to rather than a change in it."
+msgstr "This is a major Release, because of the version it moved to rather than a change in it."
 
 #: src/renderer/lib/release.ts
 msgid "This is a minor Release, because {change}."
 msgstr "This is a minor Release, because {change}."
 
 #: src/renderer/lib/release.ts
-msgid "This is a minor Release, because what a site reads is unchanged."
-msgstr "This is a minor Release, because what a site reads is unchanged."
+msgid "This is a minor Release, because of the version it moved to rather than a change in it."
+msgstr "This is a minor Release, because of the version it moved to rather than a change in it."
 
 #: src/renderer/lib/release.ts
 msgid "This is a patch Release, because {change}."
 msgstr "This is a patch Release, because {change}."
+
+#: src/renderer/lib/release.ts
+msgid "This is a patch Release, because of the version it moved to rather than a change in it."
+msgstr "This is a patch Release, because of the version it moved to rather than a change in it."
 
 #: src/renderer/lib/release.ts
 msgid "This is a patch Release, because what a site reads is unchanged."

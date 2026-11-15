@@ -55,6 +55,7 @@ import {
   openReleaseDialog,
   releaseRow,
   tagPreviewRelease,
+  tagRelease,
 } from '../helpers/release.js';
 import {
   commitFileOnRemote,
@@ -443,6 +444,15 @@ test.describe('Releases', () => {
     await expect(dialog.getByText('Major', { exact: true })).toBeVisible();
     await expect(dialog.getByText('0.1.0 becomes 1.0.0')).toBeVisible();
     await expect(dialog.getByText('1.0.0', { exact: true })).toBeVisible();
+
+    // And the sentence names the change that drove it, which is the removed
+    // Asset: the diff carries its Assets before its Entries, and both removals
+    // are major, so the first of them is the one named.
+    await expect(
+      dialog.getByText(
+        'Desktop sets the version from what changed. This is a major Release, because an Asset was removed.'
+      )
+    ).toBeVisible();
   });
 
   test('lists each Release newest first with its date, who released it and its bump, and marks the latest', async ({
@@ -580,6 +590,47 @@ test.describe('Releases', () => {
     await expect(
       mainWindow.getByRole('main').getByText('Release 0.2.0')
     ).toBeVisible();
+  });
+
+  test('names the version as what made a Release major where no change in it did', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+    await createReleaseViaIpc(mainWindow, { projectId: project.id });
+
+    // A Release another tool tagged, at a version that jumps a major while the
+    // Release before it holds the same content. Core takes a published
+    // Release's bump from its version against that one and what it changed
+    // from the two trees it compares, so the two can disagree, which is also
+    // what a Release an older Core made can read like (see its releases doc).
+    const tagId = tagRelease(
+      projectPath(testDataDirs(testInfo).dataDir, project.id),
+      '1.0.0'
+    );
+
+    await navigateToRelease(mainWindow, project.id, tagId);
+
+    // The badge and the sentence below it say the same thing, which is that
+    // the version is what made this Release major.
+    await expect(mainWindow.getByText('0.1.0 becomes 1.0.0')).toBeVisible();
+    await expect(
+      mainWindow.getByRole('main').getByText('Major', { exact: true })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText(
+        'This is a major Release, because of the version it moved to rather than a change in it.'
+      )
+    ).toBeVisible();
+
+    // Never that what a site reads is unchanged, which only the Release with
+    // nothing classified in it at all may say, and which the Major beside it
+    // would contradict.
+    await expect(
+      mainWindow.getByText('what a site reads is unchanged')
+    ).toBeHidden();
+    expect(await changeCountsOf(mainPanel(mainWindow))).toEqual([]);
   });
 
   test('names the person Core says published the Release, not the one at this computer', async ({

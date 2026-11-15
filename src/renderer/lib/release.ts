@@ -18,8 +18,8 @@ import {
  *
  * A Release that was published and one that would be arrive in the same shape,
  * `ReleaseDiff`, from `core.releases.changes()` and `core.releases.prepare()`,
- * so the Releases screen and the Release dialog say it with the same words,
- * see [`components/release-summary.tsx`](../components/release-summary.tsx).
+ * so the Releases screen and the Release dialog both word it from here, see
+ * [`components/release-summary.tsx`](../components/release-summary.tsx).
  *
  * The diff carries a bump and seven arrays of changes but no sentence, so the
  * sentence is derived here. Every sentence is a message of the catalog. A map
@@ -186,16 +186,25 @@ export function describeReleaseChanges(
  * Why the version moves the way it does, in one sentence, or `null` where no
  * bump moved it at all.
  *
- * The highest bump across every change decides the Release's, so the sentence
- * names that bump and the first change carrying it. A `draft` that is only
- * ahead in commits carries no classified change, which Core calls a patch, so
- * that sentence names no change.
+ * Where a change carries the Release's own bump, the sentence names that bump
+ * and the first change carrying it. Which changes can is not the same question
+ * on both sides of the Release, because the bump does not come from the same
+ * place, see node_modules/@elek-io/core/docs/releases.md:
  *
- * It reads the same of a Release that was published and of one that would be:
- * the bump is the Release's own either way, which is why the chosen Release on
- * the Releases screen and the dialog both show this sentence. What only a
- * pending Release can say, that there is nothing to release, is
- * `releaseReason`.
+ * - A pending Release takes its bump from the changes themselves, the highest
+ *   across them, so one of them always carries it. The exception is a `draft`
+ *   only ahead in commits with nothing classified, which Core calls a patch,
+ *   and nothing a site reads moved there.
+ * - A published Release takes its bump from its version against the Release
+ *   before it, so it can carry a bump no change inside it accounts for, such
+ *   as an older Core's Release whose object Core sees but cannot read inside,
+ *   or a tag another tool wrote. Then the sentence names the version as what
+ *   set the bump, rather than claiming that nothing a site reads changed,
+ *   which the Major or Minor beside it would contradict.
+ *
+ * Both sides show it, which is why the chosen Release on the Releases screen
+ * and the dialog call the same function. What only a pending Release can say,
+ * that there is nothing to release, is `releaseReason`.
  */
 export function bumpReason(
   bump: ReleaseChange['bump'] | null,
@@ -214,13 +223,20 @@ export function bumpReason(
   // one sentence, which holds for an English and a German sentence alike, both
   // of which open on an article.
   if (driver === undefined) {
+    // Nothing is classified at all, which is Core's patch for a `draft` only
+    // ahead in commits.
+    if (bump === 'patch' && changes.length === 0) {
+      return t`This is a patch Release, because what a site reads is unchanged.`;
+    }
+
+    // A bump the version carries rather than anything inside the Release.
     switch (bump) {
       case 'major':
-        return t`This is a major Release, because what a site reads is unchanged.`;
+        return t`This is a major Release, because of the version it moved to rather than a change in it.`;
       case 'minor':
-        return t`This is a minor Release, because what a site reads is unchanged.`;
+        return t`This is a minor Release, because of the version it moved to rather than a change in it.`;
       case 'patch':
-        return t`This is a patch Release, because what a site reads is unchanged.`;
+        return t`This is a patch Release, because of the version it moved to rather than a change in it.`;
     }
   }
 

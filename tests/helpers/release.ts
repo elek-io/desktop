@@ -106,30 +106,59 @@ export async function createReleaseViaIpc(
 }
 
 /**
- * Tag a preview Release on a Project's git repository, on the runner.
+ * Tag a Release or a preview Release on a Project's git repository, on the
+ * runner.
  *
- * elek.io Desktop cannot make one (see not-yet-implemented.md), so this is how
- * a test arranges the one a Project can hold anyway, made by another tool, and
- * checks that the list marks it rather than showing it as the version a site
- * builds from. Core reads a tag's kind and version from its trailers and
- * addresses it by its name, which has to be a UUID, so the tag is written the
- * way Core writes one, like `coreCommitMessage` in `remote.ts`.
+ * This is how a test arranges one another tool made rather than elek.io
+ * Desktop: a preview, which Desktop cannot make at all (see
+ * not-yet-implemented.md), and a Release at a version Desktop would never
+ * compute, which is also what a Release an older Core made can read like. Core
+ * reads a tag's kind and version from its trailers and addresses it by its
+ * name, which has to be a UUID, so the tag is written the way Core writes one,
+ * like `coreCommitMessage` in `remote.ts`.
  */
-export function tagPreviewRelease(dir: string, version: string): string {
+function tagOnTheRunner(
+  dir: string,
+  type: 'release' | 'preview',
+  version: string
+): string {
   const id = uuid();
+  const word = type === 'preview' ? 'Preview' : 'Release';
   execFileSync('git', [
     '-C',
     dir,
     // Identity is set inline, since a Project's repository carries none
     '-c',
-    'user.name=E2E Preview',
+    `user.name=E2E ${word}`,
     '-c',
-    'user.email=e2e-preview@example.com',
+    `user.email=e2e-${type}@example.com`,
     'tag',
     '--annotate',
     id,
     '-m',
-    `Preview ${version}\n\nType: preview\nVersion: ${version}`,
+    `${word} ${version}\n\nType: ${type}\nVersion: ${version}`,
   ]);
   return id;
+}
+
+/**
+ * Tag a preview Release on a Project's git repository, on the runner.
+ *
+ * Used to check that the list marks it rather than showing it as the version a
+ * site builds from.
+ */
+export function tagPreviewRelease(dir: string, version: string): string {
+  return tagOnTheRunner(dir, 'preview', version);
+}
+
+/**
+ * Tag a Release on a Project's git repository, on the runner, at the version
+ * passed in.
+ *
+ * Used to arrange a published Release whose bump is not the one its changes
+ * carry, which Core answers for a Release it did not make itself and for one
+ * an older Core made, see its releases doc.
+ */
+export function tagRelease(dir: string, version: string): string {
+  return tagOnTheRunner(dir, 'release', version);
 }
