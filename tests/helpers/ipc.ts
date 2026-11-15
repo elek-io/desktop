@@ -72,13 +72,15 @@ export async function stubCoreReject(
  */
 function injectedCoreErrorMessage(
   type: CoreErrorType,
-  cause?: unknown
+  cause?: unknown,
+  reason?: string
 ): string {
   return serializeCoreError(
     type,
     `E2E injected ${type} failure`,
     `CoreError: E2E injected ${type} failure\n    at injectedCoreErrorMessage (tests/helpers/ipc.ts)`,
-    cause
+    cause,
+    reason
   );
 }
 
@@ -102,6 +104,11 @@ function injectedCoreErrorMessage(
  * `shared/ipcError.ts`). Used for a set of references no local repository can
  * be arranged into, such as the same field reached through two carriers.
  *
+ * Pass `reason` to drive what Core refused for, which a refused `synchronize`
+ * carries beside the type. It is a plain string rather than Core's own union,
+ * so a value a newer Core would name can be driven too, which is what a build
+ * with no sentence for it has to fall back from.
+ *
  * Mirrors `stubCoreReject`, including why it has to run in the main process.
  * The one difference is the message, see `injectedCoreErrorMessage`.
  */
@@ -109,9 +116,9 @@ export async function stubCoreRejectWithType(
   electronApp: ElectronApplication,
   channel: string,
   type: CoreErrorType,
-  options: { delayMs?: number; cause?: unknown } = {}
+  options: { delayMs?: number; cause?: unknown; reason?: string } = {}
 ): Promise<void> {
-  const { delayMs = 0, cause } = options;
+  const { delayMs = 0, cause, reason } = options;
 
   await electronApp.evaluate(
     ({ ipcMain }, stub) => {
@@ -123,7 +130,7 @@ export async function stubCoreRejectWithType(
         throw new Error(stub.message);
       });
     },
-    { channel, delayMs, message: injectedCoreErrorMessage(type, cause) }
+    { channel, delayMs, message: injectedCoreErrorMessage(type, cause, reason) }
   );
 }
 
@@ -136,18 +143,19 @@ export async function stubCoreRejectWithType(
  * good. The sync is the case: the card holds a failed sync as a state until a
  * sync succeeds, and the toast's Retry is what starts that second one.
  *
- * It takes the same `delayMs` and `cause` as `stubCoreRejectWithType`, and the
- * same encoded message. Unlike every other stub here it wraps the registered
- * handler rather than replacing it, which needs Electron's own handler map, the
- * way `recordUnsavedChangesClaims` does, see `tests/electron-internals.d.ts`.
+ * It takes the same `delayMs`, `cause` and `reason` as
+ * `stubCoreRejectWithType`, and the same encoded message. Unlike every other
+ * stub here it wraps the registered handler rather than replacing it, which
+ * needs Electron's own handler map, the way `recordUnsavedChangesClaims` does,
+ * see `tests/electron-internals.d.ts`.
  */
 export async function stubCoreRejectWithTypeOnce(
   electronApp: ElectronApplication,
   channel: string,
   type: CoreErrorType,
-  options: { delayMs?: number; cause?: unknown } = {}
+  options: { delayMs?: number; cause?: unknown; reason?: string } = {}
 ): Promise<void> {
-  const { delayMs = 0, cause } = options;
+  const { delayMs = 0, cause, reason } = options;
 
   await electronApp.evaluate(
     ({ ipcMain }, stub) => {
@@ -177,7 +185,7 @@ export async function stubCoreRejectWithTypeOnce(
         throw new Error(stub.message);
       });
     },
-    { channel, delayMs, message: injectedCoreErrorMessage(type, cause) }
+    { channel, delayMs, message: injectedCoreErrorMessage(type, cause, reason) }
   );
 }
 

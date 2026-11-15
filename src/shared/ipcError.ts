@@ -128,36 +128,47 @@ function encodableCause(cause: unknown): unknown {
 }
 
 /**
- * Encodes a CoreError's type, message, stack and cause into a single message
- * string. Called in the main process before re-throwing, so all four survive
- * IPC. The stack is Core's own origin stack, which the renderer-side IPC error
- * lacks (Electron reconstructs a frameless error). An `undefined` stack or
- * cause is simply omitted by JSON.stringify, so an error Core raised without a
- * cause encodes and decodes exactly as it did before the cause was carried.
+ * Encodes a CoreError's type, message, stack, cause and reason into a single
+ * message string. Called in the main process before re-throwing, so all five
+ * survive IPC. The stack is Core's own origin stack, which the renderer-side
+ * IPC error lacks (Electron reconstructs a frameless error). An `undefined`
+ * stack, cause or reason is simply omitted by JSON.stringify, so an error Core
+ * raised without one encodes and decodes exactly as it did before that field
+ * was carried.
  *
  * The cause is the issue list Core attaches to a `Conflict` it raises for a
  * field definition change it cannot carry out, which is what lets a screen name
  * the Entry to fix. Each issue crosses as `forwardedIssueKeys` and nothing
  * else. See `entryIssuesOf` in the renderer's `lib/schemaChange.ts`, the one
  * typed reader of it. Nothing renders or logs a cause raw.
+ *
+ * The reason is what Core refused for, one value of its own `CoreErrorReason`
+ * list, which holds no git output, no address and no credential and so crosses
+ * as it is. It is taken as the string it is, because this module keeps no copy
+ * of that list: the renderer reads it through the map that holds a sentence per
+ * value, `SYNC_REFUSAL_CAUSES` in `lib/sync.ts`, which is therefore the one
+ * place the list is kept exhaustive. Nothing but that sentence is shown, since
+ * the value itself is a name for code rather than words for a person.
  */
 export function serializeCoreError(
   type: CoreErrorType,
   message: string,
   stack?: string,
-  cause?: unknown
+  cause?: unknown,
+  reason?: string
 ): string {
   return `${IPC_CORE_ERROR_SENTINEL}${JSON.stringify({
     type,
     message,
     stack,
     cause: encodableCause(cause),
+    reason,
   })}`;
 }
 
 /**
- * Decodes an error received in the renderer back into its type, message, stack
- * and cause.
+ * Decodes an error received in the renderer back into its type, message, stack,
+ * cause and reason.
  * Locates the sentinel by substring, so it is robust to Electron prefixing the
  * message (e.g. "Error invoking remote method ..."). Falls back to the raw
  * message for non-CoreError errors (route or plain JS errors) and any malformed
@@ -169,6 +180,12 @@ export function serializeCoreError(
  * trusting its shape. `errorLogAttributes` leaves it out of every log record,
  * which is what keeps an Entry's content and a git remote's URL out of a log
  * file.
+ *
+ * The `reason` is what Core refused for, absent whenever Core raised the error
+ * without one. It is a `string` rather than Core's own union, because the list
+ * is kept in the one map that words each value (see `serializeCoreError`), so
+ * read it through that map rather than as a key of it. `errorLogAttributes`
+ * leaves it out of a log record too.
  *
  * A plain error keeps its own `stack`. That is the only stack such an error
  * has, and every caller logs what this returns, so dropping it left an ordinary
@@ -185,6 +202,7 @@ export function parseIpcError(error: unknown): {
   message: string;
   stack?: string;
   cause?: unknown;
+  reason?: string;
 } {
   const raw = error instanceof Error ? error.message : String(error);
   const sentinelIndex = raw.indexOf(IPC_CORE_ERROR_SENTINEL);
@@ -210,13 +228,18 @@ export function parseIpcError(error: unknown): {
           'stack' in parsed && typeof parsed.stack === 'string'
             ? parsed.stack
             : undefined;
-        // Spread rather than branched, so an absent stack or cause leaves the
-        // key off entirely instead of present and undefined
+        const reason =
+          'reason' in parsed && typeof parsed.reason === 'string'
+            ? parsed.reason
+            : undefined;
+        // Spread rather than branched, so an absent stack, cause or reason
+        // leaves the key off entirely instead of present and undefined
         return {
           type,
           message,
           ...(stack === undefined ? {} : { stack }),
           ...('cause' in parsed ? { cause: parsed.cause } : {}),
+          ...(reason === undefined ? {} : { reason }),
         };
       }
     }

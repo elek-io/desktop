@@ -877,18 +877,19 @@ class Main {
           return await handler(...args);
         } catch (error) {
           // Electron serializes a thrown error to the plain Error shape, which
-          // drops the CoreError subclass, its `type`, its stack and its cause
-          // (the renderer receives a frameless error). Encode all four into the
-          // message so the renderer can recover them with parseIpcError.
-          // `serializeCoreError` decides which causes may cross.
-          // Everything else propagates unchanged.
+          // drops the CoreError subclass, its `type`, its stack, its cause and
+          // what it refused for (the renderer receives a frameless error).
+          // Encode all five into the message so the renderer can recover them
+          // with parseIpcError. `serializeCoreError` decides which causes may
+          // cross. Everything else propagates unchanged.
           if (error instanceof CoreError) {
             throw new Error(
               serializeCoreError(
                 error.type,
                 error.message,
                 error.stack,
-                error.cause
+                error.cause,
+                error.reason
               ),
               // The encoded message is what the renderer reads. The cause is
               // attached so the original stays reachable in this process.
