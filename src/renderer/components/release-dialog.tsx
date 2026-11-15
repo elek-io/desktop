@@ -100,6 +100,13 @@ export function ReleaseDialog({
   const diff =
     pendingRelease?.status === 'readable' ? pendingRelease.diff : undefined;
   const canRelease = diff !== undefined && diff.bump !== null;
+  // Whether this dialog still leads to a Release at all, which it does while
+  // the read is in flight, so the one button that is always there keeps its
+  // name until the answer says there is nothing to confirm.
+  const nothingToConfirm =
+    isPreparingRelease === false &&
+    pendingRelease !== undefined &&
+    canRelease === false;
 
   return (
     <Dialog
@@ -157,7 +164,7 @@ export function ReleaseDialog({
             and where there is none it closes the dialog.
           */}
           <DialogClose render={<Button type="button" variant="ghost" />}>
-            {canRelease ? t`Cancel` : t`Close`}
+            {nothingToConfirm ? t`Close` : t`Cancel`}
           </DialogClose>
           {pendingRelease?.status === 'refused' &&
           RELEASE_READ_RETRYABLE.has(pendingRelease.errorType) ? (
