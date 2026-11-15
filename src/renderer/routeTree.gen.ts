@@ -36,6 +36,8 @@ import { Route as ProjectsProjectIdComponentsIndexRouteImport } from './routes/p
 import { Route as ProjectsProjectIdComponentsComponentIdRouteImport } from './routes/projects/$projectId/components/$componentId'
 import { Route as ProjectsProjectIdComponentsCreateRouteImport } from './routes/projects/$projectId/components/create'
 import { Route as ProjectsProjectIdHistoryCommitHashRouteImport } from './routes/projects/$projectId/history/$commitHash'
+import { Route as ProjectsProjectIdReleasesIndexRouteImport } from './routes/projects/$projectId/releases/index'
+import { Route as ProjectsProjectIdReleasesTagIdRouteImport } from './routes/projects/$projectId/releases/$tagId'
 import { Route as ProjectsProjectIdSettingsIndexRouteImport } from './routes/projects/$projectId/settings/index'
 import { Route as ProjectsProjectIdSettingsGeneralRouteImport } from './routes/projects/$projectId/settings/general'
 import { Route as ProjectsProjectIdSettingsVersionControlRouteImport } from './routes/projects/$projectId/settings/version-control'
@@ -197,6 +199,18 @@ const ProjectsProjectIdHistoryCommitHashRoute =
     path: '/$commitHash',
     getParentRoute: () => ProjectsProjectIdHistoryRoute,
   } as any)
+const ProjectsProjectIdReleasesIndexRoute =
+  ProjectsProjectIdReleasesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectIdReleasesRoute,
+  } as any)
+const ProjectsProjectIdReleasesTagIdRoute =
+  ProjectsProjectIdReleasesTagIdRouteImport.update({
+    id: '/$tagId',
+    path: '/$tagId',
+    getParentRoute: () => ProjectsProjectIdReleasesRoute,
+  } as any)
 const ProjectsProjectIdSettingsIndexRoute =
   ProjectsProjectIdSettingsIndexRouteImport.update({
     id: '/',
@@ -267,7 +281,7 @@ export interface FileRoutesByFullPath {
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsRouteWithChildren
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
   '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
-  '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRoute
+  '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRouteWithChildren
   '/projects/$projectId/settings': typeof ProjectsProjectIdSettingsRouteWithChildren
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
   '/projects/$projectId/assets/$assetId': typeof ProjectsProjectIdAssetsAssetIdRoute
@@ -277,11 +291,13 @@ export interface FileRoutesByFullPath {
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
   '/projects/$projectId/components/create': typeof ProjectsProjectIdComponentsCreateRoute
   '/projects/$projectId/history/$commitHash': typeof ProjectsProjectIdHistoryCommitHashRoute
+  '/projects/$projectId/releases/$tagId': typeof ProjectsProjectIdReleasesTagIdRoute
   '/projects/$projectId/settings/general': typeof ProjectsProjectIdSettingsGeneralRoute
   '/projects/$projectId/settings/version-control': typeof ProjectsProjectIdSettingsVersionControlRoute
   '/projects/$projectId/assets/': typeof ProjectsProjectIdAssetsIndexRoute
   '/projects/$projectId/collections/': typeof ProjectsProjectIdCollectionsIndexRoute
   '/projects/$projectId/components/': typeof ProjectsProjectIdComponentsIndexRoute
+  '/projects/$projectId/releases/': typeof ProjectsProjectIdReleasesIndexRoute
   '/projects/$projectId/settings/': typeof ProjectsProjectIdSettingsIndexRoute
   '/projects/$projectId/collections/$collectionId/$entryId': typeof ProjectsProjectIdCollectionsCollectionIdEntryIdRouteWithChildren
   '/projects/$projectId/collections/$collectionId/create': typeof ProjectsProjectIdCollectionsCollectionIdCreateRoute
@@ -299,7 +315,6 @@ export interface FileRoutesByTo {
   '/user': typeof UserIndexRoute
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
   '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
-  '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRoute
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
   '/projects/$projectId/assets/$assetId': typeof ProjectsProjectIdAssetsAssetIdRoute
   '/projects/$projectId/assets/new': typeof ProjectsProjectIdAssetsNewRoute
@@ -307,11 +322,13 @@ export interface FileRoutesByTo {
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
   '/projects/$projectId/components/create': typeof ProjectsProjectIdComponentsCreateRoute
   '/projects/$projectId/history/$commitHash': typeof ProjectsProjectIdHistoryCommitHashRoute
+  '/projects/$projectId/releases/$tagId': typeof ProjectsProjectIdReleasesTagIdRoute
   '/projects/$projectId/settings/general': typeof ProjectsProjectIdSettingsGeneralRoute
   '/projects/$projectId/settings/version-control': typeof ProjectsProjectIdSettingsVersionControlRoute
   '/projects/$projectId/assets': typeof ProjectsProjectIdAssetsIndexRoute
   '/projects/$projectId/collections': typeof ProjectsProjectIdCollectionsIndexRoute
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsIndexRoute
+  '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesIndexRoute
   '/projects/$projectId/settings': typeof ProjectsProjectIdSettingsIndexRoute
   '/projects/$projectId/collections/$collectionId/create': typeof ProjectsProjectIdCollectionsCollectionIdCreateRoute
   '/projects/$projectId/collections/$collectionId/update': typeof ProjectsProjectIdCollectionsCollectionIdUpdateRoute
@@ -335,7 +352,7 @@ export interface FileRoutesById {
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsRouteWithChildren
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
   '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
-  '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRoute
+  '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesRouteWithChildren
   '/projects/$projectId/settings': typeof ProjectsProjectIdSettingsRouteWithChildren
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
   '/projects/$projectId/assets/$assetId': typeof ProjectsProjectIdAssetsAssetIdRoute
@@ -345,11 +362,13 @@ export interface FileRoutesById {
   '/projects/$projectId/components/$componentId': typeof ProjectsProjectIdComponentsComponentIdRoute
   '/projects/$projectId/components/create': typeof ProjectsProjectIdComponentsCreateRoute
   '/projects/$projectId/history/$commitHash': typeof ProjectsProjectIdHistoryCommitHashRoute
+  '/projects/$projectId/releases/$tagId': typeof ProjectsProjectIdReleasesTagIdRoute
   '/projects/$projectId/settings/general': typeof ProjectsProjectIdSettingsGeneralRoute
   '/projects/$projectId/settings/version-control': typeof ProjectsProjectIdSettingsVersionControlRoute
   '/projects/$projectId/assets/': typeof ProjectsProjectIdAssetsIndexRoute
   '/projects/$projectId/collections/': typeof ProjectsProjectIdCollectionsIndexRoute
   '/projects/$projectId/components/': typeof ProjectsProjectIdComponentsIndexRoute
+  '/projects/$projectId/releases/': typeof ProjectsProjectIdReleasesIndexRoute
   '/projects/$projectId/settings/': typeof ProjectsProjectIdSettingsIndexRoute
   '/projects/$projectId/collections/$collectionId/$entryId': typeof ProjectsProjectIdCollectionsCollectionIdEntryIdRouteWithChildren
   '/projects/$projectId/collections/$collectionId/create': typeof ProjectsProjectIdCollectionsCollectionIdCreateRoute
@@ -385,11 +404,13 @@ export interface FileRouteTypes {
     | '/projects/$projectId/components/$componentId'
     | '/projects/$projectId/components/create'
     | '/projects/$projectId/history/$commitHash'
+    | '/projects/$projectId/releases/$tagId'
     | '/projects/$projectId/settings/general'
     | '/projects/$projectId/settings/version-control'
     | '/projects/$projectId/assets/'
     | '/projects/$projectId/collections/'
     | '/projects/$projectId/components/'
+    | '/projects/$projectId/releases/'
     | '/projects/$projectId/settings/'
     | '/projects/$projectId/collections/$collectionId/$entryId'
     | '/projects/$projectId/collections/$collectionId/create'
@@ -407,7 +428,6 @@ export interface FileRouteTypes {
     | '/user'
     | '/projects/$projectId/dashboard'
     | '/projects/$projectId/history'
-    | '/projects/$projectId/releases'
     | '/projects/$projectId'
     | '/projects/$projectId/assets/$assetId'
     | '/projects/$projectId/assets/new'
@@ -415,11 +435,13 @@ export interface FileRouteTypes {
     | '/projects/$projectId/components/$componentId'
     | '/projects/$projectId/components/create'
     | '/projects/$projectId/history/$commitHash'
+    | '/projects/$projectId/releases/$tagId'
     | '/projects/$projectId/settings/general'
     | '/projects/$projectId/settings/version-control'
     | '/projects/$projectId/assets'
     | '/projects/$projectId/collections'
     | '/projects/$projectId/components'
+    | '/projects/$projectId/releases'
     | '/projects/$projectId/settings'
     | '/projects/$projectId/collections/$collectionId/create'
     | '/projects/$projectId/collections/$collectionId/update'
@@ -452,11 +474,13 @@ export interface FileRouteTypes {
     | '/projects/$projectId/components/$componentId'
     | '/projects/$projectId/components/create'
     | '/projects/$projectId/history/$commitHash'
+    | '/projects/$projectId/releases/$tagId'
     | '/projects/$projectId/settings/general'
     | '/projects/$projectId/settings/version-control'
     | '/projects/$projectId/assets/'
     | '/projects/$projectId/collections/'
     | '/projects/$projectId/components/'
+    | '/projects/$projectId/releases/'
     | '/projects/$projectId/settings/'
     | '/projects/$projectId/collections/$collectionId/$entryId'
     | '/projects/$projectId/collections/$collectionId/create'
@@ -664,6 +688,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdHistoryCommitHashRouteImport
       parentRoute: typeof ProjectsProjectIdHistoryRoute
     }
+    '/projects/$projectId/releases/': {
+      id: '/projects/$projectId/releases/'
+      path: '/'
+      fullPath: '/projects/$projectId/releases/'
+      preLoaderRoute: typeof ProjectsProjectIdReleasesIndexRouteImport
+      parentRoute: typeof ProjectsProjectIdReleasesRoute
+    }
+    '/projects/$projectId/releases/$tagId': {
+      id: '/projects/$projectId/releases/$tagId'
+      path: '/$tagId'
+      fullPath: '/projects/$projectId/releases/$tagId'
+      preLoaderRoute: typeof ProjectsProjectIdReleasesTagIdRouteImport
+      parentRoute: typeof ProjectsProjectIdReleasesRoute
+    }
     '/projects/$projectId/settings/': {
       id: '/projects/$projectId/settings/'
       path: '/'
@@ -847,6 +885,22 @@ const ProjectsProjectIdHistoryRouteWithChildren =
     ProjectsProjectIdHistoryRouteChildren,
   )
 
+interface ProjectsProjectIdReleasesRouteChildren {
+  ProjectsProjectIdReleasesTagIdRoute: typeof ProjectsProjectIdReleasesTagIdRoute
+  ProjectsProjectIdReleasesIndexRoute: typeof ProjectsProjectIdReleasesIndexRoute
+}
+
+const ProjectsProjectIdReleasesRouteChildren: ProjectsProjectIdReleasesRouteChildren =
+  {
+    ProjectsProjectIdReleasesTagIdRoute: ProjectsProjectIdReleasesTagIdRoute,
+    ProjectsProjectIdReleasesIndexRoute: ProjectsProjectIdReleasesIndexRoute,
+  }
+
+const ProjectsProjectIdReleasesRouteWithChildren =
+  ProjectsProjectIdReleasesRoute._addFileChildren(
+    ProjectsProjectIdReleasesRouteChildren,
+  )
+
 interface ProjectsProjectIdSettingsRouteChildren {
   ProjectsProjectIdSettingsGeneralRoute: typeof ProjectsProjectIdSettingsGeneralRoute
   ProjectsProjectIdSettingsVersionControlRoute: typeof ProjectsProjectIdSettingsVersionControlRoute
@@ -873,7 +927,7 @@ interface ProjectsProjectIdRouteChildren {
   ProjectsProjectIdComponentsRoute: typeof ProjectsProjectIdComponentsRouteWithChildren
   ProjectsProjectIdDashboardRoute: typeof ProjectsProjectIdDashboardRoute
   ProjectsProjectIdHistoryRoute: typeof ProjectsProjectIdHistoryRouteWithChildren
-  ProjectsProjectIdReleasesRoute: typeof ProjectsProjectIdReleasesRoute
+  ProjectsProjectIdReleasesRoute: typeof ProjectsProjectIdReleasesRouteWithChildren
   ProjectsProjectIdSettingsRoute: typeof ProjectsProjectIdSettingsRouteWithChildren
   ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
 }
@@ -886,7 +940,7 @@ const ProjectsProjectIdRouteChildren: ProjectsProjectIdRouteChildren = {
     ProjectsProjectIdComponentsRouteWithChildren,
   ProjectsProjectIdDashboardRoute: ProjectsProjectIdDashboardRoute,
   ProjectsProjectIdHistoryRoute: ProjectsProjectIdHistoryRouteWithChildren,
-  ProjectsProjectIdReleasesRoute: ProjectsProjectIdReleasesRoute,
+  ProjectsProjectIdReleasesRoute: ProjectsProjectIdReleasesRouteWithChildren,
   ProjectsProjectIdSettingsRoute: ProjectsProjectIdSettingsRouteWithChildren,
   ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,
 }

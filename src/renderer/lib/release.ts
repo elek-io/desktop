@@ -13,16 +13,19 @@ import {
 } from '@elek-io/core';
 
 /**
- * Everything the Release dialog says about a pending Release, in one place: the
- * word of a bump, the sentence behind it, every change in words, and the copy
- * for each refusal.
+ * Everything Desktop says about a Release, in one place: the word of a bump,
+ * the sentence behind it, every change in words, and the copy for each refusal.
  *
- * A Release is read and cut through `core.releases`, whose `ReleaseDiff` carries
- * a bump and seven arrays of changes but no sentence, so the sentence is derived
- * here. Every sentence is a message of the catalog. A map at module scope holds
- * `MessageDescriptor`s and is rendered through `i18n._` when it is shown, while
- * a sentence with a placeholder is a function that calls `t` at that moment,
- * see [`coreErrorText.ts`](./coreErrorText.ts).
+ * A Release that was published and one that would be arrive in the same shape,
+ * `ReleaseDiff`, from `core.releases.changes()` and `core.releases.prepare()`,
+ * so the Releases screen and the Release dialog say it with the same words,
+ * see [`components/release-summary.tsx`](../components/release-summary.tsx).
+ *
+ * The diff carries a bump and seven arrays of changes but no sentence, so the
+ * sentence is derived here. Every sentence is a message of the catalog. A map
+ * at module scope holds `MessageDescriptor`s and is rendered through `i18n._`
+ * when it is shown, while a sentence with a placeholder is a function that
+ * calls `t` at that moment, see [`coreErrorText.ts`](./coreErrorText.ts).
  */
 
 /** A change of any of the diff's arrays, carrying its own bump. */
@@ -180,23 +183,29 @@ export function describeReleaseChanges(
 }
 
 /**
- * Why the version moves the way it does, in one sentence.
+ * Why the version moves the way it does, in one sentence, or `null` where no
+ * bump moved it at all.
  *
  * The highest bump across every change decides the Release's, so the sentence
  * names that bump and the first change carrying it. A `draft` that is only
  * ahead in commits carries no classified change, which Core calls a patch, so
  * that sentence names no change.
+ *
+ * It reads the same of a Release that was published and of one that would be:
+ * the bump is the Release's own either way, which is why the chosen Release on
+ * the Releases screen and the dialog both show this sentence. What only a
+ * pending Release can say, that there is nothing to release, is
+ * `releaseReason`.
  */
-export function releaseReason(
-  diff: ReleaseDiff,
+export function bumpReason(
+  bump: ReleaseChange['bump'] | null,
   changes: DescribedReleaseChange[]
-): string {
-  if (diff.bump === null) {
-    const { currentVersion } = diff;
-    return t`Nothing has changed since version ${currentVersion}, so there is nothing to release.`;
+): string | null {
+  if (bump === null) {
+    return null;
   }
 
-  const driver = changes.find((change) => change.bump === diff.bump);
+  const driver = changes.find((change) => change.bump === bump);
 
   // One message per bump rather than the word of the bump dropped into one
   // sentence, because a word that carries grammar cannot be translated on its
@@ -205,7 +214,7 @@ export function releaseReason(
   // one sentence, which holds for an English and a German sentence alike, both
   // of which open on an article.
   if (driver === undefined) {
-    switch (diff.bump) {
+    switch (bump) {
       case 'major':
         return t`This is a major Release, because what a site reads is unchanged.`;
       case 'minor':
@@ -217,7 +226,7 @@ export function releaseReason(
 
   const change = `${driver.description.charAt(0).toLowerCase()}${driver.description.slice(1)}`;
 
-  switch (diff.bump) {
+  switch (bump) {
     case 'major':
       return t`This is a major Release, because ${change}.`;
     case 'minor':
@@ -225,6 +234,28 @@ export function releaseReason(
     case 'patch':
       return t`This is a patch Release, because ${change}.`;
   }
+}
+
+/**
+ * Why a pending Release would move the version, or that there is nothing to
+ * release at all.
+ *
+ * Core answers a Project with nothing to publish with a null bump rather than
+ * an error, so that is an outcome the dialog words rather than a failure, and
+ * it names the version nothing has changed since, as ci's rule for it asks.
+ */
+export function releaseReason(
+  diff: ReleaseDiff,
+  changes: DescribedReleaseChange[]
+): string {
+  const reason = bumpReason(diff.bump, changes);
+
+  if (reason === null) {
+    const { currentVersion } = diff;
+    return t`Nothing has changed since version ${currentVersion}, so there is nothing to release.`;
+  }
+
+  return reason;
 }
 
 /**

@@ -52,6 +52,10 @@ msgstr "{count, plural, one {# Asset} other {# Assets}}"
 msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
 
+#: src/renderer/components/release-summary.tsx
+msgid "{currentVersion} becomes {nextVersion}"
+msgstr "{currentVersion} becomes {nextVersion}"
+
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "{defaultName}, the default"
 msgstr "{defaultName}, the default"
@@ -133,6 +137,10 @@ msgstr "{notSynced, plural, one {# change not synced} other {# changes not synce
 #: src/renderer/routes/projects/create.tsx
 msgid "{projectName} was created, but not synced"
 msgstr "{projectName} was created, but not synced"
+
+#: src/renderer/components/release-list.tsx
+msgid "{published}, {author}"
+msgstr "{published}, {author}"
 
 #: src/renderer/components/entry-history.tsx
 msgid "{published}, by {author}"
@@ -275,13 +283,9 @@ msgstr "A Project holds the content of one website or app. It is a folder of fil
 msgid "A Project on GitHub, GitLab or any other Git host, to work on it on this computer."
 msgstr "A Project on GitHub, GitLab or any other Git host, to work on it on this computer."
 
-#: src/renderer/routes/projects/$projectId/releases.tsx
-msgid "A Release publishes everything saved in this Project as a version a website can build from. elek.io sets the version from what changed."
-msgstr "A Release publishes everything saved in this Project as a version a website can build from. elek.io sets the version from what changed."
-
 #: src/renderer/components/release-dialog.tsx
-msgid "A Release publishes everything saved in this Project, so a website can build from it. It cannot be undone."
-msgstr "A Release publishes everything saved in this Project, so a website can build from it. It cannot be undone."
+msgid "A Release is a version of the whole Project that your website and apps build from. It cannot be undone."
+msgstr "A Release is a version of the whole Project that your website and apps build from. It cannot be undone."
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "A required condition was not met, so the action was stopped."
@@ -498,6 +502,18 @@ msgstr "Asset saved to your computer"
 msgid "Assets"
 msgstr "Assets"
 
+#: src/renderer/components/release-summary.tsx
+msgid "Assets added"
+msgstr "Assets added"
+
+#: src/renderer/components/release-summary.tsx
+msgid "Assets changed"
+msgstr "Assets changed"
+
+#: src/renderer/components/release-summary.tsx
+msgid "Assets deleted"
+msgstr "Assets deleted"
+
 #: src/renderer/lib/fieldRules.ts
 msgid "at least {min}"
 msgstr "at least {min}"
@@ -572,6 +588,7 @@ msgstr "Can't read the Releases"
 #: src/renderer/components/markdown/link-dialog.tsx
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
 #: src/renderer/components/pickers/entry-picker-dialog.tsx
+#: src/renderer/components/release-dialog.tsx
 #: src/renderer/components/report-dialog.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
@@ -950,10 +967,6 @@ msgstr "Create a new Collection"
 msgid "Create a new Component"
 msgstr "Create a new Component"
 
-#: src/renderer/components/release-dialog.tsx
-msgid "Create a Release"
-msgstr "Create a Release"
-
 #: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 #: src/renderer/routes/projects/$projectId/collections/index.tsx
@@ -971,6 +984,8 @@ msgid "Create Project"
 msgstr "Create Project"
 
 #: src/renderer/components/release-dialog.tsx
+#: src/renderer/components/release-list.tsx
+#: src/renderer/routes/projects/$projectId/releases.tsx
 msgid "Create Release"
 msgstr "Create Release"
 
@@ -1110,6 +1125,10 @@ msgstr "Desktop can't show this text. It stays saved as it is, and this Entry ca
 msgid "Desktop checks it for incoming changes every 3 minutes."
 msgstr "Desktop checks it for incoming changes every 3 minutes."
 
+#: src/renderer/components/release-dialog.tsx
+msgid "Desktop sets the version from what changed."
+msgstr "Desktop sets the version from what changed."
+
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Desktop syncs this Project with it. A password or token in the address stays hidden."
 msgstr "Desktop syncs this Project with it. A password or token in the address stays hidden."
@@ -1222,6 +1241,18 @@ msgstr "Enter an IPv4 address, such as 192.168.0.1."
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Entries"
 msgstr "Entries"
+
+#: src/renderer/components/release-summary.tsx
+msgid "Entries added"
+msgstr "Entries added"
+
+#: src/renderer/components/release-summary.tsx
+msgid "Entries changed"
+msgstr "Entries changed"
+
+#: src/renderer/components/release-summary.tsx
+msgid "Entries deleted"
+msgstr "Entries deleted"
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Entries in other Collections still reference Entries in this one, so it can’t be deleted. Remove or repoint those references first, then try again."
@@ -1563,6 +1594,14 @@ msgstr "Loading Entries"
 msgid "Loading the History"
 msgstr "Loading the History"
 
+#: src/renderer/components/release-summary.tsx
+msgid "Loading the Release"
+msgstr "Loading the Release"
+
+#: src/renderer/components/release-list.tsx
+msgid "Loading the Releases"
+msgstr "Loading the Releases"
+
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "Loading this Project's Components"
 msgstr "Loading this Project's Components"
@@ -1751,6 +1790,10 @@ msgstr "No option matches the filter."
 msgid "No Project matches the filter."
 msgstr "No Project matches the filter."
 
+#: src/renderer/routes/projects/$projectId/releases/index.tsx
+msgid "No Release chosen"
+msgstr "No Release chosen"
+
 #: src/renderer/components/project-state.tsx
 msgid "No Release yet"
 msgstr "No Release yet"
@@ -1789,8 +1832,8 @@ msgid "Nothing added yet"
 msgstr "Nothing added yet"
 
 #: src/renderer/routes/projects/$projectId/releases.tsx
-msgid "Nothing has been published from this Project yet. A Release takes everything saved here and gives it a version."
-msgstr "Nothing has been published from this Project yet. A Release takes everything saved here and gives it a version."
+msgid "Nothing has been published from this Project yet. A Release takes everything saved here and gives it a version your website and apps build from."
+msgstr "Nothing has been published from this Project yet. A Release takes everything saved here and gives it a version your website and apps build from."
 
 #: src/renderer/components/change-list.tsx
 msgid "Nothing has changed in this Project yet."
@@ -1924,6 +1967,10 @@ msgstr "Open"
 msgid "Open an issue on GitHub"
 msgstr "Open an issue on GitHub"
 
+#: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
+msgid "Open in History"
+msgstr "Open in History"
+
 #: src/renderer/routes/projects/create.tsx
 msgid "Open the Project"
 msgstr "Open the Project"
@@ -1980,11 +2027,12 @@ msgstr "Port {port} is already in use"
 msgid "Prefer to report this in the open?"
 msgstr "Prefer to report this in the open?"
 
-#: src/renderer/routes/projects/$projectId/releases.tsx
+#: src/renderer/components/release-list.tsx
 msgid "Preview"
 msgstr "Preview"
 
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+#: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
 msgid "Preview {version}"
 msgstr "Preview {version}"
 
@@ -2027,10 +2075,6 @@ msgstr "Project deleted"
 #: src/renderer/routes/user.tsx
 msgid "Projects"
 msgstr "Projects"
-
-#: src/renderer/routes/projects/$projectId/releases.tsx
-msgid "Published {published}"
-msgstr "Published {published}"
 
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Quoted text blocks."
@@ -2075,13 +2119,13 @@ msgstr "Reference an Entry"
 msgid "Reference fields cannot be unique."
 msgstr "Reference fields cannot be unique."
 
-#: src/renderer/routes/projects/$projectId/releases.tsx
 #: src/renderer/routes/projects/index.tsx
 msgid "Release"
 msgstr "Release"
 
 #: src/renderer/components/project-state.tsx
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+#: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
 msgid "Release {version}"
 msgstr "Release {version}"
 
@@ -2090,6 +2134,7 @@ msgid "Release {version} created"
 msgstr "Release {version} created"
 
 #: src/renderer/components/project-sidebar.tsx
+#: src/renderer/components/release-list.tsx
 #: src/renderer/routes/projects/$projectId/releases.tsx
 msgid "Releases"
 msgstr "Releases"
@@ -2712,6 +2757,10 @@ msgstr "The Project's description changed"
 msgid "The reference is inserted at the cursor position."
 msgstr "The reference is inserted at the cursor position."
 
+#: src/renderer/routes/projects/$projectId/releases.tsx
+msgid "the Releases of this Project"
+msgstr "the Releases of this Project"
+
 #: src/renderer/components/report-dialog.tsx
 msgid "The report could not be sent. Your text is still here, so you can try again."
 msgstr "The report could not be sent. Your text is still here, so you can try again."
@@ -2735,6 +2784,14 @@ msgstr "The technical key this Field's Values are stored under. It is generated 
 #: src/renderer/components/forms/add-field-sheet.tsx
 msgid "The type of input the user is able to enter for this Field."
 msgstr "The type of input the user is able to enter for this Field."
+
+#: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
+msgid "The whole Project. {author} released it on {when}"
+msgstr "The whole Project. {author} released it on {when}"
+
+#: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
+msgid "The whole Project. You released it on {when}"
+msgstr "The whole Project. You released it on {when}"
 
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Thematic break"
@@ -2918,6 +2975,11 @@ msgstr "This Project has no Components yet. Create one first, then come back to 
 msgid "This Project is a copy made for building a site, so it cannot sync. Remove it and download the Project again to work on it."
 msgstr "This Project is a copy made for building a site, so it cannot sync. Remove it and download the Project again to work on it."
 
+#: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
+#: src/renderer/routes/projects/$projectId/releases/index.tsx
+msgid "this Release"
+msgstr "this Release"
+
 #: src/renderer/routes/projects/index.tsx
 msgid "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
 msgstr "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
@@ -3025,9 +3087,9 @@ msgstr "Use letters or numbers, so this can be part of a web address."
 msgid "Use more than {smallest}."
 msgstr "Use more than {smallest}."
 
-#: src/renderer/components/release-dialog.tsx
-msgid "Version {currentVersion} becomes"
-msgstr "Version {currentVersion} becomes"
+#: src/renderer/components/release-summary.tsx
+msgid "Version"
+msgstr "Version"
 
 #: src/renderer/routes/projects/index.tsx
 msgid "Version the whole Project for your site."
@@ -3060,10 +3122,6 @@ msgstr "Welcome to elek.io Desktop"
 #: src/renderer/lib/release.ts
 msgid "What a Release would publish could not be read. Your changes on this computer are safe. Please try again."
 msgstr "What a Release would publish could not be read. Your changes on this computer are safe. Please try again."
-
-#: src/renderer/components/release-dialog.tsx
-msgid "What changed"
-msgstr "What changed"
 
 #: src/renderer/components/report-dialog.tsx
 msgid "What is missing, what got in your way, or what you would like to see next."

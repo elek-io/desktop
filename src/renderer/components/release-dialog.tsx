@@ -1,9 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
-import { Rocket } from 'lucide-react';
+import { Tag } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
 
-import { Badge } from '@renderer/components/ui/badge';
+import {
+  ReleaseSummary,
+  ReleaseSummarySkeleton,
+} from '@renderer/components/release-summary';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -16,12 +19,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@renderer/components/ui/dialog';
-import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import {
-  bumpWord,
   describeReleaseChanges,
   releaseReason,
   RELEASE_CREATE_FALLBACK,
@@ -29,7 +30,6 @@ import {
   RELEASE_READ_FALLBACK,
   RELEASE_READ_REFUSALS,
   RELEASE_READ_RETRYABLE,
-  type DescribedReleaseChange,
 } from '@renderer/lib/release';
 import { queryOptions } from '@renderer/queries';
 
@@ -50,7 +50,8 @@ export interface ReleaseDialogProps {
  *
  * The version is the one Core computed from what changed, never a choice, so
  * the dialog shows the old and the new version, the bump with its word, the
- * reason in one sentence and every change in words. A Release cannot be undone,
+ * reason in one sentence, and the Entries and Assets it would add, change and
+ * delete, see `components/release-summary.tsx`. A Release cannot be undone,
  * which the dialog says before Create Release is pressed.
  *
  * Both halves answer a refusal in place: reading what a Release would publish
@@ -113,19 +114,19 @@ export function ReleaseDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            <Trans>Create a Release</Trans>
+            <Trans>Create Release</Trans>
           </DialogTitle>
           <DialogDescription>
             <Trans>
-              A Release publishes everything saved in this Project, so a website
-              can build from it. It cannot be undone.
+              A Release is a version of the whole Project that your website and
+              apps build from. It cannot be undone.
             </Trans>
           </DialogDescription>
         </DialogHeader>
 
         <DialogBody>
           {isPreparingRelease || pendingRelease === undefined ? (
-            <PendingReleaseSkeleton />
+            <ReleaseSummarySkeleton />
           ) : pendingRelease.status === 'refused' ? (
             <p role="alert" className="text-sm text-error">
               {describeCoreError(
@@ -150,8 +151,13 @@ export function ReleaseDialog({
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose render={<Button type="button" variant="secondary" />}>
-            <Trans>Close</Trans>
+          {/*
+            Nothing to confirm means nothing to cancel either, so the one
+            button says what it does: with a Release to make it cancels it,
+            and where there is none it closes the dialog.
+          */}
+          <DialogClose render={<Button type="button" variant="ghost" />}>
+            {canRelease ? t`Cancel` : t`Close`}
           </DialogClose>
           {pendingRelease?.status === 'refused' &&
           RELEASE_READ_RETRYABLE.has(pendingRelease.errorType) ? (
@@ -165,7 +171,7 @@ export function ReleaseDialog({
           ) : null}
           {canRelease ? (
             <Button
-              Icon={Rocket}
+              Icon={Tag}
               isLoading={isCreatingRelease}
               onClick={onCreateRelease}
             >
@@ -178,57 +184,29 @@ export function ReleaseDialog({
   );
 }
 
-function PendingReleaseSkeleton(): ReactElement {
-  return (
-    <div className="grid gap-4">
-      <Skeleton className="h-6 w-40 rounded" />
-      <Skeleton className="h-4 w-full rounded" />
-      <Skeleton className="h-4 w-2/3 rounded" />
-    </div>
-  );
-}
-
+/**
+ * What the Release would publish, in the same shape a Release that was
+ * published is shown in on the Releases screen.
+ *
+ * The sentence is this dialog's own: ci opens it with what sets the version,
+ * since the editor is about to let Desktop set one, and a Project with nothing
+ * to publish says that instead.
+ */
 function PendingReleaseSummary({ diff }: { diff: ReleaseDiff }): ReactElement {
-  const changes = describeReleaseChanges(diff);
-  const { currentVersion } = diff;
+  const reason = releaseReason(diff, describeReleaseChanges(diff));
 
   return (
-    <div className="grid gap-4">
-      {diff.bump === null || diff.nextVersion === null ? null : (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            <Trans>Version {currentVersion} becomes</Trans>
-          </span>
-          <span className="text-lg font-semibold">{diff.nextVersion}</span>
-          <Badge variant="secondary">{bumpWord(diff.bump)}</Badge>
-        </div>
-      )}
-
-      <p className="text-sm">{releaseReason(diff, changes)}</p>
-
-      {changes.length === 0 ? null : <ReleaseChangeList changes={changes} />}
-    </div>
-  );
-}
-
-function ReleaseChangeList({
-  changes,
-}: {
-  changes: DescribedReleaseChange[];
-}): ReactElement {
-  return (
-    <div className="grid gap-2">
-      <h3 className="text-sm font-medium">
-        <Trans>What changed</Trans>
-      </h3>
-      {/* Each change in words. The bump of a single change is not repeated
-          here: the badge above carries the Release's, and the sentence above
-          names the change that drove it. */}
-      <ul className="grid gap-1 text-sm">
-        {changes.map((change) => (
-          <li key={change.key}>{change.description}</li>
-        ))}
-      </ul>
-    </div>
+    <ReleaseSummary
+      diff={diff}
+      reason={
+        diff.bump === null ? (
+          reason
+        ) : (
+          <>
+            <Trans>Desktop sets the version from what changed.</Trans> {reason}
+          </>
+        )
+      }
+    />
   );
 }
