@@ -1112,10 +1112,68 @@ test.describe('Sync', () => {
       }
       await expect(dialog.getByRole('listitem')).toHaveCount(0);
 
+      // With nothing below it the head takes its own inset below the sentence,
+      // which is the 20 px ci gives a dialog between its head and its buttons,
+      // rather than the quarter of it a head above a body keeps. Read against
+      // the inset the head keeps at its sides, so the assertion holds at every
+      // zoom the window is at.
+      const spacing = await bodylessDialogSpacing(mainWindow);
+      expect(spacing.bodies).toBe(0);
+      expect(spacing.paddingBottom).toBe(spacing.paddingInline);
+      // Nothing but that inset stands between the sentence and the footer,
+      // with a pixel of room for the half pixel a centered dialog lands on.
+      expect(
+        Math.abs(spacing.sentenceToFooter - parseFloat(spacing.paddingBottom))
+      ).toBeLessThanOrEqual(1);
+
       await dismissAlertDialog(mainWindow);
     }
   });
 });
+
+/**
+ * What the open dialog's head keeps below its sentence and at its sides, how
+ * far the sentence stands from the footer, and how many bodies the dialog
+ * holds.
+ *
+ * Measured in the window rather than off the class strings, because the rule
+ * reads the element after the head, so anything the dialog renders between the
+ * two would turn it off.
+ */
+async function bodylessDialogSpacing(page: Page): Promise<{
+  bodies: number;
+  paddingBottom: string;
+  paddingInline: string;
+  sentenceToFooter: number;
+}> {
+  return await page.evaluate(() => {
+    const dialog = document.querySelector('[role="alertdialog"]');
+    const head = dialog?.querySelector('[data-slot="dialog-header"]');
+    const sentence = dialog?.querySelector('[data-slot="dialog-description"]');
+    const footer = dialog?.querySelector('[data-slot="dialog-footer"]');
+    if (
+      head === null ||
+      head === undefined ||
+      sentence === null ||
+      sentence === undefined ||
+      footer === null ||
+      footer === undefined
+    ) {
+      throw new Error('The sync dialog has no head, no sentence or no footer');
+    }
+    const headStyle = getComputedStyle(head);
+    return {
+      bodies:
+        dialog?.querySelectorAll('[data-slot="dialog-body"]').length ?? -1,
+      paddingBottom: headStyle.paddingBottom,
+      paddingInline: headStyle.paddingLeft,
+      sentenceToFooter: Math.round(
+        footer.getBoundingClientRect().top -
+          sentence.getBoundingClientRect().bottom
+      ),
+    };
+  });
+}
 
 /**
  * What the Project card says the Project's state is, and what it offers for

@@ -89,6 +89,7 @@ interface ProbedStyle {
   readonly backgroundColor: string;
   readonly backgroundImage: string;
   readonly bottom: string;
+  readonly paddingBottom: string;
   readonly paddingLeft: string;
   readonly paddingRight: string;
   readonly display: string;

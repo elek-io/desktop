@@ -66,6 +66,15 @@ function DialogContent({
   );
 }
 
+/**
+ * The head of a dialog: its title, its line and whatever a caller puts beside
+ * them.
+ *
+ * Its 4 px below and a `DialogBody`'s own 12 px above make the 16 px between
+ * the two. A head the footer follows straight away takes the body's own 20 px
+ * instead, which is what ci gives a dialog with nothing between its head and
+ * its buttons.
+ */
 function DialogHeader({
   className,
   ...props
@@ -73,7 +82,10 @@ function DialogHeader({
   return (
     <div
       data-slot="dialog-header"
-      className={cn('flex flex-col gap-1.5 px-5 pt-5 pb-1', className)}
+      className={cn(
+        'flex flex-col gap-1.5 px-5 pt-5 pb-1 has-[+[data-slot=dialog-footer]]:pb-5',
+        className
+      )}
       {...props}
     />
   );
