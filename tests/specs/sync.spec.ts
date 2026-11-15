@@ -55,6 +55,7 @@ import {
   commitUnrelatedFileOnRemote,
   deleteEntryOnRemote,
   localDraftSha,
+  pushMainAheadOnRemote,
   remoteBranches,
   remoteDraftSha,
   setupRemote,
@@ -99,12 +100,14 @@ function syncDialogSentence(page: Page): Locator {
  * a sentence of its own. Core carries a cause on the `PreconditionFailed` it
  * refuses a sync with, see its git-and-sync doc.
  *
- * Three are arranged for real, each in a test of its own: a repository holding
- * something else, a file something outside the app left in the Project, and the
- * same text changed on two computers. The rest need a remote that refuses an
- * atomic push, a Git LFS endpoint, a remote that keeps moving, a read-only
- * Core, a provisioned copy, a git loader that fails or elek.io Cloud, none of
- * which a local bare repository can be, so those are injected at the channel.
+ * Four are arranged for real, each in a test of its own: a repository holding
+ * something else, a file something outside the app left in the Project, a
+ * `main` on the repository that was published on another computer, and the same
+ * text changed on two computers. The rest are injected at the channel, since a
+ * local bare repository on its own is none of the things they need: a Git host
+ * that refuses an atomic push or cannot serve Git LFS, a repository that keeps
+ * moving, a read-only Core, a provisioned copy, a git loader that fails or
+ * elek.io Cloud.
  */
 const SYNC_CAUSE_SENTENCES = {
   remote_holds_something_else:
@@ -954,11 +957,51 @@ test.describe('Sync', () => {
     await expect(syncDialogSentence(mainWindow)).toHaveText(
       SYNC_CAUSE_SENTENCES.uncommitted_changes
     );
-    // Not the file Core named in its own message, which is a path on this
-    // computer.
+    // Core attaches the files nobody committed as the cause of this one, each
+    // a path inside the repository. Nothing reads them, so the dialog neither
+    // names one nor draws a row out of them.
     await expect(
       syncDialog(mainWindow).getByText('left-behind.txt')
     ).toBeHidden();
+    await expect(syncDialog(mainWindow).getByRole('listitem')).toHaveCount(0);
+  });
+
+  test('names a published Release the Git repository holds and this computer does not', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // A repository holding this Project's `main` one commit further on than
+    // this computer, and no `draft`, which is what a Release published on
+    // another computer and pushed on its own leaves behind. Core refuses
+    // rather than pushing a `draft` that would leave the two apart, so this is
+    // the third cause a local repository can be arranged into.
+    const remote = setupRemote(testInfo);
+    pushMainAheadOnRemote(
+      join(testDataDirs(testInfo).dataDir, 'projects', project.id),
+      remote.path
+    );
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: remote.url,
+    });
+
+    await navigateToProjectDashboard(mainWindow, project.id);
+    const synchronize = mainWindow.getByRole('button', { name: 'Sync' });
+    await expect(synchronize).toBeEnabled();
+
+    await synchronize.click();
+
+    await expect(syncDialogSentence(mainWindow)).toHaveText(
+      SYNC_CAUSE_SENTENCES.remote_main_without_draft
+    );
+    await expect(syncDialog(mainWindow).getByText(NOTHING_SYNCED)).toHaveCount(
+      1
+    );
+    // Nothing was pushed: the repository still holds the one branch it was
+    // given, so the `draft` Core refused to push is not there.
+    expect(remoteBranches(remote.path)).toEqual(['main']);
   });
 
   test('names the same text changed on two computers', async ({

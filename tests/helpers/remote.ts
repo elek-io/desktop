@@ -197,14 +197,22 @@ export function deleteEntryOnRemote(
 
 /**
  * Write a file and commit it on the bare remote as a Core-shaped commit, out of
- * band, then push it to `draft`.
+ * band, on `draft`.
  *
- * Clones the bare to a throwaway working tree, writes `file.relPath`, commits
- * with `message`'s Core trailers (so getChanges recognizes it, see
- * `coreCommitMessage`), and pushes `draft` back to the bare. This advances the
- * remote's `draft` by one commit that Core counts, so a local Project pointed at
- * it becomes `behind` by one, the state the behind-path sync spec needs. The
- * file is plain (not under `lfs/**`), so no LFS object is involved.
+ * Builds the commit with git's plumbing inside the bare repository itself: the
+ * content becomes a blob, an index of its own holds `draft`'s tree with
+ * `file.relPath` written into it, and the commit carries `message`'s Core
+ * trailers, so getChanges recognizes it (see `coreCommitMessage`). This
+ * advances the remote's `draft` by one commit that Core counts, so a local
+ * Project pointed at it becomes `behind` by one, the state the behind-path sync
+ * spec needs.
+ *
+ * Nothing is checked out, which is what keeps the file's own path off the disk:
+ * a clone with a working tree put the Collection's and the Entry's ids into a
+ * directory name under the test's output path, and Windows refuses a path that
+ * long. No git-lfs filter runs over a tree nobody checks out either, where a
+ * clone needed `GIT_LFS_SKIP_SMUDGE` to keep git-lfs from reaching for a remote
+ * it cannot serve.
  */
 export function commitFileOnRemote(
   testInfo: TestInfo,
@@ -212,36 +220,84 @@ export function commitFileOnRemote(
   file: { relPath: string; content: string },
   message: GitMessage
 ): void {
-  // Named after the file it commits, so a test that advances the remote by
-  // more than one commit gets a work tree of its own for each: a clone into a
-  // directory a previous call already filled fails.
-  const workTree = testInfo.outputPath(
-    `remote-commit-clone-${file.relPath.replace(/[^a-zA-Z0-9]+/g, '-')}`
-  );
+  // An index outside the bare repository, since a bare one keeps none, and
+  // read-tree below fills it from scratch, so repeated calls can share it.
+  const env = {
+    ...process.env,
+    GIT_INDEX_FILE: testInfo.outputPath('remote-index'),
+  };
+  const git = (args: string[], input?: string): string =>
+    execFileSync('git', ['-C', remotePath, ...args], { env, input })
+      .toString()
+      .trim();
 
-  // Entry/plain files are not LFS-tracked, and skipping the smudge filter keeps
-  // git-lfs from reaching for a remote it cannot serve.
-  const env = { ...process.env, GIT_LFS_SKIP_SMUDGE: '1' };
-
-  execFileSync('git', ['clone', remotePath, workTree], { env });
-  execFileSync('git', ['-C', workTree, 'checkout', DRAFT_BRANCH], { env });
-  writeFileSync(join(workTree, file.relPath), file.content);
-  execFileSync('git', ['-C', workTree, 'add', file.relPath]);
-  execFileSync('git', [
-    '-C',
-    workTree,
+  const blob = git(['hash-object', '-w', '--stdin'], file.content);
+  git(['read-tree', DRAFT_BRANCH]);
+  git([
+    'update-index',
+    '--add',
+    '--cacheinfo',
+    `100644,${blob},${file.relPath}`,
+  ]);
+  const commit = git([
     // Identity is set inline so the runner needs no global git config
     '-c',
     'user.name=E2E Remote',
     '-c',
     'user.email=e2e-remote@example.com',
-    'commit',
+    'commit-tree',
+    git(['write-tree']),
+    '-p',
+    DRAFT_BRANCH,
     '-m',
     coreCommitMessage(message),
   ]);
-  execFileSync('git', ['-C', workTree, 'push', 'origin', DRAFT_BRANCH], {
-    env,
-  });
+  git(['update-ref', `refs/heads/${DRAFT_BRANCH}`, commit]);
+}
+
+/**
+ * Push a Project's `main` to a bare remote with one commit on top of it, and no
+ * `draft`, out of band.
+ *
+ * That is the remote of a Project whose `main` was published from another
+ * computer and pushed on its own, which Core refuses to synchronize with,
+ * because a push from here would leave `main` and `draft` apart (see Core's
+ * git-and-sync docs). The commit shares the Project's own history, so the
+ * remote holds this Project rather than something else, and it is built with
+ * `commit-tree` from the Project's repository, which needs neither a clone nor
+ * a working tree of its own.
+ */
+export function pushMainAheadOnRemote(
+  projectPath: string,
+  remotePath: string
+): void {
+  const git = (args: string[]): string =>
+    execFileSync('git', ['-C', projectPath, ...args])
+      .toString()
+      .trim();
+
+  const ahead = git([
+    // Identity is set inline so the runner needs no global git config
+    '-c',
+    'user.name=E2E Remote',
+    '-c',
+    'user.email=e2e-remote@example.com',
+    'commit-tree',
+    `${MAIN_BRANCH}^{tree}`,
+    '-p',
+    MAIN_BRANCH,
+    '-m',
+    'Published on another computer',
+  ]);
+  // Pushed by URL rather than through `origin`, so nothing of the Project's own
+  // refs moves, and with no hook, so git-lfs does not reach for a remote it
+  // cannot serve.
+  git([
+    'push',
+    '--no-verify',
+    remotePath,
+    `${ahead}:refs/heads/${MAIN_BRANCH}`,
+  ]);
 }
 
 /**
