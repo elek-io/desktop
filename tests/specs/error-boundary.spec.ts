@@ -217,6 +217,30 @@ test.describe('Root error boundary', () => {
     expect(shown.split('Git command failed')).toHaveLength(2);
   });
 
+  test('an error that carries no type opens Details with its own message', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    // A plain `Error` rather than a `CoreError`, which is what an ordinary bug
+    // in our own IPC plumbing arrives as: no type, and the frameless error
+    // Electron reconstructs on this side.
+    const project = await createProjectViaIpc(mainWindow);
+    await stubCoreReject(electronApp, 'core:projects:read');
+    await navigate(mainWindow, `#/projects/${project.id}/dashboard`);
+    await expect(errorScreenTitle(mainWindow)).toBeVisible({ timeout: 20000 });
+
+    const { button, text } = details(mainWindow);
+    await button.click();
+    const shown = (await text.textContent()) ?? '';
+
+    // Its own message, with no type in brackets in front of it and no sentinel
+    // of the encoding either.
+    expect(shown).toContain('E2E injected failure');
+    expect(shown).not.toContain('CoreError [');
+    expect(shown).not.toContain(IPC_CORE_ERROR_SENTINEL);
+  });
+
   test('Copy details copies exactly what Details shows and says it copied', async ({
     electronApp,
     mainWindow,
