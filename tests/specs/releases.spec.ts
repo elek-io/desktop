@@ -647,7 +647,7 @@ test.describe('Releases', () => {
     ]);
   });
 
-  test('says in its own pane when the chosen Release cannot be read', async ({
+  test('says so in a pane when the chosen Release cannot be read', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -657,23 +657,26 @@ test.describe('Releases', () => {
 
     // An address for a Release this Project does not hold, which is what an
     // address kept from a Project that no longer holds one asks for. Core
-    // refuses the read, and a read that failed belongs to the pane it
-    // happened in, see contributing/error-handling.md.
+    // refuses the read, and a read that failed is a pane's own sentence with
+    // Try again rather than the error screen, see
+    // contributing/error-handling.md.
     await navigateToRelease(mainWindow, project.id, uuid());
 
     await expect(
-      mainWindow.getByText("Desktop can't read this Release.")
+      mainWindow.getByText("Desktop can't read what this screen shows.")
     ).toBeVisible({ timeout: 15000 });
     await expect(
       mainWindow.getByRole('button', { name: 'Try again' })
     ).toBeVisible();
 
-    // The list beside it is untouched, and nothing took the whole window to
-    // the error screen.
-    await expect(releaseRow(mainWindow, '0.1.0')).toBeVisible();
+    // Nothing took the whole window to the error screen, and the sidebar's
+    // way back to the list of Releases is still there.
     await expect(
       mainWindow.getByRole('heading', { name: 'Error' })
     ).toBeHidden();
+    await expect(
+      projectSidebar(mainWindow).getByRole('link', { name: /^Releases\s*1$/ })
+    ).toBeVisible();
   });
 
   test('keeps the screen and the dialog inside the smallest window the app supports, in both modes', async ({
