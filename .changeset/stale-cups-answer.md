@@ -15,7 +15,7 @@ A Project without a Git repository says "This computer only" and links to the Se
 **A sync that fails now tells you what stopped it.** Press Sync and, while you are still waiting on it, a dialog says in one sentence what went wrong and what to do next:
 
 - An Entry or an Asset that something still points at was deleted here or on another computer. The dialog lists each Entry as a link with the field inside it, so you can open it, choose something else and sync again.
-- The Git repository holds something besides this Project, cannot store the Assets, or the same text was changed in two places.
+- Whichever one of these it was, named on its own: the Git repository holds something other than this Project, it will not take the Assets, or the same text was changed in two places.
 - The Git repository refused access.
 - The Git repository could not be reached.
 
