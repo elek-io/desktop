@@ -27,6 +27,7 @@ import {
   stringValue,
   updateEntryViaIpc,
 } from '../helpers/entry.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import {
   stubCoreHang,
   stubCoreReject,
@@ -722,9 +723,7 @@ test.describe('Releases', () => {
 
     // Nothing took the whole window to the error screen, and the sidebar's
     // way back to the list of Releases is still there.
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(
       projectSidebar(mainWindow).getByRole('link', { name: /^Releases\s*1$/ })
     ).toBeVisible();
@@ -1356,9 +1355,7 @@ test.describe('Releases', () => {
 
     await dialog.getByRole('button', { name: 'Create Release' }).click();
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     // The error screen replaced the whole view, so the dialog is gone with it.
     // Asserted by its role rather than by a word it draws, which a reworded
     // title would let pass whichever way the dialog went.
@@ -1389,9 +1386,7 @@ test.describe('Releases', () => {
 
     await dialog.getByRole('button', { name: 'Create Release' }).click();
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     // The error screen replaced the whole view, so the dialog is gone with it.
     // Asserted by its role rather than by a word it draws, which a reworded
     // title would let pass whichever way the dialog went.

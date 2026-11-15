@@ -35,6 +35,7 @@ import {
   navigateToEntryUpdate,
   stringValue,
 } from '../helpers/entry.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreRejectWithType } from '../helpers/ipc.js';
 import { navigate, projectSidebar } from '../helpers/navigation.js';
 import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
@@ -809,9 +810,7 @@ test.describe('Components', () => {
       collectionId: collection.id,
       entryId: entry.id,
     });
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(mainWindow.getByText('Teaser', { exact: true })).toBeVisible();
     await expect(
       mainWindow.getByLabel('Headline', { exact: true })
@@ -1201,17 +1200,18 @@ test.describe('Components', () => {
     );
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
-    // The message as its own sentence on the screen, not the copy of it inside
-    // the stack the error screen also shows.
-    await expect(
-      mainWindow.getByText('E2E injected Internal failure', { exact: true })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
+    // The failure was not swallowed by the dialog built for the one refusal
+    // this form answers in place.
     await expect(
       mainWindow.getByText('Could not save this Component')
     ).toBeHidden();
+    // What Core raised is behind Details, which the screen keeps closed until
+    // somebody opens it, see tests/specs/error-boundary.spec.ts.
+    await mainWindow.locator('[data-slot="error-details-summary"]').click();
+    await expect(
+      mainWindow.locator('[data-slot="error-details-text"]')
+    ).toContainText('E2E injected Internal failure');
   });
 
   // Every page's sections name their Components one by one, so a page gains a

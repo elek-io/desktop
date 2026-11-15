@@ -22,6 +22,7 @@ import {
   referenceValue,
   stringValue,
 } from '../helpers/entry.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreReject } from '../helpers/ipc.js';
 import { mainPanel, reloadWindow } from '../helpers/navigation.js';
 import {
@@ -1075,9 +1076,7 @@ test.describe('Collections', () => {
     await stubCoreReject(electronApp, 'core:collections:update');
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     await expect(
       mainWindow.getByText('Could not save this Collection')
     ).toBeHidden();

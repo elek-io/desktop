@@ -438,6 +438,10 @@ msgstr "An Entry was changed"
 msgid "An Entry was removed"
 msgstr "An Entry was removed"
 
+#: src/renderer/routes/__root.tsx
+msgid "An unexpected error stopped this screen"
+msgstr "An unexpected error stopped this screen"
+
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 msgid "Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again."
 msgstr "Another Collection in this Project already uses one of these slugs. Change the singular or plural slug and try again."
@@ -808,6 +812,10 @@ msgstr "Continue"
 msgid "Convert the slug to lowercase."
 msgstr "Convert the slug to lowercase."
 
+#: src/renderer/components/error-details.tsx
+msgid "Copy details"
+msgstr "Copy details"
+
 #: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
 msgid "Core {coreVersion}"
 msgstr "Core {coreVersion}"
@@ -1133,6 +1141,14 @@ msgstr "Desktop sets the version from what changed."
 msgid "Desktop syncs this Project with it. A password or token in the address stays hidden."
 msgstr "Desktop syncs this Project with it. A password or token in the address stays hidden."
 
+#: src/renderer/components/error-details.tsx
+msgid "Details"
+msgstr "Details"
+
+#: src/renderer/components/error-details.tsx
+msgid "Details copied"
+msgstr "Details copied"
+
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "Disabled"
 msgstr "Disabled"
@@ -1197,9 +1213,21 @@ msgstr "elek.io Cloud rejected this report. Shortening it usually helps."
 msgid "elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps."
 msgstr "elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps."
 
+#: src/renderer/components/error-details.tsx
+msgid "elek.io Desktop could not copy the details"
+msgstr "elek.io Desktop could not copy the details"
+
+#: src/renderer/components/error-details.tsx
+msgid "elek.io Desktop could not prepare the details of this error, so there is nothing to show or copy here."
+msgstr "elek.io Desktop could not prepare the details of this error, so there is nothing to show or copy here."
+
 #: src/main/index.ts
 msgid "elek.io Desktop could not start"
 msgstr "elek.io Desktop could not start"
+
+#: src/renderer/routes/__root.tsx
+msgid "elek.io Desktop has no screen at {href}."
+msgstr "elek.io Desktop has no screen at {href}."
 
 #: src/renderer/lib/sync.ts
 msgid "elek.io Desktop is set up to read content only, so it cannot sync. Ask whoever set it up on this computer."
@@ -1285,10 +1313,6 @@ msgstr "Entry saved"
 #: src/renderer/components/forms/collection-form.tsx
 msgid "Entry-Slug"
 msgstr "Entry-Slug"
-
-#: src/renderer/routes/__root.tsx
-msgid "Error"
-msgstr "Error"
 
 #: src/renderer/routes/projects/index.tsx
 msgid "Every change is saved on this computer first."
@@ -1824,8 +1848,8 @@ msgid "None yet"
 msgstr "None yet"
 
 #: src/renderer/routes/__root.tsx
-msgid "Not Found"
-msgstr "Not Found"
+msgid "Nothing about it was sent to us, so a report is how we find out."
+msgstr "Nothing about it was sent to us, so a report is how we find out."
 
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Nothing added yet"
@@ -2228,16 +2252,13 @@ msgid "Report a bug"
 msgstr "Report a bug"
 
 #: src/renderer/components/app-header.tsx
+#: src/renderer/routes/__root.tsx
 msgid "Report an issue"
 msgstr "Report an issue"
 
 #: src/renderer/queries/options/cloudOptions.ts
 msgid "Report sent"
 msgstr "Report sent"
-
-#: src/renderer/routes/__root.tsx
-msgid "Report this problem"
-msgstr "Report this problem"
 
 #: src/renderer/components/forms/default-field-definition-form.tsx
 #: src/renderer/lib/fieldRules.ts
@@ -2394,9 +2415,9 @@ msgstr "Somebody else kept syncing with the Git repository while this sync ran. 
 msgid "Something outside elek.io Desktop changed this Project's files, so they cannot be synced as they are. Ask whoever set up this Project."
 msgstr "Something outside elek.io Desktop changed this Project's files, so they cannot be synced as they are. Ask whoever set up this Project."
 
-#: src/renderer/routes/__root.tsx
-msgid "Something went wrong and this screen is all we can show you. Nothing about it was sent to us automatically, so we only find out if you tell us. Reporting it takes a moment: tell us what you were doing, and the logs it sends along show us the error."
-msgstr "Something went wrong and this screen is all we can show you. Nothing about it was sent to us automatically, so we only find out if you tell us. Reporting it takes a moment: tell us what you were doing, and the logs it sends along show us the error."
+#: src/main/index.ts
+msgid "Something went wrong while starting, so no window could open. Starting it again is the first thing to try."
+msgstr "Something went wrong while starting, so no window could open. Starting it again is the first thing to try."
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "Something went wrong. Please try again."
@@ -2988,6 +3009,10 @@ msgstr "this Release"
 msgid "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
 msgstr "This repository holds no Project, or one made with an older version of elek.io Desktop. Ask whoever set it up."
 
+#: src/renderer/routes/__root.tsx
+msgid "This screen does not exist"
+msgstr "This screen does not exist"
+
 #: src/renderer/components/fields/markdown/index.tsx
 msgid "This text has too many levels inside it. Take some out to save."
 msgstr "This text has too many levels inside it. Take some out to save."
@@ -3261,14 +3286,6 @@ msgstr "You won't be able to change the Value if this is active."
 #: src/renderer/components/forms/default-field-definition-form.tsx
 msgid "You won't be able to create an Entry if there is an existing Entry with identical content."
 msgstr "You won't be able to create an Entry if there is an existing Entry with identical content."
-
-#: src/renderer/routes/__root.tsx
-msgid "You've tried accessing a route that could not be found."
-msgstr "You've tried accessing a route that could not be found."
-
-#: src/renderer/routes/__root.tsx
-msgid "You've tried to access \"{href}\" but it does not exist. Use the buttons above to navigate back or try to reload the page."
-msgstr "You've tried to access \"{href}\" but it does not exist. Use the buttons above to navigate back or try to reload the page."
 
 #: src/renderer/components/forms/user-form.tsx
 msgid "Your name and email address mark your changes in the History. They're saved with each change, so whoever you sync a Project with sees them. Desktop sends them nowhere else without asking."

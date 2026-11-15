@@ -6,6 +6,7 @@ import {
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 
 import {
@@ -88,6 +89,51 @@ async function holdEveryFileTheWindowAsks(
       return new Promise<Response>(() => {});
     });
   });
+}
+
+/**
+ * Let the start fail where it has Core's own error in hand, and catch what it
+ * does about it.
+ *
+ * The failure is thrown from the registration of the app's own file protocol,
+ * which the start reaches after Core exists and before it creates the window,
+ * so the box it shows is the one a real failure of Core's would show. The box
+ * itself is native, so nothing of the window can read it, and the app exits
+ * right after it, which is why both are taken over here.
+ *
+ * Registered while the start is held, which is before any of the three runs.
+ */
+async function failTheStartWith(
+  app: ElectronApplication,
+  message: string
+): Promise<void> {
+  await app.evaluate(
+    ({ app: electronApp, dialog, protocol }, failure) => {
+      globalThis.shownErrorBoxes = [];
+      dialog.showErrorBox = (title, content): void => {
+        globalThis.shownErrorBoxes?.push({ title, content });
+      };
+      // Otherwise the process is gone before the box can be read back, and
+      // with it everything this spec is about.
+      electronApp.exit = (): void => undefined;
+
+      const register = protocol.handle.bind(protocol);
+      protocol.handle = (scheme, handler): void => {
+        if (scheme === failure.scheme) {
+          throw new Error(failure.message);
+        }
+        register(scheme, handler);
+      };
+    },
+    { scheme: 'elek-io-local-file', message }
+  );
+}
+
+/** Every box the app showed since `failTheStartWith`. */
+async function shownErrorBoxes(
+  app: ElectronApplication
+): Promise<RecordedErrorBox[]> {
+  return app.evaluate(() => globalThis.shownErrorBoxes ?? []);
 }
 
 /** Whether the app's window is up with its first load held. */
@@ -210,6 +256,72 @@ test.describe('App Initialization', () => {
         }).toEqual({ reportedFailures: [], ended: true });
       });
     }
+  });
+
+  test.describe('that could not start at all', () => {
+    // The start is held by replacing the User file with a named pipe, which is
+    // what lets a spec take the box and the exit over before the start fails,
+    // and mkfifo is POSIX.
+    test.skip(
+      process.platform === 'win32',
+      'The failure is put into a held start, and mkfifo is POSIX'
+    );
+
+    test('says so in an editor’s words and shows nothing of the error', async ({
+      electronApp,
+      mainWindow,
+    }, testInfo) => {
+      // Slow on purpose: two app launches, the second one held.
+      test.slow();
+      const { heldApp, letTheStartGoOn } = await launchWithHeldStart(
+        electronApp,
+        mainWindow,
+        testInfo
+      );
+
+      // What Core's own message can carry: a token in the address of a Git
+      // repository, an email address and a folder of this computer. The box is
+      // native, so it has no Details to keep any of it behind, which is why it
+      // carries none of this text at all.
+      const token = 'ghp_sentinel00000000000000000000000000';
+      const email = 'mara.klein@autohaus-ebersfelde.de';
+      const coreMessage = `Git command "git clone https://mara-klein:${token}@example.invalid/website.git ${homedir()}/elek.io/tmp/website" failed: ${email}: Permission denied`;
+
+      try {
+        await failTheStartWith(heldApp, coreMessage);
+        letTheStartGoOn();
+
+        await expect
+          .poll(async () => (await shownErrorBoxes(heldApp)).length, {
+            message: 'the failed start showed no box',
+            timeout: 20000,
+          })
+          .toBe(1);
+
+        const [box] = await shownErrorBoxes(heldApp);
+
+        // It names the app and what happened, and says what to do next.
+        expect(box?.title).toBe('elek.io Desktop could not start');
+        expect(box?.content).toContain(
+          'Something went wrong while starting, so no window could open.'
+        );
+        expect(box?.content).toContain(
+          'https://github.com/elek-io/desktop/issues'
+        );
+
+        // Nothing of Core's own text, masked or not, which is the whole of
+        // what a box with no Details may carry.
+        expect(box?.content).not.toContain(token);
+        expect(box?.content).not.toContain(email);
+        expect(box?.content).not.toContain(homedir());
+        expect(box?.content).not.toContain('Git command');
+        expect(box?.content).not.toContain('Permission denied');
+      } finally {
+        // Launched here, so it is not the fixture's to close. The exit is
+        // stubbed above, so the app is still running at this point.
+        await closeApp(heldApp);
+      }
+    });
   });
 
   test.describe('activated while it is still starting', () => {

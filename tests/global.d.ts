@@ -221,6 +221,20 @@ declare var unsavedChangesClaims: unknown[] | undefined;
 declare var heldFileRequests: string[] | undefined;
 
 /**
+ * One native box the app put on screen when it could not start, kept in the
+ * main process the same way. A spec reads it because a native box is nothing a
+ * test can drive or read from the window, and because the app exits right
+ * after it. See tests/specs/app-initialization.spec.ts.
+ */
+interface RecordedErrorBox {
+  title: string;
+  content: string;
+}
+
+// eslint-disable-next-line no-var
+declare var shownErrorBoxes: RecordedErrorBox[] | undefined;
+
+/**
  * One call the app made to a native file dialog, kept in the main process the
  * same way. A spec reads the last one to say what the app asked for, since no
  * test can drive the panel itself. See tests/helpers/dialog.ts.

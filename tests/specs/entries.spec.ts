@@ -62,6 +62,7 @@ import {
   temporalValue,
   updateEntryViaIpc,
 } from '../helpers/entry.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreReject, stubCoreRejectWithType } from '../helpers/ipc.js';
 import { bootOnHash, mainPanel, reloadWindow } from '../helpers/navigation.js';
 import {
@@ -1206,9 +1207,7 @@ test.describe('Entries', () => {
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
     );
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
   });
 
   test('sends a refusal that names no field of this form to the error screen', async ({
@@ -1238,9 +1237,7 @@ test.describe('Entries', () => {
     );
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
   });
 
   test('marks a reference whose Asset is gone on the field that holds it', async ({
@@ -1298,9 +1295,7 @@ test.describe('Entries', () => {
     await expectErrorOf(mainWindow, 'Cover').toBe(
       'An Asset this field points at no longer exists. Choose another one.'
     );
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}/create$`)
     );
@@ -1574,9 +1569,7 @@ test.describe('Entries', () => {
       'This field does not take an Asset of that type. Choose another one.'
     );
     expect(await errorOf(mainWindow, 'Sections')).toBeNull();
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
   });
 
   test('keeps the decimals of a number Value', async ({ mainWindow }) => {
@@ -1722,9 +1715,7 @@ test.describe('Entries', () => {
     await mainWindow.getByRole('button', { name: 'Create Article' }).click();
 
     // The failure propagates: the root error boundary replaces the view.
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
   });
 
   test('lists every Entry of the Collection and narrows them with the filter', async ({

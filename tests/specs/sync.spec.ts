@@ -26,6 +26,7 @@ import {
   stringValue,
   updateEntryViaIpc,
 } from '../helpers/entry.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import {
   stubCoreHang,
   stubCoreReject,
@@ -530,9 +531,7 @@ test.describe('Sync', () => {
 
     // The failure propagates: the root error boundary replaces the view and the
     // sync dialog never opens.
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     await expect(syncDialog(mainWindow)).toBeHidden();
   });
 
@@ -560,9 +559,7 @@ test.describe('Sync', () => {
 
     await synchronize.click();
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     await expect(syncDialog(mainWindow)).toBeHidden();
 
     // It is logged with its type, which is what the suppression of a handled
@@ -1465,9 +1462,7 @@ test.describe('The Project card', () => {
 
     // Opening the Project never reaches the error screen, and the rest of the
     // window carries on.
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(projectSidebar(mainWindow)).toBeVisible();
 
     // Sync stays as the retry, rather than being disabled because nothing
@@ -1547,9 +1542,7 @@ test.describe('The Project card', () => {
     await expect(card.getByText("Can't reach the Git repository")).toHaveCount(
       0
     );
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(card.getByRole('button', { name: 'Sync' })).toBeEnabled();
 
     // Only a repository that answered and refused gets that line. Every other
@@ -1567,9 +1560,7 @@ test.describe('The Project card', () => {
     await expect(
       card.getByText('The Git repository refused access')
     ).toHaveCount(0);
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
   });
 
   test('stands on the sidebar column and fits the smallest window in both themes', async ({

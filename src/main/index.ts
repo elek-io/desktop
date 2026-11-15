@@ -199,10 +199,18 @@ class Main {
   /**
    * Ends a start that failed, instead of leaving a running app without a window.
    *
-   * A packaged app has no console anyone sees, so the error is shown in a native
-   * box too. When Core got far enough to exist, the error also goes to its log
-   * file, and disposing Core flushes that record before the process exits. Core
-   * may be what failed, so the console and the box never depend on it.
+   * A packaged app has no console anyone sees, so a native box says that the
+   * app could not start. It says it in the words of whoever was opening the
+   * app and carries nothing of the error itself: Core's message can hold the
+   * address of a Git repository with its token, or the home folder, and a
+   * native box has no Details to keep either behind, the way the error screen
+   * does. Masking it here is no answer either, since Core is one of the things
+   * that can fail and the call that masks is Core's.
+   *
+   * The error itself goes to the console, and to Core's log file when Core got
+   * far enough to exist, where disposing Core flushes that record before the
+   * process exits. Core may be what failed, so neither the console nor the box
+   * depends on it.
    *
    * The box takes the system's language rather than the User's. Nothing read a
    * User at this point, and Core may be what failed, so the system is the only
@@ -230,9 +238,9 @@ class Main {
 
     // Composed outside the call, so the box's arguments stay a catalog message
     // and a value rather than a literal, which is what the lint rule asks for.
-    const reason = error instanceof Error ? error.message : String(error);
+    const whatHappened = t`Something went wrong while starting, so no window could open. Starting it again is the first thing to try.`;
     const advice = t`If this keeps happening, please open an issue at ${issuesUrl}`;
-    const detail = `${reason}\n\n${advice}`;
+    const detail = `${whatHappened}\n\n${advice}`;
 
     dialog.showErrorBox(t`elek.io Desktop could not start`, detail);
     app.exit(1);

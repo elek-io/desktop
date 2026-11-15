@@ -31,6 +31,7 @@ import {
   navigateToEntryCreate,
   stringValue,
 } from '../helpers/entry.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import {
   recordCoreCallProps,
   recordedCoreCallProps,
@@ -588,9 +589,7 @@ test.describe('Assets', () => {
     await stubCoreReject(electronApp, 'core:assets:delete');
     await deleteOpenAsset(mainWindow, 'showroom.png');
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     await expect(
       mainWindow.getByText('Could not delete this Asset')
     ).toBeHidden();

@@ -5,6 +5,7 @@ import { colors } from '@elek-io/branding';
 import { test } from '../fixtures/electronApp.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreHang, stubCoreReject } from '../helpers/ipc.js';
 import { recordLogsViaIpc, recordedLogs } from '../helpers/log.js';
 import { navigate } from '../helpers/navigation.js';
@@ -176,9 +177,7 @@ test.describe('A pane whose read fails', () => {
     // The rest of the window keeps working: the sidebar, the header and the
     // other pane are all still there, and the root error screen did not take
     // over.
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(mainWindow.locator('[data-slot="sidebar"]')).toBeVisible();
     await expect(
       mainWindow.getByRole('link', { name: 'elek.io Desktop, Projects' })
@@ -243,9 +242,7 @@ test.describe('A pane whose read fails', () => {
 
     // The window keeps working around it: the header is there and the root
     // error screen did not take over.
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(
       mainWindow.getByRole('link', { name: 'elek.io Desktop, Projects' })
     ).toBeVisible();

@@ -7,6 +7,7 @@ import { test, testDataDirs } from '../fixtures/electronApp.js';
 import { createCollectionViaIpc } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
 import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import {
   recordedCoreCalls,
   stubCoreHang,
@@ -379,9 +380,7 @@ test.describe('Projects', () => {
         "Can't reach the Git repository"
       )
     ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(
       mainWindow.getByText("Desktop can't read your Projects.")
     ).toBeHidden();
@@ -433,9 +432,7 @@ test.describe('Projects', () => {
         "Can't read the Releases"
       )
     ).toBeVisible({ timeout: 20000 });
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
     await expect(
       mainWindow.getByText("Desktop can't read your Projects.")
     ).toBeHidden();
@@ -712,9 +709,7 @@ test.describe('Projects', () => {
         'The Git repository refused access, so ask whoever set it up.'
       )
     ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
 
     // The Project is here, so every way out of the dialog opens it, Escape
     // included: the form behind it would otherwise make a second Project out of
@@ -1326,9 +1321,7 @@ test.describe('Projects', () => {
     await navigate(mainWindow, '#/projects');
     await downloadProject(mainWindow, remote.url);
 
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     await expect(
       mainWindow.getByText('This repository holds no Project')
     ).toBeHidden();
@@ -1426,9 +1419,7 @@ test.describe('Projects', () => {
 
     // The failure propagates: the root error boundary replaces the view and the
     // confirm is not left standing in front of it.
-    await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
     await expect(mainWindow.getByRole('alertdialog')).toBeHidden();
   });
 });

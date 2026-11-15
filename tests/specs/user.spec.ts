@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 import { test as cloudTest } from '../fixtures/cloudStub.js';
 import { test as appTest } from '../fixtures/electronApp.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import {
   recordedCoreCalls,
   stubCoreRecord,
@@ -203,9 +204,7 @@ appTest.describe('The first start', () => {
       await stubCoreRejectWithType(electronApp, 'core:user:get', 'Internal');
       await mainWindow.reload();
 
-      await expect(
-        mainWindow.getByRole('heading', { name: 'Error' })
-      ).toBeVisible();
+      await expect(errorScreenTitle(mainWindow)).toBeVisible();
       await expect(
         mainWindow.getByRole('heading', { name: 'Welcome to elek.io Desktop' })
       ).toBeHidden();
@@ -225,9 +224,7 @@ appTest.describe('The first start', () => {
         .fill('ada@elek.io');
       await mainWindow.getByRole('button', { name: 'Continue' }).click();
 
-      await expect(
-        mainWindow.getByRole('heading', { name: 'Error' })
-      ).toBeVisible();
+      await expect(errorScreenTitle(mainWindow)).toBeVisible();
     }
   );
 });

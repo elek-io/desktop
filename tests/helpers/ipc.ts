@@ -69,16 +69,23 @@ export async function stubCoreReject(
  * every `CoreError` with one and the renderer logs whatever arrives. Without it
  * a spec that reads the log record could not tell a stack the app dropped from
  * one that was never sent.
+ *
+ * `text` replaces both, for a spec about what the app does with what Core
+ * wrote: a message or a stack frame can carry the address of a Git repository
+ * with its token, an email address or a folder of this computer, and no git
+ * repository a spec can arrange raises all of them at once.
  */
 function injectedCoreErrorMessage(
   type: CoreErrorType,
   cause?: unknown,
-  reason?: string
+  reason?: string,
+  text?: { message: string; stack: string }
 ): string {
   return serializeCoreError(
     type,
-    `E2E injected ${type} failure`,
-    `CoreError: E2E injected ${type} failure\n    at injectedCoreErrorMessage (tests/helpers/ipc.ts)`,
+    text?.message ?? `E2E injected ${type} failure`,
+    text?.stack ??
+      `CoreError: E2E injected ${type} failure\n    at injectedCoreErrorMessage (tests/helpers/ipc.ts)`,
     cause,
     reason
   );
@@ -109,6 +116,10 @@ function injectedCoreErrorMessage(
  * so a value a newer Core would name can be driven too, which is what a build
  * with no sentence for it has to fall back from.
  *
+ * Pass `text` to drive the message and the stack Core raised it with, which is
+ * what a spec about the error screen's own text needs, see
+ * `injectedCoreErrorMessage`.
+ *
  * Mirrors `stubCoreReject`, including why it has to run in the main process.
  * The one difference is the message, see `injectedCoreErrorMessage`.
  */
@@ -116,9 +127,14 @@ export async function stubCoreRejectWithType(
   electronApp: ElectronApplication,
   channel: string,
   type: CoreErrorType,
-  options: { delayMs?: number; cause?: unknown; reason?: string } = {}
+  options: {
+    delayMs?: number;
+    cause?: unknown;
+    reason?: string;
+    text?: { message: string; stack: string };
+  } = {}
 ): Promise<void> {
-  const { delayMs = 0, cause, reason } = options;
+  const { delayMs = 0, cause, reason, text } = options;
 
   await electronApp.evaluate(
     ({ ipcMain }, stub) => {
@@ -130,7 +146,11 @@ export async function stubCoreRejectWithType(
         throw new Error(stub.message);
       });
     },
-    { channel, delayMs, message: injectedCoreErrorMessage(type, cause, reason) }
+    {
+      channel,
+      delayMs,
+      message: injectedCoreErrorMessage(type, cause, reason, text),
+    }
   );
 }
 
