@@ -14,7 +14,7 @@ elek.io Core now names what it refused a synchronization for, so the sync dialog
 
 Every cause elek.io Core has a value for gets a sentence of its own, fourteen of them, so a sync stopped by something rarer says so too: a Git host that cannot take all of the changes in one go, a Project whose files were changed outside elek.io Desktop, or a copy of a Project made for building a site.
 
-A refusal elek.io Core names no cause for says the one thing that is true whatever stopped it, that nothing was synced and your changes stay on this computer, and names no cause at all. So does a sync stopped by something a newer elek.io Core added, instead of a sentence about the wrong cause.
+A refusal elek.io Core names no cause for says the one thing that is true whatever stopped it and the one step left to take: "Nothing was synced, and your changes stay on this computer. Try again, and ask whoever set up this Project if it keeps failing." It names no cause at all, and nor does a sync stopped by something a newer elek.io Core added, instead of a sentence about the wrong cause.
 
 What you read is still only that sentence. The name elek.io Core uses for a cause is for code to read, so it never reaches the screen, and neither does the message elek.io Core or Git wrote, which can carry the password in a Git repository's address.
 

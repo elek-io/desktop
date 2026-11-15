@@ -137,9 +137,15 @@ const SYNC_CAUSE_SENTENCES = {
     "elek.io Cloud could not reach this Project's Git host. Try again later.",
 } satisfies Record<CoreErrorReason, string>;
 
-/** What the dialog says about a sync whatever stopped it. */
+/** The line the dialog closes a cause's own sentence with. */
 const NOTHING_SYNCED =
   'Nothing was synced, and your changes stay on this computer.';
+
+/**
+ * What the dialog leads with instead where it has no sentence for the cause:
+ * the same fact, and the only next step left.
+ */
+const NOTHING_SYNCED_TRY_AGAIN = `${NOTHING_SYNCED} Try again, and ask whoever set up this Project if it keeps failing.`;
 
 /**
  * A Project pointed at a reachable bare origin with one local commit on top,
@@ -1069,7 +1075,7 @@ test.describe('Sync', () => {
     }
   });
 
-  test('says only that nothing was synced where it has no sentence for the cause', async ({
+  test('says that nothing was synced and to try again where it has no sentence for the cause', async ({
     mainWindow,
     electronApp,
   }, testInfo) => {
@@ -1087,7 +1093,8 @@ test.describe('Sync', () => {
     // here, a name that is an inherited key of any object, which must answer
     // nothing rather than something of `Object.prototype`, and a refusal that
     // names no cause at all. Each leaves the one thing that is true whatever
-    // stopped it, and it is said once rather than twice.
+    // stopped it and the one next step left, and it is said once rather than
+    // twice.
     const refusals: { reason?: string }[] = [
       { reason: 'a_cause_from_a_newer_core' },
       { reason: 'toString' },
@@ -1104,7 +1111,12 @@ test.describe('Sync', () => {
 
       await synchronize.click();
 
-      await expect(syncDialogSentence(mainWindow)).toHaveText(NOTHING_SYNCED);
+      // The whole description, so what the dialog leads with is that fact and
+      // the next step and nothing else, and the line it closes the others with
+      // stands once rather than twice.
+      await expect(syncDialogSentence(mainWindow)).toHaveText(
+        NOTHING_SYNCED_TRY_AGAIN
+      );
       await expect(dialog.getByText(NOTHING_SYNCED)).toHaveCount(1);
       // No cause named, neither in words nor by the value Core sent.
       if (refusal.reason !== undefined) {

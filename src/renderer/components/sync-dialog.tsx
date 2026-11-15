@@ -42,9 +42,9 @@ import {
  * inside it, and one line says that nothing was synced, which holds because
  * Core pushes nothing until every step before it went through.
  *
- * A refusal Core named no cause for leads with that line instead, since there
- * is nothing else true to say about it, and then it stands once rather than
- * twice.
+ * A refusal Core named no cause for leads with that same fact instead, since
+ * there is nothing else true to say about what stopped it, and with the one
+ * next step left. It stands once then rather than twice.
  *
  * It never shows Core's error type, the cause's own name, Core's own message or
  * what git wrote, since a Git repository's address can carry a credential, see
@@ -63,7 +63,7 @@ export function SyncDialog({
   const { text, saysNothingWasSynced } = syncRefusalSentence(error);
   const references = syncConflictReferencesOf(error);
   // Nothing to put below the sentence where Core named no Entry and the
-  // sentence is already the one that closes the others.
+  // sentence already says what the line below the others says.
   const hasBody = references.length > 0 || saysNothingWasSynced === false;
 
   return (

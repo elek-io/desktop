@@ -51,18 +51,32 @@ export type SyncRefusalType = (typeof SYNC_REFUSAL_TYPES)[number];
  * That nothing left this computer, which holds for every refusal: Core pushes
  * nothing until every step before it went through.
  *
- * The dialog says it once. It closes a refusal that names its cause, and leads
- * one that names none, which is all there is to say about a refusal Desktop
- * cannot name.
+ * The line that closes the dialog below the cause's own sentence, in ci's
+ * words for it.
  */
 export const NOTHING_SYNCED = msg`Nothing was synced, and your changes stay on this computer.`;
 
 /**
+ * What a refusal Desktop cannot name says instead.
+ *
+ * The same fact, since it is the only one that holds whatever stopped the
+ * sync, and then the only next step left: syncing again, and whoever set the
+ * Project up where that keeps failing. ci asks every message to say what
+ * stopped the action and what the person does next, so the sentence that can
+ * name no cause carries a next step too, and names none itself.
+ *
+ * The dialog leads with it and leaves the line above out, so what it says
+ * about the changes stands once rather than twice.
+ */
+export const NOTHING_SYNCED_TRY_AGAIN = msg`Nothing was synced, and your changes stay on this computer. Try again, and ask whoever set up this Project if it keeps failing.`;
+
+/**
  * Why a synchronization stopped, for a refusal that names no cause, per type.
  *
- * Each sentence names what stopped the sync and what to do next, and none of
- * them says that nothing was synced, which the dialog says once below the
- * Entries it lists.
+ * Each sentence names what stopped the sync and what to do next. The three
+ * that name something leave out that nothing was synced, which the dialog says
+ * once below the Entries it lists, and the one that can name nothing is that
+ * fact itself, which is the slot below.
  *
  * The types are Core's, read off its
  * [git-and-sync doc](../../../node_modules/@elek-io/core/docs/git-and-sync.md#errors-during-git-operations):
@@ -71,12 +85,12 @@ export const NOTHING_SYNCED = msg`Nothing was synced, and your changes stay on t
  * repository nothing can reach, raises `Internal`. A `PreconditionFailed` is
  * the one type Core refuses with a cause, so the sentence per cause below
  * answers it, and the type's own slot is what a refusal that names none is left
- * with: nothing but that nothing was synced, since every cause the type stands
- * for would be a guess.
+ * with: that nothing was synced and to try again, since every cause the type
+ * stands for would be a guess.
  */
 export const SYNC_REFUSALS: Record<SyncRefusalType, MessageDescriptor> = {
   Conflict: msg`Each field below points at an Entry or an Asset that no longer exists, because it was deleted here or on another computer. Open each Entry, choose something else or empty the field, then sync again.`,
-  PreconditionFailed: NOTHING_SYNCED,
+  PreconditionFailed: NOTHING_SYNCED_TRY_AGAIN,
   Unauthorized: msg`The Git repository refused access, so ask whoever set up this Project.`,
   Internal: msg`The Git repository could not be reached, so check your connection and try again.`,
 };
@@ -144,16 +158,16 @@ export interface SyncRefusalSentence {
   /** What stopped the sync and what to do next, in the words of the catalog. */
   text: string;
   /**
-   * Whether that sentence is already the one saying nothing was synced, which
-   * is what a refusal naming no cause leads with, so the dialog does not say
-   * it twice.
+   * Whether that sentence already says that nothing was synced, which is what
+   * a refusal naming no cause leads with, so the dialog does not say it twice.
    */
   saysNothingWasSynced: boolean;
 }
 
 /**
  * What a refused synchronization says: the cause Core named, or, where it named
- * none and for a cause this build has no sentence for, that nothing was synced.
+ * none and for a cause this build has no sentence for, that nothing was synced
+ * and to try again.
  *
  * The cause is looked up rather than taken as a key, so a value a newer Core
  * names falls back the same way a refusal without one does, which is the one
@@ -164,11 +178,11 @@ export function syncRefusalSentence(error: unknown): SyncRefusalSentence {
   const cause =
     reason === undefined ? undefined : SENTENCE_BY_CAUSE.get(reason);
   const message =
-    cause ?? coreErrorMessage(type, SYNC_REFUSALS, NOTHING_SYNCED);
+    cause ?? coreErrorMessage(type, SYNC_REFUSALS, NOTHING_SYNCED_TRY_AGAIN);
 
   return {
     text: i18n._(message),
-    saysNothingWasSynced: message === NOTHING_SYNCED,
+    saysNothingWasSynced: message === NOTHING_SYNCED_TRY_AGAIN,
   };
 }
 

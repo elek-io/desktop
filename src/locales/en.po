@@ -1836,6 +1836,10 @@ msgstr "Nothing was saved, and this Component is exactly as it was. Your Field c
 msgid "Nothing was synced, and your changes stay on this computer."
 msgstr "Nothing was synced, and your changes stay on this computer."
 
+#: src/renderer/lib/sync.ts
+msgid "Nothing was synced, and your changes stay on this computer. Try again, and ask whoever set up this Project if it keeps failing."
+msgstr "Nothing was synced, and your changes stay on this computer. Try again, and ask whoever set up this Project if it keeps failing."
+
 #: src/renderer/components/fields/select/definition.tsx
 msgid "Number"
 msgstr "Number"
