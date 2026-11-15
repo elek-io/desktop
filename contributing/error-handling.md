@@ -296,7 +296,7 @@ There is one sink. `window.ipc.core.logger.*` sends over the `core:logger:*` IPC
 | Every route navigation                   | `router.subscribe('onBeforeLoad')` in [`renderer/index.ts`](/src/renderer/index.ts)  | info: "Desktop navigating from ... to ..."               |
 | A mutation succeeds                      | `customMutationOptions` onSuccess ([`util.ts`](/src/renderer/queries/util.ts))       | info: "Successfully ran ... on ..." plus a success toast |
 | A mutation fails (not handled in place)  | `customMutationOptions` onError                                                      | error: "Failed to run ... on ..." plus an error toast    |
-| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx), its cause behind Details, masked | error: "Uncaught route error: {decoded message}"         |
+| An error reaches the root boundary       | `ErrorComponent` in [`__root.tsx`](/src/renderer/routes/__root.tsx)                  | error: "Uncaught route error: {decoded message}"         |
 | A read fails inside a pane               | `PaneReadFailed` in [`pane.tsx`](/src/renderer/components/pane.tsx)                  | error: "Uncaught pane error: {decoded message}"          |
 | A React error not caught by any boundary | `onUncaughtError` in [`app.tsx`](/src/renderer/app.tsx)                              | error: "Uncaught React error"                            |
 | A React error caught by a boundary       | `onCaughtError` in [`app.tsx`](/src/renderer/app.tsx)                                | error: "React error caught by a boundary"                |
@@ -408,17 +408,17 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 
 ## Quick reference
 
-| Scenario                                  | UI surface                                    | Local log                                                             |
-| ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
-| A read fails inside a pane                | One sentence and Try again, in the pane       | Pane error log plus the `onCaughtError` log                           |
-| A read fails above every pane             | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
-| A Project card's check of the remote      | A state line in the card, Sync as the retry   | `Project card check error` log                                        |
-| A Project card's read of the Releases     | A state line where the last Release stands    | `Project card Releases error` log                                     |
-| Unexpected mutation error                 | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
-| Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page | None by default                                                       |
-| Handled `type` whose cause names no field | Root error boundary                           | Boundary error log plus the `onCaughtError` log                       |
-| Unhandled `type` on an in-place mutation  | Root error boundary                           | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
-| Report send fails (unreachable, rejected) | Alert inside the dialog                       | One error log from `useSendReport`, without what the user wrote       |
-| Route not found                           | `NotFoundComponent`                           | None                                                                  |
-| Main process security block               | Denied, no window                             | Core logger error                                                     |
-| App init failure                          | Native error box with none of the error, then the app exits | console.error, plus a Core logger error when Core exists |
+| Scenario                                  | UI surface                                                  | Local log                                                             |
+| ----------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| A read fails inside a pane                | One sentence and Try again, in the pane                     | Pane error log plus the `onCaughtError` log                           |
+| A read fails above every pane             | Root error boundary                                         | Boundary error log plus the `onCaughtError` log                       |
+| A Project card's check of the remote      | A state line in the card, Sync as the retry                 | `Project card check error` log                                        |
+| A Project card's read of the Releases     | A state line where the last Release stands                  | `Project card Releases error` log                                     |
+| Unexpected mutation error                 | Root error boundary                                         | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
+| Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page               | None by default                                                       |
+| Handled `type` whose cause names no field | Root error boundary                                         | Boundary error log plus the `onCaughtError` log                       |
+| Unhandled `type` on an in-place mutation  | Root error boundary                                         | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
+| Report send fails (unreachable, rejected) | Alert inside the dialog                                     | One error log from `useSendReport`, without what the user wrote       |
+| Route not found                           | `NotFoundComponent`                                         | None                                                                  |
+| Main process security block               | Denied, no window                                           | Core logger error                                                     |
+| App init failure                          | Native error box with none of the error, then the app exits | console.error, plus a Core logger error when Core exists              |
