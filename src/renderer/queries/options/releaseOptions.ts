@@ -8,6 +8,7 @@ import type {
   CoreErrorType,
   ListReleasesProps,
   Project,
+  ReleaseChangesProps,
   ReleaseDiff,
 } from '@elek-io/core';
 
@@ -43,6 +44,32 @@ export const releaseOptions = {
       queryKey: ['projects', props.projectId, 'current', 'releases', 'list'],
       queryFn: async () => {
         return await window.ipc.core.releases.list(props);
+      },
+      throwOnError: true,
+    }),
+
+  /**
+   * What one Release of this Project changed, in the shape a pending Release
+   * is read in, so one component draws a past Release and the next one.
+   *
+   * A failed read belongs to the pane it happened in, which is why
+   * `throwOnError` is on: a tag that is no Release of the Project and a copy
+   * whose history does not hold what the Release compared against are the two
+   * Core refuses with, and neither is something to act on inside the screen,
+   * see contributing/error-handling.md.
+   */
+  changes: (props: ReleaseChangesProps) =>
+    queryOptions({
+      queryKey: [
+        'projects',
+        props.projectId,
+        'current',
+        'releases',
+        'changes',
+        props.tagId,
+      ],
+      queryFn: async () => {
+        return await window.ipc.core.releases.changes(props);
       },
       throwOnError: true,
     }),

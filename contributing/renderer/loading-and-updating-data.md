@@ -53,8 +53,10 @@ Query keys follow a consistent hierarchy so individual items, lists and historic
   'history',
 ];
 
-// the Releases of a project, and what a Release would publish right now
+// the Releases of a project, what one of them changed, and what a Release
+// would publish right now
 ['projects', projectId, 'current', 'releases', 'list'];
+['projects', projectId, 'current', 'releases', 'changes', tagId];
 ['projects', projectId, 'current', 'releases', 'pending'];
 
 // the Assets of a project, and how many there are

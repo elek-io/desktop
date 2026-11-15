@@ -103,6 +103,8 @@ const ipc: ContextBridgeApi = {
     releases: {
       list: async (...args) =>
         ipcRenderer.invoke('core:releases:list', ...args),
+      changes: async (...args) =>
+        ipcRenderer.invoke('core:releases:changes', ...args),
       prepare: async (...args) =>
         ipcRenderer.invoke('core:releases:prepare', ...args),
       create: async (...args) =>

@@ -816,6 +816,7 @@ class Main {
       ),
       'core:projects:delete': core.projects.delete.bind(core.projects),
       'core:releases:list': core.releases.list.bind(core.releases),
+      'core:releases:changes': core.releases.changes.bind(core.releases),
       'core:releases:prepare': core.releases.prepare.bind(core.releases),
       'core:releases:create': core.releases.create.bind(core.releases),
       'core:assets:count': core.assets.count.bind(core.assets),

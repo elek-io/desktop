@@ -50,8 +50,8 @@ enforces before sending.
 ## Preview Releases
 
 A full Release works end to end. The Releases page, the Release dialog, the IPC
-channels `core:releases:list`, `core:releases:prepare` and
-`core:releases:create` and
+channels `core:releases:list`, `core:releases:changes`, `core:releases:prepare`
+and `core:releases:create` and
 [`tests/specs/releases.spec.ts`](../tests/specs/releases.spec.ts) cut one
 through the UI against a local bare remote. A preview Release does not.
 

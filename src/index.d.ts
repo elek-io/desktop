@@ -87,6 +87,7 @@ declare global {
       };
       releases: {
         list: ElekIoCore['releases']['list'];
+        changes: ElekIoCore['releases']['changes'];
         prepare: ElekIoCore['releases']['prepare'];
         create: ElekIoCore['releases']['create'];
       };
