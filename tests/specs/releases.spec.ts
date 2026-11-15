@@ -1,13 +1,25 @@
-import { expect } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+import { format } from 'date-fns';
 import { renameSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { colors } from '@elek-io/branding';
+import { uuid } from '@elek-io/core';
 
 import { test, testDataDirs } from '../fixtures/electronApp.js';
 import { expectNoAxeViolations } from '../helpers/accessibility.js';
 import {
+  createAssetViaIpc,
+  deleteAssetViaIpc,
+  makeTempFile,
+  pngBytes,
+  updateAssetViaIpc,
+} from '../helpers/asset.js';
+import {
   createCollectionViaIpc,
   deleteCollectionViaIpc,
 } from '../helpers/collection.js';
+import { parseColor, toBytes } from '../helpers/color.js';
 import { dismissDialog } from '../helpers/dialog.js';
 import {
   createEntryViaIpc,
@@ -22,6 +34,7 @@ import {
   stubCoreResolve,
 } from '../helpers/ipc.js';
 import {
+  mainPanel,
   projectCard,
   projectSidebar,
   verifyCurrentRouteHash,
@@ -30,13 +43,17 @@ import {
   createProjectViaIpc,
   navigateToHistory,
   navigateToProjectDashboard,
+  projectHistoryViaIpc,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
 import {
+  createReleaseViaIpc,
   expectReleaseCreated,
   listReleasesViaIpc,
+  navigateToRelease,
   navigateToReleases,
   openReleaseDialog,
+  releaseRow,
   tagPreviewRelease,
 } from '../helpers/release.js';
 import {
@@ -50,7 +67,14 @@ import {
   remoteTags,
   setupRemote,
 } from '../helpers/remote.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  waitForLayout,
+  windowSize,
+} from '../helpers/window.js';
 
 /** The version `projects.create` writes, which the first Release moves up from. */
 const CREATED_VERSION = '0.0.1';
@@ -61,6 +85,142 @@ function projectPath(
   projectId: string
 ): ReturnType<typeof join> {
   return join(dataDir, 'projects', projectId);
+}
+
+/**
+ * Each row of what a Release changed, as its label and its count read.
+ *
+ * Scoped to what holds the summary, because the Releases screen and the
+ * dialog over it can both draw one.
+ */
+async function changeCountsOf(scope: Locator): Promise<string[][]> {
+  return scope
+    .locator('[data-slot="release-changes"] li')
+    .evaluateAll((rows) =>
+      rows.map((row) => [
+        row
+          .querySelector('[data-slot="release-change-label"]')
+          ?.textContent?.trim() ?? '',
+        row
+          .querySelector('[data-slot="release-change-count"]')
+          ?.textContent?.trim() ?? '',
+      ])
+    );
+}
+
+/** Each row of the list of Releases, as its three parts read, newest first. */
+async function releaseRowsOf(page: Page): Promise<string[][]> {
+  return page
+    .locator('[data-slot="release-row"]')
+    .evaluateAll((rows) =>
+      rows.map((row) => [
+        row
+          .querySelector('[data-slot="release-version"]')
+          ?.textContent?.trim() ?? '',
+        row
+          .querySelector('[data-slot="release-published"]')
+          ?.textContent?.trim() ?? '',
+        row.querySelector('[data-slot="badge"]')?.textContent?.trim() ?? '',
+      ])
+    );
+}
+
+/** The fill of one row's marker, as bytes a token compares to. */
+async function markerFillOf(
+  page: Page,
+  version: string
+): Promise<[number, number, number]> {
+  return toBytes(
+    parseColor(
+      await releaseRow(page, version)
+        .locator('span[aria-hidden="true"]')
+        .first()
+        .evaluate((node) => getComputedStyle(node).backgroundColor)
+    )
+  );
+}
+
+/**
+ * One of ci's colors, read from the brand package rather than copied here, so
+ * the assertion follows the token. Light mode, which the caller sets.
+ */
+function brandColor(
+  token: 'brand' | 'muted-foreground'
+): [number, number, number] {
+  return toBytes(parseColor(colors.light[token].oklch));
+}
+
+/**
+ * How many changes of an Entry or an Asset the Project's History holds since
+ * the Release `tagId` addresses.
+ *
+ * Read off Core's own History rather than off the History screen, because what
+ * the counts have to agree with is the changes since the last Release, and the
+ * History is newest first with the Release's own commit among them.
+ */
+async function entryAndAssetChangesSince(
+  page: Page,
+  projectId: string,
+  tagId: string
+): Promise<number> {
+  const history = await projectHistoryViaIpc(page, { id: projectId });
+  const release = history.fullHistory.findIndex(
+    (commit) => commit.tag?.id === tagId
+  );
+
+  if (release === -1) {
+    throw new Error(`The History holds no commit tagged ${tagId}`);
+  }
+
+  return history.fullHistory
+    .slice(0, release)
+    .filter((commit) =>
+      ['entry', 'asset'].includes(commit.message.reference.objectType)
+    ).length;
+}
+
+/**
+ * Where each pane of the screen stands inside the panel that holds them, and
+ * anything inside one that is laid out wider than its own box.
+ *
+ * A pane reaching past the panel is a collision, a width of zero is a pane
+ * with no room, and content wider than its box with nothing to scroll it is a
+ * clip. Each is what the smallest window the app supports is measured for.
+ */
+async function panesOfThePanel(page: Page): Promise<{
+  panel: { left: number; right: number };
+  panes: { left: number; right: number; width: number }[];
+  overflowing: { slot: string | null; over: number }[];
+}> {
+  return page.evaluate(() => {
+    const panel = document.querySelector('[data-slot="panel"]');
+    const panes = Array.from(
+      document.querySelectorAll('[data-slot="panel"] [data-slot="pane"]')
+    );
+    if (panel === null || panes.length === 0) {
+      throw new Error('The panel draws no panes');
+    }
+    const box = panel.getBoundingClientRect();
+    return {
+      panel: { left: box.left, right: box.right },
+      panes: panes.map((pane) => {
+        const rect = pane.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width };
+      }),
+      overflowing: Array.from(
+        document.querySelectorAll('[data-slot="panel"] *')
+      )
+        .filter(
+          (element) =>
+            element.scrollWidth - element.clientWidth > 1 &&
+            getComputedStyle(element).overflowX === 'visible'
+        )
+        .map((element) => ({
+          slot: element.getAttribute('data-slot'),
+          over: element.scrollWidth - element.clientWidth,
+        })),
+    };
+  });
 }
 
 test.describe('Releases', () => {
@@ -90,13 +250,17 @@ test.describe('Releases', () => {
     );
 
     // Nothing has been published yet, so the page shows its empty state and
-    // carries the action there rather than in the header.
+    // carries Create Release there rather than at the head of a list that has
+    // no rows.
     await expect(mainWindow.getByText('No Releases yet')).toBeVisible();
 
-    const releaseButton = mainWindow.getByRole('button', {
-      name: 'Release',
+    // Scoped to the panel, because the dialog it opens carries a button of the
+    // same name and is portaled outside the panel.
+    const releaseButton = mainPanel(mainWindow).getByRole('button', {
+      name: 'Create Release',
       exact: true,
     });
+    await expect(releaseButton).toBeVisible();
     await openReleaseDialog(mainWindow);
     const dialog = mainWindow.getByRole('dialog');
 
@@ -107,21 +271,18 @@ test.describe('Releases', () => {
     // and its one primary button names the act rather than agreeing with it.
     await expect(dialog.getByText('It cannot be undone.')).toBeVisible();
 
-    // The old and the new version, the bump as a badge carrying its word, the
-    // reason in one sentence, and the changes in words.
+    // The old and the new version, the bump as a badge carrying its word, and
+    // the reason in one sentence, which opens on what sets the version.
+    await expect(dialog.getByText('Version', { exact: true })).toBeVisible();
     await expect(
-      dialog.getByText(`Version ${CREATED_VERSION} becomes`)
+      dialog.getByText(`${CREATED_VERSION} becomes 0.1.0`)
     ).toBeVisible();
     await expect(dialog.getByText('0.1.0', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Minor', { exact: true })).toBeVisible();
     await expect(
       dialog.getByText(
-        'This is a minor Release, because a Collection was added.',
-        { exact: true }
+        'Desktop sets the version from what changed. This is a minor Release, because a Collection was added.'
       )
-    ).toBeVisible();
-    await expect(
-      dialog.getByText('A Collection was added', { exact: true })
     ).toBeVisible();
 
     // Every control in the dialog has an accessible name, which is also what
@@ -146,12 +307,7 @@ test.describe('Releases', () => {
     await expect(
       projectSidebar(mainWindow).getByRole('link', { name: /^Releases\s*1$/ })
     ).toBeVisible();
-    await expect(
-      mainWindow
-        .getByRole('main')
-        .getByRole('listitem')
-        .filter({ hasText: '0.1.0' })
-    ).toBeVisible();
+    await expect(releaseRow(mainWindow, '0.1.0')).toBeVisible();
     // The Project card names the Release it is now at, so the version Core
     // wrote shows beside the Project rather than only in the list.
     await expect(
@@ -169,7 +325,182 @@ test.describe('Releases', () => {
     await expect(mainWindow.getByText('release project').first()).toBeVisible();
   });
 
-  test('names an added, a removed and a changed object in the diff', async ({
+  test('counts the Entries and Assets it would publish, one row per kind, and they agree with the History since the last Release', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const doomedEntry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Goes away' }) },
+    });
+    const keptEntry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Stays' }) },
+    });
+    const renamedAsset = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+      name: 'Showroom',
+    });
+    const doomedAsset = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'goes-away.png', pngBytes),
+      name: 'Goes away',
+    });
+
+    // A first Release, so the second one has a released state to diff against.
+    // Everything created and removed inside one draft nets to no change, which
+    // is why a removal needs a Release behind it.
+    await createReleaseViaIpc(mainWindow, { projectId: project.id });
+    const [firstRelease] = (
+      await listReleasesViaIpc(mainWindow, { projectId: project.id })
+    ).list;
+    expect(firstRelease?.version).toBe('0.1.0');
+
+    // One change of every kind Core reports for an Entry and an Asset since
+    // that Release. An Asset whose name changed is the one kind that is not a
+    // replaced file, and both land in the same row.
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Arrives' }) },
+    });
+    await updateEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: keptEntry.id,
+      values: { title: stringValue({ en: 'Stays, with another title' }) },
+    });
+    await deleteEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: doomedEntry.id,
+    });
+    await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'arrives.png', pngBytes),
+      name: 'Arrives',
+    });
+    await updateAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      id: renamedAsset.id,
+      name: 'Showroom at night',
+      description: renamedAsset.description,
+    });
+    await deleteAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      id: doomedAsset.id,
+      extension: doomedAsset.extension,
+    });
+
+    await navigateToReleases(mainWindow, project.id);
+    await openReleaseDialog(mainWindow);
+    const dialog = mainWindow.getByRole('dialog');
+
+    // One row per kind that has any, each with its count, as Core reports
+    // them. Nothing else, so a kind nothing happened to says nothing.
+    expect(await changeCountsOf(dialog)).toEqual([
+      ['Entries added', '1'],
+      ['Entries changed', '1'],
+      ['Entries deleted', '1'],
+      ['Assets added', '1'],
+      ['Assets changed', '1'],
+      ['Assets deleted', '1'],
+    ]);
+
+    // And they are the changes the Project's History holds since that Release,
+    // which is what ci's rule for the rows asks of them. Each object here
+    // changed once since the Release, so the two counts are the same number.
+    const since = await entryAndAssetChangesSince(
+      mainWindow,
+      project.id,
+      firstRelease?.tagId ?? ''
+    );
+    expect(since).toBe(6);
+
+    // A removed Entry breaks what a site reads, so the Release is major and the
+    // badge says so in words rather than by its color alone.
+    await expect(dialog.getByText('Major', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('0.1.0 becomes 1.0.0')).toBeVisible();
+    await expect(dialog.getByText('1.0.0', { exact: true })).toBeVisible();
+  });
+
+  test('lists each Release newest first with its date, who released it and its bump, and marks the latest', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow, { name: 'Mara Klein' });
+    await setTheme(mainWindow, 'light');
+    const project = await createProjectViaIpc(mainWindow);
+
+    // Two Releases of different bumps: a Collection added is minor, and the
+    // same Collection removed again breaks what a site reads, so it is major.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await createReleaseViaIpc(mainWindow, { projectId: project.id });
+    await deleteCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    // Core sorts the Releases by the date of the commit each tag points at,
+    // and git writes that date in whole seconds, so two Releases made inside
+    // one second carry the same date and nothing but git's own tie-break
+    // orders them. The wait is what makes the newer one newer.
+    await mainWindow.waitForTimeout(1100);
+    await createReleaseViaIpc(mainWindow, { projectId: project.id });
+
+    await navigateToReleases(mainWindow, project.id);
+    const { list } = await listReleasesViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const [latest, before] = list;
+    if (latest === undefined || before === undefined) {
+      throw new Error('The Project holds fewer than two Releases');
+    }
+
+    // Newest first, in the order Core answers with, each row with its version,
+    // the day it went out in the User's own locale, who released it and its
+    // bump as a badge.
+    expect(list.map((release) => release.version)).toEqual(['1.0.0', '0.1.0']);
+    expect(await releaseRowsOf(mainWindow)).toEqual([
+      [
+        '1.0.0',
+        `${format(new Date(latest.datetime), 'PP')}, Mara Klein`,
+        'Major',
+      ],
+      [
+        '0.1.0',
+        `${format(new Date(before.datetime), 'PP')}, Mara Klein`,
+        'Minor',
+      ],
+    ]);
+
+    // The latest Release is the list's one highlight, so it carries the brand
+    // marker and every other row the gray one.
+    expect(await markerFillOf(mainWindow, '1.0.0')).toEqual(
+      brandColor('brand')
+    );
+    expect(await markerFillOf(mainWindow, '0.1.0')).toEqual(
+      brandColor('muted-foreground')
+    );
+
+    // Create Release heads the list, which is where the screen's one primary
+    // button stands once there is something in it.
+    await expect(
+      mainPanel(mainWindow).getByRole('button', {
+        name: 'Create Release',
+        exact: true,
+      })
+    ).toBeVisible();
+  });
+
+  test('shows what the chosen Release changed, and opens it in the History', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -177,66 +508,206 @@ test.describe('Releases', () => {
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
     });
-    const doomed = await createEntryViaIpc(mainWindow, {
+    await createReleaseViaIpc(mainWindow, { projectId: project.id });
+    await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
-      values: { title: stringValue({ en: 'Goes away' }) },
+      values: { title: stringValue({ en: 'Arrives' }) },
     });
-    const kept = await createEntryViaIpc(mainWindow, {
-      projectId: project.id,
-      collectionId: collection.id,
-      values: { title: stringValue({ en: 'Stays' }) },
-    });
+    await createReleaseViaIpc(mainWindow, { projectId: project.id });
 
-    // A first Release, so the second one has a released state to diff against.
-    // Everything created and removed inside one draft nets to no change, which
-    // is why a removal needs a Release behind it.
+    // Nothing is chosen until a row is, and the list beside it holds both ways
+    // on, so the pane says so in plain words rather than repeating either.
     await navigateToReleases(mainWindow, project.id);
-    await openReleaseDialog(mainWindow);
-    await mainWindow
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Create Release' })
-      .click();
-    await expectReleaseCreated(mainWindow, '0.1.0');
+    await expect(mainWindow.getByText('No Release chosen')).toBeVisible();
 
-    // One of each kind since that Release. A Collection's slugs are unique in
-    // its Project, so the second one brings its own.
+    const chosen = releaseRow(mainWindow, '0.2.0');
+    await chosen.click();
+
+    // The row says it is the current one, rather than marking it by its
+    // surface alone.
+    await expect(chosen).toHaveAttribute('aria-current', 'page');
+
+    // What it is, who published it and when, then the version it moved to and
+    // what it changed.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Release 0.2.0' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText('The whole Project. You released it on')
+    ).toBeVisible();
+    await expect(mainWindow.getByText('0.1.0 becomes 0.2.0')).toBeVisible();
+    await expect(
+      mainWindow.getByRole('main').getByText('Minor', { exact: true })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText(
+        'This is a minor Release, because an Entry was added.'
+      )
+    ).toBeVisible();
+    expect(await changeCountsOf(mainPanel(mainWindow))).toEqual([
+      ['Entries added', '1'],
+    ]);
+
+    // What sets the version is the dialog's own sentence, about a Release that
+    // is about to be made rather than one that was.
+    await expect(
+      mainWindow.getByText('Desktop sets the version from what changed.')
+    ).toBeHidden();
+
+    // The way into the History, where the Release stands among the changes it
+    // published. The commit it points at is the Release's own, so the History
+    // opens on it rather than on its list.
+    await mainWindow.getByRole('link', { name: 'Open in History' }).click();
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.startsWith(`#/projects/${project.id}/history/`)
+    );
+    await expect(
+      mainWindow.getByRole('main').getByText('Release 0.2.0')
+    ).toBeVisible();
+  });
+
+  test('names the person Core says published the Release, not the one at this computer', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow, { name: 'Test User' });
+    const project = await createProjectViaIpc(mainWindow);
+
+    // Who published a Release and what it changed are Core's answers, read off
+    // the Release's own git tag, so neither can be arranged from this computer:
+    // every Release made here carries the User as its author. Both answers are
+    // stubbed to say somebody else, which is what shows the screen reads them
+    // rather than working them out.
+    const tagId = uuid();
+    await stubCoreResolve(electronApp, 'core:releases:list', {
+      total: 1,
+      list: [
+        {
+          tagId,
+          type: 'release',
+          version: '1.4.0',
+          datetime: '2026-09-28T14:02:00.000Z',
+          author: { name: 'Mara Klein', email: 'mara@example.com' },
+          bump: 'minor',
+        },
+      ],
+    });
+    await stubCoreResolve(electronApp, 'core:releases:changes', {
+      project,
+      bump: 'minor',
+      currentVersion: '1.3.2',
+      nextVersion: '1.4.0',
+      projectChanges: [],
+      collectionChanges: [],
+      fieldChanges: [],
+      componentChanges: [],
+      componentFieldChanges: [],
+      assetChanges: [],
+      entryChanges: [
+        {
+          collectionId: project.id,
+          entryId: project.id,
+          changeType: 'added',
+          bump: 'minor',
+        },
+      ],
+    });
+
+    await navigateToRelease(mainWindow, project.id, tagId);
+
+    await expect(releaseRow(mainWindow, '1.4.0')).toContainText('Mara Klein');
+    await expect(
+      mainWindow.getByText('The whole Project. Mara Klein released it on')
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText('The whole Project. You released it on')
+    ).toBeHidden();
+
+    // And what it changed is Core's answer too, in the version it moved and
+    // the row of counts below it.
+    await expect(mainWindow.getByText('1.3.2 becomes 1.4.0')).toBeVisible();
+    expect(await changeCountsOf(mainPanel(mainWindow))).toEqual([
+      ['Entries added', '1'],
+    ]);
+  });
+
+  test('keeps the screen and the dialog inside the smallest window the app supports, in both modes', async ({
+    mainWindow,
+    electronApp,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+    await createReleaseViaIpc(mainWindow, { projectId: project.id });
+    const [release] = (
+      await listReleasesViaIpc(mainWindow, { projectId: project.id })
+    ).list;
+    if (release === undefined) {
+      throw new Error('The Project holds no Release');
+    }
+
+    // Something to release after it, so the dialog has a version row, a
+    // sentence and a row of counts to fit in.
     await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       name: { singular: { en: 'Event' }, plural: { en: 'Events' } },
       slug: { singular: 'event', plural: 'events' },
     });
-    await deleteEntryViaIpc(mainWindow, {
-      projectId: project.id,
-      collectionId: collection.id,
-      id: doomed.id,
-    });
-    await updateEntryViaIpc(mainWindow, {
-      projectId: project.id,
-      collectionId: collection.id,
-      id: kept.id,
-      values: { title: stringValue({ en: 'Stays, with another title' }) },
-    });
 
-    await navigateToReleases(mainWindow, project.id);
-    await openReleaseDialog(mainWindow);
-    const dialog = mainWindow.getByRole('dialog');
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(mainWindow, theme);
+      await navigateToRelease(mainWindow, project.id, release.tagId);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await waitForLayout(mainWindow);
+      await expect(releaseRow(mainWindow, release.version)).toBeVisible();
 
-    await expect(
-      dialog.getByText('A Collection was added', { exact: true })
-    ).toBeVisible();
-    await expect(
-      dialog.getByText('An Entry was removed', { exact: true })
-    ).toBeVisible();
-    await expect(
-      dialog.getByText('An Entry was changed', { exact: true })
-    ).toBeVisible();
+      const measured = await panesOfThePanel(mainWindow);
+      for (const pane of measured.panes) {
+        // Every pane has room of its own and none of them reaches past the
+        // panel it sits in, which is what a collision or a clip would show as.
+        expect(pane.width, theme).toBeGreaterThan(0);
+        expect(pane.left, theme).toBeGreaterThanOrEqual(measured.panel.left);
+        expect(pane.right, theme).toBeLessThanOrEqual(measured.panel.right);
+      }
+      // The list keeps ci's 296 px beside the pane of the chosen Release, and
+      // nothing inside either of them is laid out wider than the box it is
+      // drawn in, which is what a clip shows as.
+      expect(
+        measured.panes.map((pane) => Math.round(pane.width)),
+        theme
+      ).toContain(296);
+      expect(measured.overflowing, theme).toEqual([]);
 
-    // A removed Entry breaks what a site reads, so the Release is major and the
-    // badge says so in words rather than by its color alone.
-    await expect(dialog.getByText('Major', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Version 0.1.0 becomes')).toBeVisible();
-    await expect(dialog.getByText('1.0.0', { exact: true })).toBeVisible();
+      // The dialog over it fits the window too, with its buttons inside it.
+      await openReleaseDialog(mainWindow);
+      const dialog = mainWindow.getByRole('dialog');
+      const fitted = await mainWindow.evaluate(() => {
+        const content = document.querySelector('[data-slot="dialog-content"]');
+        const footer = document.querySelector('[data-slot="dialog-footer"]');
+        if (content === null || footer === null) {
+          throw new Error('The Release dialog draws no content and footer');
+        }
+        return {
+          viewport: window.innerHeight,
+          top: content.getBoundingClientRect().top,
+          bottom: content.getBoundingClientRect().bottom,
+          footerBottom: footer.getBoundingClientRect().bottom,
+        };
+      });
+      expect(fitted.top, theme).toBeGreaterThanOrEqual(0);
+      expect(fitted.bottom, theme).toBeLessThanOrEqual(fitted.viewport);
+      expect(fitted.footerBottom, theme).toBeLessThanOrEqual(fitted.viewport);
+      await expect(
+        dialog.getByRole('button', { name: 'Create Release' })
+      ).toBeInViewport();
+      await expect(
+        dialog.getByRole('button', { name: 'Cancel' })
+      ).toBeInViewport();
+      await dismissDialog(mainWindow);
+    }
+
+    expect(await windowSize(electronApp)).toEqual(MINIMUM_WINDOW_SIZE);
   });
 
   test('shows a Release that changes nothing a site reads as a Patch', async ({
@@ -263,20 +734,19 @@ test.describe('Releases', () => {
 
     // The badge carries its word, so a Patch is never read by color alone.
     await expect(
-      dialog.getByText(`Version ${CREATED_VERSION} becomes`)
+      dialog.getByText(`${CREATED_VERSION} becomes 0.0.2`)
     ).toBeVisible();
     await expect(dialog.getByText('0.0.2', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Patch', { exact: true })).toBeVisible();
 
     // No change drove the bump, so the sentence says why without naming one,
-    // and there is no list of changes to show.
+    // and no row claims an Entry or an Asset moved.
     await expect(
       dialog.getByText(
-        'This is a patch Release, because what a site reads is unchanged.',
-        { exact: true }
+        'Desktop sets the version from what changed. This is a patch Release, because what a site reads is unchanged.'
       )
     ).toBeVisible();
-    await expect(dialog.getByText('What changed')).toBeHidden();
+    expect(await changeCountsOf(dialog)).toEqual([]);
 
     // There is still something to publish, so the Release is offered.
     await expect(
@@ -326,11 +796,9 @@ test.describe('Releases', () => {
 
     await navigateToReleases(mainWindow, project.id);
     await expect(
-      mainWindow
-        .getByRole('main')
-        .getByRole('listitem')
-        .filter({ hasText: '0.0.2-preview.1' })
-        .getByText('Preview', { exact: true })
+      releaseRow(mainWindow, '0.0.2-preview.1').getByText('Preview', {
+        exact: true,
+      })
     ).toBeVisible();
     await expect(mainWindow.getByText('No Releases yet')).toBeHidden();
   });
@@ -643,18 +1111,17 @@ test.describe('Releases', () => {
     await openReleaseDialog(mainWindow);
     const dialog = mainWindow.getByRole('dialog');
 
-    await expect(dialog.getByText('Version 1.2.3 becomes')).toBeVisible();
+    await expect(dialog.getByText('1.2.3 becomes 2.0.0')).toBeVisible();
     await expect(dialog.getByText('2.0.0', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Major', { exact: true })).toBeVisible();
-    await expect(
-      dialog.getByText('A Component was renamed', { exact: true })
-    ).toBeVisible();
+    // A change to the Project itself rather than to its content, so the
+    // sentence carries it and no row claims an Entry or an Asset moved.
     await expect(
       dialog.getByText(
-        'This is a major Release, because a Component was renamed.',
-        { exact: true }
+        'Desktop sets the version from what changed. This is a major Release, because a Component was renamed.'
       )
     ).toBeVisible();
+    expect(await changeCountsOf(dialog)).toEqual([]);
   });
 
   test('says a repository that refused access cannot be read, and offers nothing to press', async ({

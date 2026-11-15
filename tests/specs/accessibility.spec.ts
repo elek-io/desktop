@@ -16,6 +16,7 @@ import {
   createProjectViaIpc,
   setRemoteOriginUrlViaIpc,
 } from '../helpers/project.js';
+import { createReleaseViaIpc, listReleasesViaIpc } from '../helpers/release.js';
 import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
 import { MINIMUM_WINDOW_SIZE, resizeWindow } from '../helpers/window.js';
@@ -207,6 +208,31 @@ const projectAndProfileRoutes: {
       });
       return {
         hash: `#/projects/${project.id}/assets/${asset.id}`,
+        project: project.name,
+      };
+    },
+  },
+  // The Releases of a Project with one chosen, so the list's rows and markers,
+  // the badge of each bump and what the chosen Release changed are all under
+  // the scan.
+  {
+    name: '#/projects/:projectId/releases/:tagId',
+    arrange: async (page) => {
+      const project = await createProjectViaIpc(page);
+      // Something to publish, since a Project with nothing changed has no
+      // Release to make and the screen would stand empty.
+      await createCollectionViaIpc(page, { projectId: project.id });
+      await createReleaseViaIpc(page, { projectId: project.id });
+      const [release] = (
+        await listReleasesViaIpc(page, { projectId: project.id })
+      ).list;
+
+      if (release === undefined) {
+        throw new Error('The Project holds no Release');
+      }
+
+      return {
+        hash: `#/projects/${project.id}/releases/${release.tagId}`,
         project: project.name,
       };
     },

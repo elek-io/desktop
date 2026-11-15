@@ -4,6 +4,8 @@ import type {
   CreateProjectProps,
   DeleteProjectProps,
   Project,
+  ProjectHistoryProps,
+  ProjectHistoryResult,
   SetRemoteOriginUrlProjectProps,
   SupportedLanguage,
   UpdateProjectProps,
@@ -46,6 +48,21 @@ export async function listProjectsViaIpc(
   page: Page
 ): Promise<{ list: Project[]; total: number }> {
   return page.evaluate(async () => window.ipc.core.projects.list({ limit: 0 }));
+}
+
+/**
+ * Read a Project's History directly over IPC, bypassing the UI.
+ *
+ * Used to say what the History holds, newest first, where a screen's own claim
+ * is about those changes rather than about the rows: `history` holds the
+ * commits that touched the Project's own file and `fullHistory` every commit
+ * of it, Assets, Collections and Entries included.
+ */
+export async function projectHistoryViaIpc(
+  page: Page,
+  props: ProjectHistoryProps
+): Promise<ProjectHistoryResult> {
+  return page.evaluate(async (p) => window.ipc.core.projects.history(p), props);
 }
 
 /**

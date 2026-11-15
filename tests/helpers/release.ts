@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 
 import {
@@ -19,16 +19,36 @@ export async function navigateToReleases(
   await navigate(page, `#/projects/${projectId}/releases`);
 }
 
+/** Route to one Release beside the list, by the git tag that addresses it. */
+export async function navigateToRelease(
+  page: Page,
+  projectId: string,
+  tagId: string
+): Promise<void> {
+  await navigate(page, `#/projects/${projectId}/releases/${tagId}`);
+}
+
+/** One row of the list of Releases, by the version it shows. */
+export function releaseRow(page: Page, version: string): Locator {
+  return page.locator('[data-slot="release-row"]').filter({ hasText: version });
+}
+
 /**
- * Open the Release dialog from the Releases page and wait for it to have read
+ * Open the Release dialog from the Releases screen and wait for it to have read
  * what a Release would publish.
+ *
+ * Create Release stands at the head of the list, or in the empty state while
+ * the Project has published nothing, and only one of the two is on screen at a
+ * time, so one locator reaches both.
  *
  * The read runs on open and shows a skeleton while it is in flight, so the
  * dialog is only settled once either its primary button or one of the two
  * sentences that replace it is on screen.
  */
 export async function openReleaseDialog(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Release', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Create Release', exact: true })
+    .click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(

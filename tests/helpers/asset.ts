@@ -6,7 +6,12 @@ import {
 } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 
-import type { Asset, CreateAssetProps, ReadAssetProps } from '@elek-io/core';
+import type {
+  Asset,
+  CreateAssetProps,
+  ReadAssetProps,
+  UpdateAssetProps,
+} from '@elek-io/core';
 
 import { mainPanel } from './navigation.js';
 
@@ -89,6 +94,29 @@ export async function createAssetViaIpc(
   return page.evaluate(
     async (p) => window.ipc.core.assets.create(p),
     createProps
+  );
+}
+
+/**
+ * Save an Asset's name and description directly over IPC, bypassing the UI.
+ *
+ * Use it to arrange an Asset that changed without its file being replaced,
+ * which is one of the two changes Core reports for an Asset.
+ */
+export async function updateAssetViaIpc(
+  page: Page,
+  props: { projectId: string; id: string; name: string; description: string }
+): Promise<Asset> {
+  const updateProps: UpdateAssetProps = {
+    projectId: props.projectId,
+    id: props.id,
+    name: props.name,
+    description: props.description,
+  };
+
+  return page.evaluate(
+    async (p) => window.ipc.core.assets.update(p),
+    updateProps
   );
 }
 
