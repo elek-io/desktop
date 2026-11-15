@@ -191,6 +191,7 @@ async function panesOfThePanel(page: Page): Promise<{
   panel: { left: number; right: number };
   panes: { left: number; right: number; width: number }[];
   overflowing: { slot: string | null; over: number }[];
+  sideways: { slot: string | null; over: number }[];
 }> {
   return page.evaluate(() => {
     const panel = document.querySelector('[data-slot="panel"]');
@@ -215,6 +216,19 @@ async function panesOfThePanel(page: Page): Promise<{
             element.scrollWidth - element.clientWidth > 1 &&
             getComputedStyle(element).overflowX === 'visible'
         )
+        .map((element) => ({
+          slot: element.getAttribute('data-slot'),
+          over: element.scrollWidth - element.clientWidth,
+        })),
+      // What a pane scrolls sideways to keep. Content wider than the pane
+      // shows as that rather than as a clip wherever the pane scrolls, which
+      // is every screen's body, so it is measured beside the clip itself.
+      sideways: Array.from(
+        document.querySelectorAll(
+          '[data-slot="panel"] [data-slot="scroll-area-viewport"]'
+        )
+      )
+        .filter((element) => element.scrollWidth - element.clientWidth > 1)
         .map((element) => ({
           slot: element.getAttribute('data-slot'),
           over: element.scrollWidth - element.clientWidth,
@@ -638,7 +652,16 @@ test.describe('Releases', () => {
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    // An Entry in the Release, so the chosen one has a row of counts to lay
+    // out beside the list rather than a version and a sentence alone.
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Spring opening hours' }) },
+    });
     await createReleaseViaIpc(mainWindow, { projectId: project.id });
     const [release] = (
       await listReleasesViaIpc(mainWindow, { projectId: project.id })
@@ -649,10 +672,10 @@ test.describe('Releases', () => {
 
     // Something to release after it, so the dialog has a version row, a
     // sentence and a row of counts to fit in.
-    await createCollectionViaIpc(mainWindow, {
+    await createEntryViaIpc(mainWindow, {
       projectId: project.id,
-      name: { singular: { en: 'Event' }, plural: { en: 'Events' } },
-      slug: { singular: 'event', plural: 'events' },
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Winter tyres: what to check' }) },
     });
 
     for (const theme of ['light', 'dark'] as const) {
@@ -661,6 +684,12 @@ test.describe('Releases', () => {
       await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
       await waitForLayout(mainWindow);
       await expect(releaseRow(mainWindow, release.version)).toBeVisible();
+      // What the chosen Release changed is drawn rather than still read, so
+      // the pane is measured with its own content instead of with the
+      // skeleton that stands in for it.
+      await expect(
+        mainWindow.getByRole('main').getByText('Entries added')
+      ).toBeVisible();
 
       const measured = await panesOfThePanel(mainWindow);
       for (const pane of measured.panes) {
@@ -678,6 +707,7 @@ test.describe('Releases', () => {
         theme
       ).toContain(296);
       expect(measured.overflowing, theme).toEqual([]);
+      expect(measured.sideways, theme).toEqual([]);
 
       // The dialog over it fits the window too, with its buttons inside it.
       await openReleaseDialog(mainWindow);
