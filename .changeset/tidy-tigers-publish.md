@@ -10,6 +10,6 @@ See every Release of a Project beside the one you chose, with who published it a
 
 **Create Release stands at the head of the list**, and in the empty state while the Project has published nothing, so one button leads to a Release wherever you are on the screen.
 
-**The Release dialog lists what would go out.** It says "Desktop sets the version from what changed" and then what makes this Release the bump it is, and below that the Entries and Assets it would add, change and delete, one row per kind with its count. It used to list every change as a sentence of its own, which said nothing about how much of it there was. A Release that changes nothing a site reads, and one with nothing to release at all, still say so in the words they did, and so does every refusal.
+**The Release dialog lists what would go out.** It says "Desktop sets the version from what changed" and then what makes this Release the bump it is, and below that the Entries and Assets it would add, change and delete, one row per kind with its count. It used to list every change as a sentence of its own, which said nothing about how much of it there was. A Release that changes nothing a site reads still says so, a Project with nothing to release says that instead of a version, and a refusal still says in one sentence what stopped it and what to do next.
 
 Nothing about your Projects changes, and nothing needs a migration.
