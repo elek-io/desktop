@@ -136,11 +136,16 @@ function encodableCause(cause: unknown): unknown {
  * raised without one encodes and decodes exactly as it did before that field
  * was carried.
  *
- * The cause is the issue list Core attaches to a `Conflict` it raises for a
- * field definition change it cannot carry out, which is what lets a screen name
- * the Entry to fix. Each issue crosses as `forwardedIssueKeys` and nothing
- * else. See `entryIssuesOf` in the renderer's `lib/schemaChange.ts`, the one
- * typed reader of it. Nothing renders or logs a cause raw.
+ * The cause that is worth the trouble is the issue list Core attaches to a
+ * `Conflict` it raises for a field definition change it cannot carry out,
+ * which is what lets a screen name the Entry to fix. Each issue crosses as
+ * `forwardedIssueKeys` and nothing else. See `entryIssuesOf` in the renderer's
+ * `lib/schemaChange.ts`, the one typed reader of it. Every other array of
+ * plain objects crosses as Core wrote it, which is how the dangling references
+ * of a refused sync reach their reader, and a shape nothing reads, such as the
+ * file statuses of a sync refused for uncommitted changes, reaches no screen
+ * because no reader takes it. Nothing renders or logs a cause raw, see
+ * contributing/error-handling.md.
  *
  * The reason is what Core refused for, one value of its own `CoreErrorReason`
  * list, which holds no git output, no address and no credential and so crosses
