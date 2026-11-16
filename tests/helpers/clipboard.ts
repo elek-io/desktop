@@ -16,6 +16,19 @@ export async function clipboardText(
 }
 
 /**
+ * The same text with every line break as a single `\n`.
+ *
+ * Windows keeps text on the clipboard with CRLF line breaks, so
+ * `clipboard.readText()` answers CRLF there for a text the app wrote with LF.
+ * That is the platform's own convention for the clipboard rather than anything
+ * the app did, so a spec that compares what is on the clipboard with what is
+ * on screen reads both through this.
+ */
+export function withOneLineBreak(text: string): string {
+  return text.replace(/\r\n/g, '\n');
+}
+
+/**
  * Empties the clipboard, so what a spec reads back afterwards is what the app
  * put there rather than what something else left on it.
  */

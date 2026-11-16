@@ -284,6 +284,56 @@ export async function stubCoreHang(
 }
 
 /**
+ * Wrap a Core IPC handler so every call waits until it is let go of, and then
+ * reaches Core as usual.
+ *
+ * What a screen draws while a call of its own is still on its way is observed
+ * this way. A canned delay long enough to measure in races the measurement,
+ * and `stubCoreHang` never answers at all, so neither shows that what is on
+ * screen before the answer is also what is on screen after it. Let go of with
+ * `releaseHeldCoreCalls`.
+ *
+ * It wraps the registered handler rather than replacing it, like
+ * `stubCoreRejectWithTypeOnce`, which needs Electron's own handler map, see
+ * `tests/electron-internals.d.ts`. The flag lives in the main process, where
+ * the handler runs.
+ */
+export async function holdCoreCalls(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    const handlers = ipcMain._invokeHandlers;
+    const handler = handlers?.get(ch);
+
+    // Asked before the app registered the channel, so a hold that holds
+    // nothing says so rather than leaving a spec to wait for a state that
+    // never comes.
+    if (handlers === undefined || handler === undefined) {
+      throw new Error(`No handler of "${ch}" to hold, so nothing would wait`);
+    }
+
+    globalThis.heldCoreCalls = true;
+    handlers.set(ch, async (event, ...args) => {
+      while (globalThis.heldCoreCalls === true) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+
+      return handler(event, ...args);
+    });
+  }, channel);
+}
+
+/** Lets every call `holdCoreCalls` holds go through to Core. */
+export async function releaseHeldCoreCalls(
+  electronApp: ElectronApplication
+): Promise<void> {
+  await electronApp.evaluate(() => {
+    globalThis.heldCoreCalls = false;
+  });
+}
+
+/**
  * Replace a Core IPC handler so it records that it was called instead of
  * reaching Core, to observe that something never got that far.
  *

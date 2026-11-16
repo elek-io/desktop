@@ -141,7 +141,9 @@ declare const document: {
 };
 
 /**
- * The window controls overlay, where the system draws the controls into the
+ * What a spec touches on `navigator`.
+ *
+ * The window controls overlay is where the system draws the controls into the
  * document's own top bar. Windows and Linux report it, which is where the
  * window spec reads its height.
  */
@@ -150,6 +152,12 @@ declare const navigator: {
     readonly visible: boolean;
     getTitlebarAreaRect(): { readonly height: number };
   };
+  /**
+   * The clipboard the renderer writes through. One spec replaces `writeText`
+   * with one that rejects, which is the only way to drive a write the system
+   * refuses, so the property is writable here.
+   */
+  readonly clipboard: { writeText(text: string): Promise<void> };
 };
 
 declare const localStorage: {
@@ -188,6 +196,14 @@ interface RecordedTitleBarOverlay {
 
 // eslint-disable-next-line no-var
 declare var titleBarOverlayCalls: RecordedTitleBarOverlay[] | undefined;
+
+/**
+ * Whether the calls a held Core channel takes are still waiting, kept in the
+ * main process the same way. The held handler reads it on every turn, and a
+ * spec flips it to let them through. See tests/helpers/ipc.ts.
+ */
+// eslint-disable-next-line no-var
+declare var heldCoreCalls: boolean | undefined;
 
 /**
  * Every address the app asked the system to open, kept in the main process the
