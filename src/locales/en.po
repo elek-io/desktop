@@ -1226,8 +1226,8 @@ msgid "elek.io Desktop could not start"
 msgstr "elek.io Desktop could not start"
 
 #: src/renderer/routes/__root.tsx
-msgid "elek.io Desktop has no screen at {href}."
-msgstr "elek.io Desktop has no screen at {href}."
+msgid "elek.io Desktop has no screen at {hash}."
+msgstr "elek.io Desktop has no screen at {hash}."
 
 #: src/renderer/lib/sync.ts
 msgid "elek.io Desktop is set up to read content only, so it cannot sync. Ask whoever set it up on this computer."

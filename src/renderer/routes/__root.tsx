@@ -193,50 +193,55 @@ function ErrorComponent({ error }: ErrorComponentProps): ReactElement {
 function NotFoundComponent(): ReactElement {
   const { t } = useLingui();
   const router = useRouter();
-  const { href } = location;
+  const { hash } = location;
 
   return (
-    <>
-      {/* The same as on the error screen: this one replaces `RootComponent` too. */}
-      <HeadContent />
-      <AppHeader />
-      <AppGround>
-        <Panel>
-          <Pane name={t`what this screen shows`}>
+    /*
+      The panel alone, as every other screen renders it: an address no route
+      matches is not an error, so this renders inside `RootComponent`, which
+      already draws the header and the ground. Only the error screen replaces
+      `RootComponent` and so draws both itself.
+    */
+    <Panel>
+      <Pane name={t`what this screen shows`}>
+        {/*
+          The same screen as an error, without Details: there is no error
+          here, only an address the app has no screen for.
+        */}
+        <ErrorScreen>
+          <EmptyMedia>
+            <FileQuestionMark />
+          </EmptyMedia>
+          <EmptyTitle>
+            <Trans>This screen does not exist</Trans>
+          </EmptyTitle>
+          <EmptyDescription>
             {/*
-              The same screen as an error, without Details: there is no error
-              here, only an address the app has no screen for.
+              The address inside the app, which is the hash. The whole of
+              `location.href` is the file the window is loaded from, so it
+              carries the folder the app sits in, which is the home folder
+              this screen's neighbor masks.
             */}
-            <ErrorScreen>
-              <EmptyMedia>
-                <FileQuestionMark />
-              </EmptyMedia>
-              <EmptyTitle>
-                <Trans>This screen does not exist</Trans>
-              </EmptyTitle>
-              <EmptyDescription>
-                <Trans>elek.io Desktop has no screen at {href}.</Trans>
-              </EmptyDescription>
-              <EmptyActions>
-                <Button
-                  Icon={ArrowLeft}
-                  onClick={async () => router.navigate({ to: '/projects' })}
-                >
-                  <Trans>Back to Projects</Trans>
-                </Button>
-                <Button
-                  variant="outline"
-                  Icon={RotateCw}
-                  onClick={() => location.reload()}
-                >
-                  <Trans>Reload</Trans>
-                </Button>
-              </EmptyActions>
-            </ErrorScreen>
-          </Pane>
-        </Panel>
-      </AppGround>
-    </>
+            <Trans>elek.io Desktop has no screen at {hash}.</Trans>
+          </EmptyDescription>
+          <EmptyActions>
+            <Button
+              Icon={ArrowLeft}
+              onClick={async () => router.navigate({ to: '/projects' })}
+            >
+              <Trans>Back to Projects</Trans>
+            </Button>
+            <Button
+              variant="outline"
+              Icon={RotateCw}
+              onClick={() => location.reload()}
+            >
+              <Trans>Reload</Trans>
+            </Button>
+          </EmptyActions>
+        </ErrorScreen>
+      </Pane>
+    </Panel>
   );
 }
 
