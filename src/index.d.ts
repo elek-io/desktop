@@ -3,6 +3,9 @@ import type { Dialog } from 'electron';
 
 import type ElekIoCore from '@elek-io/core';
 
+import type { WindowCloseAnswer } from './shared/windowClose.js';
+import type { WindowTheme } from './shared/windowTheme.js';
+
 /**
  * Utility type that transforms all methods in an object to return Promises.
  * This reflects the async nature of IPC communication - even if the underlying
@@ -26,6 +29,27 @@ declare global {
         showOpenDialog: Dialog['showOpenDialog'];
         showSaveDialog: Dialog['showSaveDialog'];
       };
+      window: {
+        /**
+         * Tells the main process which theme the renderer resolved to, so the
+         * window controls overlay follows it. See `shared/windowTheme.ts` for
+         * why this is a theme name and nothing else.
+         */
+        setTheme: (theme: WindowTheme) => Promise<void>;
+        /**
+         * Tells the main process whether the window holds something nobody
+         * saved, so a close is held for the question. See
+         * `shared/windowClose.ts`.
+         */
+        setUnsavedChanges: (hasUnsavedChanges: boolean) => Promise<void>;
+        /** Answers the question the main process asked for before a close. */
+        answerClose: (answer: WindowCloseAnswer) => Promise<void>;
+        /**
+         * Listens for the main process asking the question before a close, and
+         * returns the function that stops listening.
+         */
+        onAskedToClose: (listener: () => void) => () => void;
+      };
     };
     core: AsyncifyMethods<{
       api: {
@@ -38,6 +62,12 @@ declare global {
         info: ElekIoCore['logger']['info'];
         warn: ElekIoCore['logger']['warn'];
         error: ElekIoCore['logger']['error'];
+        /**
+         * Masks a text with the rules Core runs over its own log tail, for text
+         * Core wrote that somebody is about to read or copy. See
+         * `shared/maskText.ts`.
+         */
+        mask: ElekIoCore['logger']['mask'];
       };
       user: {
         get: ElekIoCore['user']['get'];
@@ -63,10 +93,12 @@ declare global {
       };
       releases: {
         list: ElekIoCore['releases']['list'];
+        changes: ElekIoCore['releases']['changes'];
         prepare: ElekIoCore['releases']['prepare'];
         create: ElekIoCore['releases']['create'];
       };
       assets: {
+        count: ElekIoCore['assets']['count'];
         list: ElekIoCore['assets']['list'];
         create: ElekIoCore['assets']['create'];
         read: ElekIoCore['assets']['read'];
@@ -93,9 +125,11 @@ declare global {
         delete: ElekIoCore['components']['delete'];
       };
       entries: {
+        count: ElekIoCore['entries']['count'];
         list: ElekIoCore['entries']['list'];
         create: ElekIoCore['entries']['create'];
         read: ElekIoCore['entries']['read'];
+        history: ElekIoCore['entries']['history'];
         update: ElekIoCore['entries']['update'];
         delete: ElekIoCore['entries']['delete'];
       };

@@ -1,0 +1,87 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { msg } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+
+import { holdsNothing } from '@renderer/components/fields/empty-values';
+import { numberRules } from '@renderer/components/fields/rules';
+import {
+  storedText,
+  noTitle,
+  translatableContent,
+} from '@renderer/components/fields/value-contracts';
+import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
+import {
+  DefinitionDraft,
+  MinMaxRow,
+  type DefinitionSpec,
+} from '@renderer/components/forms/field-definition-draft';
+import { AppField } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
+
+import {
+  numberFieldDefinitionSchema,
+  uuid,
+  type NumberFieldDefinition,
+} from '@elek-io/core';
+
+import { type FieldTypeModule } from '../module';
+
+const spec: DefinitionSpec<NumberFieldDefinition> = {
+  uniquenessNote: msg`Number fields cannot be unique.`,
+  schema: numberFieldDefinitionSchema,
+
+  resolver: zodResolver(numberFieldDefinitionSchema),
+  makeDefaults: (langs) => ({
+    ...baseDefaults(langs),
+    id: uuid(),
+    valueType: 'number',
+    fieldType: 'number',
+    defaultValue: null,
+    min: null,
+    max: null,
+    isUnique: false,
+  }),
+  Extras: ({ form }) => (
+    <>
+      <AppField
+        form={form}
+        name="defaultValue"
+        label={<Trans>Default value</Trans>}
+        description={<Trans>The initial value for the field.</Trans>}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="number" {...controlProps} />
+        )}
+      </AppField>
+      <MinMaxRow
+        form={form}
+        minName="min"
+        maxName="max"
+        minDescription={<Trans>The smallest value the user can enter.</Trans>}
+        maxDescription={<Trans>The largest value the user can enter.</Trans>}
+      />
+    </>
+  ),
+};
+
+/** A number. */
+export const numberField: FieldTypeModule<'number'> = {
+  translatable: true,
+  acceptsAriaRequired: true,
+  rules: numberRules,
+  Control: ({ field, disabled, controlProps }) => (
+    <TextControl
+      field={field}
+      type="number"
+      disabled={disabled}
+      {...controlProps}
+    />
+  ),
+  defaultContent: (fieldDefinition, supportedLanguages) =>
+    translatableContent(fieldDefinition.defaultValue, supportedLanguages),
+  previewContent: (fieldDefinition) => fieldDefinition.defaultValue,
+  isEmpty: holdsNothing,
+  renderValue: storedText,
+  titleText: noTitle,
+  DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
+};

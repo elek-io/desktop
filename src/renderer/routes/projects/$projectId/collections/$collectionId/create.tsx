@@ -1,55 +1,50 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { parseIpcError } from '@root/src/shared/ipcError';
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import React, { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import React, { useId } from 'react';
+import { useWatch, type SubmitHandler } from 'react-hook-form';
 
+import { defaultEntryValues } from '@renderer/components/fields';
+import { missingRequiredValues } from '@renderer/components/fields/missing-values';
 import { EntryForm } from '@renderer/components/forms/entry-form';
-import { Page } from '@renderer/components/page';
+import { LanguageSwitch } from '@renderer/components/language-switch';
+import { Pane, PaneHead } from '@renderer/components/pane';
 import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
-import { Button } from '@renderer/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@renderer/components/ui/dialog';
+import { ScrollArea } from '@renderer/components/ui/scroll-area';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
+import { useEntryRefusals } from '@renderer/hooks/useEntryRefusals';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { describeCoreError } from '@renderer/lib/coreErrorText';
-import { defaultEntryValues } from '@renderer/lib/entry';
+import {
+  entryLanguage,
+  entryLanguageSearchSchema,
+} from '@renderer/lib/entryLanguage';
+import { languagesWithErrors } from '@renderer/lib/formErrors';
+import { languageName } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
-  type CoreErrorType,
   type CreateEntryProps,
   flattenFieldDefinitions,
   getCreateEntrySchemaFromFieldDefinitions,
+  type SupportedLanguage,
 } from '@elek-io/core';
 
 export const Route = createFileRoute(
   '/projects/$projectId/collections/$collectionId/create'
 )({
   component: CreateEntryPage,
+  validateSearch: entryLanguageSearchSchema,
 });
 
-// Copy for a blocked create, keyed by CoreError type.
-const conflictDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'One of the values you entered must be unique, but another Entry in this Collection already uses it. Change it and try again.',
-};
-
-const conflictFallback =
-  'This Entry could not be saved. Please review your values and try again.';
-
 function CreateEntryPage(): React.JSX.Element {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId, collectionId } = Route.useParams();
   const {
@@ -62,23 +57,7 @@ function CreateEntryPage(): React.JSX.Element {
       id: collectionId,
     })
   );
-  useBreadcrumb(Route, isReadingCollection ? undefined : 'Create');
-  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
-  const [conflictError, setConflictError] = useState<unknown>(null);
-  // A unique-value collision is handled in place on this form.
-  // See contributing/error-handling.md.
-  const {
-    mutateAsync: createEntry,
-    isPending: isCreatingEntry,
-    handleError: handleConflict,
-  } = useAppMutation(queryOptions.entries.create, {
-    handled: {
-      Conflict: (error) => {
-        setConflictError(error);
-        setIsConflictDialogOpen(true);
-      },
-    },
-  });
+  useBreadcrumb(Route, isReadingCollection ? undefined : t`Create`);
   // A dynamic field's Values are checked against the field definitions of the
   // Components it embeds, so the schema needs Core's resolver for them.
   const { componentResolver, isReadingComponents } =
@@ -94,36 +73,38 @@ function CreateEntryPage(): React.JSX.Element {
         )
       : getCreateEntrySchemaFromFieldDefinitions([], []);
   const formId = useId();
-  const createEntryForm = useForm({
+  const createEntryForm = useAppForm({
     resolver: zodResolver(generatedCreateEntrySchema),
     defaultValues: {
       projectId: projectId,
       collectionId: collectionId,
       values: {},
     },
+    // A default Value per field definition, filled from the queries rather than
+    // reset in an effect, so what is already typed survives a refetch.
+    ...(isReadingProject || isReadingCollection
+      ? {}
+      : {
+          values: {
+            projectId: projectId,
+            collectionId: collectionId,
+            values: defaultEntryValues(
+              flattenFieldDefinitions(collection.fieldDefinitions),
+              project.settings.language.supported
+            ),
+          },
+        }),
+    disabled: isReadingProject || isReadingCollection,
   });
 
-  // Reset form with Project and Collection data when it loads
-  useEffect(() => {
-    if (isReadingProject === false && isReadingCollection === false) {
-      createEntryForm.reset({
-        projectId: projectId,
-        collectionId: collectionId,
-        values: defaultEntryValues(
-          flattenFieldDefinitions(collection.fieldDefinitions),
-          project.settings.language.supported
-        ),
-      });
-    }
-  }, [
-    projectId,
-    collectionId,
-    project,
-    collection,
-    isReadingProject,
-    isReadingCollection,
-    createEntryForm,
-  ]);
+  // Each refusal Core answers a save with lands on its own field, in its
+  // section and its language. See contributing/error-handling.md.
+  const refusals = useEntryRefusals(createEntryForm);
+  const {
+    mutateAsync: createEntry,
+    isPending: isCreatingEntry,
+    handleError: handleRefusal,
+  } = useAppMutation(queryOptions.entries.create, { handled: refusals });
 
   const onCreateEntry: SubmitHandler<CreateEntryProps> = async (props) => {
     try {
@@ -136,93 +117,122 @@ function CreateEntryPage(): React.JSX.Element {
         },
       });
     } catch (error) {
-      // A unique-value collision is surfaced in place by the dialog below. Any
-      // other failure was already routed to the boundary, so this is a no-op.
-      handleConflict(error);
+      // A refusal that belongs on a field is marked there. Every other failure
+      // was already routed to the boundary, so this is a no-op for it.
+      handleRefusal(error);
     }
   };
 
-  const title = `Create a new ${
-    collection
-      ? translateContent({
-          key: 'currentCollection.name',
-          record: collection.name.singular,
-        })
-      : 'Entry'
-  }`;
+  // What keeps this Entry from being created, in the words below Save. Core
+  // refuses it until every language of the Project holds each required Value,
+  // the same as for an Entry that already exists.
+  const editedValues = useWatch({
+    control: createEntryForm.control,
+    name: 'values',
+  });
+  const supportedLanguages = isReadingProject
+    ? []
+    : project.settings.language.supported;
+  const missingByLanguage =
+    isReadingProject || isReadingCollection
+      ? new Map<SupportedLanguage, number>()
+      : missingRequiredValues({
+          values: editedValues,
+          fieldDefinitions: flattenFieldDefinitions(
+            collection.fieldDefinitions
+          ),
+          supportedLanguages,
+          defaultLanguage: project.settings.language.default,
+          ...(isReadingComponents
+            ? {}
+            : { componentFieldDefinitions: componentResolver }),
+        });
+  const [missingLanguage, missingValues] = [
+    ...missingByLanguage.entries(),
+  ].find(([, count]) => count > 0) ?? [undefined, 0];
+  const language =
+    missingLanguage === undefined ? undefined : languageName(missingLanguage);
+  const blockedBy =
+    language === undefined
+      ? undefined
+      : t`${language} is missing ${plural(missingValues, { one: '# Value', other: '# Values' })}`;
 
-  function Description(): ReactElement {
-    return (
-      <>
-        {collection
-          ? translateContent({
-              key: 'currentCollection.description',
-              record: collection.description,
-            })
-          : ''}
-      </>
-    );
-  }
+  // The language the whole Entry is written in, which stays in the address, so
+  // the language a new Entry was started in survives a reload.
+  const navigate = Route.useNavigate();
+  const shownLanguage = entryLanguage({
+    search: Route.useSearch(),
+    supportedLanguages,
+    defaultLanguage: isReadingProject
+      ? undefined
+      : project.settings.language.default,
+  });
+  const setLanguage = (next: SupportedLanguage): void => {
+    void navigate({
+      search: (previous) => ({ ...previous, language: next }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
+  const refused = languagesWithErrors(
+    createEntryForm.formState.errors,
+    supportedLanguages
+  );
 
-  function Actions(): ReactElement {
-    return (
-      <FormActions form={createEntryForm} id={formId}>
-        <SubmitButton requireDirty Icon={Check}>
-          Create{' '}
-          {collection
-            ? translateContent({
-                key: 'currentCollection.name.singular',
-                record: collection.name.singular,
-              })
-            : 'Entry'}
-        </SubmitButton>
-      </FormActions>
-    );
-  }
+  // The Collection's name in singular, or the domain term while the Collection
+  // is still loading, so each sentence below takes one placeholder rather than
+  // being assembled around it.
+  const entryName = collection
+    ? translateContent({
+        key: 'currentCollection.name',
+        record: collection.name.singular,
+      })
+    : t`Entry`;
 
   if (isReadingProject || isReadingCollection || isReadingComponents) {
     return <></>;
   }
 
-  const { type: conflictErrorType } = parseIpcError(conflictError);
-
   return (
-    <>
-      <Page title={title} description={<Description />} actions={<Actions />}>
+    <Pane name={t`a new Entry`}>
+      <PaneHead className="pb-1.5">
+        <h1 className="min-w-0 flex-1 truncate text-h3">
+          <Trans>Create a new {entryName}</Trans>
+        </h1>
+        <FormActions form={createEntryForm} id={formId} blockedBy={blockedBy}>
+          <SubmitButton requireDirty Icon={Check}>
+            <Trans>Create {entryName}</Trans>
+          </SubmitButton>
+        </FormActions>
+      </PaneHead>
+      {/* The switch stands below the title and above the fields, which is
+      where ci draws it. A Project of one language has nothing to switch
+      between, so it carries no row. */}
+      {supportedLanguages.length > 1 ? (
+        <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
+          <LanguageSwitch
+            languages={supportedLanguages.map((candidate) => ({
+              language: candidate,
+              missing: missingByLanguage.get(candidate) ?? 0,
+              hasError: refused.has(candidate),
+            }))}
+            language={shownLanguage}
+            onLanguageChange={setLanguage}
+          />
+        </div>
+      ) : null}
+      <ScrollArea className="flex-1">
         <EntryForm
           id={formId}
           entryForm={createEntryForm}
           fieldDefinitions={collection.fieldDefinitions}
           project={project}
+          language={shownLanguage}
           isViewOnly={isCreatingEntry}
           onFormSubmit={onCreateEntry}
+          blockedBy={blockedBy}
         />
-      </Page>
-
-      <Dialog
-        open={isConflictDialogOpen}
-        onOpenChange={setIsConflictDialogOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Could not save this Entry</DialogTitle>
-            <DialogDescription>
-              {describeCoreError(
-                conflictErrorType,
-                conflictDescriptions,
-                conflictFallback
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+      </ScrollArea>
+    </Pane>
   );
 }

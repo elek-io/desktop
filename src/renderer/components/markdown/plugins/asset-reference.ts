@@ -7,7 +7,7 @@ export interface AssetReferenceAttrs {
 }
 
 const chipClass =
-  'inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-sm dark:bg-zinc-800';
+  'inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-sm';
 
 /**
  * Inline atom for Core's custom assetReference mdast node. It has no markdown

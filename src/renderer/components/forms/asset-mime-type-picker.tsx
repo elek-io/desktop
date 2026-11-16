@@ -1,5 +1,7 @@
+import { Trans } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
 
+import { Skeleton } from '@renderer/components/ui/skeleton';
 import { Switch } from '@renderer/components/ui/switch';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -45,12 +47,7 @@ export function AssetMimeTypePicker({
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, index) => {
           const key = `skeleton-${String(index)}`;
-          return (
-            <div
-              key={key}
-              className="h-10 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800"
-            />
-          );
+          return <Skeleton key={key} className="h-10" />;
         })}
       </div>
     );
@@ -59,8 +56,10 @@ export function AssetMimeTypePicker({
   if (availableMimeTypes.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No Assets in this Project yet, so there are no file types to restrict
-        to. Every type stays allowed.
+        <Trans>
+          No Assets in this Project yet, so there are no file types to restrict
+          to. Every type stays allowed.
+        </Trans>
       </p>
     );
   }
@@ -70,7 +69,7 @@ export function AssetMimeTypePicker({
       {availableMimeTypes.map((mimeType) => (
         <div
           key={mimeType}
-          className="flex flex-row items-center justify-between rounded-lg border border-zinc-200 p-3 shadow-xs dark:border-zinc-700"
+          className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
         >
           <span className="mr-4 text-sm font-medium">{mimeType}</span>
           <Switch

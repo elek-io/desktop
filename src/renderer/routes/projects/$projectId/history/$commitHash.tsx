@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro';
 import { createFileRoute } from '@tanstack/react-router';
 import { Tag } from 'lucide-react';
 import { useEffect, useState, type ReactElement } from 'react';
@@ -74,7 +75,7 @@ function ProjectHistoryCommitPage(): ReactElement {
       case 'component':
         return <ComponentDiff project={project} commit={commit} />;
       default:
-        return <>Object changes</>;
+        return <Trans>Object changes</Trans>;
     }
   }
 
@@ -86,13 +87,7 @@ function ProjectHistoryCommitPage(): ReactElement {
             <br />
             <Badge className="relative mt-2" variant="secondary">
               <Tag className="absolute -right-3 -bottom-2 h-4 w-4" />
-              {commit.tag.message.type === 'upgrade'
-                ? `Core ${commit.tag.message.coreVersion}`
-                : `${
-                    commit.tag.message.type === 'release'
-                      ? 'Release'
-                      : 'Preview'
-                  } ${commit.tag.message.version}`}
+              <TagLabel message={commit.tag.message} />
             </Badge>
           </>
         ) : null}
@@ -108,11 +103,31 @@ function ProjectHistoryCommitPage(): ReactElement {
           : ''
       }
       description={<Description />}
-      layout="bare"
     >
       <div className="grid grid-cols-12 gap-6">
         <DisplayChanges />
       </div>
     </Page>
+  );
+}
+
+/**
+ * What a tag says, as one sentence per kind rather than a word dropped into
+ * one, since a word that carries grammar cannot be translated on its own.
+ */
+function TagLabel({
+  message,
+}: {
+  message: NonNullable<GitCommit['tag']>['message'];
+}): ReactElement {
+  if (message.type === 'upgrade') {
+    const { coreVersion } = message;
+    return <Trans>Core {coreVersion}</Trans>;
+  }
+  const { version } = message;
+  return message.type === 'release' ? (
+    <Trans>Release {version}</Trans>
+  ) : (
+    <Trans>Preview {version}</Trans>
   );
 }

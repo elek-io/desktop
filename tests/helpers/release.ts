@@ -1,7 +1,9 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 
 import {
+  type CreateReleaseProps,
+  type ReleaseResult,
   uuid,
   type ListReleasesProps,
   type ReleaseListItem,
@@ -17,16 +19,36 @@ export async function navigateToReleases(
   await navigate(page, `#/projects/${projectId}/releases`);
 }
 
+/** Route to one Release beside the list, by the git tag that addresses it. */
+export async function navigateToRelease(
+  page: Page,
+  projectId: string,
+  tagId: string
+): Promise<void> {
+  await navigate(page, `#/projects/${projectId}/releases/${tagId}`);
+}
+
+/** One row of the list of Releases, by the version it shows. */
+export function releaseRow(page: Page, version: string): Locator {
+  return page.locator('[data-slot="release-row"]').filter({ hasText: version });
+}
+
 /**
- * Open the Release dialog from the Releases page and wait for it to have read
+ * Open the Release dialog from the Releases screen and wait for it to have read
  * what a Release would publish.
+ *
+ * Create Release stands at the head of the list, or in the empty state while
+ * the Project has published nothing, and only one of the two is on screen at a
+ * time, so one locator reaches both.
  *
  * The read runs on open and shows a skeleton while it is in flight, so the
  * dialog is only settled once either its primary button or one of the two
  * sentences that replace it is on screen.
  */
 export async function openReleaseDialog(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Release', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Create Release', exact: true })
+    .click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(
@@ -70,30 +92,73 @@ export async function listReleasesViaIpc(
 }
 
 /**
- * Tag a preview Release on a Project's git repository, on the runner.
+ * Publish a Release of a Project directly over IPC, bypassing the UI.
  *
- * elek.io Desktop cannot make one (see not-yet-implemented.md), so this is how
- * a test arranges the one a Project can hold anyway, made by another tool, and
- * checks that the list marks it rather than showing it as the version a site
- * builds from. Core reads a tag's kind and version from its trailers and
- * addresses it by its name, which has to be a UUID, so the tag is written the
- * way Core writes one, like `coreCommitMessage` in `remote.ts`.
+ * Used to arrange a Project that is at a Release, where what the Release itself
+ * does is another spec's. Core works out the version from what changed since
+ * the last one, so the caller does not pass one.
  */
-export function tagPreviewRelease(dir: string, version: string): string {
+export async function createReleaseViaIpc(
+  page: Page,
+  props: CreateReleaseProps
+): Promise<ReleaseResult> {
+  return page.evaluate(async (p) => window.ipc.core.releases.create(p), props);
+}
+
+/**
+ * Tag a Release or a preview Release on a Project's git repository, on the
+ * runner.
+ *
+ * This is how a test arranges one another tool made rather than elek.io
+ * Desktop: a preview, which Desktop cannot make at all (see
+ * not-yet-implemented.md), and a Release at a version Desktop would never
+ * compute, which is also what a Release an older Core made can read like. Core
+ * reads a tag's kind and version from its trailers and addresses it by its
+ * name, which has to be a UUID, so the tag is written the way Core writes one,
+ * like `coreCommitMessage` in `remote.ts`.
+ */
+function tagOnTheRunner(
+  dir: string,
+  type: 'release' | 'preview',
+  version: string
+): string {
   const id = uuid();
+  const word = type === 'preview' ? 'Preview' : 'Release';
   execFileSync('git', [
     '-C',
     dir,
     // Identity is set inline, since a Project's repository carries none
     '-c',
-    'user.name=E2E Preview',
+    `user.name=E2E ${word}`,
     '-c',
-    'user.email=e2e-preview@example.com',
+    `user.email=e2e-${type}@example.com`,
     'tag',
     '--annotate',
     id,
     '-m',
-    `Preview ${version}\n\nType: preview\nVersion: ${version}`,
+    `${word} ${version}\n\nType: ${type}\nVersion: ${version}`,
   ]);
   return id;
+}
+
+/**
+ * Tag a preview Release on a Project's git repository, on the runner.
+ *
+ * Used to check that the list marks it rather than showing it as the version a
+ * site builds from.
+ */
+export function tagPreviewRelease(dir: string, version: string): string {
+  return tagOnTheRunner(dir, 'preview', version);
+}
+
+/**
+ * Tag a Release on a Project's git repository, on the runner, at the version
+ * passed in.
+ *
+ * Used to arrange a published Release whose bump is not the one its changes
+ * carry, which Core answers for a Release it did not make itself and for one
+ * an older Core made, see its releases doc.
+ */
+export function tagRelease(dir: string, version: string): string {
+  return tagOnTheRunner(dir, 'release', version);
 }

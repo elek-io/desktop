@@ -1,3 +1,6 @@
+import { i18n, type MessageDescriptor } from '@lingui/core';
+import { msg, t } from '@lingui/core/macro';
+
 import {
   type AssetChange,
   type CollectionChange,
@@ -10,14 +13,19 @@ import {
 } from '@elek-io/core';
 
 /**
- * Everything the Release dialog says about a pending Release, in one place: the
- * word of a bump, the sentence behind it, every change in words, and the copy
- * for each refusal.
+ * Everything Desktop says about a Release, in one place: the word of a bump,
+ * the sentence behind it, every change in words, and the copy for each refusal.
  *
- * A Release is read and cut through `core.releases`, whose `ReleaseDiff` carries
- * a bump and seven arrays of changes but no sentence, so the sentence is derived
- * here. The texts are hardcoded English like the rest of the renderer, see
- * [`coreErrorText.ts`](./coreErrorText.ts).
+ * A Release that was published and one that would be arrive in the same shape,
+ * `ReleaseDiff`, from `core.releases.changes()` and `core.releases.prepare()`,
+ * so the Releases screen and the Release dialog both word it from here, see
+ * [`components/release-summary.tsx`](../components/release-summary.tsx).
+ *
+ * The diff carries a bump and seven arrays of changes but no sentence, so the
+ * sentence is derived here. Every sentence is a message of the catalog. A map
+ * at module scope holds `MessageDescriptor`s and is rendered through `i18n._`
+ * when it is shown, while a sentence with a placeholder is a function that
+ * calls `t` at that moment, see [`coreErrorText.ts`](./coreErrorText.ts).
  */
 
 /** A change of any of the diff's arrays, carrying its own bump. */
@@ -42,47 +50,54 @@ export interface DescribedReleaseChange {
 export function bumpWord(bump: ReleaseChange['bump']): string {
   switch (bump) {
     case 'major':
-      return 'Major';
+      return t`Major`;
     case 'minor':
-      return 'Minor';
+      return t`Minor`;
     case 'patch':
-      return 'Patch';
+      return t`Patch`;
   }
 }
 
 // What each change of the Project itself was. Exhaustive over Core's enum, so a
 // new change type fails to compile until it has a sentence here.
-const PROJECT_CHANGES: Record<ProjectChange['changeType'], string> = {
-  nameChanged: 'The Project was renamed',
-  descriptionChanged: "The Project's description changed",
-  defaultLanguageChanged: 'The default language changed',
-  supportedLanguageAdded: 'A language was added',
-  supportedLanguageRemoved: 'A language was removed',
+const PROJECT_CHANGES: Record<ProjectChange['changeType'], MessageDescriptor> =
+  {
+    nameChanged: msg`The Project was renamed`,
+    descriptionChanged: msg`The Project's description changed`,
+    defaultLanguageChanged: msg`The default language changed`,
+    supportedLanguageAdded: msg`A language was added`,
+    supportedLanguageRemoved: msg`A language was removed`,
+  };
+
+const COLLECTION_CHANGES: Record<
+  CollectionChange['changeType'],
+  MessageDescriptor
+> = {
+  added: msg`A Collection was added`,
+  deleted: msg`A Collection was removed`,
+  slugChanged: msg`A Collection was renamed`,
 };
 
-const COLLECTION_CHANGES: Record<CollectionChange['changeType'], string> = {
-  added: 'A Collection was added',
-  deleted: 'A Collection was removed',
-  slugChanged: 'A Collection was renamed',
+const COMPONENT_CHANGES: Record<
+  ComponentChange['changeType'],
+  MessageDescriptor
+> = {
+  added: msg`A Component was added`,
+  deleted: msg`A Component was removed`,
+  slugChanged: msg`A Component was renamed`,
 };
 
-const COMPONENT_CHANGES: Record<ComponentChange['changeType'], string> = {
-  added: 'A Component was added',
-  deleted: 'A Component was removed',
-  slugChanged: 'A Component was renamed',
+const ASSET_CHANGES: Record<AssetChange['changeType'], MessageDescriptor> = {
+  added: msg`An Asset was added`,
+  deleted: msg`An Asset was removed`,
+  binaryChanged: msg`An Asset's file was replaced`,
+  metadataChanged: msg`An Asset's name or description changed`,
 };
 
-const ASSET_CHANGES: Record<AssetChange['changeType'], string> = {
-  added: 'An Asset was added',
-  deleted: 'An Asset was removed',
-  binaryChanged: "An Asset's file was replaced",
-  metadataChanged: "An Asset's name or description changed",
-};
-
-const ENTRY_CHANGES: Record<EntryChange['changeType'], string> = {
-  added: 'An Entry was added',
-  deleted: 'An Entry was removed',
-  modified: 'An Entry was changed',
+const ENTRY_CHANGES: Record<EntryChange['changeType'], MessageDescriptor> = {
+  added: msg`An Entry was added`,
+  deleted: msg`An Entry was removed`,
+  modified: msg`An Entry was changed`,
 };
 
 // A Field of a Collection or of a Component. Each sentence takes the Field's
@@ -91,30 +106,30 @@ const FIELD_CHANGES: Record<
   FieldChange['changeType'],
   (slug: string) => string
 > = {
-  added: (slug) => `The Field ${slug} was added`,
-  deleted: (slug) => `The Field ${slug} was removed`,
-  slugChanged: (slug) => `A Field was renamed to ${slug}`,
-  valueTypeChanged: (slug) => `The Field ${slug} holds another kind of Value`,
-  fieldTypeChanged: (slug) => `The Field ${slug} has another type`,
-  minMaxTightened: (slug) => `The Field ${slug} allows less than before`,
-  minMaxLoosened: (slug) => `The Field ${slug} allows more than before`,
-  isRequiredToNotRequired: (slug) => `The Field ${slug} is no longer required`,
-  isNotRequiredToRequired: (slug) => `The Field ${slug} is now required`,
-  isUniqueToNotUnique: (slug) => `The Field ${slug} may repeat a Value now`,
+  added: (slug) => t`The Field ${slug} was added`,
+  deleted: (slug) => t`The Field ${slug} was removed`,
+  slugChanged: (slug) => t`A Field was renamed to ${slug}`,
+  valueTypeChanged: (slug) => t`The Field ${slug} holds another kind of Value`,
+  fieldTypeChanged: (slug) => t`The Field ${slug} has another type`,
+  minMaxTightened: (slug) => t`The Field ${slug} allows less than before`,
+  minMaxLoosened: (slug) => t`The Field ${slug} allows more than before`,
+  isRequiredToNotRequired: (slug) => t`The Field ${slug} is no longer required`,
+  isNotRequiredToRequired: (slug) => t`The Field ${slug} is now required`,
+  isUniqueToNotUnique: (slug) => t`The Field ${slug} may repeat a Value now`,
   isNotUniqueToUnique: (slug) =>
-    `The Field ${slug} may no longer repeat a Value`,
+    t`The Field ${slug} may no longer repeat a Value`,
   ofCollectionsChanged: (slug) =>
-    `The Field ${slug} points at other Collections`,
-  ofComponentsChanged: (slug) => `The Field ${slug} allows other Components`,
+    t`The Field ${slug} points at other Collections`,
+  ofComponentsChanged: (slug) => t`The Field ${slug} allows other Components`,
   slugFormatChanged: (slug) =>
-    `The Field ${slug} writes its Values differently`,
-  labelChanged: (slug) => `The Field ${slug} has another label`,
-  descriptionChanged: (slug) => `The Field ${slug} has another description`,
-  defaultValueChanged: (slug) => `The Field ${slug} has another default Value`,
-  inputWidthChanged: (slug) => `The Field ${slug} is shown at another width`,
-  isDisabledChanged: (slug) => `The Field ${slug} was turned on or off`,
+    t`The Field ${slug} writes its Values differently`,
+  labelChanged: (slug) => t`The Field ${slug} has another label`,
+  descriptionChanged: (slug) => t`The Field ${slug} has another description`,
+  defaultValueChanged: (slug) => t`The Field ${slug} has another default Value`,
+  inputWidthChanged: (slug) => t`The Field ${slug} is shown at another width`,
+  isDisabledChanged: (slug) => t`The Field ${slug} was turned on or off`,
   ofFieldDefinitionsChanged: (slug) =>
-    `The Field ${slug} is built from other Fields`,
+    t`The Field ${slug} is built from other Fields`,
 };
 
 /**
@@ -131,12 +146,12 @@ export function describeReleaseChanges(
   return [
     ...diff.projectChanges.map((change, index) => ({
       key: `project-${change.changeType}-${index}`,
-      description: PROJECT_CHANGES[change.changeType],
+      description: i18n._(PROJECT_CHANGES[change.changeType]),
       bump: change.bump,
     })),
     ...diff.collectionChanges.map((change) => ({
       key: `collection-${change.collectionId}-${change.changeType}`,
-      description: COLLECTION_CHANGES[change.changeType],
+      description: i18n._(COLLECTION_CHANGES[change.changeType]),
       bump: change.bump,
     })),
     ...diff.fieldChanges.map((change) => ({
@@ -146,7 +161,7 @@ export function describeReleaseChanges(
     })),
     ...diff.componentChanges.map((change) => ({
       key: `component-${change.componentId}-${change.changeType}`,
-      description: COMPONENT_CHANGES[change.changeType],
+      description: i18n._(COMPONENT_CHANGES[change.changeType]),
       bump: change.bump,
     })),
     ...diff.componentFieldChanges.map((change) => ({
@@ -156,41 +171,107 @@ export function describeReleaseChanges(
     })),
     ...diff.assetChanges.map((change) => ({
       key: `asset-${change.assetId}-${change.changeType}`,
-      description: ASSET_CHANGES[change.changeType],
+      description: i18n._(ASSET_CHANGES[change.changeType]),
       bump: change.bump,
     })),
     ...diff.entryChanges.map((change) => ({
       key: `entry-${change.entryId}-${change.changeType}`,
-      description: ENTRY_CHANGES[change.changeType],
+      description: i18n._(ENTRY_CHANGES[change.changeType]),
       bump: change.bump,
     })),
   ];
 }
 
 /**
- * Why the version moves the way it does, in one sentence.
+ * Why the version moves the way it does, in one sentence, or `null` where no
+ * bump moved it at all.
  *
- * The highest bump across every change decides the Release's, so the sentence
- * names that bump and the first change carrying it. A `draft` that is only
- * ahead in commits carries no classified change, which Core calls a patch, so
- * that sentence names no change.
+ * Where a change carries the Release's own bump, the sentence names that bump
+ * and the first change carrying it. Which changes can is not the same question
+ * on both sides of the Release, because the bump does not come from the same
+ * place, see node_modules/@elek-io/core/docs/releases.md:
+ *
+ * - A pending Release takes its bump from the changes themselves, the highest
+ *   across them, so one of them always carries it. The exception is a `draft`
+ *   only ahead in commits with nothing classified, which Core calls a patch,
+ *   and nothing a site reads moved there.
+ * - A published Release takes its bump from its version against the Release
+ *   before it, so it can carry a bump no change inside it accounts for, such
+ *   as an older Core's Release whose object Core sees but cannot read inside,
+ *   or a tag another tool wrote. Then the sentence names the version as what
+ *   set the bump, rather than claiming that nothing a site reads changed,
+ *   which the Major or Minor beside it would contradict.
+ *
+ * Both sides show it, which is why the chosen Release on the Releases screen
+ * and the dialog call the same function. What only a pending Release can say,
+ * that there is nothing to release, is `releaseReason`.
+ */
+export function bumpReason(
+  bump: ReleaseChange['bump'] | null,
+  changes: DescribedReleaseChange[]
+): string | null {
+  if (bump === null) {
+    return null;
+  }
+
+  const driver = changes.find((change) => change.bump === bump);
+
+  // One message per bump rather than the word of the bump dropped into one
+  // sentence, because a word that carries grammar cannot be translated on its
+  // own. The change that drives the bump is a placeholder, since it is already
+  // a sentence of the catalog. Its first letter is lowercased so it reads as
+  // one sentence, which holds for an English and a German sentence alike, both
+  // of which open on an article.
+  if (driver === undefined) {
+    // Nothing is classified at all, which is Core's patch for a `draft` only
+    // ahead in commits.
+    if (bump === 'patch' && changes.length === 0) {
+      return t`This is a patch Release, because what a site reads is unchanged.`;
+    }
+
+    // A bump the version carries rather than anything inside the Release.
+    switch (bump) {
+      case 'major':
+        return t`This is a major Release, because of the version it moved to rather than a change in it.`;
+      case 'minor':
+        return t`This is a minor Release, because of the version it moved to rather than a change in it.`;
+      case 'patch':
+        return t`This is a patch Release, because of the version it moved to rather than a change in it.`;
+    }
+  }
+
+  const change = `${driver.description.charAt(0).toLowerCase()}${driver.description.slice(1)}`;
+
+  switch (bump) {
+    case 'major':
+      return t`This is a major Release, because ${change}.`;
+    case 'minor':
+      return t`This is a minor Release, because ${change}.`;
+    case 'patch':
+      return t`This is a patch Release, because ${change}.`;
+  }
+}
+
+/**
+ * Why a pending Release would move the version, or that there is nothing to
+ * release at all.
+ *
+ * Core answers a Project with nothing to publish with a null bump rather than
+ * an error, so that is an outcome the dialog words rather than a failure, and
+ * it names the version nothing has changed since, as ci's rule for it asks.
  */
 export function releaseReason(
   diff: ReleaseDiff,
   changes: DescribedReleaseChange[]
 ): string {
-  if (diff.bump === null) {
-    return `Nothing has changed since version ${diff.currentVersion}, so there is nothing to release.`;
+  const reason = bumpReason(diff.bump, changes);
+
+  if (reason === null) {
+    const { currentVersion } = diff;
+    return t`Nothing has changed since version ${currentVersion}, so there is nothing to release.`;
   }
 
-  const driver = changes.find((change) => change.bump === diff.bump);
-  const word = bumpWord(diff.bump).toLowerCase();
-
-  if (driver === undefined) {
-    return `This is a ${word} Release, because what a site reads is unchanged.`;
-  }
-
-  return `This is a ${word} Release, because ${driver.description.charAt(0).toLowerCase()}${driver.description.slice(1)}.`;
+  return reason;
 }
 
 /**
@@ -207,17 +288,15 @@ export function releaseReason(
  * and what to do about it, in one sentence, and the rest are written down in
  * [`contributing/error-handling.md`](../../../contributing/error-handling.md).
  */
-export const RELEASE_READ_REFUSALS: Partial<Record<CoreErrorType, string>> = {
-  PreconditionFailed:
-    'Changes were saved or a Release was made on another computer, so synchronize this Project first.',
-  Unauthorized:
-    'The Git repository refused access, so ask whoever set up this Project.',
-  Internal:
-    'The Git repository could not be reached, so check your connection and try again.',
+export const RELEASE_READ_REFUSALS: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  PreconditionFailed: msg`Changes were saved or a Release was made on another computer, so synchronize this Project first.`,
+  Unauthorized: msg`The Git repository refused access, so ask whoever set up this Project.`,
+  Internal: msg`The Git repository could not be reached, so check your connection and try again.`,
 };
 
-export const RELEASE_READ_FALLBACK =
-  'What a Release would publish could not be read. Your changes on this computer are safe. Please try again.';
+export const RELEASE_READ_FALLBACK = msg`What a Release would publish could not be read. Your changes on this computer are safe. Please try again.`;
 
 /**
  * The refusals a second read can clear on its own.
@@ -247,14 +326,12 @@ export const RELEASE_READ_RETRYABLE: ReadonlySet<CoreErrorType> = new Set([
  * nothing was released in front of it, so one cause is named per refusal, the
  * same way round as above.
  */
-export const RELEASE_CREATE_REFUSALS: Partial<Record<CoreErrorType, string>> = {
-  PreconditionFailed:
-    'Nothing was released, and this Project is exactly as it was. Changes were saved or a Release was made on another computer, so synchronize this Project first.',
-  Unauthorized:
-    'Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project.',
-  Internal:
-    'Nothing was released, and this Project is exactly as it was. The Git repository could not be reached, so check your connection and try again.',
+export const RELEASE_CREATE_REFUSALS: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  PreconditionFailed: msg`Nothing was released, and this Project is exactly as it was. Changes were saved or a Release was made on another computer, so synchronize this Project first.`,
+  Unauthorized: msg`Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project.`,
+  Internal: msg`Nothing was released, and this Project is exactly as it was. The Git repository could not be reached, so check your connection and try again.`,
 };
 
-export const RELEASE_CREATE_FALLBACK =
-  'Nothing was released, and this Project is exactly as it was. Please try again.';
+export const RELEASE_CREATE_FALLBACK = msg`Nothing was released, and this Project is exactly as it was. Please try again.`;

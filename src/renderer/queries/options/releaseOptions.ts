@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { queryOptions } from '@tanstack/react-query';
 
@@ -7,6 +8,7 @@ import type {
   CoreErrorType,
   ListReleasesProps,
   Project,
+  ReleaseChangesProps,
   ReleaseDiff,
 } from '@elek-io/core';
 
@@ -29,11 +31,45 @@ export type PendingRelease =
   | { status: 'refused'; errorType: CoreErrorType };
 
 export const releaseOptions = {
+  /**
+   * The Releases of one Project.
+   *
+   * A failed read belongs to the pane it happened in, which is why
+   * `throwOnError` is on. A Project card is the exception and opts its own read
+   * out of it, because the Projects page reads this once per card, see
+   * contributing/error-handling.md.
+   */
   list: (props: ListReleasesProps) =>
     queryOptions({
       queryKey: ['projects', props.projectId, 'current', 'releases', 'list'],
       queryFn: async () => {
         return await window.ipc.core.releases.list(props);
+      },
+      throwOnError: true,
+    }),
+
+  /**
+   * What one Release of this Project changed, in the shape a pending Release
+   * is read in, so one component draws a past Release and the next one.
+   *
+   * A failed read belongs to the pane it happened in, which is why
+   * `throwOnError` is on: a tag that is no Release of the Project and a copy
+   * whose history does not hold what the Release compared against are the two
+   * Core refuses with, and neither is something to act on inside the screen,
+   * see contributing/error-handling.md.
+   */
+  changes: (props: ReleaseChangesProps) =>
+    queryOptions({
+      queryKey: [
+        'projects',
+        props.projectId,
+        'current',
+        'releases',
+        'changes',
+        props.tagId,
+      ],
+      queryFn: async () => {
+        return await window.ipc.core.releases.changes(props);
       },
       throwOnError: true,
     }),
@@ -97,8 +133,11 @@ export const releaseOptions = {
       objectType: 'project',
     },
     toasts: {
-      success: (result) => `Release ${result.version} created`,
-      error: 'Could not create a Release',
+      success: (result) => {
+        const { version } = result;
+        return t`Release ${version} created`;
+      },
+      error: () => t`Could not create a Release`,
     },
     onSuccess: async (_result, variables, _onMutateResult, context) => {
       // A Release writes the new version into the Project, commits, tags and

@@ -50,6 +50,7 @@ const router = createRouter({
   history: hashHistory,
   context: {},
 });
+// eslint-disable-next-line lingui/no-unlocalized-strings -- A router event's name.
 router.subscribe('onBeforeLoad', (event) => {
   void window.ipc.core.logger.info({
     source: 'desktop',

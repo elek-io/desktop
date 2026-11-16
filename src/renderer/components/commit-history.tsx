@@ -32,14 +32,18 @@ export function CommitHistory({
         <div className="grid gap-2 py-2">
           {commits.map((commit) => (
             <SidebarMenuItem key={commit.hash}>
-              <SidebarMenuButton className="no-underline" size="lg" asChild>
-                <Commit
-                  commit={commit}
-                  disabled={disabled === true}
-                  to="/projects/$projectId/history/$commitHash"
-                  params={{ projectId, commitHash: commit.hash }}
-                />
-              </SidebarMenuButton>
+              <SidebarMenuButton
+                className="no-underline"
+                size="lg"
+                render={
+                  <Commit
+                    commit={commit}
+                    disabled={disabled === true}
+                    to="/projects/$projectId/history/$commitHash"
+                    params={{ projectId, commitHash: commit.hash }}
+                  />
+                }
+              />
             </SidebarMenuItem>
           ))}
         </div>

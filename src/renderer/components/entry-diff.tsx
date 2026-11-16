@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
 
 import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
 import { EntryForm } from '@renderer/components/forms/entry-form';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
 
@@ -86,7 +86,7 @@ export function EntryDiff({
       enabled: commitBefore !== undefined,
     });
 
-  const entryFormBefore = useForm({
+  const entryFormBefore = useAppForm({
     resolver: zodResolver(updateEntrySchema),
     defaultValues: {
       projectId: project.id,
@@ -94,13 +94,19 @@ export function EntryDiff({
       id: commit.message.reference.id,
       values: {},
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingEntryBefore
+      ? {}
+      : {
+          values: {
+            projectId: project.id,
+            collectionId,
+            id: entryBefore.id,
+            values: entryBefore.values,
+          },
+        }),
+    disabled: isReadingEntryBefore,
   });
-
-  useEffect(() => {
-    if (isReadingEntryBefore === false) {
-      entryFormBefore.reset(entryBefore);
-    }
-  }, [isReadingEntryBefore, entryFormBefore, entryBefore]);
 
   const { data: entryAfter, isPending: isReadingEntryAfter } = useQueryNoError({
     ...queryOptions.entries.read({
@@ -112,7 +118,7 @@ export function EntryDiff({
     enabled: commitAfter !== undefined,
   });
 
-  const entryFormAfter = useForm({
+  const entryFormAfter = useAppForm({
     resolver: zodResolver(updateEntrySchema),
     defaultValues: {
       projectId: project.id,
@@ -120,13 +126,19 @@ export function EntryDiff({
       id: commit.message.reference.id,
       values: {},
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingEntryAfter
+      ? {}
+      : {
+          values: {
+            projectId: project.id,
+            collectionId,
+            id: entryAfter.id,
+            values: entryAfter.values,
+          },
+        }),
+    disabled: isReadingEntryAfter,
   });
-
-  useEffect(() => {
-    if (isReadingEntryAfter === false) {
-      entryFormAfter.reset(entryAfter);
-    }
-  }, [isReadingEntryAfter, entryFormAfter, entryAfter]);
 
   // Show loading skeleton while any query is pending
   if (
@@ -154,6 +166,7 @@ export function EntryDiff({
     return (
       <DiffContainer type="create" commit={commitAfter}>
         <EntryForm
+          language={project.settings.language.default}
           entryForm={entryFormAfter}
           fieldDefinitions={collection.fieldDefinitions}
           project={project}
@@ -168,6 +181,7 @@ export function EntryDiff({
     return (
       <DiffContainer type="delete" commit={commitBefore}>
         <EntryForm
+          language={project.settings.language.default}
           entryForm={entryFormBefore}
           fieldDefinitions={collection.fieldDefinitions}
           project={project}
@@ -183,6 +197,7 @@ export function EntryDiff({
       <>
         <DiffContainer type="before" commit={commitBefore}>
           <EntryForm
+            language={project.settings.language.default}
             entryForm={entryFormBefore}
             fieldDefinitions={collection.fieldDefinitions}
             project={project}
@@ -192,6 +207,7 @@ export function EntryDiff({
 
         <DiffContainer type="after" commit={commitAfter}>
           <EntryForm
+            language={project.settings.language.default}
             entryForm={entryFormAfter}
             fieldDefinitions={collection.fieldDefinitions}
             project={project}

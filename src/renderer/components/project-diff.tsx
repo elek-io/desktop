@@ -1,21 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
 
 import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
 import { ProjectForm } from '@renderer/components/forms/project-form';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import {
+  newProjectFormValues,
+  projectFormSchema,
+  projectFormValuesOf,
+  type ProjectFormValues,
+} from '@renderer/lib/projectForm';
 import { queryOptions } from '@renderer/queries';
 
-import {
-  updateProjectSchema,
-  type GitCommit,
-  type Project,
-  type UpdateProjectProps,
-} from '@elek-io/core';
+import { type GitCommit, type Project } from '@elek-io/core';
 
 export function ProjectDiff({
   project,
@@ -77,26 +78,15 @@ export function ProjectDiff({
       enabled: commitBefore !== undefined,
     });
 
-  const projectFormBefore = useForm<UpdateProjectProps>({
-    resolver: zodResolver(updateProjectSchema),
-    defaultValues: {
-      id: project.id,
-      name: '',
-      description: '',
-      settings: {
-        language: {
-          default: 'en',
-          supported: ['en'],
-        },
-      },
-    },
+  const projectFormBefore = useAppForm<ProjectFormValues>({
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: newProjectFormValues(),
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingProjectBefore
+      ? {}
+      : { values: projectFormValuesOf(projectBefore) }),
+    disabled: isReadingProjectBefore,
   });
-
-  useEffect(() => {
-    if (isReadingProjectBefore === false) {
-      projectFormBefore.reset(projectBefore);
-    }
-  }, [isReadingProjectBefore, projectFormBefore, projectBefore]);
 
   const { data: projectAfter, isPending: isReadingProjectAfter } =
     useQueryNoError({
@@ -107,26 +97,15 @@ export function ProjectDiff({
       enabled: commitAfter !== undefined,
     });
 
-  const projectFormAfter = useForm<UpdateProjectProps>({
-    resolver: zodResolver(updateProjectSchema),
-    defaultValues: {
-      id: project.id,
-      name: '',
-      description: '',
-      settings: {
-        language: {
-          default: 'en',
-          supported: ['en'],
-        },
-      },
-    },
+  const projectFormAfter = useAppForm<ProjectFormValues>({
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: newProjectFormValues(),
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingProjectAfter
+      ? {}
+      : { values: projectFormValuesOf(projectAfter) }),
+    disabled: isReadingProjectAfter,
   });
-
-  useEffect(() => {
-    if (isReadingProjectAfter === false) {
-      projectFormAfter.reset(projectAfter);
-    }
-  }, [isReadingProjectAfter, projectFormAfter, projectAfter]);
 
   // Show loading skeleton while queries are pending
   if (
@@ -152,7 +131,11 @@ export function ProjectDiff({
   if (!commitBefore && commitAfter) {
     return (
       <DiffContainer type="create" commit={commitAfter}>
-        <ProjectForm projectForm={projectFormAfter} isViewOnly />
+        <ProjectForm
+          schema={projectFormSchema}
+          projectForm={projectFormAfter}
+          isViewOnly
+        />
       </DiffContainer>
     );
   }
@@ -161,7 +144,11 @@ export function ProjectDiff({
   if (!commitAfter && commitBefore) {
     return (
       <DiffContainer type="delete" commit={commitBefore}>
-        <ProjectForm projectForm={projectFormBefore} isViewOnly />
+        <ProjectForm
+          schema={projectFormSchema}
+          projectForm={projectFormBefore}
+          isViewOnly
+        />
       </DiffContainer>
     );
   }
@@ -171,11 +158,19 @@ export function ProjectDiff({
     return (
       <>
         <DiffContainer type="before" commit={commitBefore}>
-          <ProjectForm projectForm={projectFormBefore} isViewOnly />
+          <ProjectForm
+            schema={projectFormSchema}
+            projectForm={projectFormBefore}
+            isViewOnly
+          />
         </DiffContainer>
 
         <DiffContainer type="after" commit={commitAfter}>
-          <ProjectForm projectForm={projectFormAfter} isViewOnly />
+          <ProjectForm
+            schema={projectFormSchema}
+            projectForm={projectFormAfter}
+            isViewOnly
+          />
         </DiffContainer>
       </>
     );

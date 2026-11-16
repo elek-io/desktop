@@ -4,7 +4,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 
-import { launchApp, testDataDirs } from '../fixtures/electronApp.js';
+import { closeApp, launchApp, testDataDirs } from '../fixtures/electronApp.js';
 
 /**
  * Close the running app and relaunch it against the same data directory, to
@@ -15,12 +15,15 @@ import { launchApp, testDataDirs } from '../fixtures/electronApp.js';
  * same ELEK_IO_DATA_DIR and userData dir the fixture used. The returned window
  * is a new first window and is not covered by the `mainWindow` fixture's
  * console and axe teardown, which watch the original window.
+ *
+ * The close goes through `closeApp`, like every other, so a spec may relaunch
+ * with a form left changed.
  */
 export async function relaunchApp(
   testInfo: TestInfo,
   app: ElectronApplication
 ): Promise<{ app: ElectronApplication; window: Page }> {
-  await app.close();
+  await closeApp(app);
 
   const relaunched = await launchApp(testInfo, testDataDirs(testInfo));
   const window = await relaunched.firstWindow({ timeout: 20000 });

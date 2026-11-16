@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
 
 import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
 import { ComponentForm } from '@renderer/components/forms/component-form';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { translatableDefault } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
@@ -85,7 +85,7 @@ export function ComponentDiff({
   // Seeded inline rather than from a shared object, so react-hook-form infers
   // the form values from the resolver and reads these as its deep partial. A
   // shared const would pin the value type to its own narrower shape instead.
-  const componentFormBefore = useForm({
+  const componentFormBefore = useAppForm({
     resolver: zodResolver(updateComponentSchema),
     defaultValues: {
       projectId: project.id,
@@ -101,21 +101,21 @@ export function ComponentDiff({
       }),
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingComponentBefore
+      ? {}
+      : {
+          values: {
+            projectId: project.id,
+            id: componentBefore.id,
+            name: componentBefore.name,
+            slug: componentBefore.slug,
+            description: componentBefore.description,
+            fieldDefinitions: componentBefore.fieldDefinitions,
+          },
+        }),
+    disabled: isReadingComponentBefore,
   });
-
-  useEffect(() => {
-    if (isReadingComponentBefore === false) {
-      componentFormBefore.reset({
-        ...componentBefore,
-        projectId: project.id,
-      });
-    }
-  }, [
-    isReadingComponentBefore,
-    componentFormBefore,
-    componentBefore,
-    project.id,
-  ]);
 
   const { data: componentAfter, isPending: isReadingComponentAfter } =
     useQueryNoError({
@@ -127,7 +127,7 @@ export function ComponentDiff({
       enabled: commitAfter !== undefined,
     });
 
-  const componentFormAfter = useForm({
+  const componentFormAfter = useAppForm({
     resolver: zodResolver(updateComponentSchema),
     defaultValues: {
       projectId: project.id,
@@ -143,16 +143,21 @@ export function ComponentDiff({
       }),
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect.
+    ...(isReadingComponentAfter
+      ? {}
+      : {
+          values: {
+            projectId: project.id,
+            id: componentAfter.id,
+            name: componentAfter.name,
+            slug: componentAfter.slug,
+            description: componentAfter.description,
+            fieldDefinitions: componentAfter.fieldDefinitions,
+          },
+        }),
+    disabled: isReadingComponentAfter,
   });
-
-  useEffect(() => {
-    if (isReadingComponentAfter === false) {
-      componentFormAfter.reset({
-        ...componentAfter,
-        projectId: project.id,
-      });
-    }
-  }, [isReadingComponentAfter, componentFormAfter, componentAfter, project.id]);
 
   if (
     isReadingHistory ||
@@ -174,6 +179,7 @@ export function ComponentDiff({
     return (
       <DiffContainer type="create" commit={commitAfter}>
         <ComponentForm
+          schema={updateComponentSchema}
           project={project}
           componentForm={componentFormAfter}
           isViewOnly
@@ -186,6 +192,7 @@ export function ComponentDiff({
     return (
       <DiffContainer type="delete" commit={commitBefore}>
         <ComponentForm
+          schema={updateComponentSchema}
           project={project}
           componentForm={componentFormBefore}
           isViewOnly
@@ -199,6 +206,7 @@ export function ComponentDiff({
       <>
         <DiffContainer type="before" commit={commitBefore}>
           <ComponentForm
+            schema={updateComponentSchema}
             project={project}
             componentForm={componentFormBefore}
             isViewOnly
@@ -207,6 +215,7 @@ export function ComponentDiff({
 
         <DiffContainer type="after" commit={commitAfter}>
           <ComponentForm
+            schema={updateComponentSchema}
             project={project}
             componentForm={componentFormAfter}
             isViewOnly

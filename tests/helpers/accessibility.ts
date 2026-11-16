@@ -12,9 +12,9 @@ import { expect, type Page } from '@playwright/test';
  * `context.newPage()`, which Electron does not support. On failure the rule ids
  * are surfaced through the assertion, so a violation is debuggable at a glance.
  *
- * Pass `disableRules` to scope out rules the route does not pass yet (an app-wide
- * `color-contrast` issue, say), so a route can still enforce every other rule
- * ahead of the full assertion. Omit it to assert against every rule.
+ * Pass `disableRules` to scope out a rule a route does not pass yet, so it can
+ * still enforce every other rule ahead of the full assertion. Omit it to assert
+ * against every rule, which every route here does.
  */
 export async function expectNoAxeViolations(
   page: Page,

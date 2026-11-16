@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 
 import type { EntryIssueType } from '@elek-io/core';
@@ -94,14 +95,14 @@ export function entryIssuesOf(error: unknown): SchemaChangeIssue[] {
 export function describeEntryIssue(issue: EntryIssueType): string {
   switch (issue) {
     case 'missing_required':
-      return 'needs a Value for this Field, which is now required and has no default';
+      return t`needs a Value for this Field, which is now required and has no default`;
     case 'type_mismatch':
-      return 'holds a Value that does not fit this Field anymore';
+      return t`holds a Value that does not fit this Field anymore`;
     case 'constraint_violation':
-      return 'holds a Value this Field no longer allows';
+      return t`holds a Value this Field no longer allows`;
     case 'unique_collision':
-      return 'holds a Value another Entry already holds, and this Field is now unique';
+      return t`holds a Value another Entry already holds, and this Field is now unique`;
     case 'content_loss':
-      return 'would lose what it holds in this Field, so the change is refused';
+      return t`would lose what it holds in this Field, so the change is refused`;
   }
 }

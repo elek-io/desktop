@@ -1,4 +1,4 @@
-import { expect, type ElectronApplication } from '@playwright/test';
+import { expect, type ElectronApplication, type Page } from '@playwright/test';
 
 import { type CoreErrorType } from '@elek-io/core';
 
@@ -56,6 +56,42 @@ export async function stubCoreReject(
 }
 
 /**
+ * The message a `CoreError` of `type` arrives in, as the main process encodes
+ * one.
+ *
+ * The main process encodes a `CoreError`'s type into the message with a
+ * sentinel, which the renderer decodes back out (see `shared/ipcError.ts`), so
+ * an injected failure throws the same encoded shape the real handler would. It
+ * is written here rather than in the main process, because
+ * `electronApp.evaluate` can only take plain data.
+ *
+ * The stack is a stand-in for Core's own origin stack, because Core raises
+ * every `CoreError` with one and the renderer logs whatever arrives. Without it
+ * a spec that reads the log record could not tell a stack the app dropped from
+ * one that was never sent.
+ *
+ * `text` replaces both, for a spec about what the app does with what Core
+ * wrote: a message or a stack frame can carry the address of a Git repository
+ * with its token, an email address or a folder of this computer, and no git
+ * repository a spec can arrange raises all of them at once.
+ */
+function injectedCoreErrorMessage(
+  type: CoreErrorType,
+  cause?: unknown,
+  reason?: string,
+  text?: { message: string; stack: string }
+): string {
+  return serializeCoreError(
+    type,
+    text?.message ?? `E2E injected ${type} failure`,
+    text?.stack ??
+      `CoreError: E2E injected ${type} failure\n    at injectedCoreErrorMessage (tests/helpers/ipc.ts)`,
+    cause,
+    reason
+  );
+}
+
+/**
  * Replace a Core IPC handler so its next call rejects with a `CoreError` of
  * `type`, to drive a failure the app routes by type without arranging the
  * conditions Core raises it for. Used for a type no local git repository can
@@ -63,29 +99,165 @@ export async function stubCoreReject(
  * for a type the app deliberately does not handle, which has to reach the root
  * error boundary even though it carries a type.
  *
+ * Pass `delayMs` to hold the rejection open for that long, which is what makes
+ * a window between pressing a control and its failure arriving long enough to
+ * act in. A failure that depends on where focus is when it lands is observed
+ * that way: without the delay the rejection races the step that moves focus.
+ *
+ * Pass `cause` to drive a shape Core attaches to one, which it does for a
+ * refused field definition change and for a sync it would integrate dangling
+ * references with. It goes through `serializeCoreError`, so it crosses exactly
+ * as the real one does, narrowed by the same encoding (see
+ * `shared/ipcError.ts`). Used for a set of references no local repository can
+ * be arranged into, such as the same field reached through two carriers.
+ *
+ * Pass `reason` to drive what Core refused for, which a refused `synchronize`
+ * carries beside the type. It is a plain string rather than Core's own union,
+ * so a value a newer Core would name can be driven too, which is what a build
+ * with no sentence for it has to fall back from.
+ *
+ * Pass `text` to drive the message and the stack Core raised it with, which is
+ * what a spec about the error screen's own text needs, see
+ * `injectedCoreErrorMessage`.
+ *
  * Mirrors `stubCoreReject`, including why it has to run in the main process.
- * The one difference is the message: the main process encodes a `CoreError`'s
- * type into the message with a sentinel, which the renderer decodes back out
- * (see `shared/ipcError.ts`), so the replacement throws the same encoded shape
- * the real handler would. The message is written here rather than in the main
- * process, because `electronApp.evaluate` can only take plain data.
+ * The one difference is the message, see `injectedCoreErrorMessage`.
  */
 export async function stubCoreRejectWithType(
   electronApp: ElectronApplication,
   channel: string,
-  type: CoreErrorType
+  type: CoreErrorType,
+  options: {
+    delayMs?: number;
+    cause?: unknown;
+    reason?: string;
+    text?: { message: string; stack: string };
+  } = {}
 ): Promise<void> {
+  const { delayMs = 0, cause, reason, text } = options;
+
   await electronApp.evaluate(
     ({ ipcMain }, stub) => {
       ipcMain.removeHandler(stub.channel);
-      ipcMain.handle(stub.channel, () => {
+      ipcMain.handle(stub.channel, async () => {
+        if (stub.delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, stub.delayMs));
+        }
         throw new Error(stub.message);
       });
     },
     {
       channel,
-      message: serializeCoreError(type, `E2E injected ${type} failure`),
+      delayMs,
+      message: injectedCoreErrorMessage(type, cause, reason, text),
     }
+  );
+}
+
+/**
+ * Wrap a Core IPC handler so its next call rejects with a `CoreError` of
+ * `type` and every call after it reaches Core as usual.
+ *
+ * A flow that has to fail and then go through is driven this way, which
+ * `stubCoreRejectWithType` cannot do, because it drops the real handler for
+ * good. The sync is the case: the card holds a failed sync as a state until a
+ * sync succeeds, and the toast's Retry is what starts that second one.
+ *
+ * It takes the same `delayMs`, `cause` and `reason` as
+ * `stubCoreRejectWithType`, and the same encoded message. Unlike every other
+ * stub here it wraps the registered handler rather than replacing it, which
+ * needs Electron's own handler map, the way `recordUnsavedChangesClaims` does,
+ * see `tests/electron-internals.d.ts`.
+ */
+export async function stubCoreRejectWithTypeOnce(
+  electronApp: ElectronApplication,
+  channel: string,
+  type: CoreErrorType,
+  options: { delayMs?: number; cause?: unknown; reason?: string } = {}
+): Promise<void> {
+  const { delayMs = 0, cause, reason } = options;
+
+  await electronApp.evaluate(
+    ({ ipcMain }, stub) => {
+      const handlers = ipcMain._invokeHandlers;
+      const handler = handlers?.get(stub.channel);
+
+      // Asked before the app registered the channel, so a stub that cannot
+      // wrap says so instead of leaving the call to fail every time.
+      if (handlers === undefined || handler === undefined) {
+        throw new Error(
+          `No handler of "${stub.channel}" to wrap, so nothing would reject`
+        );
+      }
+
+      let rejected = false;
+      handlers.set(stub.channel, async (event, ...args) => {
+        if (rejected) {
+          return handler(event, ...args);
+        }
+
+        rejected = true;
+
+        if (stub.delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, stub.delayMs));
+        }
+
+        throw new Error(stub.message);
+      });
+    },
+    { channel, delayMs, message: injectedCoreErrorMessage(type, cause, reason) }
+  );
+}
+
+/**
+ * Wrap a Core IPC handler so a call whose props match rejects with a
+ * `CoreError` of `type`, and every other call reaches Core as usual.
+ *
+ * A screen that reads the same channel once per thing it shows is driven this
+ * way: one of those reads fails and the rest answer, which is what shows
+ * whether a failure stays where it happened. The Projects page is the case,
+ * where every card reads the Releases of its own Project.
+ *
+ * The match is plain data, because `electronApp.evaluate` takes nothing else,
+ * and every entry of it has to equal the same key of the call's first argument.
+ * It wraps the registered handler rather than replacing it, like
+ * `stubCoreRejectWithTypeOnce`, which needs Electron's own handler map, see
+ * `tests/electron-internals.d.ts`.
+ */
+export async function stubCoreRejectWithTypeWhere(
+  electronApp: ElectronApplication,
+  channel: string,
+  type: CoreErrorType,
+  match: Record<string, string>
+): Promise<void> {
+  await electronApp.evaluate(
+    ({ ipcMain }, stub) => {
+      const handlers = ipcMain._invokeHandlers;
+      const handler = handlers?.get(stub.channel);
+
+      if (handlers === undefined || handler === undefined) {
+        throw new Error(
+          `No handler of "${stub.channel}" to wrap, so nothing would reject`
+        );
+      }
+
+      handlers.set(stub.channel, (event, ...args) => {
+        const [props] = args;
+        const matches =
+          typeof props === 'object' &&
+          props !== null &&
+          Object.entries(stub.match).every(
+            ([key, value]) => (props as Record<string, unknown>)[key] === value
+          );
+
+        if (matches === false) {
+          return handler(event, ...args);
+        }
+
+        throw new Error(stub.message);
+      });
+    },
+    { channel, match, message: injectedCoreErrorMessage(type) }
   );
 }
 
@@ -109,6 +281,85 @@ export async function stubCoreHang(
       await new Promise(() => {});
     });
   }, channel);
+}
+
+/**
+ * Wrap a Core IPC handler so every call waits until it is let go of, and then
+ * reaches Core as usual.
+ *
+ * What a screen draws while a call of its own is still on its way is observed
+ * this way. A canned delay long enough to measure in races the measurement,
+ * and `stubCoreHang` never answers at all, so neither shows that what is on
+ * screen before the answer is also what is on screen after it. Let go of with
+ * `releaseHeldCoreCalls`.
+ *
+ * It wraps the registered handler rather than replacing it, like
+ * `stubCoreRejectWithTypeOnce`, which needs Electron's own handler map, see
+ * `tests/electron-internals.d.ts`. The flag lives in the main process, where
+ * the handler runs.
+ */
+export async function holdCoreCalls(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    const handlers = ipcMain._invokeHandlers;
+    const handler = handlers?.get(ch);
+
+    // Asked before the app registered the channel, so a hold that holds
+    // nothing says so rather than leaving a spec to wait for a state that
+    // never comes.
+    if (handlers === undefined || handler === undefined) {
+      throw new Error(`No handler of "${ch}" to hold, so nothing would wait`);
+    }
+
+    globalThis.heldCoreCalls = true;
+    handlers.set(ch, async (event, ...args) => {
+      while (globalThis.heldCoreCalls === true) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+
+      return handler(event, ...args);
+    });
+  }, channel);
+}
+
+/** Lets every call `holdCoreCalls` holds go through to Core. */
+export async function releaseHeldCoreCalls(
+  electronApp: ElectronApplication
+): Promise<void> {
+  await electronApp.evaluate(() => {
+    globalThis.heldCoreCalls = false;
+  });
+}
+
+/**
+ * Replace a Core IPC handler so it records that it was called instead of
+ * reaching Core, to observe that something never got that far.
+ *
+ * A form that blocks Save is the case: pressing it has to reach neither Core
+ * nor the channel in front of it, and the channel is the seam a desktop test
+ * owns (see testing.md). Mirrors `stubCoreReject`, including why it has to run
+ * in the main process. Read what it collected with `recordedCoreCalls`.
+ */
+export async function stubCoreRecord(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    globalThis.recordedCoreCalls = [];
+    ipcMain.removeHandler(ch);
+    ipcMain.handle(ch, () => {
+      globalThis.recordedCoreCalls?.push(ch);
+    });
+  }, channel);
+}
+
+/** Every call a `stubCoreRecord` channel took since it was put in place. */
+export async function recordedCoreCalls(
+  electronApp: ElectronApplication
+): Promise<string[]> {
+  return electronApp.evaluate(() => globalThis.recordedCoreCalls ?? []);
 }
 
 /**
@@ -139,4 +390,76 @@ export async function stubCoreResolve(
     },
     { channel, value }
   );
+}
+
+/**
+ * Record what the app hands a Core channel, while Core keeps answering it.
+ *
+ * Wrapped rather than replaced, because what the call does is part of what a
+ * spec asserts: a save that renames an Asset has to reach Core, and what says
+ * it left the file alone is that the call carried no new file. The handler the
+ * app registered is taken from Electron's own map, since no public API hands
+ * one back and `removeHandler` drops it for good, see
+ * tests/electron-internals.d.ts.
+ */
+export async function recordCoreCallProps(
+  electronApp: ElectronApplication,
+  channel: string
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, ch) => {
+    const handlers = ipcMain._invokeHandlers;
+    const handler = handlers?.get(ch);
+
+    // Asked before anything is set up, so a helper that cannot watch leaves no
+    // record of its own behind to read as an empty one.
+    if (handlers === undefined || handler === undefined) {
+      throw new Error(
+        `No handler of "${ch}" to watch, so nothing would be recorded`
+      );
+    }
+
+    globalThis.recordedCoreCallProps = [];
+    handlers.set(ch, async (event, ...args) => {
+      globalThis.recordedCoreCallProps?.push(args[0]);
+      return await Promise.resolve(handler(event, ...args));
+    });
+  }, channel);
+}
+
+/** What every call of a `recordCoreCallProps` channel was handed, in order. */
+export async function recordedCoreCallProps(
+  electronApp: ElectronApplication
+): Promise<unknown[]> {
+  return electronApp.evaluate(() => globalThis.recordedCoreCallProps ?? []);
+}
+
+/**
+ * Hand the masking channel a value and say what the main process did with it.
+ *
+ * `text` is `unknown`, because what this proves is which values the main
+ * process refuses. The bridge's own type takes a string, so a refused value
+ * has to come in untyped.
+ *
+ * The rejection's own message comes back as well, since Electron carries it to
+ * the caller. A spec asserts it rather than only the rejection, because a
+ * channel that stopped parsing would still reject a value Core then tripped
+ * over somewhere else.
+ */
+export async function maskViaIpc(
+  page: Page,
+  text: unknown
+): Promise<{ accepted: boolean; text: string }> {
+  return page.evaluate(async (value) => {
+    try {
+      // The cast is the point of the test: the bridge is typed to the one
+      // thing it takes, so handing it anything else needs the type out of the
+      // way. What the main process does with it is what this measures.
+      return {
+        accepted: true,
+        text: await window.ipc.core.logger.mask(value as string),
+      };
+    } catch (error) {
+      return { accepted: false, text: String(error) };
+    }
+  }, text);
 }

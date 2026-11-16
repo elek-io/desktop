@@ -1,16 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { i18n, type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { version as desktopVersion } from '@root/package.json';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { errorLogAttributes } from '@root/src/shared/logError';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ExternalLink, Send } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
+import {
+  useEffect,
+  useId,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import {
   type FieldPath,
   type FieldValues,
   type SubmitHandler,
   type UseFormReturn,
-  useForm,
 } from 'react-hook-form';
 
 import {
@@ -19,6 +27,7 @@ import {
   AlertTitle,
 } from '@renderer/components/ui/alert';
 import {
+  AppField,
   AppForm,
   FormActions,
   SubmitButton,
@@ -36,16 +45,11 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog';
 import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormInputField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormTextareaField,
-  FormToggleField,
-} from '@renderer/components/ui/form';
+  SwitchControl,
+  TextControl,
+  TextareaControl,
+} from '@renderer/components/ui/field-controls';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
 import { queryOptions } from '@renderer/queries';
@@ -74,6 +78,9 @@ export type ReportMode = 'bug' | 'feedback';
 type ReportDesktop = CreateReportBase['desktop'];
 
 function describeDesktop(): ReportDesktop {
+  // A runtime version Electron did not report. It travels to us in a report
+  // body rather than onto a screen, so it stays out of the catalog.
+  /* eslint-disable lingui/no-unlocalized-strings */
   return {
     version: desktopVersion,
     runtime: {
@@ -82,6 +89,7 @@ function describeDesktop(): ReportDesktop {
       node: window.ipc.electron.process.versions['node'] ?? 'unknown',
     },
   };
+  /* eslint-enable lingui/no-unlocalized-strings */
 }
 
 /**
@@ -114,14 +122,18 @@ const reportContactSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['email'],
-        message: 'Add an email, or clear your name to send this anonymously.',
+        message: i18n._(
+          msg`Add an email, or clear your name to send this anonymously.`
+        ),
       });
     }
     if (contact.email !== null && contact.name === null) {
       ctx.addIssue({
         code: 'custom',
         path: ['name'],
-        message: 'Add a name, or clear the email to send this anonymously.',
+        message: i18n._(
+          msg`Add a name, or clear the email to send this anonymously.`
+        ),
       });
     }
   })
@@ -143,7 +155,11 @@ type ReportContact = z.input<typeof reportContactSchema>;
  * one case without copying the length bounds out of it.
  */
 const reportMessageSchema = z
-  .string({ error: 'Tell us what happened, in a sentence or two.' })
+  .string({
+    // A function rather than a string, so the catalog is read when the form is
+    // validated rather than when this module loads.
+    error: () => i18n._(msg`Tell us what happened, in a sentence or two.`),
+  })
   .pipe(createReportBaseSchema.shape.message);
 
 const bugReportFormSchema = createBugReportSchema.extend({
@@ -185,24 +201,22 @@ function useCachedContact(): ReportContact {
 }
 
 /** Copy for a failed feedback send, keyed by CoreError type. */
-const feedbackErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  PreconditionFailed:
-    'We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment.',
-  RateLimited:
-    'Too many reports were sent from here recently. Your text is still here, so you can try again in a few minutes.',
-  BadRequest:
-    'elek.io Cloud rejected this report. Shortening it usually helps.',
+const feedbackErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  PreconditionFailed: msg`We could not reach elek.io Cloud. Your text is still here, so you can try again in a moment.`,
+  RateLimited: msg`Too many reports were sent from here recently. Your text is still here, so you can try again in a few minutes.`,
+  BadRequest: msg`elek.io Cloud rejected this report. Shortening it usually helps.`,
 };
 
 /** The bug form's copy, which differs only where the logs can be left out. */
-const bugErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  ...feedbackErrorDescriptions,
-  BadRequest:
-    'elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps.',
-};
+const bugErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    ...feedbackErrorDescriptions,
+    BadRequest: msg`elek.io Cloud rejected this report. Shortening it, or sending it without the logs, usually helps.`,
+  };
 
-const reportErrorFallback =
-  'The report could not be sent. Your text is still here, so you can try again.';
+const reportErrorFallback = msg`The report could not be sent. Your text is still here, so you can try again.`;
 
 /**
  * Sending a report handles **every** `CoreError` type in place, which is the one
@@ -293,7 +307,7 @@ function ReportError({
   descriptions,
 }: {
   error: unknown;
-  descriptions: Partial<Record<CoreErrorType, string>>;
+  descriptions: Partial<Record<CoreErrorType, MessageDescriptor>>;
 }): ReactElement | null {
   if (error === null) {
     return null;
@@ -304,7 +318,9 @@ function ReportError({
   return (
     <Alert variant="destructive">
       <AlertCircle />
-      <AlertTitle>Could not send this report</AlertTitle>
+      <AlertTitle>
+        <Trans>Could not send this report</Trans>
+      </AlertTitle>
       <AlertDescription>
         {describeCoreError(type, descriptions, reportErrorFallback)}
       </AlertDescription>
@@ -316,6 +332,10 @@ function ReportError({
  * The contact block, shared by both forms. Generic over the form shape, and the
  * caller passes the two field paths in where its form type is concrete, so they
  * are checked without a cast. See contributing/renderer/forms.md.
+ *
+ * Each caller passes its two descriptions as whole sentences, because the one
+ * word that differs between them (a report, a piece of feedback) cannot be
+ * translated on its own, see contributing/renderer/internationalization.md.
  */
 function ContactFields<
   TFieldValues extends FieldValues,
@@ -324,47 +344,38 @@ function ContactFields<
   form,
   nameField,
   emailField,
-  purpose,
+  nameDescription,
+  emailDescription,
 }: {
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   nameField: NoInfer<FieldPath<TFieldValues>>;
   emailField: NoInfer<FieldPath<TFieldValues>>;
-  purpose: string;
+  nameDescription: ReactNode;
+  emailDescription: ReactNode;
 }): ReactElement {
   return (
     <>
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={nameField}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Name</FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="text" />
-            </FormControl>
-            <FormDescription>Who this {purpose} is from.</FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Name</Trans>}
+        description={nameDescription}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="text" {...controlProps} />
         )}
-      />
+      </AppField>
 
-      <FormField
-        control={form.control}
+      <AppField
+        form={form}
         name={emailField}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Email</FormLabel>
-            <FormControl>
-              <FormInputField field={field} type="email" />
-            </FormControl>
-            <FormDescription>
-              Only so we can come back to you about this {purpose}. Both are
-              yours to change. Leave them empty to send this anonymously.
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
+        label={<Trans>Email</Trans>}
+        description={emailDescription}
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="email" {...controlProps} />
         )}
-      />
+      </AppField>
     </>
   );
 }
@@ -388,8 +399,8 @@ function ReportFooter<
   return (
     <FormActions form={form} id={formId}>
       <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="secondary">Cancel</Button>
+        <DialogClose render={<Button variant="secondary" />}>
+          <Trans>Cancel</Trans>
         </DialogClose>
         <SubmitButton Icon={Send}>{label}</SubmitButton>
       </DialogFooter>
@@ -404,11 +415,13 @@ function BugReportForm({
   defaultHasLogConsent: boolean;
   onSent: () => void;
 }): ReactElement {
+  const { t } = useLingui();
+
   const formId = useId();
   const contact = useCachedContact();
   const { send, sendError } = useSendReport(onSent);
 
-  const form = useForm({
+  const form = useAppForm({
     resolver: zodResolver(bugReportFormSchema),
     defaultValues: {
       type: 'bug' as const,
@@ -423,6 +436,7 @@ function BugReportForm({
     <>
       <AppForm
         form={form}
+        schema={bugReportFormSchema}
         onSubmit={send}
         id={formId}
         className="flex min-h-0 flex-col"
@@ -431,89 +445,83 @@ function BugReportForm({
         <DialogBody>
           <ReportError error={sendError} descriptions={bugErrorDescriptions} />
 
-          <FormField
-            control={form.control}
+          <AppField
+            form={form}
             name="message"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel isRequired>What went wrong?</FormLabel>
-                <FormControl>
-                  <FormTextareaField field={field} rows={8} />
-                </FormControl>
-                <FormDescription>
-                  What you did just before it happened, roughly when, and what
-                  you expected instead. That is usually what lets us find it in
-                  the logs and reproduce it.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>What went wrong?</Trans>}
+            description={
+              <Trans>
+                What you did just before it happened, roughly when, and what you
+                expected instead. That is usually what lets us find it in the
+                logs and reproduce it.
+              </Trans>
+            }
+          >
+            {({ field, controlProps }) => (
+              <TextareaControl field={field} rows={8} {...controlProps} />
             )}
-          />
+          </AppField>
 
           <ContactFields
             form={form}
             nameField="user.name"
             emailField="user.email"
-            purpose="report"
+            nameDescription={<Trans>Who this report is from.</Trans>}
+            emailDescription={
+              <Trans>
+                Only so we can come back to you about this report. Both are
+                yours to change. Leave them empty to send this anonymously.
+              </Trans>
+            }
           />
 
-          <FormField
-            control={form.control}
+          <AppField
+            form={form}
             name="hasLogConsent"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex items-center gap-3">
-                  <FormControl>
-                    <FormToggleField field={field} />
-                  </FormControl>
-                  {/*
-                    isRequired only suppresses FormLabel's " - optional" suffix.
-                    On a switch that suffix means nothing, since it always has a
-                    value, and it would land in the control's accessible name
-                    ("Also send my logs - optional, switch"). This is the one
-                    label carrying the user's consent to send data, so it has to
-                    read exactly as written.
-                  */}
-                  <FormLabel isRequired>Also send my logs</FormLabel>
-                </div>
-                <FormDescription>
-                  Sends what elek.io Desktop recorded on this machine in the
-                  last 24 hours. That includes the ids of your Projects,
-                  Collections and Entries, the files they live in and the
-                  actions you took, but never the content you wrote or the names
-                  you gave them. It is the single most useful thing for finding
-                  a bug.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>Also send my logs</Trans>}
+            orientation="horizontal"
+            description={
+              <Trans>
+                Sends what elek.io Desktop recorded on this machine in the last
+                24 hours. That includes the ids of your Projects, Collections
+                and Entries, the files they live in and the actions you took,
+                but never the content you wrote or the names you gave them. It
+                is the single most useful thing for finding a bug.
+              </Trans>
+            }
+          >
+            {({ field, controlProps }) => (
+              <SwitchControl field={field} {...controlProps} />
             )}
-          />
+          </AppField>
 
           <p className="text-sm text-muted-foreground">
-            Prefer to report this in the open?{' '}
+            <Trans>Prefer to report this in the open?</Trans>{' '}
             <Button
               variant="link"
               className="h-auto p-0 text-sm"
               onClick={() => window.open(GITHUB_ISSUES_URL, '_blank')}
             >
-              Open an issue on GitHub
+              <Trans>Open an issue on GitHub</Trans>
               <ExternalLink className="ml-1 h-3 w-3" />
             </Button>
           </p>
         </DialogBody>
       </AppForm>
 
-      <ReportFooter form={form} formId={formId} label="Send report" />
+      <ReportFooter form={form} formId={formId} label={t`Send report`} />
     </>
   );
 }
 
 function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
+  const { t } = useLingui();
+
   const formId = useId();
   const contact = useCachedContact();
   const { send, sendError } = useSendReport(onSent);
 
-  const form = useForm({
+  const form = useAppForm({
     resolver: zodResolver(feedbackReportFormSchema),
     defaultValues: {
       type: 'feedback' as const,
@@ -527,6 +535,7 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
     <>
       <AppForm
         form={form}
+        schema={feedbackReportFormSchema}
         onSubmit={send}
         id={formId}
         className="flex min-h-0 flex-col"
@@ -538,36 +547,38 @@ function FeedbackForm({ onSent }: { onSent: () => void }): ReactElement {
             descriptions={feedbackErrorDescriptions}
           />
 
-          <FormField
-            control={form.control}
+          <AppField
+            form={form}
             name="message"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel isRequired>
-                  What would you like to tell us?
-                </FormLabel>
-                <FormControl>
-                  <FormTextareaField field={field} rows={8} />
-                </FormControl>
-                <FormDescription>
-                  What is missing, what got in your way, or what you would like
-                  to see next.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+            label={<Trans>What would you like to tell us?</Trans>}
+            description={
+              <Trans>
+                What is missing, what got in your way, or what you would like to
+                see next.
+              </Trans>
+            }
+          >
+            {({ field, controlProps }) => (
+              <TextareaControl field={field} rows={8} {...controlProps} />
             )}
-          />
+          </AppField>
 
           <ContactFields
             form={form}
             nameField="user.name"
             emailField="user.email"
-            purpose="feedback"
+            nameDescription={<Trans>Who this feedback is from.</Trans>}
+            emailDescription={
+              <Trans>
+                Only so we can come back to you about this feedback. Both are
+                yours to change. Leave them empty to send this anonymously.
+              </Trans>
+            }
           />
         </DialogBody>
       </AppForm>
 
-      <ReportFooter form={form} formId={formId} label="Send feedback" />
+      <ReportFooter form={form} formId={formId} label={t`Send feedback`} />
     </>
   );
 }
@@ -603,10 +614,10 @@ export function ReportDialog({
 }: ReportDialogProps): ReactElement {
   const [mode, setMode] = useState<ReportMode>(defaultMode);
 
-  // Reset on open, in an effect rather than from onOpenChange. Radix calls
-  // onOpenChange only from its own internal setter (a trigger, the close button,
-  // Escape, an overlay click), and both entry points open this dialog by
-  // flipping the `open` prop instead, so an onOpenChange(true) never arrives.
+  // Reset on open, in an effect rather than from onOpenChange. The dialog calls
+  // onOpenChange only from its own parts (a trigger, the close button, Escape,
+  // an overlay click), and both entry points open this dialog by flipping the
+  // `open` prop instead, so an onOpenChange(true) never arrives.
   // Without this, switching to feedback and reopening would still show feedback.
   useEffect(() => {
     if (open) {
@@ -615,43 +626,63 @@ export function ReportDialog({
   }, [open, defaultMode]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {/*
-        Only the X and Cancel close it. A stray Escape or a click beside the
-        dialog would otherwise throw away what the user wrote, which is the one
-        thing this dialog exists to keep. Radix's AlertDialog blocks outside
-        clicks the same way, but it still closes on Escape and has no X.
-      */}
-      <DialogContent
-        className="sm:max-w-xl"
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
-      >
+    // Only the X and Cancel close it. A stray Escape or a click beside the
+    // dialog would otherwise throw away what the user wrote, which is the one
+    // thing this dialog exists to keep. `disablePointerDismissal` turns away a
+    // press outside and a focus that leaves, and the Escape key is canceled by
+    // its reason.
+    <Dialog
+      open={open}
+      disablePointerDismissal
+      onOpenChange={(nextOpen, eventDetails) => {
+        if (eventDetails.reason === 'escape-key') {
+          eventDetails.cancel();
+          return;
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'bug' ? 'Report a bug' : 'Share feedback'}
+            {mode === 'bug' ? (
+              <Trans>Report a bug</Trans>
+            ) : (
+              <Trans>Share feedback</Trans>
+            )}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'bug'
-              ? 'Nothing is sent to us automatically, so this is how we find out. Tell us what broke.'
-              : 'Tell us what you think of elek.io Desktop. We read every one of these.'}
+            {mode === 'bug' ? (
+              <Trans>
+                Nothing is sent to us automatically, so this is how we find out.
+                Tell us what broke.
+              </Trans>
+            ) : (
+              <Trans>
+                Tell us what you think of elek.io Desktop. We read every one of
+                these.
+              </Trans>
+            )}
           </DialogDescription>
+          {/* Which of the two forms is shown, not a word. */}
+          {/* eslint-disable lingui/no-unlocalized-strings */}
           <ButtonGroup className="mt-2">
             <Button
-              variant={mode === 'bug' ? 'default' : 'outline'}
+              variant="outline"
               aria-pressed={mode === 'bug'}
               onClick={() => setMode('bug')}
             >
-              Report a bug
+              <Trans>Report a bug</Trans>
             </Button>
             <Button
-              variant={mode === 'feedback' ? 'default' : 'outline'}
+              variant="outline"
               aria-pressed={mode === 'feedback'}
               onClick={() => setMode('feedback')}
             >
-              Share feedback
+              <Trans>Share feedback</Trans>
             </Button>
           </ButtonGroup>
+          {/* eslint-enable lingui/no-unlocalized-strings */}
         </DialogHeader>
 
         {/*

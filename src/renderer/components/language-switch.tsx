@@ -1,0 +1,257 @@
+import { plural } from '@lingui/core/macro';
+import { useLingui } from '@lingui/react/macro';
+import { TriangleAlertIcon } from 'lucide-react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactElement,
+} from 'react';
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@renderer/components/ui/select';
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@renderer/components/ui/toggle-group';
+import { languageName } from '@renderer/lib/utils';
+
+import type { SupportedLanguage } from '@elek-io/core';
+
+// The switch above a form's fields that takes the whole page into another
+// language, and marks each language that misses a required Value or holds a
+// refused one.
+//
+// See contributing/renderer/internationalization.md#one-language-at-a-time.
+
+/** What one language of the switch says about itself. */
+export interface LanguageState {
+  language: SupportedLanguage;
+  /** How many required Values this language is still missing. */
+  missing: number;
+  /** Whether a Value of this language was refused. */
+  hasError: boolean;
+}
+
+export interface LanguageSwitchProps {
+  languages: LanguageState[];
+  /** The language on screen, which is the one segment that reads as pressed. */
+  language: SupportedLanguage;
+  onLanguageChange: (language: SupportedLanguage) => void;
+}
+
+/** Whether a language has something somebody has to go and look at. */
+function needsAttention(state: LanguageState): boolean {
+  return state.missing > 0 || state.hasError;
+}
+
+/**
+ * What one language says about itself: its word, and what it is missing or had
+ * refused.
+ *
+ * One sentence for both shapes of the switch, read as a string, because a
+ * segment hides it beside the code it shows while an option of the dropdown
+ * takes it as its name.
+ */
+function useLanguageText(): (state: LanguageState) => string {
+  const { t } = useLingui();
+
+  return (state) => {
+    const name = languageName(state.language);
+    const missingValues = state.missing;
+
+    if (missingValues > 0) {
+      return t`${name}, missing ${plural(missingValues, {
+        one: '# Value',
+        other: '# Values',
+      })}`;
+    }
+    if (state.hasError) {
+      return t`${name}, with a Value that was refused`;
+    }
+    return name;
+  };
+}
+
+/** The warning mark a language with something missing carries, as ci draws it. */
+function AttentionMark(): ReactElement {
+  return (
+    <TriangleAlertIcon aria-hidden className="size-3 shrink-0 text-warning" />
+  );
+}
+
+/**
+ * The switch as ci draws it: one segment per language, side by side.
+ *
+ * Only one language is ever on screen, so the segments are a group where one is
+ * pressed, which is how ci draws a chosen segment and a pressed button alike. A
+ * press on the language already shown changes nothing rather than leaving the
+ * form with no language at all.
+ */
+function LanguageSegments({
+  languages,
+  language,
+  onLanguageChange,
+}: LanguageSwitchProps): ReactElement {
+  const { t } = useLingui();
+  const languageText = useLanguageText();
+
+  return (
+    <ToggleGroup
+      aria-label={t`Language`}
+      value={[language]}
+      onValueChange={(pressed) => {
+        const next = languages.find(
+          (state) => state.language === pressed[0]
+        )?.language;
+        if (next !== undefined && next !== language) {
+          onLanguageChange(next);
+        }
+      }}
+      spacing={0.5}
+      className="rounded-md border p-0.5"
+    >
+      {languages.map((state) => (
+        <ToggleGroupItem key={state.language} value={state.language} size="xs">
+          {/* The code is what fits beside the others, so the sentence is said
+          as well rather than instead, which is what WCAG 2.5.3 asks of a name
+          that carries more than its label. */}
+          {state.language.toUpperCase()}
+          {needsAttention(state) ? <AttentionMark /> : null}
+          <span className="sr-only">{languageText(state)}</span>
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+}
+
+/**
+ * The same switch as one dropdown, for a Project with more languages than its
+ * row holds.
+ *
+ * Each language keeps the mark it carries in the row, on its option and on the
+ * closed trigger, so what is missing is visible without opening it.
+ */
+function LanguageDropdown({
+  languages,
+  language,
+  onLanguageChange,
+}: LanguageSwitchProps): ReactElement {
+  const { t } = useLingui();
+  const languageText = useLanguageText();
+  const chosen = languages.find((state) => state.language === language);
+  const items = Object.fromEntries(
+    languages.map((state) => [state.language, languageName(state.language)])
+  );
+
+  return (
+    <Select
+      items={items}
+      value={language}
+      onValueChange={(picked) => {
+        const next = languages.find(
+          (state) => state.language === picked
+        )?.language;
+        if (next !== undefined && next !== language) {
+          onLanguageChange(next);
+        }
+      }}
+    >
+      <SelectTrigger size="sm" aria-label={t`Language`} className="min-w-0">
+        <SelectValue />
+        {chosen !== undefined && needsAttention(chosen) ? (
+          <AttentionMark />
+        ) : null}
+      </SelectTrigger>
+      <SelectContent>
+        {languages.map((state) => (
+          // An option shows the language's name, so what it is missing is its
+          // name rather than a line beside it, which would say the language
+          // twice.
+          <SelectItem
+            key={state.language}
+            value={state.language}
+            aria-label={languageText(state)}
+          >
+            {languageName(state.language)}
+            {needsAttention(state) ? <AttentionMark /> : null}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/**
+ * One switch for the language of a whole page.
+ *
+ * It shows the Project's languages side by side while they fit, and otherwise
+ * as one dropdown, which Nils decided on 2026-11-01 because Core supports far
+ * more languages than the 318 px the editor is wide at the smallest window the
+ * app supports.
+ * Which of the two is on screen comes from measuring the row against the room
+ * it has rather than from a number of languages written out here, so a wider
+ * window shows more of them side by side.
+ */
+export function LanguageSwitch(props: LanguageSwitchProps): ReactElement {
+  const room = useRef<HTMLDivElement>(null);
+  const row = useRef<HTMLDivElement>(null);
+  // What the row needs, once it has been measured. It is remembered, because
+  // the row is no longer there to measure once the dropdown took its place.
+  const needed = useRef<number | null>(null);
+  const [fits, setFits] = useState(true);
+
+  const measure = useCallback((): void => {
+    const available = room.current?.clientWidth ?? 0;
+    // Nothing has been laid out yet, so there is nothing to compare: measuring
+    // against a width of zero would read as "it does not fit" and take the row
+    // off screen, which would leave nothing to measure.
+    if (available === 0) {
+      return;
+    }
+    // Only ever grows, and only while the row is on screen to be measured, so
+    // the empty row the dropdown leaves behind cannot read as needing nothing.
+    const width = row.current?.scrollWidth ?? 0;
+    if (width > 0) {
+      needed.current = Math.max(needed.current ?? 0, width);
+    }
+    if (needed.current === null) {
+      return;
+    }
+    setFits(available >= needed.current);
+  }, []);
+
+  useLayoutEffect(() => {
+    const observed = room.current;
+    if (observed === null) {
+      return undefined;
+    }
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(observed);
+
+    return () => observer.disconnect();
+  }, [measure, props.languages.length]);
+
+  return (
+    <div
+      data-slot="language-switch"
+      className="flex min-w-0 flex-1 overflow-hidden"
+    >
+      <div ref={room} className="min-w-0 flex-1">
+        {/* The row never shrinks, so its own width is what says whether it
+        fits in the room the switch has. */}
+        <div ref={row} className="w-max">
+          {fits ? <LanguageSegments {...props} /> : null}
+        </div>
+        {fits ? null : <LanguageDropdown {...props} />}
+      </div>
+    </div>
+  );
+}

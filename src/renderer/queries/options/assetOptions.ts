@@ -1,7 +1,13 @@
-import { queryOptions } from '@tanstack/react-query';
+import { t } from '@lingui/core/macro';
+import {
+  queryOptions,
+  type MutationFunctionContext,
+} from '@tanstack/react-query';
 
 import type {
   Asset,
+  CountAssetsProps,
+  DeleteAssetProps,
   ListAssetsProps,
   PaginatedList,
   ReadAssetProps,
@@ -10,6 +16,35 @@ import type {
 import { queryClient } from '../client';
 import { customMutationOptions, mergeListWithObject } from '../util';
 
+/** What the Assets grid calls an Asset, so a toast names it the same way. */
+function assetFileName(asset: Asset): string {
+  return `${asset.name}.${asset.extension}`;
+}
+
+/**
+ * What a deleted Asset was last shown as, or `undefined` when the cache no
+ * longer holds it.
+ *
+ * A delete answers with nothing, so the Asset itself is only still reachable
+ * under its own read key. The toast is built before the mutation's own
+ * `onSuccess` writes to the cache, see `queries/util.ts`.
+ */
+function deletedAssetFileName(
+  variables: DeleteAssetProps,
+  context: MutationFunctionContext
+): string | undefined {
+  const asset = context.client.getQueryData(
+    assetOptions.read({ projectId: variables.projectId, id: variables.id })
+      .queryKey
+  );
+
+  if (asset === undefined) {
+    return undefined;
+  }
+
+  return assetFileName(asset);
+}
+
 export const assetOptions = {
   create: customMutationOptions({
     mutationFn: window.ipc.core.assets.create,
@@ -17,7 +52,14 @@ export const assetOptions = {
       method: 'create',
       objectType: 'asset',
     },
-    onSuccess: (createdAsset, variables, _result, context) => {
+    toasts: {
+      success: (createdAsset) => {
+        const fileName = assetFileName(createdAsset);
+        return t`Asset ${fileName} added`;
+      },
+      error: () => t`Could not add the Asset`,
+    },
+    onSuccess: async (createdAsset, variables, _result, context) => {
       // Add Asset to cache individually
       context.client.setQueryData(
         [
@@ -36,6 +78,13 @@ export const assetOptions = {
         ['projects', variables.projectId, 'current', 'assets', 'list'],
         (oldList) => mergeListWithObject(oldList, createdAsset)
       );
+
+      // The count behind the sidebar's Assets row is Core's number rather than
+      // ours to add to, so it is read again instead of incremented here.
+      await context.client.invalidateQueries({
+        queryKey: assetOptions.count({ projectId: variables.projectId })
+          .queryKey,
+      });
     },
   }),
   read: (props: ReadAssetProps) =>
@@ -58,6 +107,13 @@ export const assetOptions = {
     meta: {
       method: 'update',
       objectType: 'asset',
+    },
+    toasts: {
+      success: (updatedAsset) => {
+        const fileName = assetFileName(updatedAsset);
+        return t`Asset ${fileName} saved`;
+      },
+      error: () => t`Could not save the Asset`,
     },
     onSuccess: (updatedAsset, variables, _result, context) => {
       // Update Asset in cache individually
@@ -86,7 +142,19 @@ export const assetOptions = {
       method: 'delete',
       objectType: 'asset',
     },
-    onSuccess: (_deletedAsset, variables, _result, context) => {
+    toasts: {
+      success: (_deletedAsset, variables, context) => {
+        const fileName = deletedAssetFileName(variables, context);
+
+        if (fileName === undefined) {
+          return t`Asset deleted`;
+        }
+
+        return t`Asset ${fileName} deleted`;
+      },
+      error: () => t`Could not delete the Asset`,
+    },
+    onSuccess: async (_deletedAsset, variables, _result, context) => {
       // Remove Asset from cache individually
       context.client.setQueryData(
         [
@@ -106,6 +174,11 @@ export const assetOptions = {
         (oldList) =>
           mergeListWithObject(oldList, { id: variables.id } as Asset, 'delete')
       );
+
+      await context.client.invalidateQueries({
+        queryKey: assetOptions.count({ projectId: variables.projectId })
+          .queryKey,
+      });
     },
   }),
   save: customMutationOptions({
@@ -113,6 +186,10 @@ export const assetOptions = {
     meta: {
       method: 'save',
       objectType: 'asset',
+    },
+    toasts: {
+      success: () => t`Asset saved to your computer`,
+      error: () => t`Could not save the Asset to your computer`,
     },
     onSuccess: async (_data, variables, _result, context) => {
       // Invalidate asset queries to refetch updated data
@@ -144,6 +221,22 @@ export const assetOptions = {
         });
 
         return assets;
+      },
+      throwOnError: true,
+    }),
+  /**
+   * How many Assets the Project holds.
+   *
+   * Core counts the sidecars in one directory read, so the sidebar's Assets row
+   * says how many there are without the whole list being read for it. Every
+   * mutation that adds or removes one invalidates this key, which is how the
+   * number follows a create and a delete.
+   */
+  count: (props: CountAssetsProps) =>
+    queryOptions({
+      queryKey: ['projects', props.projectId, 'current', 'assets', 'count'],
+      queryFn: async () => {
+        return await window.ipc.core.assets.count(props);
       },
       throwOnError: true,
     }),

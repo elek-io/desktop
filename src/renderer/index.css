@@ -1,153 +1,180 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}
-
-:root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(60.9% 0.126 221.723);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(60.9% 0.126 221.723);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: var(--ring);
-}
-
-.dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(60.9% 0.126 221.723);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(60.9% 0.126 221.723);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: var(--ring);
-}
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import '@elek-io/branding/theme.css';
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
+  /*
+    The window is the ground the header and the sidebar sit on, and the main
+    panel is one surface on top of it. The ground is the sidebar token in both
+    themes, so the panel is the lighter of the two, see
+    contributing/renderer/theming-and-styling.md.
+  */
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Roboto', sans-serif;
+    @apply overflow-hidden bg-sidebar font-sans text-ui text-foreground;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: 'Montserrat Variable', sans-serif;
-  }
-
+  /*
+    A link is the text color with a 2 px underline in the link color. The
+    underline marks the link, not the color, so the brand color stays on the
+    primary button and the focus ring.
+  */
   main a {
-    color: var(--color-primary);
+    text-decoration-line: underline;
+    text-decoration-color: var(--color-link-underline);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
   }
 
-  main a:hover {
-    text-decoration: underline;
+  /*
+    The focus ring: a 2 px solid outline at full opacity, 2 px outside the
+    element, in the ring color. One rule reaches every control, the ones Base UI
+    brings included, so no component has to opt in.
+
+    It sits in the base layer, so a utility can still move it: a row or a cell
+    that fills its pane takes `focus-visible:-outline-offset-2` and draws the
+    ring inside its own edge, which the pane would otherwise clip, and a control
+    whose wrapper draws the ring takes `focus-visible:outline-hidden`.
+  */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
   }
 }
 
-/* @utility container {
-  padding: 0 2rem;
-
-  @variant xl {
-    max-width: 1400px;
-  }
-} */
+/*
+  A card on the gradient keeps the light colors in light mode, the way a window
+  on the website's plate does, which Nils chose on 2026-10-16: a form to fill in
+  reads like the rest of the app on its own surface. The surface around it
+  declares `dark` for the gradient, so the card declares the light tokens again
+  and takes the window shadow back, which the dark theme clears.
+  See contributing/renderer/theming-and-styling.md.
+*/
+html:not(.dark) .on-plate {
+  --background: var(--color-white);
+  --foreground: var(--color-zinc-950);
+  --card: var(--color-white);
+  --popover: var(--card);
+  --border: var(--color-zinc-200);
+  --input: var(--color-zinc-500);
+  --muted: var(--color-zinc-100);
+  --muted-foreground: var(--color-zinc-600);
+  --primary: var(--color-cyan-700);
+  --primary-foreground: var(--color-zinc-50);
+  --primary-hover: var(--color-cyan-800);
+  --ring: var(--color-cyan-700);
+  --link-underline: var(--ring);
+  --error: var(--color-red-800);
+  --error-border: var(--color-red-200);
+  --error-surface: var(--color-red-50);
+  --warning: var(--color-amber-800);
+  --warning-border: var(--color-amber-200);
+  --warning-surface: var(--color-amber-50);
+  --shadow-raised:
+    0px 1px 2px 0px oklch(0% 0 0 / 0.05), 0px 1px 3px 0px oklch(0% 0 0 / 0.04);
+  --shadow-window:
+    0px 1px 2px 0px oklch(0% 0 0 / 0.06),
+    0px 12px 32px -8px oklch(0% 0 0 / 0.18);
+  color: var(--foreground);
+  box-shadow: var(--shadow-window);
+}
+html.dark .on-plate {
+  border-color: var(--window-border);
+}
 
 /*
-  By default, the frameless window is non-draggable. 
+  The one motion of the mark: its cyan period slides in from the right along the
+  bar and fades in on the way, 120 of the mark's 1000 units over 500 ms after a
+  delay of 200 ms, in Tailwind's own ease-out, see ci's docs/logo.md. The ring
+  and the bar stand still, so only the period moves, which is the last path of
+  the brand package's own file.
+
+  Under reduced motion the period is simply in place, which is the end state the
+  movement arrives at, so nothing is lost by holding it there.
+*/
+[data-slot='brand-mark'] > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+[data-slot='brand-mark'] > svg > path:last-child {
+  animation: brand-mark-period 500ms cubic-bezier(0, 0, 0.2, 1) 200ms both;
+}
+@keyframes brand-mark-period {
+  from {
+    opacity: 0;
+    translate: 120px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='brand-mark'] > svg > path:last-child {
+    animation: none;
+  }
+}
+
+/*
+  A Project's navigation scrolls with its scrollbar hidden, so a 1 px rule marks
+  each edge it continues past: one at the top while rows sit above the list, one
+  at the bottom while rows sit below it. Both are sticky inside the list and
+  pulled back over its edge by a negative margin, so neither takes room, and
+  each one's opacity follows the scroll position rather than a clock. A list
+  with nothing to scroll has an inactive timeline, which leaves both at the
+  opacity the rule above sets, so neither shows.
+  See contributing/renderer/theming-and-styling.md.
+*/
+[data-slot='sidebar'] > [data-slot='sidebar-content']::before,
+[data-slot='sidebar'] > [data-slot='sidebar-content']::after {
+  content: '';
+  position: sticky;
+  z-index: 1;
+  flex: none;
+  height: 1px;
+  background: var(--color-border);
+  opacity: 0;
+}
+[data-slot='sidebar'] > [data-slot='sidebar-content']::before {
+  top: 0;
+  margin-bottom: -1px;
+  animation: sidebar-content-above linear both;
+  animation-timeline: scroll(nearest);
+}
+[data-slot='sidebar'] > [data-slot='sidebar-content']::after {
+  bottom: 0;
+  margin-top: -1px;
+  animation: sidebar-content-below linear both;
+  animation-timeline: scroll(nearest);
+}
+@keyframes sidebar-content-above {
+  from {
+    opacity: 0;
+  }
+  1%,
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sidebar-content-below {
+  from,
+  99% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+  By default, the frameless window is non-draggable.
   Apps need to specify app-region: drag in CSS to tell Electron 
   which regions are draggable (like the OS's standard titlebar)
   @see https://www.electronjs.org/de/docs/latest/tutorial/window-customization#set-custom-draggable-region

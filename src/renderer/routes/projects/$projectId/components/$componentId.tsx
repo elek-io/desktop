@@ -1,9 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { useId, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { ComponentImpact } from '@renderer/components/component-impact';
 import { ComponentForm } from '@renderer/components/forms/component-form';
@@ -31,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
@@ -50,6 +54,30 @@ import {
   type UpdateComponentProps,
 } from '@elek-io/core';
 
+/**
+ * One Entry a field definition change could not be carried into: its
+ * Collection, the Entry, the field and what has to happen to it.
+ *
+ * Each value is a named placeholder of one message, so the line is one entry of
+ * the catalog rather than four fragments joined in the markup.
+ */
+function IssueLine({
+  issue,
+  name,
+}: {
+  issue: SchemaChangeIssue;
+  name: string;
+}): ReactElement {
+  const { entryId, fieldSlug } = issue;
+  const reason = describeEntryIssue(issue.issue);
+
+  return (
+    <Trans>
+      {name}, Entry {entryId}, Field {fieldSlug}: {reason}
+    </Trans>
+  );
+}
+
 export const Route = createFileRoute(
   '/projects/$projectId/components/$componentId'
 )({
@@ -57,29 +85,29 @@ export const Route = createFileRoute(
 });
 
 // Copy for a blocked delete, keyed by CoreError type.
-const deleteErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again.',
+const deleteErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  Conflict: msg`A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again.`,
 };
 
-const deleteErrorFallback =
-  'This Component could not be deleted. Please review and try again.';
+const deleteErrorFallback = msg`This Component could not be deleted. Please review and try again.`;
 
 // Copy for a blocked save, keyed by CoreError type. A slug another Component
 // holds is said below the Slug field instead, and the Entries a Field change
 // cannot reach on its own are listed under this description, so what is left
 // here is a Conflict with neither, and the circular reference BadRequest.
-const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.',
-  BadRequest:
-    'A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.',
-};
+const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    Conflict: msg`Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.`,
+    BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
+  };
 
-const saveErrorFallback =
-  'This Component could not be saved. Please review your changes and try again.';
+const saveErrorFallback = msg`This Component could not be saved. Please review your changes and try again.`;
 
 function ProjectComponentUpdate(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId, componentId } = Route.useParams();
   const {
@@ -114,12 +142,12 @@ function ProjectComponentUpdate(): ReactElement {
         )
       : getUpdateComponentSchemaFromLanguages([]);
 
-  const updateComponentForm = useForm({
+  const updateComponentForm = useAppForm({
     resolver: withEmptyDescriptionAsNull(
       zodResolver(generatedUpdateComponentSchema)
     ),
     // Seed every bound value so each control is controlled from the first
-    // render, before the Component loads and reset() hydrates it.
+    // render, before the Component arrives.
     defaultValues: {
       projectId,
       id: componentId,
@@ -128,6 +156,13 @@ function ProjectComponentUpdate(): ReactElement {
       description: {},
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect, so a refetch keeps
+    // what is being typed. The stored field definitions go back as they are,
+    // ids included, which is what keeps the content of every Entry holding this
+    // Component: Core matches field definitions by id, so a new id would read
+    // as a removal plus an addition.
+    ...(isReadingComponent ? {} : { values: { ...component, projectId } }),
+    disabled: isReadingComponent,
   });
 
   // Core raises Conflict on this path for two unrelated reasons, and the cause
@@ -144,8 +179,7 @@ function ProjectComponentUpdate(): ReactElement {
         if (entryIssuesOf(error).length === 0) {
           updateComponentForm.setError('slug', {
             type: 'conflict',
-            message:
-              'Another Component in this Project already uses this slug. Choose another one.',
+            message: t`Another Component in this Project already uses this slug. Choose another one.`,
           });
           return;
         }
@@ -171,26 +205,16 @@ function ProjectComponentUpdate(): ReactElement {
       },
     });
 
-  // Reset the form with the Component when it loads. The stored field
-  // definitions go back as they are, ids included, which is what keeps the
-  // content of every Entry holding this Component: Core matches field
-  // definitions by id, so a new id would read as a removal plus an addition.
-  useEffect(() => {
-    if (isReadingComponent === false) {
-      updateComponentForm.reset({ ...component, projectId });
-    }
-  }, [projectId, isReadingComponent, component, updateComponentForm]);
-
   const name = isReadingComponent
-    ? 'Component'
+    ? t`Component`
     : translateContent({ key: 'component.name', record: component.name });
 
   function Description(): ReactElement {
     return (
-      <>
+      <Trans>
         A Component is a group of fields an Entry can hold more than once, in
         any order. Its fields cannot be unique, and it holds no slug field.
-      </>
+      </Trans>
     );
   }
 
@@ -198,7 +222,7 @@ function ProjectComponentUpdate(): ReactElement {
     return (
       <FormActions form={updateComponentForm} id={formId}>
         <SubmitButton requireDirty Icon={Check}>
-          Save changes
+          <Trans>Save changes</Trans>
         </SubmitButton>
       </FormActions>
     );
@@ -223,9 +247,12 @@ function ProjectComponentUpdate(): ReactElement {
   const onDelete = async (): Promise<void> => {
     try {
       await deleteComponent({ projectId, id: componentId });
+      // The page takes this way out itself, so leaving it asks nothing: the
+      // Component and everything typed into it are gone.
       await router.navigate({
         to: '/projects/$projectId/components',
         params: { projectId },
+        ignoreBlocker: true,
       });
     } catch (error) {
       handleDeleteError(error);
@@ -244,7 +271,7 @@ function ProjectComponentUpdate(): ReactElement {
           (candidate) => candidate.id === issue.collectionId
         );
     if (collection === undefined) {
-      return 'A Collection';
+      return t`A Collection`;
     }
     return translateContent({
       key: 'collection.name.plural',
@@ -259,46 +286,52 @@ function ProjectComponentUpdate(): ReactElement {
   return (
     <Page title={name} description={<Description />} actions={<Actions />}>
       <ComponentForm
+        schema={generatedUpdateComponentSchema}
         id={formId}
         componentForm={updateComponentForm}
         project={project}
         isViewOnly={isUpdatingComponent}
         onFormSubmit={onUpdate}
+        unsavedChangesTitle={name}
       >
         <ComponentImpact componentId={componentId} />
 
-        <PageSection title="Danger Zone">
+        <PageSection title={t`Danger Zone`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm leading-6 font-medium">
-                Delete this Component
+                <Trans>Delete this Component</Trans>
               </p>
             </div>
             <div>
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" Icon={Trash}>
-                    Delete Component
-                  </Button>
+                <AlertDialogTrigger
+                  render={<Button variant="destructive" Icon={Trash} />}
+                >
+                  <Trans>Delete Component</Trans>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this Component?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      <Trans>Delete this Component?</Trans>
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      A Component a Collection or another Component still uses
-                      cannot be deleted. This cannot be undone.
+                      <Trans>
+                        A Component a Collection or another Component still uses
+                        cannot be deleted. This cannot be undone.
+                      </Trans>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                      <Button
-                        variant="destructive"
-                        Icon={Trash}
-                        onClick={onDelete}
-                      >
-                        Yes, delete this Component
-                      </Button>
+                    <AlertDialogCancel>
+                      <Trans>Cancel</Trans>
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      Icon={Trash}
+                      onClick={onDelete}
+                    >
+                      <Trans>Yes, delete this Component</Trans>
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -310,7 +343,9 @@ function ProjectComponentUpdate(): ReactElement {
               >
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Could not delete this Component</DialogTitle>
+                    <DialogTitle>
+                      <Trans>Could not delete this Component</Trans>
+                    </DialogTitle>
                     <DialogDescription>
                       {describeCoreError(
                         deleteErrorType,
@@ -320,10 +355,10 @@ function ProjectComponentUpdate(): ReactElement {
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">
-                        Close
-                      </Button>
+                    <DialogClose
+                      render={<Button type="button" variant="secondary" />}
+                    >
+                      <Trans>Close</Trans>
                     </DialogClose>
                   </DialogFooter>
                 </DialogContent>
@@ -339,7 +374,9 @@ function ProjectComponentUpdate(): ReactElement {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not save this Component</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not save this Component</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
                 saveErrorType,
@@ -355,17 +392,14 @@ function ProjectComponentUpdate(): ReactElement {
             <ul className="list-inside list-disc text-sm">
               {saveErrorIssues.map((issue) => (
                 <li key={`${issue.entryId}-${issue.fieldSlug}-${issue.issue}`}>
-                  {collectionName(issue)}, Entry {issue.entryId}, Field{' '}
-                  {issue.fieldSlug}: {describeEntryIssue(issue.issue)}
+                  <IssueLine issue={issue} name={collectionName(issue)} />
                 </li>
               ))}
             </ul>
           ) : null}
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
-              </Button>
+            <DialogClose render={<Button type="button" variant="secondary" />}>
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

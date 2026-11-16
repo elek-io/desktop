@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { createServer, type Server } from 'node:net';
 
 import { test } from '../fixtures/electronApp.js';
@@ -26,8 +26,33 @@ async function releasePort(server: Server): Promise<void> {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 }
 
+/**
+ * The Local API switch in the header's user menu, which ci makes the one place
+ * the API is turned on and off.
+ *
+ * It opens the menu where it is not already open, so a flip that closed it is
+ * followed by another without the trigger being pressed twice.
+ */
+async function localApiSwitch(page: Page): Promise<Locator> {
+  const menu = page.getByRole('menu').first();
+
+  if ((await menu.isVisible()) === false) {
+    await page.getByRole('button', { name: /Test User/ }).click();
+    await expect(menu).toBeVisible();
+  }
+
+  return menu.getByRole('switch');
+}
+
+/** Whether the User Core stored says the local API comes back with the app. */
+async function rememberedViaIpc(page: Page): Promise<boolean | undefined> {
+  return page.evaluate(
+    async () => (await window.ipc.core.user.get())?.localApi.isEnabled
+  );
+}
+
 test.describe('Local API lifecycle', () => {
-  test('the profile Enabled toggle starts and stops the local API', async ({
+  test("the user menu's switch starts and stops the local API, and is remembered", async ({
     mainWindow,
     request,
   }) => {
@@ -53,33 +78,31 @@ test.describe('Local API lifecycle', () => {
     // API (Core only records the flag, the desktop app acts on it).
     await setUserViaIpc(mainWindow, { localApi: { port, isEnabled: false } });
     expect(await apiIsRunningViaIpc(mainWindow)).toBe(false);
+    await navigate(mainWindow, '#/projects');
 
-    // Act: toggle Enabled ON and save. `onSetUser` starts the API, then
-    // navigates to the Projects list. The profile page has a single Switch.
-    await navigateToUserProfile(mainWindow);
-    const enabledToggle = mainWindow.getByRole('switch');
-    await enabledToggle.click();
-    await expect(enabledToggle).toBeChecked();
-    await mainWindow.getByRole('button', { name: 'Save local User' }).click();
-    await expect(mainWindow).toHaveURL(/#\/projects$/);
+    // Act: switch the Local API on in the user menu, which ci's rule makes the
+    // one place it is turned on and off.
+    await (await localApiSwitch(mainWindow)).click();
 
     // Assert: the desktop app drove the API lifecycle. It is running...
-    expect(await apiIsRunningViaIpc(mainWindow)).toBe(true);
+    await expect.poll(async () => apiIsRunningViaIpc(mainWindow)).toBe(true);
     // ...and actually serving content over HTTP.
     await expect.poll(probe).toBe('serving');
+    // ...and the preference the main process reads at launch was written, so
+    // the API comes back with the app.
+    await expect.poll(async () => rememberedViaIpc(mainWindow)).toBe(true);
 
-    // Act: toggle Enabled OFF and save. `onSetUser` stops the running API.
-    await navigateToUserProfile(mainWindow);
-    await expect(enabledToggle).toBeChecked();
-    await enabledToggle.click();
-    await expect(enabledToggle).not.toBeChecked();
-    await mainWindow.getByRole('button', { name: 'Save local User' }).click();
-    await expect(mainWindow).toHaveURL(/#\/projects$/);
+    // Act: switch it off again. The switch shows the state it is in, so this
+    // waits for it to say the API is running before flipping it back.
+    const onAgain = await localApiSwitch(mainWindow);
+    await expect(onAgain).toBeChecked();
+    await onAgain.click();
 
-    // Assert: it is stopped and the port refuses connections. Poll the port,
-    // since the OS may lag releasing it after the server closes.
-    expect(await apiIsRunningViaIpc(mainWindow)).toBe(false);
+    // Assert: it is stopped, the port refuses connections, and the preference
+    // followed. Polled, since the OS may lag releasing the port.
+    await expect.poll(async () => apiIsRunningViaIpc(mainWindow)).toBe(false);
     await expect.poll(probe).toBe('refused');
+    await expect.poll(async () => rememberedViaIpc(mainWindow)).toBe(false);
   });
 
   test('the profile marks a port in use on the Port field and saves nothing', async ({
@@ -88,20 +111,25 @@ test.describe('Local API lifecycle', () => {
     // Not the port above, so this never waits on the OS releasing that one.
     const port = 31311;
 
-    // Arrange: a User with the API off, and something else holding the port.
-    await setUserViaIpc(mainWindow, { localApi: { port, isEnabled: false } });
+    // Arrange: a User whose switch is on while the API is not running, which
+    // is the state a port held at launch leaves behind, and something holding
+    // the port the Profile is about to be given.
+    await setUserViaIpc(mainWindow, {
+      localApi: { port: 31312, isEnabled: true },
+    });
+    expect(await apiIsRunningViaIpc(mainWindow)).toBe(false);
     const blocker = await holdPort(port);
 
     try {
-      // Act: toggle Enabled ON and save.
+      // Act: give it the held port and save.
       await navigateToUserProfile(mainWindow);
-      await mainWindow.getByRole('switch').click();
-      await mainWindow.getByRole('button', { name: 'Save local User' }).click();
+      await mainWindow.getByLabel('Port', { exact: true }).fill(String(port));
+      await mainWindow.getByRole('button', { name: 'Save' }).click();
 
       // Assert: the Port field says why, and the page stays to correct it.
       await expect(
         mainWindow.getByText(
-          'This port is already in use by another application. Choose a different one.'
+          'This port is already in use. Choose a different one.'
         )
       ).toBeVisible();
       await expect(mainWindow).toHaveURL(/#\/user\/profile$/);
@@ -111,7 +139,7 @@ test.describe('Local API lifecycle', () => {
       const user = await mainWindow.evaluate(async () =>
         window.ipc.core.user.get()
       );
-      expect(user?.localApi.isEnabled).toBe(false);
+      expect(user?.localApi.port).toBe(31312);
     } finally {
       await releasePort(blocker);
     }
@@ -129,14 +157,15 @@ test.describe('Local API lifecycle', () => {
 
     try {
       // Act: switch the local API on from the user menu in the header.
-      await mainWindow.getByRole('button', { name: /Test User/ }).click();
-      await mainWindow.getByRole('menu').getByRole('switch').click();
+      await (await localApiSwitch(mainWindow)).click();
 
-      // Assert: a toast says why, and the API stays off.
+      // Assert: a toast says why, the API stays off, and nothing was
+      // remembered, so the next launch does not try the held port either.
       await expect(
         mainWindow.getByText(`Port ${port} is already in use`)
       ).toBeVisible();
       expect(await apiIsRunningViaIpc(mainWindow)).toBe(false);
+      expect(await rememberedViaIpc(mainWindow)).toBe(false);
     } finally {
       await releasePort(blocker);
     }
