@@ -13,8 +13,9 @@ import { buttonVariants } from '@renderer/lib/variants';
  * The masked text, or why there is none.
  *
  * `pending` is the one IPC hop the masking takes, and nothing of the error is
- * on screen while it lasts. `failed` is a masking that never answered, which
- * leaves the disclosure saying so rather than showing the text unmasked.
+ * on screen while it lasts, which is why the disclosure opens onto nothing
+ * until it is over. `failed` is a masking that never answered, which leaves
+ * the disclosure saying so rather than showing the text unmasked.
  */
 type MaskedDetails =
   | { status: 'pending' }
@@ -32,16 +33,15 @@ type MaskedDetails =
  * arrives masked or not at all, and Copy details copies that same string, so
  * the two can never drift apart.
  *
- * The text opens below Details out of the flow, so the screen stays where it
- * stood and the button somebody just pressed does not move under the pointer.
- * It scrolls in a block of its own, which takes keyboard focus, so the arrow
- * keys scroll it too.
+ * The disclosure itself stands from the first render, with nothing below it
+ * until the masked text arrives, so the column keeps its height and the
+ * centered screen does not move while the masking is on its way. The text then
+ * opens below Details out of the flow, so the screen stays where it stood and
+ * the button somebody just pressed does not move under the pointer. It scrolls
+ * in a block of its own, which takes keyboard focus, so the arrow keys scroll
+ * it too.
  */
-export function ErrorDetails({
-  error,
-}: {
-  error: unknown;
-}): ReactElement | null {
+export function ErrorDetails({ error }: { error: unknown }): ReactElement {
   const { t } = useLingui();
   const summaryId = useId();
   const [details, setDetails] = useState<MaskedDetails>({ status: 'pending' });
@@ -78,10 +78,6 @@ export function ErrorDetails({
       isCurrent = false;
     };
   }, [error]);
-
-  if (details.status === 'pending') {
-    return null;
-  }
 
   async function copyDetails(text: string): Promise<void> {
     try {
@@ -124,52 +120,60 @@ export function ErrorDetails({
         <Trans>Details</Trans>
       </summary>
 
-      <div className="absolute inset-x-0 top-full pt-3 pb-6">
-        {details.status === 'failed' ? (
-          <p className="text-left text-small text-muted-foreground">
-            <Trans>
-              elek.io Desktop could not prepare the details of this error, so
-              there is nothing to show or copy here.
-            </Trans>
-          </p>
-        ) : (
-          /*
-            A scrolling block has to take the keyboard, or its content is out
-            of reach for anybody who does not use a pointer, which is what
-            axe's scrollable-region-focusable asks for. The region's name is
-            the Details button above it.
-          */
-          <pre
-            data-slot="error-details-text"
-            tabIndex={0}
-            role="region"
-            aria-labelledby={summaryId}
-            className="m-0 max-h-[200px] overflow-y-auto rounded-lg border bg-subtle py-3 pr-12 pl-4 text-left font-mono text-code wrap-anywhere whitespace-pre-wrap text-foreground"
-          >
-            {/*
-              In the text's own top right corner, as the website's code blocks
-              carry their copy button, and it stays there while the text
-              scrolls. It floats into the 48 px the text keeps free on its
-              right, 8 px from either side, and a sticky inset counts from
-              inside the block's 12 px of padding, hence the 4 px back.
+      {/*
+        While the masking is still on its way there is nothing to put here,
+        and the disclosure above stands from the first render either way, so
+        the column keeps its height and the screen does not move when the
+        text arrives.
+      */}
+      {details.status === 'pending' ? null : (
+        <div className="absolute inset-x-0 top-full pt-3 pb-6">
+          {details.status === 'failed' ? (
+            <p className="text-left text-small text-muted-foreground">
+              <Trans>
+                elek.io Desktop could not prepare the details of this error, so
+                there is nothing to show or copy here.
+              </Trans>
+            </p>
+          ) : (
+            /*
+              A scrolling block has to take the keyboard, or its content is
+              out of reach for anybody who does not use a pointer, which is
+              what axe's scrollable-region-focusable asks for. The region's
+              name is the Details button above it.
+            */
+            <pre
+              data-slot="error-details-text"
+              tabIndex={0}
+              role="region"
+              aria-labelledby={summaryId}
+              className="m-0 max-h-[200px] overflow-y-auto rounded-lg border bg-subtle py-3 pr-12 pl-4 text-left font-mono text-code wrap-anywhere whitespace-pre-wrap text-foreground"
+            >
+              {/*
+                In the text's own top right corner, as the website's code
+                blocks carry their copy button, and it stays there while the
+                text scrolls. It floats into the 48 px the text keeps free on
+                its right, 8 px from either side, and a sticky inset counts
+                from inside the block's 12 px of padding, hence the 4 px back.
 
-              Its name is an `aria-label` rather than the usual text only a
-              screen reader reads, because such a text would stand inside the
-              block and so in what Copy details copies.
-            */}
-            <Button
-              variant="outline"
-              size="icon"
-              Icon={Copy}
-              aria-label={t`Copy details`}
-              title={t`Copy details`}
-              className="sticky -top-1 float-right -mt-1 -mr-10"
-              onClick={async () => copyDetails(details.text)}
-            />
-            {details.text}
-          </pre>
-        )}
-      </div>
+                Its name is an `aria-label` rather than the usual text only a
+                screen reader reads, because such a text would stand inside
+                the block and so in what Copy details copies.
+              */}
+              <Button
+                variant="outline"
+                size="icon"
+                Icon={Copy}
+                aria-label={t`Copy details`}
+                title={t`Copy details`}
+                className="sticky -top-1 float-right -mt-1 -mr-10"
+                onClick={async () => copyDetails(details.text)}
+              />
+              {details.text}
+            </pre>
+          )}
+        </div>
+      )}
     </details>
   );
 }
