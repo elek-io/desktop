@@ -27,8 +27,8 @@ type MaskedDetails =
  * it, with Copy details in the text's top right corner.
  *
  * The text is Core's type, message and stack, masked in the main process
- * through Core's own call, so no password or token in an address, no email
- * address and no home folder reaches the screen or the clipboard, see
+ * through Core's own call, so the user and password of an address, an email
+ * address and the home folder do not reach the screen or the clipboard, see
  * contributing/error-handling.md. Nothing unmasked is ever rendered: the text
  * arrives masked or not at all, and Copy details copies that same string, so
  * the two can never drift apart.
