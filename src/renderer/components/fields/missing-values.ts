@@ -56,8 +56,12 @@ function valuesOf(values: unknown): Record<string, unknown> {
 }
 
 export interface MissingValuesProps {
-  /** The Values as the form holds them, keyed by their field's slug. */
-  values: Record<string, unknown>;
+  /**
+   * The Values keyed by their field's slug, as a form or a stored Entry holds
+   * them. Read rather than assumed, the same as one Value's content is, so a
+   * form that holds nothing there yet counts as an Entry holding no Value.
+   */
+  values: unknown;
   /** The Collection's flattened field definitions. */
   fieldDefinitions: FieldDefinition[];
   supportedLanguages: SupportedLanguage[];
@@ -87,12 +91,13 @@ export interface MissingValuesProps {
  * required Value of a section in every language too.
  */
 export function missingRequiredValues({
-  values,
+  values: heldValues,
   fieldDefinitions,
   supportedLanguages,
   defaultLanguage,
   componentFieldDefinitions,
 }: MissingValuesProps): Map<SupportedLanguage, number> {
+  const values = valuesOf(heldValues);
   const missing = new Map<SupportedLanguage, number>(
     supportedLanguages.map((language) => [language, 0])
   );
@@ -114,7 +119,7 @@ export function missingRequiredValues({
       for (const section of sectionsOf(content)) {
         add(
           missingRequiredValues({
-            values: valuesOf(section.values),
+            values: section.values,
             fieldDefinitions: componentFieldDefinitions(section.componentId),
             supportedLanguages,
             defaultLanguage,

@@ -3,11 +3,10 @@ import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import React, { useId } from 'react';
-import { useWatch, type SubmitHandler } from 'react-hook-form';
+import React, { useId, useMemo } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { defaultEntryValues } from '@renderer/components/fields';
-import { missingRequiredValues } from '@renderer/components/fields/missing-values';
 import { EntryForm } from '@renderer/components/forms/entry-form';
 import { LanguageSwitch } from '@renderer/components/language-switch';
 import { Pane, PaneHead } from '@renderer/components/pane';
@@ -18,6 +17,7 @@ import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
 import { useEntryRefusals } from '@renderer/hooks/useEntryRefusals';
+import { useMissingValues } from '@renderer/hooks/useMissingValues';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import {
@@ -62,13 +62,25 @@ function CreateEntryPage(): React.JSX.Element {
   // Components it embeds, so the schema needs Core's resolver for them.
   const { componentResolver, isReadingComponents } =
     useComponentResolver(projectId);
+  // The Collection's fields, a section's own included, as one list. Kept rather
+  // than flattened per render, because what counts the missing Values is read
+  // against it and takes its count again whenever it changes.
+  const fieldDefinitions = useMemo(
+    () =>
+      collection === undefined
+        ? []
+        : flattenFieldDefinitions(collection.fieldDefinitions),
+    [collection]
+  );
+  // The Project's languages, or nothing while the Project is still being read.
+  const languages = isReadingProject ? undefined : project.settings.language;
   const generatedCreateEntrySchema =
-    isReadingProject === false &&
+    languages !== undefined &&
     isReadingCollection === false &&
     isReadingComponents === false
       ? getCreateEntrySchemaFromFieldDefinitions(
-          flattenFieldDefinitions(collection.fieldDefinitions),
-          project.settings.language.supported,
+          fieldDefinitions,
+          languages.supported,
           componentResolver
         )
       : getCreateEntrySchemaFromFieldDefinitions([], []);
@@ -89,7 +101,7 @@ function CreateEntryPage(): React.JSX.Element {
             projectId: projectId,
             collectionId: collectionId,
             values: defaultEntryValues(
-              flattenFieldDefinitions(collection.fieldDefinitions),
+              fieldDefinitions,
               project.settings.language.supported
             ),
           },
@@ -126,27 +138,19 @@ function CreateEntryPage(): React.JSX.Element {
   // What keeps this Entry from being created, in the words below Save. Core
   // refuses it until every language of the Project holds each required Value,
   // the same as for an Entry that already exists.
-  const editedValues = useWatch({
-    control: createEntryForm.control,
+  const supportedLanguages = languages?.supported ?? [];
+  const missingByLanguage = useMissingValues({
+    form: createEntryForm,
     name: 'values',
+    fieldDefinitions,
+    // Nothing is counted while the form is still filling, the same as above.
+    languages: isReadingCollection ? undefined : languages,
+    // A section's own required Values count too, which needs the field
+    // definitions of the Component each section is built from.
+    ...(isReadingComponents
+      ? {}
+      : { componentFieldDefinitions: componentResolver }),
   });
-  const supportedLanguages = isReadingProject
-    ? []
-    : project.settings.language.supported;
-  const missingByLanguage =
-    isReadingProject || isReadingCollection
-      ? new Map<SupportedLanguage, number>()
-      : missingRequiredValues({
-          values: editedValues,
-          fieldDefinitions: flattenFieldDefinitions(
-            collection.fieldDefinitions
-          ),
-          supportedLanguages,
-          defaultLanguage: project.settings.language.default,
-          ...(isReadingComponents
-            ? {}
-            : { componentFieldDefinitions: componentResolver }),
-        });
   const [missingLanguage, missingValues] = [
     ...missingByLanguage.entries(),
   ].find(([, count]) => count > 0) ?? [undefined, 0];

@@ -3,13 +3,12 @@ import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute } from '@tanstack/react-router';
 import { Check, History } from 'lucide-react';
-import { useId, useState, type ReactElement } from 'react';
-import { useWatch, type SubmitHandler } from 'react-hook-form';
+import { useId, useMemo, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { EntryHistoryPane } from '@renderer/components/entry-history';
 import { defaultEntryValues } from '@renderer/components/fields';
 import { entryTitle } from '@renderer/components/fields/entry-title';
-import { missingRequiredValues } from '@renderer/components/fields/missing-values';
 import { EntryForm } from '@renderer/components/forms/entry-form';
 import { LanguageSwitch } from '@renderer/components/language-switch';
 import { Pane, PaneHead } from '@renderer/components/pane';
@@ -20,6 +19,7 @@ import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
 import { useEntryRefusals } from '@renderer/hooks/useEntryRefusals';
+import { useMissingValues } from '@renderer/hooks/useMissingValues';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import {
@@ -80,11 +80,23 @@ function UpdateEntryPage(): ReactElement {
   // Components it embeds, so the schema needs Core's resolver for them.
   const { componentResolver, isReadingComponents } =
     useComponentResolver(projectId);
+  // The Collection's fields, a section's own included, as one list. Kept rather
+  // than flattened per render, because what counts the missing Values is read
+  // against it and takes its count again whenever it changes.
+  const fieldDefinitions = useMemo(
+    () =>
+      collection === undefined
+        ? []
+        : flattenFieldDefinitions(collection.fieldDefinitions),
+    [collection]
+  );
+  // The Project's languages, or nothing while the Project is still being read.
+  const languages = isReadingProject ? undefined : project.settings.language;
   const generatedUpdateEntrySchema =
-    collection && project && isReadingComponents === false
+    languages !== undefined && isReadingComponents === false
       ? getUpdateEntrySchemaFromFieldDefinitions(
-          flattenFieldDefinitions(collection.fieldDefinitions),
-          project.settings.language.supported,
+          fieldDefinitions,
+          languages.supported,
           componentResolver
         )
       : getUpdateEntrySchemaFromFieldDefinitions([], []);
@@ -99,7 +111,7 @@ function UpdateEntryPage(): ReactElement {
     ? {}
     : {
         ...defaultEntryValues(
-          flattenFieldDefinitions(collection.fieldDefinitions),
+          fieldDefinitions,
           project.settings.language.supported
         ),
         ...entry.values,
@@ -152,35 +164,27 @@ function UpdateEntryPage(): ReactElement {
       ? ''
       : entryTitle({
           entry,
-          fieldDefinitions: flattenFieldDefinitions(
-            collection.fieldDefinitions
-          ),
+          fieldDefinitions,
           language: user.language,
         });
 
   // What keeps this Entry from being saved, in the words below Save. Core
   // refuses it until every language of the Project holds each required Value,
   // so the line names the first language that misses one and how many.
-  const editedValues = useWatch({
-    control: updateEntryForm.control,
+  const supportedLanguages = languages?.supported ?? [];
+  const missingByLanguage = useMissingValues({
+    form: updateEntryForm,
     name: 'values',
+    fieldDefinitions,
+    // Nothing is counted while the form is still filling, so the line never
+    // names a Value an Entry that has not arrived yet is missing.
+    languages: isReadingEntryForm ? undefined : languages,
+    // A section's own required Values count too, which needs the field
+    // definitions of the Component each section is built from.
+    ...(isReadingComponents
+      ? {}
+      : { componentFieldDefinitions: componentResolver }),
   });
-  const supportedLanguages = isReadingProject
-    ? []
-    : project.settings.language.supported;
-  const missingByLanguage = isReadingEntryForm
-    ? new Map<SupportedLanguage, number>()
-    : missingRequiredValues({
-        values: editedValues,
-        fieldDefinitions: flattenFieldDefinitions(collection.fieldDefinitions),
-        supportedLanguages,
-        defaultLanguage: project.settings.language.default,
-        // A section's own required Values count too, which needs the field
-        // definitions of the Component each section is built from.
-        ...(isReadingComponents
-          ? {}
-          : { componentFieldDefinitions: componentResolver }),
-      });
   // The first language that misses one, since the person opens one language at
   // a time. The sentence names it by its word in the language the app is read
   // in, as ci writes it, rather than by the code the switch above the fields

@@ -153,16 +153,21 @@ export function FieldFromDefinition<
       : leafName;
   // Both are watched rather than read once, because whether this field is
   // missing its Value and what it would be translated from both change while
-  // somebody types, in this language and in the default one. The whole Value is
-  // watched rather than the language on screen, because that is what the one
-  // answer to a missing Value reads, in whichever language it answers for.
-  const value: unknown = useWatch({
+  // somebody types, in this language and in the default one.
+  //
+  // Each is watched at the one path it is read from, and `exact` keeps a Value
+  // below that path out of it. A field holding sections is bound to the list
+  // itself, so without that it was handed every Value typed inside any of its
+  // sections and drew the whole list again on each of them.
+  const leafValue: unknown = useWatch({
     control: form.control,
-    name,
+    name: leafName,
+    exact: true,
   });
   const defaultLanguageValue: unknown = useWatch({
     control: form.control,
     name: translateFromName,
+    exact: true,
   });
   const label = translateContent({
     key: 'fieldDefinition.label',
@@ -200,10 +205,12 @@ export function FieldFromDefinition<
 
   // Whether this field is one of the Values the language on screen is still
   // missing. It is the one answer the count under Save and the switch above
-  // the fields read, asked for this one field, so the three never disagree.
+  // the fields read, asked for this one field, so the three never disagree. It
+  // reads the whole Value, so the Value watched above is put back under the
+  // language it was bound at where the field holds one per language.
   const isMissing = isMissingValue({
     fieldDefinition,
-    content: value,
+    content: module.translatable ? { [language]: leafValue } : leafValue,
     language,
     defaultLanguage,
   });
