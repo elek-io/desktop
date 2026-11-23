@@ -163,10 +163,28 @@ export function formatBytes(bytes: number): string {
  * about, such as the switch above an Entry's fields, ci puts its code.
  */
 export function languageName(language: SupportedLanguage): string {
-  return (
-    new Intl.DisplayNames([i18n.locale], { type: 'language' }).of(language) ??
-    language
-  );
+  return displayNames(i18n.locale).of(language) ?? language;
+}
+
+/**
+ * The language data of one locale, kept rather than built per call.
+ *
+ * A screen of generated fields asks for a language's name twice per field, so
+ * an Entry of hundreds of fields built the data as many times over. The data of
+ * one locale never changes, and it is kept per locale, so naming a language in
+ * the language the app is read in still follows a change of that language.
+ */
+const languageDataByLocale = new Map<string, Intl.DisplayNames>();
+
+function displayNames(locale: string): Intl.DisplayNames {
+  const kept = languageDataByLocale.get(locale);
+  if (kept !== undefined) {
+    return kept;
+  }
+
+  const built = new Intl.DisplayNames([locale], { type: 'language' });
+  languageDataByLocale.set(locale, built);
+  return built;
 }
 
 /**
