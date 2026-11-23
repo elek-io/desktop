@@ -278,6 +278,22 @@ const blockedBy = missing === 0 ? undefined : t`...`;
     included, and each field marks itself through `isMissingValue` beside it,
     which is the one question that count asks per language, see
     [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#a-value-that-holds-nothing).
+
+    **The page reads that count through `useMissingValues`**
+    ([`hooks/useMissingValues.ts`](../../src/renderer/hooks/useMissingValues.ts)),
+    never by watching the Values itself. It keeps the count as state and sets it
+    again only where a number changed, so the page draws itself again when the
+    line under Save or a mark on the switch changes rather than on every
+    keystroke. A page that watched the Values instead was handed every edit, and
+    since nothing below it is memoized it drew every field of the Entry again
+    per key: measured on the built app, one keystroke in an Entry of a hundred
+    fields cost about 12 ms against under 2 ms in an Entry of three. The count is taken on every change
+    of a Value and again whenever what it is counted against changes, because
+    the field definitions and the Components a section is built from arrive from
+    reads of their own, which no edit follows. That second half is why it
+    subscribes rather than using `useWatch`'s `compute`, which recomputes only
+    when a Value changes.
+
   - A form of hand-written fields counts them, since none of them belongs to a
     language. `emptyFieldsReason` in
     [`lib/emptyFields.ts`](../../src/renderer/lib/emptyFields.ts) words that
@@ -870,7 +886,12 @@ subtly wrong and Core validates tightly:
   declares a plain, non-nullable string, such as a field definition's slug or a
   select option's value, pass `transform={rawTextFromInput}`.
 - **`TextareaControl`** is the same contract over several lines.
-- **`SwitchControl`** binds a `Switch` to a boolean.
+- **`SwitchControl`** binds a `Switch` to a boolean. It is on where the Value is
+  `true` and off everywhere else, rather than passing the Value through: a form
+  filled from its query holds `undefined` there on its first render, which the
+  switch reads as having no state to follow at all. It then kept drawing the
+  state it started in and ignored every later Value, so a stored `true` read as
+  off, announced itself off, and the first click on it changed nothing.
 - **`OptionChoice`** ([`fields/select/control.tsx`](../../src/renderer/components/fields/select/control.tsx)) is the choice between named options: a list of radio buttons up to seven of them and a combobox with a filter beyond that, with None leading wherever the Value may stay empty. The select field's control and the Default Value of a select's own settings are both it, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-select-fields-options). It lives in the select folder rather than here, because the select field is what it is about.
 - The transforms themselves are in
   [`lib/fieldValues.ts`](../../src/renderer/lib/fieldValues.ts), so a form that
