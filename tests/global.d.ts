@@ -8,6 +8,19 @@ declare const window: Window & {
   innerWidth: number;
   innerHeight: number;
   requestAnimationFrame: (callback: () => void) => number;
+  addEventListener(
+    type: 'input',
+    listener: () => void,
+    capture?: boolean
+  ): void;
+  /**
+   * What each keystroke cost the app, in milliseconds, while the typing spec
+   * measures. It is kept on the window because the listeners that fill it are
+   * installed in one `page.evaluate` and read back in another, and because the
+   * app routes without reloading, so one pair of listeners serves a whole spec.
+   * See tests/helpers/entry.ts.
+   */
+  keystrokeCosts?: number[];
 };
 
 /** The one element shape the specs read, with the attributes they ask for. */

@@ -14,6 +14,7 @@ import {
   openAddFieldSheet,
   referenceFieldDefinition,
   textFieldDefinition,
+  toggleFieldDefinition,
 } from '../helpers/collection.js';
 import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
 import {
@@ -1206,6 +1207,58 @@ test.describe('Collections', () => {
       textSheet.getByRole('switch', { name: 'Unique' })
     ).toBeEnabled();
     await expect(textSheet.getByText('cannot be unique')).toBeHidden();
+  });
+
+  test('draws the switches of a Collection’s settings as they were saved', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        // A toggle whose Default Value was saved on, which is the switch of a
+        // Collection's settings that holds a state rather than a choice nobody
+        // has made yet.
+        toggleFieldDefinition({
+          slug: 'featured',
+          label: { en: 'Featured' },
+          defaultValue: true,
+        }),
+        toggleFieldDefinition({
+          slug: 'pinned',
+          label: { en: 'Pinned' },
+          defaultValue: false,
+        }),
+      ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+
+    const featured = mainWindow.getByRole('switch', { name: 'Featured' });
+    await expect(featured).toHaveAttribute('aria-checked', 'true');
+    await expect(featured).toHaveAttribute('data-checked', '');
+    const pinned = mainWindow.getByRole('switch', { name: 'Pinned' });
+    await expect(pinned).toHaveAttribute('aria-checked', 'false');
+    await expect(pinned).toHaveAttribute('data-unchecked', '');
+
+    // And a switch of the sheet that adds a field says the state Core pins it
+    // to, rather than only being locked at it.
+    const sheet = await openAddFieldSheet(mainWindow, 'toggle');
+    await expect(
+      sheet.getByRole('switch', { name: 'Required' })
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(sheet.getByRole('switch', { name: 'Unique' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+    await expect(
+      sheet.getByRole('switch', { name: 'Default value' })
+    ).toHaveAttribute('aria-checked', 'false');
   });
 
   // Range is the one type Core also pins to required, and the same note

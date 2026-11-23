@@ -51,12 +51,15 @@ import {
   createEntryViaIpc,
   entryRow,
   fillEntryForm,
+  keystrokeCosts,
   languageSwitch,
   listEntriesViaIpc,
   markdownEditorSurface,
   markdownValue,
+  median,
   navigateToEntryCreate,
   navigateToEntryUpdate,
+  readEntryViaIpc,
   referenceValue,
   stringValue,
   temporalValue,
@@ -2991,9 +2994,22 @@ test.describe('An Entry in three panes', () => {
       mainWindow.getByRole('button', { name: 'Save', exact: true })
     ).toBeDisabled();
 
-    // And the field inside the section says so where it stands.
+    // And the field inside the section says so where it stands, as does the
+    // switch above the fields, both from the keystroke that emptied it.
     await expect(mainWindow.getByText('Missing in German')).toBeVisible();
     await expect(mainWindow.getByText('In English: Book online')).toBeVisible();
+    const german = languageSwitch(mainWindow).getByRole('button', {
+      name: /^DE\b/,
+    });
+    await expect(german).toHaveAccessibleName('DE German, missing 1 Value');
+
+    // Typing one back clears all three again.
+    await mainWindow.getByLabel('Headline', { exact: true }).fill('Jetzt');
+    await expect(mainWindow.getByText('Missing in German')).toBeHidden();
+    await expect(
+      mainWindow.getByText('German is missing 1 Value')
+    ).toBeHidden();
+    await expect(german).toHaveAccessibleName('DE German');
   });
 
   test('marks a Value that belongs to no language in the language it is counted under', async ({
@@ -3122,6 +3138,365 @@ test.describe('An Entry in three panes', () => {
     await expect(
       mainWindow.getByRole('button', { name: 'Save', exact: true })
     ).toBeDisabled();
+  });
+
+  /**
+   * What one keystroke may cost in a long Entry, out of what it costs in an
+   * Entry of three fields: three times as much, or three milliseconds more,
+   * whichever leaves more room.
+   *
+   * The only work per keystroke that grows with the Entry is reading how many
+   * required Values each language is still missing, one pass over the field
+   * definitions without a validator. Drawing every field again grows with it
+   * too, and that is what this holds apart. Measured on this build: with the
+   * Entry drawn again per keystroke a hundred fields cost 12.7 ms against
+   * 1.1 ms for three, and with it drawn once 0.9 ms against 0.6 ms. Two bounds
+   * rather than one, because a faster machine shrinks the difference while a
+   * slower one shrinks the ratio.
+   */
+  function keystrokeBudget(inShortEntry: number): number {
+    return Math.max(inShortEntry * 3, inShortEntry + 3);
+  }
+
+  test('shows each keystroke of a long Entry as quickly as one of a short Entry', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // A Component for the long Entry's sections, so a field inside one is
+    // measured beside one of the Entry's own.
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'eyebrow',
+          label: { en: 'Eyebrow' },
+          isRequired: false,
+        }),
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline' },
+          isRequired: false,
+        }),
+        textFieldDefinition({
+          slug: 'lead',
+          label: { en: 'Lead' },
+          isRequired: false,
+        }),
+        textFieldDefinition({
+          slug: 'note',
+          label: { en: 'Note' },
+          isRequired: false,
+        }),
+      ],
+    });
+    // Sixty fields of its own and ten sections of four, which is the size of a
+    // page a site is really built from. Only the Title is required, so neither
+    // measurement waits on a Value.
+    const ownFields = Array.from({ length: 60 }, (_unused, index) =>
+      textFieldDefinition({
+        slug: `field-${String(index + 1)}`,
+        label: { en: `Field ${String(index + 1)}` },
+        isRequired: false,
+      })
+    );
+    const longCollection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Page' }, plural: { en: 'Pages' } },
+      slug: { singular: 'page', plural: 'pages' },
+      fieldDefinitions: [
+        textFieldDefinition(),
+        ...ownFields,
+        dynamicFieldDefinition({ ofComponents: [hero.id] }),
+      ],
+    });
+    const longEntry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: longCollection.id,
+      values: {
+        title: stringValue({ en: 'Content management without a server' }),
+        ...Object.fromEntries(
+          ownFields.map((definition) => [
+            definition.slug,
+            stringValue({ en: 'Text' }),
+          ])
+        ),
+        sections: componentValue(
+          Array.from({ length: 10 }, () => ({
+            componentId: hero.id,
+            values: {
+              eyebrow: stringValue({ en: 'Eyebrow' }),
+              headline: stringValue({ en: 'Headline' }),
+              lead: stringValue({ en: 'Lead' }),
+              note: stringValue({ en: 'Note' }),
+            },
+          }))
+        ),
+      },
+    });
+    const shortCollection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'teaser',
+          label: { en: 'Teaser' },
+          isRequired: false,
+        }),
+        textFieldDefinition({
+          slug: 'handle',
+          label: { en: 'Handle' },
+          isRequired: false,
+        }),
+      ],
+    });
+    const shortEntry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: shortCollection.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours' }),
+        teaser: stringValue({ en: 'Teaser' }),
+        handle: stringValue({ en: 'Handle' }),
+      },
+    });
+
+    // The Entry of three fields first, which is what the long one is held
+    // against. Each editor is drawn out before a keystroke is measured, so no
+    // measurement carries the first draw of a field.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: shortCollection.id,
+      entryId: shortEntry.id,
+    });
+    const shortTitle = mainWindow.getByLabel('Title', { exact: true });
+    await expect(shortTitle).toHaveValue('Spring opening hours');
+    await expect(mainWindow.getByLabel('Handle', { exact: true })).toHaveValue(
+      'Handle'
+    );
+    const inShortEntry = median(
+      await keystrokeCosts(mainWindow, shortTitle, 'abcdefghijkl')
+    );
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: longCollection.id,
+      entryId: longEntry.id,
+    });
+    const longTitle = mainWindow.getByLabel('Title', { exact: true });
+    await expect(longTitle).toHaveValue('Content management without a server');
+    // The Entry's last field of its own and the last section's first field, so
+    // every field is on screen before anything is measured.
+    await expect(
+      mainWindow.getByLabel('Field 60', { exact: true })
+    ).toHaveValue('Text');
+    await expect(
+      mainWindow.getByLabel('Eyebrow', { exact: true }).last()
+    ).toHaveValue('Eyebrow');
+    const inLongTitle = median(
+      await keystrokeCosts(mainWindow, longTitle, 'abcdefghijkl')
+    );
+    // And a field inside a section, which is bound below the one Value that
+    // holds every section of the Entry.
+    const inLongSection = median(
+      await keystrokeCosts(
+        mainWindow,
+        mainWindow.getByLabel('Eyebrow', { exact: true }).first(),
+        'abcdefghijkl'
+      )
+    );
+
+    // Both are read against the same short Entry, and softly, so one slow
+    // field does not hide the other.
+    expect
+      .soft(
+        inLongTitle,
+        `the Title of a long Entry costs ${String(inLongTitle)} ms against ${String(inShortEntry)} ms in a short one`
+      )
+      .toBeLessThan(keystrokeBudget(inShortEntry));
+    expect
+      .soft(
+        inLongSection,
+        `a section's field costs ${String(inLongSection)} ms against ${String(inShortEntry)} ms in a short Entry`
+      )
+      .toBeLessThan(keystrokeBudget(inShortEntry));
+  });
+
+  /**
+   * A Project of two languages holding one Entry whose toggles were saved in
+   * four different states: on and off in each language, and one inside a
+   * section. The cross between the languages is what makes a switch drawn from
+   * the wrong language show up rather than passing for the right one.
+   */
+  async function anEntryOfSavedToggles(page: Page): Promise<{
+    projectId: string;
+    collectionId: string;
+    entryId: string;
+  }> {
+    await setUserViaIpc(page);
+    const project = await createProjectViaIpc(page, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    const hero = await createComponentViaIpc(page, {
+      projectId: project.id,
+      name: { en: 'Hero', de: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        toggleFieldDefinition({
+          slug: 'highlighted',
+          label: { en: 'Highlighted', de: 'Hervorgehoben' },
+        }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(page, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'Pages', de: 'Seiten' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+        toggleFieldDefinition({
+          slug: 'featured',
+          label: { en: 'Featured', de: 'Hervorgehoben' },
+        }),
+        toggleFieldDefinition({
+          slug: 'pinned',
+          label: { en: 'Pinned', de: 'Angepinnt' },
+        }),
+        dynamicFieldDefinition({
+          ofComponents: [hero.id],
+          label: { en: 'Sections', de: 'Abschnitte' },
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(page, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Show featured', de: 'Hervorgehobenes' }),
+        featured: booleanValue({ en: true, de: false }),
+        pinned: booleanValue({ en: false, de: true }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: { highlighted: booleanValue({ en: true, de: true }) },
+          },
+        ]),
+      },
+    });
+
+    return {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    };
+  }
+
+  /**
+   * Whether each switch of that Entry reads as it was saved, in the language on
+   * screen: what a screen reader hears, and the state the track is drawn from.
+   *
+   * A field is named in the language the app is read in rather than in the one
+   * the Entry is edited in, so the names are the same either way and only the
+   * states move.
+   */
+  async function expectSavedToggles(
+    page: Page,
+    language: 'en' | 'de',
+    opened: string
+  ): Promise<void> {
+    const saved = [
+      { name: 'Featured', on: language === 'en' },
+      { name: 'Pinned', on: language === 'de' },
+      { name: 'Highlighted', on: true },
+    ];
+
+    for (const toggle of saved) {
+      const found = page.getByRole('switch', { name: toggle.name });
+      const where = `${toggle.name} in ${language}, ${opened}`;
+
+      await expect(found, where).toHaveAttribute(
+        'aria-checked',
+        String(toggle.on)
+      );
+      // The same answer the track is drawn from, so what is announced and what
+      // is on screen cannot disagree.
+      await expect(found, where).toHaveAttribute(
+        toggle.on ? 'data-checked' : 'data-unchecked',
+        ''
+      );
+    }
+  }
+
+  test('draws every toggle of an Entry as it was saved, however it was opened', async ({
+    mainWindow,
+  }) => {
+    const ids = await anEntryOfSavedToggles(mainWindow);
+
+    // From the list of Entries, which is the way in that draws the editor
+    // before the Entry's own read has landed.
+    await navigateToCollection(mainWindow, ids);
+    await entryRow(mainWindow, 'Show featured').click();
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveValue(
+      'Show featured'
+    );
+    await expectSavedToggles(mainWindow, 'en', 'opened from the list');
+    await chooseLanguage(mainWindow, 'de');
+    await expectSavedToggles(mainWindow, 'de', 'opened from the list');
+
+    // By its own address.
+    await navigateToEntryUpdate(mainWindow, ids);
+    await expectSavedToggles(mainWindow, 'en', 'opened by its address');
+    await chooseLanguage(mainWindow, 'de');
+    await expectSavedToggles(mainWindow, 'de', 'opened by its address');
+
+    // And after a reload of the window, which boots the app on the Entry in
+    // the language its address carries.
+    await reloadWindow(mainWindow);
+    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveValue(
+      'Hervorgehobenes'
+    );
+    await expectSavedToggles(mainWindow, 'de', 'after a reload');
+    await chooseLanguage(mainWindow, 'en');
+    await expectSavedToggles(mainWindow, 'en', 'after a reload');
+  });
+
+  test('turns a toggle with one click and saves the state it shows', async ({
+    mainWindow,
+  }) => {
+    const ids = await anEntryOfSavedToggles(mainWindow);
+
+    // Opened from the list again, so the click lands on a switch whose Value
+    // arrived after the editor was drawn.
+    await navigateToCollection(mainWindow, ids);
+    await entryRow(mainWindow, 'Show featured').click();
+    const featured = mainWindow.getByRole('switch', { name: 'Featured' });
+    await expect(featured).toHaveAttribute('aria-checked', 'true');
+
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
+    await expect(save).toBeDisabled();
+    await featured.click();
+    await expect(featured).toHaveAttribute('aria-checked', 'false');
+    await expect(save).toBeEnabled();
+
+    await save.click();
+    await expect(save).toBeDisabled();
+
+    // What is stored is the state the switch shows, in the language on screen
+    // alone: the other language keeps what it held.
+    const stored = await readEntryViaIpc(mainWindow, {
+      projectId: ids.projectId,
+      collectionId: ids.collectionId,
+      id: ids.entryId,
+    });
+    expect(stored.values['featured']?.content).toEqual({
+      en: false,
+      de: false,
+    });
+    expect(stored.values['pinned']?.content).toEqual({ en: false, de: true });
   });
 
   test('marks the language of a Value that was refused, without reporting a bug', async ({

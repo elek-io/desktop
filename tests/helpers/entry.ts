@@ -191,6 +191,19 @@ export async function updateEntryViaIpc(
 }
 
 /**
+ * Read an Entry directly over IPC, bypassing the UI.
+ *
+ * Use this to assert what a save wrote, such as the state a toggle was saved
+ * in, since the form shows the Values it holds rather than the stored ones.
+ */
+export async function readEntryViaIpc(
+  page: Page,
+  props: { projectId: string; collectionId: string; id: string }
+): Promise<Entry> {
+  return page.evaluate(async (p) => window.ipc.core.entries.read(p), props);
+}
+
+/**
  * Delete an Entry directly over IPC, bypassing the UI.
  *
  * There is no UI control to delete an Entry (the `EntryTable` actions column is
@@ -335,4 +348,60 @@ export async function fillEntryForm(
       await page.getByLabel(label, { exact: true }).fill(text);
     }
   }
+}
+
+/**
+ * What each keystroke costs the app, in milliseconds, while `text` is typed
+ * into `field`.
+ *
+ * Measured inside the window rather than around Playwright's own calls, so no
+ * round trip of its own is in the number. A listener on the capture phase
+ * stamps each `input` event before it reaches the field, and one on the bubble
+ * phase stamps it after it has passed the element the app is drawn in, which is
+ * where React listens and where the work an edit causes runs. The difference is
+ * what that one keystroke cost. One event is dispatched at a time, so the two
+ * stamps always belong to the same keystroke.
+ */
+export async function keystrokeCosts(
+  page: Page,
+  field: Locator,
+  text: string
+): Promise<number[]> {
+  await field.click();
+  await page.evaluate(() => {
+    const kept = window.keystrokeCosts;
+    if (kept !== undefined) {
+      kept.length = 0;
+      return;
+    }
+
+    const costs: number[] = [];
+    window.keystrokeCosts = costs;
+    let startedAt = 0;
+    window.addEventListener(
+      'input',
+      () => {
+        startedAt = performance.now();
+      },
+      true
+    );
+    window.addEventListener('input', () => {
+      costs.push(performance.now() - startedAt);
+    });
+  });
+
+  await page.keyboard.type(text);
+  // Polled rather than read straight away, because the last keystroke's own
+  // work runs after Playwright's type call has returned.
+  await expect
+    .poll(async () => page.evaluate(() => window.keystrokeCosts?.length ?? 0))
+    .toBe(text.length);
+
+  return page.evaluate(() => window.keystrokeCosts ?? []);
+}
+
+/** The middle of a set of measurements, which one slow frame cannot move. */
+export function median(numbers: number[]): number {
+  const sorted = [...numbers].sort((one, other) => one - other);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }
