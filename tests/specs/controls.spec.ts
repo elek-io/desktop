@@ -374,6 +374,28 @@ test.describe('Every control', () => {
     }
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
 
+    // The switch stored on, so turning it off starts the transition it takes
+    // its surface, its ring and its thumb over. The track reaching the surface
+    // ci gives it is what says the transition is through, so the rest is read
+    // after that rather than off the frame the click left behind.
+    await expect
+      .poll(
+        async () =>
+          toBytes(
+            parseColor(
+              await mainWindow.evaluate(() => {
+                const track = document.querySelector('[data-slot="switch"]');
+                if (track === null) {
+                  throw new Error('The form draws no switch');
+                }
+                return getComputedStyle(track).backgroundColor;
+              })
+            )
+          ),
+        { message: 'the track of a switch that is off' }
+      )
+      .toEqual(toBytes(parseColor(colors.light.card.oklch)));
+
     const measured = await mainWindow.evaluate(() => {
       const track = document.querySelector('[data-slot="switch"]');
       const thumb = document.querySelector('[data-slot="switch-thumb"]');
@@ -389,7 +411,6 @@ test.describe('Every control', () => {
           w: Math.round(thumbBox.width),
           h: Math.round(thumbBox.height),
         },
-        track: getComputedStyle(track).backgroundColor,
         ring: getComputedStyle(track).boxShadow,
         thumbFill: getComputedStyle(thumb).backgroundColor,
       };
@@ -399,9 +420,6 @@ test.describe('Every control', () => {
     // 1 px ring in the input color, and the thumb in the muted color.
     expect(measured.size).toEqual({ w: 32, h: 18 });
     expect(measured.thumb).toEqual({ w: 12, h: 12 });
-    expect(toBytes(parseColor(measured.track))).toEqual(
-      toBytes(parseColor(colors.light.card.oklch))
-    );
     expect(toBytes(parseColor(measured.thumbFill))).toEqual(
       toBytes(parseColor(colors.light['muted-foreground'].oklch))
     );
