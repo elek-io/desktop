@@ -348,13 +348,16 @@ control over what it shows where the whole row is one:
 
 What follows from that order:
 
-- **The place is taken once the list has been drawn without that row**, from
-  the rows the list then holds, in the order they stand in the document. So it
-  is a row that is there, however many rows the removal took: a markdown
-  field's blocks takes Task lists out with Lists, because Core refuses the one
-  without the other, and the focus still lands on the row that took their
-  place. A list drawn again over more than one render is waited out the same
-  way, since what is waited on is the row that was pressed going.
+- **The place is taken once the list draws fewer rows than it did**, from the
+  rows it then holds, in the order they stand in the document. So it is a row
+  that is there, however many rows the removal took: a markdown field's blocks
+  takes Task lists out with Lists, because Core refuses the one without the
+  other, and the focus still lands on the row that took their place. What is
+  waited on is one row fewer rather than that row's own element going, because
+  a list whose rows carry no id of their own is drawn by place, as a select's
+  options are, and React hands the pressed row's element to the option that
+  takes its place. A list that needs more than one render to be drawn again is
+  waited out the same way.
 - **The control that adds a row takes the focus only where it could when the
   row went.** A list at its maximum is the case: the removal is what frees that
   control again, so when the row went it was still disabled, or not drawn at
@@ -363,13 +366,15 @@ What follows from that order:
   last row is gone and there is nothing to add from, as a field whose Project
   holds no Component it allows, and where the control that adds one cannot take
   the focus.
-- **A removal pressed inside a menu or a dialog is handed over.** Such a popup
-  returns the focus itself once it has closed, and the control it would return
-  it to is the one that went with the row. So the field definitions' More menu
-  and the dialog that asks before a language goes call
+- **A removal pressed inside a menu or a dialog takes the popup out of it.**
+  Such a popup returns the focus itself once it has closed, and the control it
+  would return it to is the one that went with the row. So the field
+  definitions' More menu and the dialog that asks before a language goes call
   `afterRemovalOnceClosed` and pass `finalFocus={focus.finalFocus}`, which
-  places the focus where the removal left it and tells the popup to leave it
-  there.
+  tells the popup to move nothing. A dialog closes after the list was drawn
+  again, so the place is taken there and then. A menu inside a pane that goes
+  with the row closes while React is still drawing, so the place is left to the
+  render that drops the row, the same one every other list waits for.
   Without a removal behind it the popup keeps its own way, which is the control
   it was opened from, so Cancel still goes back to that row's own Remove.
 
