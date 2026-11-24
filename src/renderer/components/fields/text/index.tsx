@@ -51,6 +51,13 @@ export const textField: FieldTypeModule<'text'> = {
   }),
   DefinitionEditor: ({ form, path }) => (
     <>
+      <DefinitionBounds
+        form={form}
+        minName={path('min')}
+        maxName={path('max')}
+        description={<Trans>The number of characters editors can enter.</Trans>}
+      />
+
       <AppField
         form={form}
         name={path('defaultValue')}
@@ -63,12 +70,6 @@ export const textField: FieldTypeModule<'text'> = {
           <TextControl field={field} type="text" {...controlProps} />
         )}
       </AppField>
-      <DefinitionBounds
-        form={form}
-        minName={path('min')}
-        maxName={path('max')}
-        description={<Trans>The number of characters editors can enter.</Trans>}
-      />
     </>
   ),
 };

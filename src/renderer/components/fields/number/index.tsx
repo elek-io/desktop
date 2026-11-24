@@ -53,6 +53,13 @@ export const numberField: FieldTypeModule<'number'> = {
   }),
   DefinitionEditor: ({ form, path }) => (
     <>
+      <DefinitionBounds
+        form={form}
+        minName={path('min')}
+        maxName={path('max')}
+        description={<Trans>The number editors can enter.</Trans>}
+      />
+
       <AppField
         form={form}
         name={path('defaultValue')}
@@ -65,12 +72,6 @@ export const numberField: FieldTypeModule<'number'> = {
           <TextControl field={field} type="number" {...controlProps} />
         )}
       </AppField>
-      <DefinitionBounds
-        form={form}
-        minName={path('min')}
-        maxName={path('max')}
-        description={<Trans>The number editors can enter.</Trans>}
-      />
     </>
   ),
 };

@@ -61,6 +61,13 @@ export const rangeField: FieldTypeModule<'range'> = {
   }),
   DefinitionEditor: ({ form, path }) => (
     <>
+      <DefinitionBounds
+        form={form}
+        minName={path('min')}
+        maxName={path('max')}
+        description={<Trans>The two ends of the slider.</Trans>}
+      />
+
       <AppField
         form={form}
         name={path('defaultValue')}
@@ -73,12 +80,6 @@ export const rangeField: FieldTypeModule<'range'> = {
           <TextControl field={field} type="number" {...controlProps} />
         )}
       </AppField>
-      <DefinitionBounds
-        form={form}
-        minName={path('min')}
-        maxName={path('max')}
-        description={<Trans>The two ends of the slider.</Trans>}
-      />
     </>
   ),
 };
