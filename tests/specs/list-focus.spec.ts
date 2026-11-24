@@ -5,6 +5,7 @@ import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import {
   assetFieldDefinition,
   createCollectionViaIpc,
+  dynamicFieldDefinition,
   markdownFieldDefinition,
   navigateToCollectionSettings,
   referenceFieldDefinition,
@@ -12,8 +13,10 @@ import {
   textFieldDefinition,
 } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
+import { createComponentViaIpc } from '../helpers/component.js';
 import {
   assetReferencesValue,
+  componentValue,
   createEntryViaIpc,
   entryReferencesValue,
   navigateToEntryUpdate,
@@ -240,8 +243,12 @@ test.describe('keeping focus after a row is removed', () => {
           features: {
             ...markdownFieldDefinition().features,
             blockquotes: true,
+            // Core refuses task lists without lists, so this list is also the
+            // one whose Remove takes a second row with it.
             lists: true,
+            taskListItems: true,
             codeBlocks: true,
+            thematicBreak: true,
             tables: true,
           },
         }),
@@ -263,19 +270,30 @@ test.describe('keeping focus after a row is removed', () => {
     const remove = (title: string): Locator =>
       pane.getByRole('button', { name: `Remove ${title} from Blocks` });
 
+    // The first row: the focus goes to the row that takes its place.
     await pressFromTheKeyboard(mainWindow, remove('Quotes'));
     await expect(remove('Quotes')).toHaveCount(0);
     await expect(remove('Lists')).toBeFocused();
 
-    await pressFromTheKeyboard(mainWindow, remove('Code blocks'));
+    // One in the middle: the same again.
+    await pressFromTheKeyboard(mainWindow, remove('Dividers'));
     await expect(remove('Tables')).toBeFocused();
 
+    // The last one: nothing takes its place, so the row before it has it.
     await pressFromTheKeyboard(mainWindow, remove('Tables'));
-    await expect(remove('Lists')).toBeFocused();
+    await expect(remove('Code blocks')).toBeFocused();
+
+    // Removing Lists takes Task lists with it, since Core refuses the one
+    // without the other. So the row that took their place is what the focus
+    // lands on, rather than a row that went with them.
+    await expect(remove('Task lists')).toBeVisible();
+    await pressFromTheKeyboard(mainWindow, remove('Lists'));
+    await expect(remove('Task lists')).toHaveCount(0);
+    await expect(remove('Code blocks')).toBeFocused();
 
     // With no row left, Add block takes it, since there is something to add
     // again.
-    await pressFromTheKeyboard(mainWindow, remove('Lists'));
+    await pressFromTheKeyboard(mainWindow, remove('Code blocks'));
     await expect(
       pane.getByText('Editors write paragraphs only.')
     ).toBeVisible();
@@ -325,6 +343,71 @@ test.describe('keeping focus after a row is removed', () => {
     );
     await expect(pane.getByText('Every file type is allowed.')).toBeVisible();
     await expect(pane.getByRole('group', { name: 'File types' })).toBeFocused();
+  });
+
+  test('leaves it on the list itself where the control that adds one is off', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const hero = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Hero' },
+      slug: 'hero',
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    // A field that holds one section at most. It is the one list whose control
+    // to add a row is drawn and disabled rather than absent, since the removal
+    // is what frees it, so it is the one that says a disabled control takes no
+    // focus.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({
+          ofComponents: [hero.id],
+          label: { en: 'Sections' },
+          max: 1,
+        }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Service' }),
+        sections: componentValue([
+          {
+            componentId: hero.id,
+            values: { headline: stringValue({ en: 'First' }) },
+          },
+        ]),
+      },
+    });
+
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    const sections = mainWindow.locator('[data-slot="section"]');
+    await expect(sections).toHaveCount(1);
+    await expect(
+      mainWindow.getByRole('button', { name: 'Add section' })
+    ).toBeDisabled();
+
+    // Removing the only row leaves the focus on the list, which says what it
+    // is, rather than on a control nobody could press when the row went.
+    await pressFromTheKeyboard(
+      mainWindow,
+      mainWindow.getByRole('button', { name: 'Remove the Hero section' })
+    );
+    await expect(sections).toHaveCount(0);
+    await expect(
+      mainWindow.getByRole('group', { name: 'Sections' })
+    ).toBeFocused();
   });
 
   test('leaves it in the Assets a reference field holds', async ({
