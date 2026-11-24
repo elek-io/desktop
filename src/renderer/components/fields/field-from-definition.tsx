@@ -95,6 +95,19 @@ export interface FieldFromDefinitionProps<
    * rather than at every call site.
    */
   name: FieldPath<TFieldValues>;
+  /**
+   * What names this field instead of its definition's own label, where one
+   * field stands for one Entry: the rows of a refused change name the Entry
+   * each Value belongs to beside the field. `text` is what names the control,
+   * so the buttons of a picker say which Entry they are about too.
+   */
+  label?: { node: ReactNode; text: string };
+  /**
+   * What the field says while its required Value is still missing, where that
+   * is something other than the language it is missing in: the rows of a
+   * refused change say that the change cannot be saved yet.
+   */
+  missingWarning?: ReactNode;
   className?: string;
 }
 
@@ -114,6 +127,8 @@ export function FieldFromDefinition<
   form,
   name,
   fieldDefinition,
+  label: naming,
+  missingWarning,
   className,
 }: FieldFromDefinitionProps<
   TFieldValues,
@@ -161,10 +176,14 @@ export function FieldFromDefinition<
     name: translateFromName,
     exact: true,
   });
-  const label = translateContent({
+  const definitionLabel = translateContent({
     key: 'fieldDefinition.label',
     record: fieldDefinition.label,
   });
+  // The label as text, which names the control, and the label as it stands
+  // above it, which a caller may draw as more than text.
+  const label = naming?.text ?? definitionLabel;
+  const shownLabel = naming?.node ?? definitionLabel;
   const description =
     fieldDefinition.description === null
       ? null
@@ -232,11 +251,15 @@ export function FieldFromDefinition<
     <AppField
       form={form}
       name={leafName}
-      label={label}
+      label={shownLabel}
       rules={module.rules(fieldDefinition)}
       coreRefusalText={coreRefusalText}
       {...(description === null ? {} : { description })}
-      {...(isMissing ? { warning: t`Missing in ${shownLanguageName}` } : {})}
+      {...(isMissing
+        ? {
+            warning: missingWarning ?? t`Missing in ${shownLanguageName}`,
+          }
+        : {})}
       {...(translateFrom === null
         ? {}
         : {

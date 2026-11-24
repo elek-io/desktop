@@ -1,0 +1,789 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
+import { Link } from '@tanstack/react-router';
+import { Check, Trash2, TriangleAlertIcon } from 'lucide-react';
+import {
+  useId,
+  useMemo,
+  useState,
+  type ReactElement,
+  type RefObject,
+} from 'react';
+import { type SubmitHandler } from 'react-hook-form';
+import { z } from 'zod';
+
+import { fieldModule } from '@renderer/components/fields';
+import { sectionPlaceOf } from '@renderer/components/fields/dynamic/sections';
+import { entryTitle } from '@renderer/components/fields/entry-title';
+import { FieldFromDefinition } from '@renderer/components/fields/field-from-definition';
+import { defaultEntryValue } from '@renderer/components/fields/value-defaults';
+import { LanguageSwitch } from '@renderer/components/language-switch';
+import {
+  AppForm,
+  FormActions,
+  SubmitButton,
+} from '@renderer/components/ui/app-form';
+import { Button } from '@renderer/components/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
+import { useComponentResolver } from '@renderer/hooks/useComponentResolver';
+import { FormLanguageContext } from '@renderer/hooks/useFormLanguage';
+import { useMissingResolutions } from '@renderer/hooks/useMissingValues';
+import { useProject } from '@renderer/hooks/useProject';
+import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
+import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import {
+  acceptedContentLossOf,
+  describeEntryIssue,
+  lostValueLanguage,
+  lostValuesOf,
+  neededValuesOf,
+  type LostValueIssue,
+  type NeededValueIssue,
+  type SchemaChangeIssue,
+} from '@renderer/lib/schemaChange';
+import { languageName } from '@renderer/lib/utils';
+import { queryOptions } from '@renderer/queries';
+
+import {
+  flattenFieldDefinitions,
+  getValueSchemaFromFieldDefinition,
+  valueSchema,
+  type Entry,
+  type FieldDefinition,
+  type SupportedLanguage,
+  type Value,
+} from '@elek-io/core';
+
+// The one dialog a field definition change Core refuses opens: what the save
+// would delete, and the Values it needs, in the two groups ci draws. It shows
+// what Core's refusal names and sends back what Core takes, so nothing here
+// works out a loss or a resolution of its own.
+//
+// See contributing/error-handling.md#example-a-field-change-core-cannot-carry-out
+// and contributing/renderer/dynamic-form-field-generation.md.
+
+/**
+ * The Values written here, by Entry, then by the field's new slug, then the
+ * Value's own keys, which is the shape Core takes a resolution back in.
+ *
+ * Read one level at a time rather than as Core's `Value`, because the form
+ * holds what somebody is typing: a Value a field has not filled in yet is
+ * whatever that field binds, and Core's own schema is what checks it before it
+ * is sent, see `resolutionsSchemaFor`.
+ */
+type Resolutions = Record<string, Record<string, Record<string, unknown>>>;
+
+/** The form the dialog is applied from. */
+interface RefusedChangeFormValues {
+  resolutions: Resolutions;
+}
+
+/** What the change is applied with, which is what Core takes back. */
+export interface RefusedChangeAnswer {
+  /** The field definitions whose content may go. */
+  acceptedContentLoss: string[];
+  /**
+   * The Values the change needs, by Entry and then by the field's new slug, or
+   * `undefined` where they are not written here, which a Component's are not.
+   */
+  resolutions?: Record<string, Record<string, Value>>;
+}
+
+/** The Core schema one Value is checked against, by the field it belongs to. */
+type ValueSchemaOf = (
+  fieldDefinition: FieldDefinition
+) => ReturnType<typeof getValueSchemaFromFieldDefinition>;
+
+export interface RefusedChangeDialogProps {
+  open: boolean;
+  /** The question in its head, which names the object being saved. */
+  question: string;
+  /** Everything Core refused the change for, as its own reader read it. */
+  issues: SchemaChangeIssue[];
+  /**
+   * The field definitions as the object holds them now, flattened. A removed
+   * field is gone from the save and still has its label and its type here,
+   * which is what the Value that would go is read with.
+   */
+  storedFieldDefinitions: FieldDefinition[];
+  /**
+   * The field definitions the save would write, flattened. A Value the change
+   * needs is written under the field as the change leaves it.
+   */
+  newFieldDefinitions: FieldDefinition[];
+  /**
+   * Whether the Values the change needs are written in this dialog. A
+   * Collection's are. A Component's are fixed in the Entry itself, since a
+   * resolution of one is keyed by the Component item it answers for, which
+   * nothing here writes yet, see contributing/not-yet-implemented.md.
+   */
+  resolvable: boolean;
+  /** The language the settings behind the dialog are read in. */
+  language: SupportedLanguage;
+  /**
+   * Save, which the dialog was opened from and hands the focus back to when it
+   * closes. The form it belongs to holds its fields read-only while the save
+   * runs, which takes the focus off it, so there is nothing for the dialog to
+   * return to on its own.
+   */
+  returnFocusTo: RefObject<HTMLElement | null>;
+  /** Takes the dialog off screen and changes nothing. */
+  onCancel: () => void;
+  /** Applies the change with what Core takes back. */
+  onApply: (answer: RefusedChangeAnswer) => Promise<void>;
+  /** Keeps the settings behind the dialog, before a link leads away from them. */
+  onFollowLink: () => void;
+}
+
+/**
+ * The dialog of a refused field definition change.
+ *
+ * It stays mounted for its own animation, and what it holds is keyed by the
+ * issues the refusal names, so a refusal that names other Entries or fields
+ * opens on their own empty Values rather than on what an earlier one was
+ * answered with. A refusal that names the same ones again keeps what was typed,
+ * which is the same change being pressed again.
+ */
+export function RefusedChangeDialog({
+  open,
+  issues,
+  returnFocusTo,
+  ...change
+}: RefusedChangeDialogProps): ReactElement {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next === false) {
+          change.onCancel();
+        }
+      }}
+    >
+      {/* ci draws this dialog 560 px wide, and its body scrolls between the
+      head and the buttons, so the red button stays in view at the smallest
+      window. */}
+      <DialogContent className="sm:max-w-[560px]" finalFocus={returnFocusTo}>
+        {issues.length === 0 ? null : (
+          <RefusedChange
+            key={issues
+              .map(
+                (issue) => `${issue.entryId}.${issue.fieldSlug}.${issue.issue}`
+              )
+              .join('|')}
+            issues={issues}
+            {...change}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The Values an Entry needs, each with the field they are written under. */
+function neededValuesWithFields(
+  needed: NeededValueIssue[],
+  newFieldDefinitions: FieldDefinition[]
+): { issue: NeededValueIssue; fieldDefinition: FieldDefinition }[] {
+  return needed.flatMap((issue) => {
+    const fieldDefinition = newFieldDefinitions.find(
+      (candidate) => candidate.id === issue.fieldDefinitionId
+    );
+
+    // A field the save does not declare has no Value to write: Core names it
+    // for a Component's items, whose Values are fixed in the Entry itself.
+    return fieldDefinition === undefined ? [] : [{ issue, fieldDefinition }];
+  });
+}
+
+/**
+ * The form the dialog is applied from, checked against Core's own schema for
+ * each Value it holds.
+ *
+ * The shape is static, so the form it resolves keeps its type, and each Value
+ * is checked by the schema Core generates for the field it is written under,
+ * which is the same schema Core checks it against when it arrives. A refusal
+ * lands at the path of the field that holds it, with Core's own paths kept, so
+ * the message stands below that field rather than on the form.
+ */
+function resolutionsSchemaFor(
+  needed: { issue: NeededValueIssue; fieldDefinition: FieldDefinition }[],
+  valueSchemaOf: ValueSchemaOf
+): z.ZodType<RefusedChangeFormValues, RefusedChangeFormValues> {
+  return z
+    .object({
+      resolutions: z.record(
+        z.string(),
+        z.record(z.string(), z.record(z.string(), z.unknown()))
+      ),
+    })
+    .check((ctx) => {
+      for (const { issue, fieldDefinition } of needed) {
+        const written = ctx.value.resolutions[issue.entryId]?.[issue.fieldSlug];
+        const checked = valueSchemaOf(fieldDefinition).safeParse(written);
+
+        if (checked.success) {
+          continue;
+        }
+
+        for (const refusal of checked.error.issues) {
+          ctx.issues.push({
+            code: 'custom',
+            input: written,
+            // Already in the words the renderer's error map gave it, since the
+            // schema above ran with that map, so it is carried rather than
+            // worded again.
+            message: refusal.message,
+            path: [
+              'resolutions',
+              issue.entryId,
+              issue.fieldSlug,
+              ...refusal.path,
+            ],
+          });
+        }
+      }
+    });
+}
+
+function RefusedChange({
+  question,
+  issues,
+  storedFieldDefinitions,
+  newFieldDefinitions,
+  resolvable,
+  language,
+  onCancel,
+  onApply,
+  onFollowLink,
+}: Omit<RefusedChangeDialogProps, 'open' | 'returnFocusTo'>): ReactElement {
+  const { t } = useLingui();
+  const {
+    projectId,
+    projectQuery: { data: project, isPending: isReadingProject },
+    translateContent,
+    formatInUserLocale,
+  } = useProject();
+  const lost = lostValuesOf(issues);
+  const needed = neededValuesOf(issues);
+  // The Values this dialog writes, which is a Collection's alone, and the
+  // Entries that are fixed in their own editor instead, which is a Component's.
+  const written = useMemo(
+    () =>
+      resolvable ? neededValuesWithFields(needed, newFieldDefinitions) : [],
+    [resolvable, needed, newFieldDefinitions]
+  );
+  const listed = needed.filter(
+    (issue) =>
+      written.some(({ issue: answered }) => answered === issue) === false
+  );
+  // The language the Values are written in, which starts at the one the
+  // settings behind the dialog are read in. It is this dialog's own, because
+  // the switch above the settings takes names and labels into another
+  // language while this one takes Values.
+  const [valueLanguage, setValueLanguage] = useState(language);
+  const supportedLanguages = isReadingProject
+    ? []
+    : project.settings.language.supported;
+  const defaultLanguage = isReadingProject
+    ? language
+    : project.settings.language.default;
+  // A Value of a dynamic field is checked against the field definitions of the
+  // Components it embeds, so Core's resolver is needed for it.
+  const { componentResolver, isReadingComponents } =
+    useComponentResolver(projectId);
+
+  // The Entries the refusal names, read through their Collections' lists, which
+  // is what the list beside an Entry's editor reads too. Each is named by its
+  // title, never by the id Core names it with.
+  const { data: collectionList, isPending: isReadingCollections } =
+    useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
+  const namedCollectionIds = [
+    ...new Set(issues.map((issue) => issue.collectionId)),
+  ];
+  const entryLists = useQueriesNoError(
+    namedCollectionIds.map((collectionId) =>
+      queryOptions.entries.list({ projectId, collectionId, limit: 0 })
+    )
+  );
+  const entriesById = new Map<string, Entry>(
+    entryLists.flatMap((list) =>
+      list.isPending ? [] : list.data.list.map((entry) => [entry.id, entry])
+    )
+  );
+
+  /** One Entry as Desktop names it, which is the one way it is named. */
+  function entryName(issue: SchemaChangeIssue): string {
+    const entry = entriesById.get(issue.entryId);
+    const collection = isReadingCollections
+      ? undefined
+      : collectionList.list.find(
+          (candidate) => candidate.id === issue.collectionId
+        );
+
+    if (entry === undefined || collection === undefined) {
+      // Only while the lists are still being read. The Entry is named by the
+      // start of its id then, as every other list does where nothing names it.
+      return issue.entryId.slice(0, 8);
+    }
+
+    return entryTitle({
+      entry,
+      fieldDefinitions: flattenFieldDefinitions(collection.fieldDefinitions),
+      language,
+    });
+  }
+
+  /** One field as its label names it, out of the definitions that hold it. */
+  function fieldName(
+    issue: SchemaChangeIssue,
+    definitions: FieldDefinition[]
+  ): string {
+    const fieldDefinition = definitions.find(
+      (candidate) => candidate.id === issue.fieldDefinitionId
+    );
+
+    return fieldDefinition === undefined
+      ? issue.fieldSlug
+      : translateContent({
+          key: 'fieldDefinition.label',
+          record: fieldDefinition.label,
+        });
+  }
+
+  /**
+   * Which section of an Entry one issue is about, where it is about a
+   * Component's item, so two rows of the same Entry and field never read the
+   * same. ci gives an item no name, so it is said by its place, the way the
+   * section's own head says it.
+   */
+  function sectionName(issue: SchemaChangeIssue): string | null {
+    const entry = entriesById.get(issue.entryId);
+
+    if (issue.componentItemId === undefined || entry === undefined) {
+      return null;
+    }
+
+    const place = sectionPlaceOf(entry.values, issue.componentItemId);
+
+    if (place === null) {
+      return null;
+    }
+
+    const { position, total } = place;
+
+    return t`Section ${position} of ${total}`;
+  }
+
+  /**
+   * What one Value that would go reads as, from the field type it belongs to.
+   *
+   * Core says which Value goes, whole for a removed field and only the items
+   * that would be stripped for a narrowed one, and the type's own folder says
+   * what it reads as. A language that holds nothing reads as nothing, so the
+   * first language that holds something stands instead of an empty row.
+   */
+  function lostText(issue: LostValueIssue): string | null {
+    const fieldDefinition = storedFieldDefinitions.find(
+      (candidate) => candidate.id === issue.fieldDefinitionId
+    );
+
+    if (fieldDefinition === undefined) {
+      return null;
+    }
+
+    const module = fieldModule(fieldDefinition);
+    const read = (inLanguage: SupportedLanguage): string | null =>
+      module.renderValue({
+        content: issue.currentValue.content,
+        fieldDefinition,
+        language: inLanguage,
+        formatInUserLocale,
+      });
+
+    return (
+      read(lostValueLanguage(issue, valueLanguage)) ??
+      supportedLanguages.map(read).find((text) => text !== null) ??
+      null
+    );
+  }
+
+  const formId = useId();
+  // Each Value is checked by the schema Core generates for the field it is
+  // written under, which is the same schema Core checks it against when it
+  // arrives. A Value of a dynamic field needs Core's resolver for the
+  // Components it embeds, so the form waits for them below.
+  const valueSchemaOf: ValueSchemaOf = (fieldDefinition) =>
+    getValueSchemaFromFieldDefinition(
+      fieldDefinition,
+      supportedLanguages,
+      componentResolver
+    );
+  const refusedChangeForm = useAppForm<RefusedChangeFormValues>({
+    resolver: zodResolver(resolutionsSchemaFor(written, valueSchemaOf)),
+    // Every Value the change needs starts as an empty one of its field's type,
+    // so each row is controlled from the first render and holds the shape Core
+    // takes back.
+    defaultValues: {
+      resolutions: Object.fromEntries(
+        [...new Set(written.map(({ issue }) => issue.entryId))].map(
+          (entryId) => [
+            entryId,
+            Object.fromEntries(
+              written
+                .filter(({ issue }) => issue.entryId === entryId)
+                .map(({ issue, fieldDefinition }) => [
+                  issue.fieldSlug,
+                  defaultEntryValue(fieldDefinition, supportedLanguages),
+                ])
+            ),
+          ]
+        )
+      ),
+    },
+    disabled: isReadingProject || isReadingComponents,
+  });
+
+  // How many of the Values the change needs are still missing, per language,
+  // which is what holds the button back and marks the language in the switch.
+  const missingByLanguage = useMissingResolutions({
+    form: refusedChangeForm,
+    name: 'resolutions',
+    needed: useMemo(
+      () =>
+        written.map(({ issue, fieldDefinition }) => ({
+          entryId: issue.entryId,
+          fieldSlug: issue.fieldSlug,
+          fieldDefinition,
+        })),
+      [written]
+    ),
+    languages: isReadingProject ? undefined : project.settings.language,
+  });
+  const [missingLanguage, missingValues] = [
+    ...missingByLanguage.entries(),
+  ].find(([, count]) => count > 0) ?? [undefined, 0];
+  // The Entries nothing here can answer for, which are a Component's: each one
+  // is fixed in its own editor, and until every one of them is, Core refuses
+  // the same change again.
+  const missing =
+    missingLanguage === undefined ? undefined : languageName(missingLanguage);
+  const blockedBy =
+    missing !== undefined
+      ? t`${missing} is missing ${plural(missingValues, { one: '# Value', other: '# Values' })}`
+      : listed.length > 0
+        ? t`Each Entry below needs a Value first`
+        : undefined;
+
+  /**
+   * The Values written here as Core takes them back.
+   *
+   * Whether each one holds what its field allows was answered by that field's
+   * own Core schema when the form was submitted, so this only reads the shape
+   * of a Value, which is what a resolution is sent as. One that is not a Value
+   * at all is left out, which this form cannot produce, and leaves Core
+   * refusing the change again rather than writing something it did not take.
+   */
+  function answeredValues(
+    typed: Resolutions
+  ): Record<string, Record<string, Value>> {
+    const answered: Record<string, Record<string, Value>> = {};
+
+    for (const { issue } of written) {
+      const read = valueSchema.safeParse(
+        typed[issue.entryId]?.[issue.fieldSlug]
+      );
+
+      if (read.success === false) {
+        continue;
+      }
+      answered[issue.entryId] = {
+        ...answered[issue.entryId],
+        [issue.fieldSlug]: read.data,
+      };
+    }
+
+    return answered;
+  }
+
+  const onSubmit: SubmitHandler<RefusedChangeFormValues> = async ({
+    resolutions,
+  }) => {
+    await onApply({
+      acceptedContentLoss: acceptedContentLossOf(issues),
+      // A Component's Values are not written here, so none is sent: a
+      // resolution of one is keyed by the Component item it answers for, and
+      // the key this form writes names the Entry and the field alone.
+      ...(resolvable ? { resolutions: answeredValues(resolutions) } : {}),
+    });
+  };
+
+  // What the change does to the Entries, one sentence per group, which is what
+  // ci's head says below the question.
+  const lostFields = [...new Set(lost.map((issue) => issue.fieldDefinitionId))];
+  const lostEntries = [...new Set(lost.map((issue) => issue.entryId))];
+  const neededFields = [
+    ...new Set(needed.map((issue) => issue.fieldDefinitionId)),
+  ];
+  const neededEntries = [...new Set(needed.map((issue) => issue.entryId))];
+  const firstLost = lost[0];
+  const onlyRemoval =
+    lostFields.length === 1 &&
+    firstLost !== undefined &&
+    lost.every((issue) => issue.reason === 'field_removed');
+  const removedField =
+    firstLost === undefined ? '' : fieldName(firstLost, storedFieldDefinitions);
+  const firstNeeded = needed[0];
+  const neededField =
+    firstNeeded === undefined
+      ? ''
+      : fieldName(firstNeeded, newFieldDefinitions);
+  // One sentence per group, which is what ci's head says below the question.
+  const says = [
+    lost.length === 0
+      ? null
+      : onlyRemoval
+        ? t`Removing ${removedField} deletes its Value from ${plural(lostEntries.length, { one: '# Entry', other: '# Entries' })}.`
+        : t`Saving deletes ${plural(lost.length, { one: '# Value', other: '# Values' })} from ${plural(lostEntries.length, { one: '# Entry', other: '# Entries' })}.`,
+    firstNeeded === undefined
+      ? null
+      : neededFields.length === 1
+        ? t`${neededField} needs a Value in ${plural(neededEntries.length, { one: '# Entry', other: '# Entries' })}.`
+        : t`${plural(neededEntries.length, { one: '# Entry', other: '# Entries' })} need a Value before this can be saved.`,
+  ].filter((sentence): sentence is string => sentence !== null);
+
+  return (
+    <FormLanguageContext
+      value={{ language: valueLanguage, defaultLanguage: defaultLanguage }}
+    >
+      <DialogHeader>
+        <DialogTitle>{question}</DialogTitle>
+        <DialogDescription>{says.join(' ')}</DialogDescription>
+      </DialogHeader>
+
+      <AppForm
+        form={refusedChangeForm}
+        onSubmit={onSubmit}
+        id={formId}
+        blockedBy={blockedBy}
+        className="flex min-h-0 flex-col"
+        fieldsetClassName="flex min-h-0 flex-1 flex-col"
+      >
+        <DialogBody flush>
+          <div className="flex flex-col gap-3 px-5 pt-3 pb-5">
+            {lost.length === 0 ? null : (
+              <>
+                <h3 className="flex items-center gap-1.5 pt-1 text-label">
+                  {/* The group's color alone would carry what it is about, so the
+                icon says it again. */}
+                  <TriangleAlertIcon
+                    aria-hidden
+                    className="size-3 shrink-0 text-warning"
+                  />
+                  <Trans>Lost when you save</Trans>
+                </h3>
+                <ul className="flex flex-col border-t">
+                  {lost.map((issue) => {
+                    const section = sectionName(issue);
+
+                    return (
+                      <li
+                        key={`${issue.entryId}.${issue.componentItemId ?? ''}.${issue.fieldDefinitionId}.${issue.language ?? ''}`}
+                        className="flex items-center gap-3 border-b py-2"
+                      >
+                        <EntryLink
+                          issue={issue}
+                          name={entryName(issue)}
+                          onFollowLink={onFollowLink}
+                        />
+                        <span className="truncate text-muted-foreground">
+                          {fieldName(issue, storedFieldDefinitions)}
+                        </span>
+                        {section === null ? null : (
+                          <span className="shrink-0 text-muted-foreground">
+                            {section}
+                          </span>
+                        )}
+                        <span className="ml-auto min-w-0 truncate text-muted-foreground">
+                          {/* The line through the Value says it is going, and the
+                        words say the same, so neither the color nor the line
+                        carries it alone. */}
+                          <span className="sr-only">
+                            <Trans>Would be lost:</Trans>{' '}
+                          </span>
+                          <s>{lostText(issue)}</s>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+
+            {needed.length === 0 ? null : (
+              <>
+                <h3 className="pt-1 text-label">
+                  <Trans>Needs a Value</Trans>
+                </h3>
+                {/* One switch for the Values written here, as above an Entry's
+              fields: Core takes the change only once every language of the
+              Project holds each Value it needs. */}
+                {written.length > 0 && supportedLanguages.length > 1 ? (
+                  <LanguageSwitch
+                    languages={supportedLanguages.map((candidate) => ({
+                      language: candidate,
+                      missing: missingByLanguage.get(candidate) ?? 0,
+                      hasError: false,
+                    }))}
+                    language={valueLanguage}
+                    onLanguageChange={setValueLanguage}
+                  />
+                ) : null}
+                {/* The field as editors see it under its new rules, to fill in
+              right here, which is what ci draws for a Collection's change. */}
+                {written.length === 0 ? null : (
+                  <div className="flex flex-col gap-4">
+                    {written.map(({ issue, fieldDefinition }) => {
+                      const field = fieldName(issue, newFieldDefinitions);
+                      const entry = entryName(issue);
+
+                      return (
+                        <FieldFromDefinition
+                          key={`${issue.entryId}.${issue.fieldSlug}`}
+                          form={refusedChangeForm}
+                          fieldDefinition={fieldDefinition}
+                          name={`resolutions.${issue.entryId}.${issue.fieldSlug}.content`}
+                          label={{
+                            // The field and the Entry it belongs to, with the
+                            // Entry leading there, as ci names the row.
+                            node: (
+                              <Trans>
+                                {field} in{' '}
+                                <EntryLink
+                                  issue={issue}
+                                  name={entry}
+                                  onFollowLink={onFollowLink}
+                                />
+                              </Trans>
+                            ),
+                            text: t`${field} in ${entry}`,
+                          }}
+                          missingWarning={
+                            <Trans>
+                              Missing, so the changes can&apos;t be saved yet
+                            </Trans>
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+                {/* A Value nothing here can write, which is a Component's: it is
+              filled in the Entry itself, so the row leads there and says what
+              has to happen. */}
+                {listed.length === 0 ? null : (
+                  <ul className="flex flex-col border-t">
+                    {listed.map((issue) => {
+                      const section = sectionName(issue);
+
+                      return (
+                        <li
+                          key={`${issue.entryId}.${issue.componentItemId ?? ''}.${issue.fieldDefinitionId}`}
+                          className="flex items-center gap-3 border-b py-2"
+                        >
+                          <EntryLink
+                            issue={issue}
+                            name={entryName(issue)}
+                            onFollowLink={onFollowLink}
+                          />
+                          <span className="truncate text-muted-foreground">
+                            {fieldName(issue, newFieldDefinitions)}
+                          </span>
+                          {section === null ? null : (
+                            <span className="shrink-0 text-muted-foreground">
+                              {section}
+                            </span>
+                          )}
+                          <span className="ml-auto min-w-0 truncate text-muted-foreground">
+                            {describeEntryIssue(issue.issue)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
+        </DialogBody>
+      </AppForm>
+
+      <FormActions form={refusedChangeForm} id={formId} blockedBy={blockedBy}>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            <Trans>Cancel</Trans>
+          </Button>
+          {/* The button names the loss, as ci's rule for anything that deletes
+          something kept on this computer asks. Without one there is nothing to
+          warn about, so it is the primary Save. */}
+          {lost.length === 0 ? (
+            <SubmitButton Icon={Check}>
+              <Trans>Save</Trans>
+            </SubmitButton>
+          ) : (
+            <SubmitButton variant="destructive" Icon={Trash2}>
+              {onlyRemoval
+                ? t`Remove ${removedField} from ${plural(lostEntries.length, { one: '# Entry', other: '# Entries' })}`
+                : t`Delete ${plural(lost.length, { one: '# Value', other: '# Values' })} from ${plural(lostEntries.length, { one: '# Entry', other: '# Entries' })}`}
+            </SubmitButton>
+          )}
+        </DialogFooter>
+      </FormActions>
+    </FormLanguageContext>
+  );
+}
+
+/**
+ * One Entry by its title, leading to the Entry itself.
+ *
+ * Following it keeps the settings behind the dialog, so the person comes back
+ * to what they had typed, and the question before losing changes is not asked
+ * for it: the changes are kept rather than lost. Every other way out of the
+ * settings still asks.
+ */
+function EntryLink({
+  issue,
+  name,
+  onFollowLink,
+}: {
+  issue: SchemaChangeIssue;
+  name: string;
+  onFollowLink: () => void;
+}): ReactElement {
+  const { projectId } = useProject();
+
+  return (
+    <Link
+      to="/projects/$projectId/collections/$collectionId/$entryId/update"
+      params={{
+        projectId,
+        collectionId: issue.collectionId,
+        entryId: issue.entryId,
+      }}
+      ignoreBlocker
+      onClick={onFollowLink}
+      className="min-w-0 truncate font-medium underline decoration-link-underline decoration-2 underline-offset-4"
+    >
+      {name}
+    </Link>
+  );
+}

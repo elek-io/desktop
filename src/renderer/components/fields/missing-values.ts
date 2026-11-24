@@ -183,3 +183,55 @@ export function isMissingValue({
 
   return module.isEmpty(contentInLanguage(content, language));
 }
+
+/** One Value a field definition change needs before Core applies it. */
+export interface NeededValue {
+  /** The Entry the Value belongs to. */
+  entryId: string;
+  /** The field, by its new slug, which is what Core takes the Value back at. */
+  fieldSlug: string;
+  /** The field as the change leaves it, which the Value is written under. */
+  fieldDefinition: FieldDefinition;
+}
+
+/**
+ * How many of the Values a refused field definition change needs are still
+ * missing, per language of the Project.
+ *
+ * The same question as above, asked of the Values written in the dialog of a
+ * refused change rather than of one Entry's: those sit per Entry, keyed by the
+ * Entry and then by the field's slug, because one change can leave several
+ * Entries without a Value. Each is asked through `isMissingValue`, so a row of
+ * that dialog marks itself exactly when it counts here.
+ */
+export function missingResolutionValues({
+  values: heldValues,
+  needed,
+  supportedLanguages,
+  defaultLanguage,
+}: {
+  /** The Values as the dialog's form holds them, by Entry and then by slug. */
+  values: unknown;
+  needed: NeededValue[];
+  supportedLanguages: SupportedLanguage[];
+  defaultLanguage: SupportedLanguage;
+}): Map<SupportedLanguage, number> {
+  const byEntry = valuesOf(heldValues);
+  const missing = new Map<SupportedLanguage, number>(
+    supportedLanguages.map((language) => [language, 0])
+  );
+
+  for (const { entryId, fieldSlug, fieldDefinition } of needed) {
+    const content = contentOf(valuesOf(byEntry[entryId])[fieldSlug]);
+
+    for (const language of supportedLanguages) {
+      if (
+        isMissingValue({ fieldDefinition, content, language, defaultLanguage })
+      ) {
+        missing.set(language, (missing.get(language) ?? 0) + 1);
+      }
+    }
+  }
+
+  return missing;
+}

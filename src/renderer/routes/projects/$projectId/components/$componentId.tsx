@@ -5,13 +5,18 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
-import { useCallback, useId, useState, type ReactElement } from 'react';
+import { useCallback, useId, useRef, useState, type ReactElement } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
+import { type z } from 'zod';
 
 import { ComponentImpact } from '@renderer/components/component-impact';
 import { ComponentForm } from '@renderer/components/forms/component-form';
 import { Page } from '@renderer/components/page';
 import { PageSection } from '@renderer/components/page-section';
+import {
+  RefusedChangeDialog,
+  type RefusedChangeAnswer,
+} from '@renderer/components/refused-change-dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +43,7 @@ import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useDefinitionsEditor } from '@renderer/hooks/useDefinitionsEditor';
+import { useKeptForm } from '@renderer/hooks/useKeptForm';
 import { useMissingTranslations } from '@renderer/hooks/useMissingTranslations';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -52,7 +58,6 @@ import {
   withEmptyDescriptionAsNull,
 } from '@renderer/lib/resolver';
 import {
-  describeEntryIssue,
   entryIssuesOf,
   type SchemaChangeIssue,
 } from '@renderer/lib/schemaChange';
@@ -60,6 +65,7 @@ import { languageName } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
+  flattenFieldDefinitions,
   getUpdateComponentSchemaFromLanguages,
   type CoreErrorType,
   type SupportedLanguage,
@@ -67,28 +73,13 @@ import {
 } from '@elek-io/core';
 
 /**
- * One Entry a field definition change could not be carried into: its
- * Collection, the Entry, the field and what has to happen to it.
- *
- * Each value is a named placeholder of one message, so the line is one entry of
- * the catalog rather than four fragments joined in the markup.
+ * The Component as the form holds it, which is the input of the same Core
+ * schema the form resolves against, so what is kept across a link to an Entry
+ * goes back in exactly as it came out.
  */
-function IssueLine({
-  issue,
-  name,
-}: {
-  issue: SchemaChangeIssue;
-  name: string;
-}): ReactElement {
-  const { entryId, fieldSlug } = issue;
-  const reason = describeEntryIssue(issue.issue);
-
-  return (
-    <Trans>
-      {name}, Entry {entryId}, Field {fieldSlug}: {reason}
-    </Trans>
-  );
-}
+type ComponentSettingsValues = z.input<
+  ReturnType<typeof getUpdateComponentSchemaFromLanguages>
+>;
 
 export const Route = createFileRoute(
   '/projects/$projectId/components/$componentId'
@@ -107,12 +98,11 @@ const deleteErrorDescriptions: Partial<
 const deleteErrorFallback = msg`This Component could not be deleted. Please review and try again.`;
 
 // Copy for a blocked save, keyed by CoreError type. A slug another Component
-// holds is said below the Slug field instead, and the Entries a Field change
-// cannot reach on its own are listed under this description, so what is left
-// here is a Conflict with neither, and the circular reference BadRequest.
+// holds is said below the Slug field, and a Field change that reaches Entries
+// that already exist is answered in the dialog of a refused change, so what is
+// left here is the circular reference BadRequest.
 const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
   {
-    Conflict: msg`Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.`,
     BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
   };
 
@@ -123,6 +113,8 @@ function ProjectComponentUpdate(): ReactElement {
 
   const router = useRouter();
   const { projectId, componentId } = Route.useParams();
+  // Save, which the dialog of a refused change hands the focus back to.
+  const saveRef = useRef<HTMLButtonElement>(null);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     translateContent,
@@ -130,8 +122,6 @@ function ProjectComponentUpdate(): ReactElement {
   const { data: component, isPending: isReadingComponent } = useQueryNoError(
     queryOptions.components.read({ projectId, id: componentId })
   );
-  const { data: collectionList, isPending: isReadingCollections } =
-    useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
   useBreadcrumb(
     Route,
     isReadingComponent
@@ -141,6 +131,12 @@ function ProjectComponentUpdate(): ReactElement {
   const formId = useId();
   const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
+  // The change Core refused and everything it refused it for, which is what
+  // the dialog over this page draws and applies.
+  const [refused, setRefused] = useState<{
+    props: UpdateComponentProps;
+    issues: SchemaChangeIssue[];
+  } | null>(null);
   const [isDeleteErrorDialogOpen, setIsDeleteErrorDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<unknown>(null);
 
@@ -154,6 +150,15 @@ function ProjectComponentUpdate(): ReactElement {
           project.settings.language.supported
         )
       : getUpdateComponentSchemaFromLanguages([]);
+
+  // What these settings kept for themselves while an Entry of the dialog below
+  // was being fixed, so coming back shows them as they were left.
+  const keptSettings = useKeptForm<ComponentSettingsValues>(
+    // The key of this page, which nothing reads, so it is not a string
+    // somebody reads either.
+    // eslint-disable-next-line lingui/no-unlocalized-strings
+    `components/${componentId}/settings`
+  );
 
   const updateComponentForm = useAppForm({
     resolver: withBlankDefinitionDescriptionsAsNull(
@@ -174,7 +179,18 @@ function ProjectComponentUpdate(): ReactElement {
     // ids included, which is what keeps the content of every Entry holding this
     // Component: Core matches field definitions by id, so a new id would read
     // as a removal plus an addition.
-    ...(isReadingComponent ? {} : { values: { ...component, projectId } }),
+    //
+    // What was kept wins over what is stored, since it is what was typed, and
+    // the defaults it is compared against stay what they were, so the page
+    // comes back holding unsaved changes.
+    ...(keptSettings.kept === undefined
+      ? isReadingComponent
+        ? {}
+        : { values: { ...component, projectId } }
+      : {
+          values: keptSettings.kept,
+          resetOptions: { keepDefaultValues: true },
+        }),
     disabled: isReadingComponent,
   });
 
@@ -188,8 +204,10 @@ function ProjectComponentUpdate(): ReactElement {
 
   // Core raises Conflict on this path for two unrelated reasons, and the cause
   // it attaches is what tells them apart: a Field change it cannot carry out
-  // alone comes with the list of Entries to fix, a slug another Component holds
-  // comes with nothing. See contributing/error-handling.md.
+  // alone comes with every issue it names, a slug another Component holds
+  // comes with nothing. The Field change is answered where the save is, since
+  // the dialog sends the very same change again.
+  // See contributing/error-handling.md.
   const {
     mutateAsync: updateComponent,
     isPending: isUpdatingComponent,
@@ -202,10 +220,7 @@ function ProjectComponentUpdate(): ReactElement {
             type: 'conflict',
             message: t`Another Component in this Project already uses this slug. Choose another one.`,
           });
-          return;
         }
-        setSaveError(error);
-        setIsSaveErrorDialogOpen(true);
       },
       BadRequest: (error) => {
         setSaveError(error);
@@ -280,27 +295,59 @@ function ProjectComponentUpdate(): ReactElement {
   function Actions(): ReactElement {
     return (
       <FormActions form={updateComponentForm} id={formId} blockedBy={blockedBy}>
-        <SubmitButton requireDirty Icon={Check}>
+        <SubmitButton ref={saveRef} requireDirty Icon={Check}>
           <Trans>Save changes</Trans>
         </SubmitButton>
       </FormActions>
     );
   }
 
-  const onUpdate: SubmitHandler<UpdateComponentProps> = async (props) => {
+  /**
+   * Saves the Component, and answers a Field change Core refuses with the one
+   * dialog that says what the change would delete and which Entries need a
+   * Value.
+   *
+   * The change is sent again from there with what Core takes back, so the
+   * props are kept with the refusal: it is the very same change, which is what
+   * Core's acceptance is written for.
+   */
+  const save = async (props: UpdateComponentProps): Promise<void> => {
     try {
       await updateComponent(props);
     } catch (error) {
-      // A taken slug, a Field change reaching existing Entries and a circular
-      // reference are surfaced in place above. Any other failure was already
-      // routed to the boundary, so this is a no-op.
+      const issues = entryIssuesOf(error);
+
+      if (issues.length > 0) {
+        setRefused({ props, issues });
+        return;
+      }
+      // A taken slug and a circular reference are surfaced in place above. Any
+      // other failure was already routed to the boundary, so this is a no-op.
       handleSaveError(error);
       return;
     }
+    setRefused(null);
     await router.navigate({
       to: '/projects/$projectId/components',
       params: { projectId },
     });
+  };
+
+  const onUpdate: SubmitHandler<UpdateComponentProps> = async (props) => {
+    await save(props);
+  };
+
+  /**
+   * Applies the refused change with what Core takes back. A Component's
+   * resolutions are not sent, see the dialog.
+   */
+  const onApplyRefusedChange = async ({
+    acceptedContentLoss,
+  }: RefusedChangeAnswer): Promise<void> => {
+    if (refused === null) {
+      return;
+    }
+    await save({ ...refused.props, acceptedContentLoss });
   };
 
   const onDelete = async (): Promise<void> => {
@@ -320,23 +367,6 @@ function ProjectComponentUpdate(): ReactElement {
 
   const { type: saveErrorType } = parseIpcError(saveError);
   const { type: deleteErrorType } = parseIpcError(deleteError);
-  const saveErrorIssues = entryIssuesOf(saveError);
-
-  /** The Collection an issue sits in, by the name somebody gave it. */
-  function collectionName(issue: SchemaChangeIssue): string {
-    const collection = isReadingCollections
-      ? undefined
-      : collectionList.list.find(
-          (candidate) => candidate.id === issue.collectionId
-        );
-    if (collection === undefined) {
-      return t`A Collection`;
-    }
-    return translateContent({
-      key: 'collection.name.plural',
-      record: collection.name.plural,
-    });
-  }
 
   if (isReadingProject) {
     return <></>;
@@ -449,18 +479,6 @@ function ProjectComponentUpdate(): ReactElement {
               )}
             </DialogDescription>
           </DialogHeader>
-          {/* Core puts the Entries it could not carry the change into in the
-          error's cause, so each one is named here rather than leaving the
-          editor to guess which Entry to open. See shared/ipcError.ts. */}
-          {saveErrorIssues.length > 0 ? (
-            <ul className="list-inside list-disc text-sm">
-              {saveErrorIssues.map((issue) => (
-                <li key={`${issue.entryId}-${issue.fieldSlug}-${issue.issue}`}>
-                  <IssueLine issue={issue} name={collectionName(issue)} />
-                </li>
-              ))}
-            </ul>
-          ) : null}
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="secondary" />}>
               <Trans>Close</Trans>
@@ -468,6 +486,31 @@ function ProjectComponentUpdate(): ReactElement {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* The one dialog a Field change Core refuses opens: what the save would
+      delete, and the Entries that need a Value, each by its title and leading
+      to the Entry. A Component's Values are filled in the Entry itself. */}
+      <RefusedChangeDialog
+        open={refused !== null}
+        question={t`Save the changes to the ${name} Component?`}
+        issues={refused?.issues ?? []}
+        storedFieldDefinitions={
+          isReadingComponent
+            ? []
+            : flattenFieldDefinitions(component.fieldDefinitions)
+        }
+        newFieldDefinitions={
+          refused === null
+            ? []
+            : flattenFieldDefinitions(refused.props.fieldDefinitions)
+        }
+        resolvable={false}
+        language={shownLanguage}
+        returnFocusTo={saveRef}
+        onCancel={() => setRefused(null)}
+        onApply={onApplyRefusedChange}
+        onFollowLink={() => keptSettings.keep(updateComponentForm.getValues())}
+      />
     </Page>
   );
 }

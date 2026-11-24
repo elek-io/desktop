@@ -6,6 +6,16 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
+#. placeholder {0}: neededEntries.length
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "{0, plural, one {# Entry} other {# Entries}} need a Value before this can be saved."
+msgstr "{0, plural, one {# Entry} other {# Entries}} need a Value before this can be saved."
+
+#. placeholder {0}: content.length
+#: src/renderer/components/fields/dynamic/index.tsx
+msgid "{0, plural, one {# section} other {# sections}}"
+msgstr "{0, plural, one {# section} other {# sections}}"
+
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} added {thing}"
 msgstr "{author} added {thing}"
@@ -72,6 +82,14 @@ msgstr "{currentVersion} becomes {nextVersion}"
 msgid "{defaultName}, the default"
 msgstr "{defaultName}, the default"
 
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "{field} in {entry}"
+msgstr "{field} in {entry}"
+
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "{field} in <0/>"
+msgstr "{field} in <0/>"
+
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "{fieldCount, plural, one {# field} other {# fields}}"
 msgstr "{fieldCount, plural, one {# field} other {# fields}}"
@@ -121,6 +139,10 @@ msgstr "{missing, plural, one {# field is still empty} other {# fields are still
 msgid "{missing} is missing {missingTexts, plural, one {# translation} other {# translations}}"
 msgstr "{missing} is missing {missingTexts, plural, one {# translation} other {# translations}}"
 
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "{missing} is missing {missingValues, plural, one {# Value} other {# Values}}"
+msgstr "{missing} is missing {missingValues, plural, one {# Value} other {# Values}}"
+
 #: src/renderer/components/component-impact.tsx
 msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
 msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
@@ -128,10 +150,6 @@ msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
 #: src/renderer/lib/changeSentence.ts
 msgid "{name}, {when}"
 msgstr "{name}, {when}"
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
-msgstr "{name}, Entry {entryId}, Field {fieldSlug}: {reason}"
 
 #: src/renderer/components/language-switch.tsx
 msgid "{name}, missing {what}"
@@ -144,6 +162,11 @@ msgstr "{name}, section {position} of {total}"
 #: src/renderer/components/language-switch.tsx
 msgid "{name}, with a Value that was refused"
 msgstr "{name}, with a Value that was refused"
+
+#. placeholder {0}: neededEntries.length
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "{neededField} needs a Value in {0, plural, one {# Entry} other {# Entries}}."
+msgstr "{neededField} needs a Value in {0, plural, one {# Entry} other {# Entries}}."
 
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "{notSynced, plural, one {# change isn't synced. Removing loses it.} other {# changes aren't synced. Removing loses them.}}"
@@ -198,10 +221,6 @@ msgstr "1/4"
 #: src/renderer/lib/changeSentence.ts
 msgid "a Collection"
 msgstr "a Collection"
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "A Collection"
-msgstr "A Collection"
 
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again."
@@ -654,6 +673,7 @@ msgstr "Can't read the Releases"
 #: src/renderer/components/markdown/link-dialog.tsx
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
 #: src/renderer/components/pickers/entry-picker-dialog.tsx
+#: src/renderer/components/refused-change-dialog.tsx
 #: src/renderer/components/release-dialog.tsx
 #: src/renderer/components/report-dialog.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
@@ -989,10 +1009,6 @@ msgstr "Could not save the Git repository"
 msgid "Could not save the Project"
 msgstr "Could not save the Project"
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
-msgid "Could not save this Collection"
-msgstr "Could not save this Collection"
-
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "Could not save this Component"
 msgstr "Could not save this Component"
@@ -1126,6 +1142,12 @@ msgstr "Define this Collection's fields"
 msgid "Define this Component's fields"
 msgstr "Define this Component's fields"
 
+#. placeholder {0}: lost.length
+#. placeholder {1}: lostEntries.length
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Delete {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}"
+msgstr "Delete {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}"
+
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Delete {collectionName}?"
 msgstr "Delete {collectionName}?"
@@ -1247,6 +1269,10 @@ msgstr "Download from another Git host"
 #: src/renderer/components/drag-and-drop.tsx
 msgid "Drag to reorder"
 msgstr "Drag to reorder"
+
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Each Entry below needs a Value first"
+msgstr "Each Entry below needs a Value first"
 
 #: src/renderer/lib/sync.ts
 msgid "Each field below points at an Entry or an Asset that no longer exists, because it was deleted here or on another computer. Open each Entry, choose something else or empty the field, then sync again."
@@ -1768,6 +1794,10 @@ msgstr "Local API started"
 msgid "Local API stopped"
 msgstr "Local API stopped"
 
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Lost when you save"
+msgstr "Lost when you save"
+
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Lowercase"
 msgstr "Lowercase"
@@ -1799,6 +1829,10 @@ msgstr "Missing"
 #: src/renderer/components/fields/field-from-definition.tsx
 msgid "Missing in {shownLanguageName}"
 msgstr "Missing in {shownLanguageName}"
+
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Missing, so the changes can't be saved yet"
+msgstr "Missing, so the changes can't be saved yet"
 
 #: src/renderer/components/ui/breadcrumb.tsx
 msgid "More"
@@ -1854,6 +1888,10 @@ msgstr "Names this Collection in your code and in API paths."
 #: src/renderer/components/forms/component-form.tsx
 msgid "Names this Component in your code. It has to be unique in this Project."
 msgstr "Names this Component in your code. It has to be unique in this Project."
+
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Needs a Value"
+msgstr "Needs a Value"
 
 #: src/renderer/lib/schemaChange.ts
 msgid "needs a Value for this Field, which is now required and has no default"
@@ -2006,14 +2044,6 @@ msgstr "Nothing was released, and this Project is exactly as it was. The Git rep
 #: src/renderer/lib/release.ts
 msgid "Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project."
 msgstr "Nothing was released, and this Project is exactly as it was. The Git repository refused access, so ask whoever set up this Project."
-
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
-msgid "Nothing was saved, and this Collection is exactly as it was. Your field changes reach Entries that already exist, and each one has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the field changes back for now."
-msgstr "Nothing was saved, and this Collection is exactly as it was. Your field changes reach Entries that already exist, and each one has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the field changes back for now."
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
-msgstr "Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now."
 
 #: src/renderer/lib/sync.ts
 msgid "Nothing was synced, and your changes stay on this computer."
@@ -2266,6 +2296,11 @@ msgstr "Remove {name} from {label}"
 msgid "Remove {name} from this computer?"
 msgstr "Remove {name} from this computer?"
 
+#. placeholder {0}: lostEntries.length
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Remove {removedField} from {0, plural, one {# Entry} other {# Entries}}"
+msgstr "Remove {removedField} from {0, plural, one {# Entry} other {# Entries}}"
+
 #: src/renderer/components/fields/entry/control.tsx
 msgid "Remove {title} from {label}"
 msgstr "Remove {title} from {label}"
@@ -2305,6 +2340,11 @@ msgstr "Remove the missing Asset from {label}"
 #: src/renderer/components/fields/entry/control.tsx
 msgid "Remove the missing Entry from {label}"
 msgstr "Remove the missing Entry from {label}"
+
+#. placeholder {0}: lostEntries.length
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Removing {removedField} deletes its Value from {0, plural, one {# Entry} other {# Entries}}."
+msgstr "Removing {removedField} deletes its Value from {0, plural, one {# Entry} other {# Entries}}."
 
 #: src/renderer/components/fields/asset/control.tsx
 msgid "Replace"
@@ -2353,6 +2393,7 @@ msgid "Retry"
 msgstr "Retry"
 
 #: src/renderer/components/asset-pane.tsx
+#: src/renderer/components/refused-change-dialog.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
@@ -2377,6 +2418,20 @@ msgstr "Save a copy of {fileName}"
 msgid "Save changes"
 msgstr "Save changes"
 
+#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+msgid "Save the changes to the {collectionName} Collection?"
+msgstr "Save the changes to the {collectionName} Collection?"
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "Save the changes to the {name} Component?"
+msgstr "Save the changes to the {name} Component?"
+
+#. placeholder {0}: lost.length
+#. placeholder {1}: lostEntries.length
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Saving deletes {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}."
+msgstr "Saving deletes {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}."
+
 #: src/renderer/components/component-impact.tsx
 msgid "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
 msgstr "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
@@ -2394,6 +2449,7 @@ msgid "Section"
 msgstr "Section"
 
 #: src/renderer/components/fields/dynamic/control.tsx
+#: src/renderer/components/refused-change-dialog.tsx
 msgid "Section {position} of {total}"
 msgstr "Section {position} of {total}"
 
@@ -2879,10 +2935,6 @@ msgstr "this Collection"
 msgid "This Collection could not be deleted. Please try again."
 msgstr "This Collection could not be deleted. Please try again."
 
-#: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
-msgid "This Collection could not be saved. Please review your changes and try again."
-msgstr "This Collection could not be saved. Please review your changes and try again."
-
 #: src/renderer/routes/projects/$projectId/components/create.tsx
 msgid "This Component could not be created. Please review your changes and try again."
 msgstr "This Component could not be created. Please review your changes and try again."
@@ -3272,6 +3324,10 @@ msgstr "Whoever set the Project up sends you this address."
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "Width"
 msgstr "Width"
+
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "Would be lost:"
+msgstr "Would be lost:"
 
 #: src/renderer/lib/schemaChange.ts
 msgid "would lose what it holds in this Field, so the change is refused"

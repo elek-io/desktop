@@ -1,9 +1,9 @@
-import { msg } from '@lingui/core/macro';
+import { msg, plural, t } from '@lingui/core/macro';
 import { BlocksIcon } from 'lucide-react';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { countRules } from '@renderer/components/fields/rules';
-import { noText, noTitle } from '@renderer/components/fields/value-contracts';
+import { noTitle } from '@renderer/components/fields/value-contracts';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 
 import {
@@ -46,9 +46,16 @@ export const dynamicField: FieldTypeModule<'dynamic'> = {
   // Its Value is one flat list rather than content per language, so an empty
   // list is what Core refuses a required dynamic field for.
   isEmpty: holdsNothing,
-  // Sections are not read as one line of text, and this field is the one that
-  // is not per-language, so it is never translated from another language.
-  renderValue: noText,
+  // How many sections the Value holds, which is what it reads as where it is
+  // shown rather than edited: the rows of a refused change, where a narrowed
+  // field strikes through the sections that would go. A section's own Values
+  // are not read into that line, since each is a field of its own. This field
+  // is the one that is not per-language, so it is never translated from
+  // another language and the line never stands below a field.
+  renderValue: ({ content }) =>
+    Array.isArray(content) === false || content.length === 0
+      ? null
+      : t`${plural(content.length, { one: '# section', other: '# sections' })}`,
   titleText: noTitle,
   // An empty `ofComponents` allows every Component of the Project, which is
   // Core's own rule rather than ours, so it is read off Core.
