@@ -780,7 +780,7 @@ test.describe('A form filled from its query', () => {
       { label: 'Component name', rules: 'Required', ariaRequired: 'true' },
       {
         label: 'Component slug',
-        rules: 'Required, up to 128 characters',
+        rules: 'Required, up to 128 characters, unique',
         ariaRequired: 'true',
       },
       { label: 'Description', rules: null, ariaRequired: null },

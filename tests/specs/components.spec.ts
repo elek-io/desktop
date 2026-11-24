@@ -19,14 +19,20 @@ import {
   textFieldDefinition,
 } from '../helpers/collection.js';
 import {
+  chooseComponent,
+  componentListPane,
+  componentRow,
   createComponentViaIpc,
+  fillComponentForm,
   navigateToComponent,
   navigateToComponentCreate,
   navigateToComponents,
+  openDeleteComponent,
   readComponentViaIpc,
+  saveComponent,
   updateComponentViaIpc,
 } from '../helpers/component.js';
-import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
+import { dismissDialog } from '../helpers/dialog.js';
 import {
   chooseLanguage,
   componentValue,
@@ -39,8 +45,18 @@ import {
 import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreRejectWithType } from '../helpers/ipc.js';
 import { mainPanel, navigate, projectSidebar } from '../helpers/navigation.js';
-import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
+import {
+  addProjectLanguageViaIpc,
+  createProjectViaIpc,
+  navigateToHistory,
+} from '../helpers/project.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  waitForLayout,
+} from '../helpers/window.js';
 
 /** The route of one Component's configure page, by its uuid segment. */
 const componentRoute = /#\/projects\/[^/]+\/components\/[0-9a-f-]{36}$/;
@@ -80,12 +96,19 @@ test.describe('Components', () => {
       })
     ).toBeVisible();
 
-    await mainWindow
-      .getByLabel('Component name', { exact: true })
-      .fill('Teaser');
-    await mainWindow
-      .getByLabel('Component slug', { exact: true })
-      .fill('teaser');
+    // The same page as a Component that exists, titled by what it is about and
+    // empty of fields.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Create Component' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('main').getByLabel('Component name', { exact: true })
+    ).toHaveValue('');
+    await expect(
+      mainWindow.getByRole('button', { name: /^Settings of the/ })
+    ).toHaveCount(0);
+
+    await fillComponentForm(mainWindow, { name: 'Teaser', slug: 'teaser' });
     await addFieldDefinition(mainWindow, {
       label: 'Headline',
       description: 'The headline of the teaser',
@@ -103,11 +126,14 @@ test.describe('Components', () => {
       })
     ).toBeVisible();
 
-    // The list names it by the name somebody gave it, not by its id.
+    // The list beside it names it by the name somebody gave it, not by its id,
+    // and the row it opened is the one marked current.
+    await expect(componentRow(mainWindow, 'Teaser')).toHaveAttribute(
+      'data-active',
+      'true'
+    );
     await navigateToComponents(mainWindow, project.id);
-    await expect(
-      mainWindow.getByRole('link', { name: /Teaser/ })
-    ).toBeVisible();
+    await expect(componentRow(mainWindow, 'Teaser')).toBeVisible();
   });
 
   test('offers no slug field inside a Component, and locks uniqueness there', async ({
@@ -150,11 +176,13 @@ test.describe('Components', () => {
     await createComponentViaIpc(mainWindow, { projectId: project.id });
 
     await navigateToComponentCreate(mainWindow, project.id);
-    await mainWindow
-      .getByLabel('Component name', { exact: true })
-      .fill('Another teaser');
-    const slugField = mainWindow.getByLabel('Component slug', { exact: true });
-    await slugField.fill('teaser');
+    await fillComponentForm(mainWindow, {
+      name: 'Another teaser',
+      slug: 'teaser',
+    });
+    const slugField = mainWindow
+      .getByRole('main')
+      .getByLabel('Component slug', { exact: true });
     await addFieldDefinition(mainWindow, {
       label: 'Headline',
       description: 'The headline of the teaser',
@@ -176,24 +204,36 @@ test.describe('Components', () => {
     );
   });
 
-  test('saves a renamed Component and says what the save reaches', async ({
+  // ci's Components screen: a list of 296 px with each Component, how many
+  // Entries use it and how many fields it has, next to the chosen Component,
+  // laid out like a Collection's settings with a field's settings on the right.
+  test('lists every Component with how many Entries use it and how many fields it has', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    const component = await createComponentViaIpc(mainWindow, {
+    const used = await createComponentViaIpc(mainWindow, {
       projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({ slug: 'subline', label: { en: 'Subline' } }),
+      ],
+    });
+    await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Gallery' },
+      slug: 'gallery',
     });
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       fieldDefinitions: [
         textFieldDefinition(),
-        dynamicFieldDefinition({ ofComponents: [component.id] }),
+        dynamicFieldDefinition({ ofComponents: [used.id] }),
       ],
     });
     // One Entry holds a section built from the Component and one holds none,
-    // so the count below says what the save rewrites rather than how many
-    // Entries the Collection has.
+    // so the row says how many Entries use it rather than how many Entries the
+    // Collection has.
     await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -201,7 +241,7 @@ test.describe('Components', () => {
         title: stringValue({ en: 'Launch day' }),
         sections: componentValue([
           {
-            componentId: component.id,
+            componentId: used.id,
             values: { title: stringValue({ en: 'A section' }) },
           },
         ]),
@@ -216,43 +256,91 @@ test.describe('Components', () => {
       },
     });
 
+    await navigateToComponents(mainWindow, project.id);
+
+    // The head says how many there are, and each row what it is used in.
+    await expect(
+      componentListPane(mainWindow).getByRole('heading', {
+        name: /^Components\s*2$/,
+      })
+    ).toBeVisible();
+    await expect(componentRow(mainWindow, 'Teaser')).toContainText(
+      '1 Entry uses it, 2 fields'
+    );
+    await expect(componentRow(mainWindow, 'Gallery')).toContainText(
+      'Not used yet, 1 field'
+    );
+
+    // Nothing is open beside the list until a Component is chosen.
+    await expect(mainWindow.getByText('No Component chosen')).toBeVisible();
+
+    await chooseComponent(mainWindow, 'Teaser');
+    await expect(
+      mainWindow.getByRole('heading', {
+        name: 'Settings of the Teaser Component',
+      })
+    ).toBeVisible();
+    // Laid out like a Collection's settings: its own fields, then the fields
+    // it defines, with the chosen field's settings in the pane on the right.
+    await expect(
+      mainWindow.getByRole('main').getByLabel('Component slug', { exact: true })
+    ).toHaveValue('teaser');
+    await expect(
+      mainWindow.getByRole('heading', {
+        name: "Define this Component's fields",
+      })
+    ).toBeVisible();
+    const pane = await chooseFieldDefinition(mainWindow, 'Subline');
+    await expect(pane.getByLabel('Label', { exact: true })).toHaveValue(
+      'Subline'
+    );
+  });
+
+  test('saves a renamed Component from its one Save and keeps it chosen', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+
     await navigateToComponent(mainWindow, {
       projectId: project.id,
       componentId: component.id,
     });
+    const settings = mainWindow.getByRole('main');
     await expect(
-      mainWindow.getByLabel('Component name', { exact: true })
+      settings.getByLabel('Component name', { exact: true })
     ).toHaveValue('Teaser');
 
-    // Which Collections and how many Entries the save reaches is said before it
-    // is pressed, because Core rewrites them in the same commit. Of the two
-    // Entries only one holds a section, and that is the number shown.
-    await expect(
-      mainWindow.getByText('Saving reaches 1 Collection and 1 Entry.')
-    ).toBeVisible();
-    await expect(mainWindow.getByText('Articles, 1 Entry')).toBeVisible();
+    // One Save, and nothing edited yet, so it is blocked.
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
+    await expect(save).toHaveCount(1);
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
 
-    // Nothing edited yet, so Save is gated
-    await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
-    ).toBeDisabled();
+    await settings.getByLabel('Component name', { exact: true }).fill('Promo');
+    await expect(save).not.toHaveAttribute('aria-disabled', 'true');
+    await saveComponent(mainWindow, 'Promo');
 
-    await mainWindow
-      .getByLabel('Component name', { exact: true })
-      .fill('Promo');
-    await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
-    ).toBeEnabled();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    // The Component stays chosen beside its list, with nothing left unsaved.
+    await expect(mainWindow).toHaveURL(componentRoute);
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(componentRow(mainWindow, 'Promo')).toHaveAttribute(
+      'data-active',
+      'true'
+    );
 
-    // Redirecting to the list is how Core's success surfaces, and a reload
-    // re-reads from Core rather than an optimistic cache entry.
-    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
-    await navigateToComponents(mainWindow, project.id);
-    await expect(mainWindow.getByRole('link', { name: /Promo/ })).toBeVisible();
+    // Read back from Core, so this is what was written rather than what the
+    // cache held.
+    const saved = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: component.id,
+    });
+    expect(saved.name.en).toBe('Promo');
   });
 
-  test('deletes a Component nothing uses and removes it from the list', async ({
+  test('holds Delete Component in the More menu, and asks before it deletes', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -270,9 +358,35 @@ test.describe('Components', () => {
         name: /^Components\s*1$/,
       })
     ).toBeVisible();
+    // Nothing on the screen deletes until the More menu is opened, so Delete
+    // is never a press away from Save.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Delete Component' })
+    ).toHaveCount(0);
 
-    await mainWindow.getByRole('button', { name: 'Delete Component' }).click();
-    await confirmDialog(mainWindow, 'Yes, delete this Component');
+    // The dialog names what goes and who it reaches, and Cancel changes
+    // nothing.
+    let confirm = await openDeleteComponent(mainWindow, 'Teaser');
+    await expect(
+      confirm.getByText(
+        'It goes for everyone on this Project once you sync, in every language.'
+      )
+    ).toBeVisible();
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toBeHidden();
+    await expect(mainWindow).toHaveURL(componentRoute);
+    expect(
+      await readComponentViaIpc(mainWindow, {
+        projectId: project.id,
+        id: component.id,
+      })
+    ).toBeDefined();
+
+    // The red button names what goes, and only then is it gone.
+    confirm = await openDeleteComponent(mainWindow, 'Teaser');
+    await confirm
+      .getByRole('button', { name: 'Delete Component', exact: true })
+      .click();
 
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
     await expect(mainWindow.getByText('No Components yet')).toBeVisible();
@@ -305,8 +419,10 @@ test.describe('Components', () => {
       projectId: project.id,
       componentId: component.id,
     });
-    await mainWindow.getByRole('button', { name: 'Delete Component' }).click();
-    await confirmDialog(mainWindow, 'Yes, delete this Component');
+    const confirm = await openDeleteComponent(mainWindow, 'Teaser');
+    await confirm
+      .getByRole('button', { name: 'Delete Component', exact: true })
+      .click();
 
     // The Conflict is surfaced in place rather than through the root error
     // boundary (the fixture's console check backs this up: an error reaching the
@@ -320,6 +436,191 @@ test.describe('Components', () => {
     ).toBeVisible();
     await dismissDialog(mainWindow);
     await expect(mainWindow).toHaveURL(componentRoute);
+  });
+
+  test('blocks Save while a language misses a text and says which misses how many', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition({ label: { en: 'Headline' } })],
+    });
+    // Adding a language touches only the Project file, so the Component keeps
+    // its English-only texts, which is exactly the state an editor lands in.
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const settings = mainWindow.getByRole('main');
+    await expect(
+      settings.getByLabel('Component name', { exact: true })
+    ).toHaveValue('Teaser');
+
+    // The name and the field's label are missing in German.
+    const save = mainWindow.getByRole('button', { name: 'Save', exact: true });
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      mainWindow.getByText('German is missing 2 translations')
+    ).toBeVisible();
+    // It points at the reason, so a screen reader reads it with the button,
+    // and it keeps its place in the tab order rather than being taken out of
+    // it, which a native `disabled` would do.
+    await expect(save).toHaveAttribute('aria-describedby', /.+/);
+    await expect(save).not.toHaveAttribute('disabled', /.*/);
+    await save.focus();
+    await expect(save).toBeFocused();
+
+    // The switch marks the language that is missing something.
+    await expect(
+      mainWindow.getByRole('button', { name: /DE.*missing 2 translations/ })
+    ).toBeVisible();
+
+    // Filling German settles each of them, one at a time.
+    await chooseLanguage(mainWindow, 'de');
+    await settings
+      .getByLabel('Component name', { exact: true })
+      .fill('Anreisser');
+    await expect(
+      mainWindow.getByText('German is missing 1 translation')
+    ).toBeVisible();
+    const pane = await chooseFieldDefinition(mainWindow, 'Headline');
+    await pane.getByLabel('Label', { exact: true }).fill('Überschrift');
+
+    await expect(save).not.toHaveAttribute('aria-disabled', 'true');
+    await saveComponent(mainWindow, 'Anreisser');
+  });
+
+  test('asks before the next Component in the list takes what nobody saved', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Gallery' },
+      slug: 'gallery',
+    });
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const settings = mainWindow.getByRole('main');
+    await expect(
+      settings.getByLabel('Component name', { exact: true })
+    ).toHaveValue('Teaser');
+    await settings.getByLabel('Component name', { exact: true }).fill('Promo');
+
+    // The list beside the settings puts the next Component one click away, so
+    // that click must not lose what was typed.
+    await chooseComponent(mainWindow, 'Gallery');
+    const asked = mainWindow.getByRole('alertdialog', {
+      name: 'Discard your changes to Settings of the Teaser Component?',
+    });
+    await expect(asked).toBeVisible();
+    await asked.getByRole('button', { name: 'Keep editing' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/components/${component.id}`)
+    );
+    await expect(
+      settings.getByLabel('Component name', { exact: true })
+    ).toHaveValue('Promo');
+
+    await chooseComponent(mainWindow, 'Gallery');
+    await mainWindow
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Discard' })
+      .click();
+    await expect(
+      mainWindow.getByRole('heading', {
+        name: 'Settings of the Gallery Component',
+      })
+    ).toBeVisible();
+  });
+
+  test('marks the chosen Component current and fits the smallest window, in light and in dark mode', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({ slug: 'subline', label: { en: 'Subline' } }),
+      ],
+    });
+
+    for (const theme of ['light', 'dark'] as const) {
+      // The theme is put on first, since it is applied through the app's own
+      // provider and reloads the renderer, which closes the pane again.
+      await setTheme(mainWindow, theme);
+      await navigateToComponent(mainWindow, {
+        projectId: project.id,
+        componentId: component.id,
+      });
+      // With the pane of a chosen field open, which is the widest the screen
+      // gets: the list, the settings and the field beside them.
+      await chooseFieldDefinition(mainWindow, 'Subline');
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await waitForLayout(mainWindow);
+
+      // The row the address names is the one marked current, which is what
+      // says where in the list the open settings belong.
+      await expect(
+        componentRow(mainWindow, 'Teaser'),
+        `${theme} mode leaves the chosen row unmarked`
+      ).toHaveAttribute('data-active', 'true');
+
+      const measured = await mainWindow.evaluate(() => {
+        const panel = document.querySelector('[data-slot="panel"]');
+        // The three panes of this screen, in the order they stand in: the
+        // panes of the settings are children of the form that saves them, so
+        // this walks every pane of the panel rather than one row of them.
+        const panes = Array.from(
+          document.querySelectorAll('[data-slot="panes"] [data-slot="pane"]')
+        );
+        if (panel === null || panes.length !== 3) {
+          throw new Error(
+            `The screen drew ${String(panes.length)} panes instead of three`
+          );
+        }
+        const [list, form, side] = panes.map((pane) =>
+          pane.getBoundingClientRect()
+        );
+        if (list === undefined || form === undefined || side === undefined) {
+          throw new Error('A pane of the screen has no box');
+        }
+        return {
+          // Nothing reaches past the panel it sits in, in either direction.
+          clipped: panes.some((pane) => pane.scrollWidth > pane.clientWidth),
+          fitsTheWindow:
+            panel.getBoundingClientRect().right <= window.innerWidth &&
+            panel.getBoundingClientRect().bottom <= window.innerHeight,
+          // Each pane stands beside the next rather than over it.
+          collides: list.right > form.left + 1 || form.right > side.left + 1,
+          listWidth: Math.round(list.right - list.left),
+          sidePaneWidth: Math.round(side.right - side.left),
+        };
+      });
+
+      expect(measured.clipped, `${theme} mode clips a pane`).toBe(false);
+      expect(measured.fitsTheWindow, `${theme} mode overflows`).toBe(true);
+      expect(measured.collides, `${theme} mode makes the panes overlap`).toBe(
+        false
+      );
+      // ci's two panes of 296 px, whatever the window does.
+      expect(measured.listWidth).toBe(296);
+      expect(measured.sidePaneWidth).toBe(296);
+    }
   });
 
   test('refuses a Component that would use itself, in place', async ({
@@ -352,7 +653,7 @@ test.describe('Components', () => {
       pane.getByRole('listitem').filter({ hasText: 'Teaser' })
     ).toBeVisible();
 
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     // Core answers a circular reference with BadRequest, which has no field to
     // land on, so it is said in place rather than reaching the boundary.
@@ -740,8 +1041,8 @@ test.describe('Components', () => {
     await mainWindow.getByRole('button', { name: 'More for Alpha' }).focus();
     await mainWindow.keyboard.press('Enter');
     await mainWindow.getByRole('menuitem', { name: 'Move down' }).click();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
+    await saveComponent(mainWindow, 'Teaser');
+    await expect(mainWindow).toHaveURL(componentRoute);
     expect(
       (
         await readComponentViaIpc(mainWindow, {
@@ -760,8 +1061,8 @@ test.describe('Components', () => {
     await chooseFieldDefinition(mainWindow, 'Alpha');
     await mainWindow.getByRole('button', { name: 'More for Alpha' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Move up' }).click();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
+    await saveComponent(mainWindow, 'Teaser');
+    await expect(mainWindow).toHaveURL(componentRoute);
     expect(
       (
         await readComponentViaIpc(mainWindow, {
@@ -872,8 +1173,8 @@ test.describe('Components', () => {
       description: 'The subline of the teaser',
       isRequired: false,
     });
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
+    await saveComponent(mainWindow, 'Teaser');
+    await expect(mainWindow).toHaveURL(componentRoute);
 
     const saved = await readComponentViaIpc(mainWindow, {
       projectId: project.id,
@@ -963,7 +1264,7 @@ test.describe('Components', () => {
     await chooseFieldDefinition(mainWindow, 'Subline');
     await mainWindow.getByRole('button', { name: 'More for Subline' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     // One dialog, answered in place rather than on the error screen. Each
     // Entry is named by its own title with a link to it, never by the id Core
@@ -990,9 +1291,11 @@ test.describe('Components', () => {
       .getByRole('button', { name: 'Remove Subline from 1 Entry' })
       .click();
 
-    // The change went in, so the page leaves for the Components, the stored
-    // Component no longer declares the Field and neither section holds it.
-    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
+    // The change went in, so the settings stay open with the Component chosen,
+    // the stored Component no longer declares the Field and neither section
+    // holds it.
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    await expect(mainWindow).toHaveURL(componentRoute);
     const saved = await readComponentViaIpc(mainWindow, {
       projectId: project.id,
       id: component.id,
@@ -1055,7 +1358,7 @@ test.describe('Components', () => {
       mainWindow.getByLabel('Component name', { exact: true })
     ).toHaveValue('Teaser');
     await addFieldDefinition(mainWindow, { label: 'Subline' });
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     const dialog = mainWindow.getByRole('dialog');
     const row = dialog.getByRole('listitem').first();
@@ -1134,7 +1437,7 @@ test.describe('Components', () => {
     await expect(componentName).toHaveValue('Teaser');
     await componentName.fill('Teaser block');
     await addFieldDefinition(mainWindow, { label: 'Subline' });
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     // Following the dialog's link leads straight to the Entry, without asking
     // about the changes: they are kept rather than lost. It matters more here
@@ -1163,7 +1466,7 @@ test.describe('Components', () => {
       mainWindow.getByRole('button', { name: 'Settings of the Subline field' })
     ).toBeVisible();
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
+      mainWindow.getByRole('button', { name: 'Save', exact: true })
     ).toBeEnabled();
     const stored = await readComponentViaIpc(mainWindow, {
       projectId: project.id,
@@ -1176,7 +1479,7 @@ test.describe('Components', () => {
 
     // And pressing Save again asks the same question, since the same change
     // is still refused.
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog.getByRole('link', { name: 'Home' })).toBeVisible();
   });
 
@@ -1374,7 +1677,7 @@ test.describe('Components', () => {
       'core:components:update',
       'Internal'
     );
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     await expect(errorScreenTitle(mainWindow)).toBeVisible();
     // The failure was not swallowed by the dialog built for the one refusal
@@ -1647,11 +1950,10 @@ test.describe('Components', () => {
     ).toHaveValue('Container');
 
     // Growing a Component's Field reaches the Entries that hold a section built
-    // from it, and the save says which and how many before it is pressed.
-    await expect(
-      mainWindow.getByText('Saving reaches 1 Collection and 1 Entry.')
-    ).toBeVisible();
-    await expect(mainWindow.getByText('Articles, 1 Entry')).toBeVisible();
+    // from it, which the list says of each Component before one is opened.
+    await expect(componentRow(mainWindow, 'Container')).toContainText(
+      '1 Entry uses it'
+    );
 
     const pane = await chooseFieldDefinition(mainWindow, 'Blocks');
     await expect(
@@ -1663,10 +1965,7 @@ test.describe('Components', () => {
       pane.getByRole('listitem').filter({ hasText: 'Hero' })
     ).toBeVisible();
 
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/${project.id}/components$`)
-    );
+    await saveComponent(mainWindow, 'Container');
 
     // One commit again, and the Field grew without losing its id.
     await navigateToHistory(mainWindow, project.id);

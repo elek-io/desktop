@@ -17,7 +17,9 @@ import {
   textFieldDefinition,
 } from '../helpers/collection.js';
 import {
+  componentRow,
   createComponentViaIpc,
+  fillComponentForm,
   navigateToComponent,
   navigateToComponentCreate,
 } from '../helpers/component.js';
@@ -193,12 +195,7 @@ test.describe('The app in one language', () => {
     ).toBeVisible();
 
     await navigateToComponentCreate(mainWindow, project.id);
-    await mainWindow
-      .getByLabel('Component name', { exact: true })
-      .fill('Teaser');
-    await mainWindow
-      .getByLabel('Component slug', { exact: true })
-      .fill('teaser');
+    await fillComponentForm(mainWindow, { name: 'Teaser', slug: 'teaser' });
     await addFieldDefinition(mainWindow, {
       label: 'Headline',
       description: 'The headline of the teaser',
@@ -283,23 +280,23 @@ test.describe('The app in one language', () => {
       componentId: component.id,
     });
     await expect(
-      mainWindow.getByRole('heading', { name: 'Anreisser', exact: true })
+      mainWindow.getByRole('heading', {
+        name: 'Settings of the Anreisser Component',
+      })
     ).toBeVisible();
+    const settings = mainWindow.getByRole('main');
     await expect(
-      mainWindow.getByLabel('Component name', { exact: true })
+      settings.getByLabel('Component name', { exact: true })
     ).toHaveValue('Teaser');
-    await mainWindow
+    await settings
       .getByLabel('Component slug', { exact: true })
       .fill('anreisser');
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(
       mainWindow.getByText('Component Anreisser saved', { exact: true })
     ).toBeVisible();
-    // The save lands on the list of Components, which names each one the same
-    // way.
-    await expect(
-      mainWindow.getByRole('main').getByRole('link', { name: 'Anreisser' })
-    ).toBeVisible();
+    // The list beside it names each Component the same way.
+    await expect(componentRow(mainWindow, 'Anreisser')).toBeVisible();
   });
 
   test('a toast after a delete names what went', async ({

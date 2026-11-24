@@ -513,7 +513,7 @@ test.describe('Leaving a page with changes nobody saved', () => {
             componentId: component.id,
           }),
         label: 'Component name',
-        question: 'Discard your changes to Teaser?',
+        question: 'Discard your changes to Settings of the Teaser Component?',
       },
       {
         open: async () => navigateToProjectSettings(mainWindow, project.id),
