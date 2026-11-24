@@ -635,6 +635,7 @@ form.
 | `AppForm`                                                                           | Owns the guard per form: `useBlocker` with `withResolver`, and the claim that this page holds something unsaved while it is dirty                                                                  |
 | [`UnsavedChangesProvider`](../../src/renderer/providers/UnsavedChangesProvider.tsx) | Mounted above the route in `__root.tsx`. Holds the dirty forms by their page's title, renders the one dialog, tells the main process whether anything is unsaved, and answers the question it asks |
 | [`lib/leaveGuard.ts`](../../src/renderer/lib/leaveGuard.ts)                         | Which navigations count as leaving the page                                                                                                                                                        |
+| [`KeptFormsProvider`](../../src/renderer/providers/KeptFormsProvider.tsx)           | Mounted above the route too. Holds what a page keeps for itself across the one way out that comes back to it                                                                                       |
 | `src/main/index.ts`                                                                 | Holds the window's own `close` while the renderer says something is unsaved, and closes or quits once Discard is pressed                                                                           |
 
 **What does not ask**
@@ -645,6 +646,20 @@ form.
 - **A way out the page takes on purpose**, such as Delete. Those navigations pass
   TanStack Router's own `ignoreBlocker: true`, since the page and everything
   typed into it are gone either way.
+- **A link that comes back**, which is the link to an Entry in [the dialog of a
+  refused field definition change](./dynamic-form-field-generation.md#the-dialog-of-a-refused-field-definition-change).
+  Following it keeps the settings rather than losing them, so there is nothing to
+  ask about: the page hands its own unsaved state to
+  [`KeptFormsProvider`](../../src/renderer/providers/KeptFormsProvider.tsx)
+  through `useKeptForm` before the link is followed, and fills from it instead of
+  from its query when it comes back, with `resetOptions: { keepDefaultValues: true }`
+  so it comes back holding unsaved changes: Save is there to press and leaving any
+  other way asks again. The store sits above the route, because the page that
+  keeps something is unmounted the moment the link is followed, and what comes
+  back is dropped as soon as the page holds it, so the next visit that follows no
+  link opens on what is stored. Nothing is persisted, so a reload or a closed
+  window keeps nothing, which is what the question before closing the window is
+  for.
 - **A change of nothing but the search params.** The router runs its blockers on
   every push and replace, and a form keeps the language it edits in the search
   params, so `isLeavingThePage` compares the route rather than the address.
