@@ -3,8 +3,10 @@ import { expect } from '@playwright/test';
 import { flattenFieldDefinitions, type FieldType } from '@elek-io/core';
 
 import { test } from '../fixtures/electronApp.js';
+import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import {
   addFieldDefinition,
+  assetFieldDefinition,
   chooseFieldDefinition,
   createCollection,
   createCollectionViaIpc,
@@ -15,6 +17,7 @@ import {
   openFieldTypes,
   readCollectionViaIpc,
   referenceFieldDefinition,
+  slugFieldDefinition,
   textFieldDefinition,
   toggleFieldDefinition,
 } from '../helpers/collection.js';
@@ -1244,6 +1247,207 @@ test.describe('Collections', () => {
     );
   });
 
+  test('saves the file types an Asset field takes, as rows with Add and Remove', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // Add offers the file types the Project holds Assets of, rather than every
+    // type there is, so the Project needs one.
+    await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        assetFieldDefinition({ slug: 'cover', label: { en: 'Cover' } }),
+      ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Cover');
+    // An empty list allows every type, which is what stands in place of rows.
+    await expect(pane.getByText('Every file type is allowed.')).toBeVisible();
+
+    await pane.getByRole('button', { name: 'Add file type' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'image/png' }).click();
+    const remove = pane.getByRole('button', {
+      name: 'Remove image/png from File types',
+    });
+    await expect(remove).toBeVisible();
+
+    // Remove takes the row out again, so the rows are what the field holds.
+    await remove.click();
+    await expect(pane.getByText('Every file type is allowed.')).toBeVisible();
+    await pane.getByRole('button', { name: 'Add file type' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'image/png' }).click();
+    await expect(remove).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // The row reaches Core as the file type itself, which is what a field
+    // restricted to it is saved with.
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const cover = flattenFieldDefinitions(saved.fieldDefinitions).find(
+      (found) => found.slug === 'cover'
+    );
+    expect(
+      cover !== undefined && 'ofAssetMimeTypes' in cover
+        ? cover.ofAssetMimeTypes
+        : null
+    ).toEqual(['image/png']);
+  });
+
+  test('writes a slug from a field beside it, and never from itself', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const title = textFieldDefinition();
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [title, slugFieldDefinition()],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Handle');
+    await expect(
+      pane.getByText('Editors write the slug themselves while this is empty.')
+    ).toBeVisible();
+
+    await pane.getByRole('button', { name: 'Add a field' }).click();
+    // It offers the text field beside it. A slug written from itself is one
+    // Core refuses, so it is never offered.
+    await expect(
+      mainWindow.getByRole('menuitem', { name: 'Handle' })
+    ).toHaveCount(0);
+    await mainWindow.getByRole('menuitem', { name: 'Title' }).click();
+    await expect(
+      pane.getByRole('button', { name: 'Remove Title from Made from' })
+    ).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // The source reaches Core as the field's own id, which is what Core
+    // matches a definition by.
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const handle = flattenFieldDefinitions(saved.fieldDefinitions).find(
+      (found) => found.slug === 'handle'
+    );
+    expect(
+      handle !== undefined && 'ofFieldDefinitions' in handle
+        ? handle.ofFieldDefinitions
+        : null
+    ).toEqual([title.id]);
+  });
+
+  test('says a slug another Collection already uses below the Collection slug', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // The Collection that already holds the slug this one is given.
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, settingsOf);
+    await addFieldDefinition(mainWindow, { label: 'Title' });
+    const settings = mainWindow.getByRole('main');
+    const create = settings.getByRole('button', { name: 'Create Collection' });
+    await create.click();
+
+    // Core answers a taken slug as a Conflict, which arrives after the submit
+    // rather than from the resolver, and it belongs below the field it is
+    // about rather than on the error screen.
+    await expect(
+      mainWindow.getByText(
+        'Another Collection in this Project already uses this slug. Choose another one.'
+      )
+    ).toBeVisible();
+    await expect(
+      settings.getByLabel('Collection slug', { exact: true })
+    ).toHaveAttribute('aria-invalid', 'true');
+    await expect(errorScreenTitle(mainWindow)).toHaveCount(0);
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/create/
+    );
+
+    // Another slug leaves nothing in the way, so the same page saves.
+    await settings
+      .getByLabel('Collection slug', { exact: true })
+      .fill('guides');
+    await settings.getByLabel('Entry slug', { exact: true }).fill('guide');
+    await create.click();
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
+    );
+  });
+
+  test('says a slug another Collection already uses when the settings are saved', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Guide' }, plural: { en: 'Guides' } },
+      slug: { singular: 'guide', plural: 'guides' },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const settings = mainWindow.getByRole('main');
+    await expect(
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Articles');
+    await settings
+      .getByLabel('Collection slug', { exact: true })
+      .fill('guides');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    // Core answers this save and a field change it cannot carry out alone with
+    // the same Conflict, and the cause it attaches is what tells them apart.
+    // A taken slug stands below its own field, never in the dialog the other
+    // arm opens.
+    await expect(
+      mainWindow.getByText(
+        'Another Collection in this Project already uses this slug. Choose another one.'
+      )
+    ).toBeVisible();
+    await expect(
+      settings.getByLabel('Collection slug', { exact: true })
+    ).toHaveAttribute('aria-invalid', 'true');
+    await expect(
+      mainWindow.getByRole('dialog', { name: 'Could not save this Collection' })
+    ).toHaveCount(0);
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
+    );
+  });
+
   test('routes an unexpected Collection save failure to the root error boundary', async ({
     mainWindow,
     electronApp,
@@ -1463,6 +1667,21 @@ test.describe('Collections', () => {
           throw new Error('The settings did not draw their panes');
         }
         const [form, side] = panes.map((pane) => pane.getBoundingClientRect());
+        // ci puts the Collection slug beside the Entry slug and stacks a pair
+        // only below the room its own measure names, which is the room the
+        // editor has rather than the width of the window.
+        const slugs = Array.from(
+          panes[0]?.querySelectorAll('[data-slot="field"]') ?? []
+        )
+          .filter((field) =>
+            ['Collection slug', 'Entry slug'].includes(
+              field
+                .querySelector('[data-slot="field-label"]')
+                ?.textContent?.trim() ?? ''
+            )
+          )
+          .map((field) => field.getBoundingClientRect());
+        const [collectionSlug, entrySlug] = slugs;
         return {
           // Nothing reaches past the panel it sits in, in either direction.
           clipped: panes.some((pane) => pane.scrollWidth > pane.clientWidth),
@@ -1476,6 +1695,11 @@ test.describe('Collections', () => {
               : form.right > side.left + 1,
           sidePaneWidth:
             side === undefined ? 0 : Math.round(side.right - side.left),
+          slugsSideBySide:
+            collectionSlug !== undefined &&
+            entrySlug !== undefined &&
+            Math.round(collectionSlug.y) === Math.round(entrySlug.y) &&
+            Math.round(collectionSlug.x) !== Math.round(entrySlug.x),
         };
       });
 
@@ -1486,6 +1710,10 @@ test.describe('Collections', () => {
       );
       // ci's pane of 296 px, whatever the window does.
       expect(measured.sidePaneWidth).toBe(296);
+      expect(
+        measured.slugsSideBySide,
+        `${theme} mode stacks the two slugs where ci puts them side by side`
+      ).toBe(true);
     }
   });
 });
