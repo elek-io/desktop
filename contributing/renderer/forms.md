@@ -325,21 +325,22 @@ brings back rather than being placed as the row is written.
 
 A list registers what the focus can land on and says when a row went:
 
-- `rowRef(key)` per row, keyed the way the list keys the row itself.
+- `rowRef` on every row, one ref for all of them.
 - `addRef` on the control that adds a row, where the list has one.
 - `listRef` on the list, which is a `role="group"` with `tabIndex={-1}`, named
   by the field's own label or by the heading above it. It is focusable only to
   be focused, so the tab order is unchanged.
-- `afterRemoval(removed, staying)` from the handler that writes the shorter
-  list, with the keys of the rows that stay in the order they stand in.
+- `afterRemoval(at)` from the handler that removes the row, with the place that
+  row stood at. No list says which rows stay.
 
 What stands for a row is the row's own element where an editor works inside it,
-and the row's own control where the row is that one control:
+the row's own Remove where the row is that one control, and the row's own
+control over what it shows where the whole row is one:
 
 | List                                                                             | What the focus lands on                                                                                                                   |
 | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | A dynamic field's sections                                                       | The section, a group named "Hero, section 1 of 3"                                                                                         |
-| A select's options                                                               | The row, a group named "Option 2 of 3", since the one option Core needs has its Remove switched off and a disabled control takes no focus |
+| A select's options                                                               | The row, a group named "Option 2 of 2", since the one option Core needs has its Remove switched off and a disabled control takes no focus |
 | The Collections, Components, blocks, source fields and file types a field allows | The row's Remove, which says what it takes out of what                                                                                    |
 | A reference field's picked Assets and Entries                                    | The row's Remove                                                                                                                          |
 | The Project's languages                                                          | The chip's Remove                                                                                                                         |
@@ -347,16 +348,17 @@ and the row's own control where the row is that one control:
 
 What follows from that order:
 
-- **The rows that stay keep their elements.** Each is keyed by its own id, so
-  the row that takes a removed row's place can be focused straight after the
-  list was written, see
-  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-sections-of-a-page-the-dynamic-field).
-  A select's options have no id of their own and stand for the place they are
-  at, so that list registers its rows by their place and one place fewer stays.
-- **The control that adds a row takes the focus only where it can.** A list at
-  its maximum is the case: the removal is what frees that control again, so at
-  the moment the focus is placed it is still disabled, or not drawn at all as
-  Choose is, and neither takes focus.
+- **The place is taken once the list has been drawn without that row**, from
+  the rows the list then holds, in the order they stand in the document. So it
+  is a row that is there, however many rows the removal took: a markdown
+  field's blocks takes Task lists out with Lists, because Core refuses the one
+  without the other, and the focus still lands on the row that took their
+  place. A list drawn again over more than one render is waited out the same
+  way, since what is waited on is the row that was pressed going.
+- **The control that adds a row takes the focus only where it could when the
+  row went.** A list at its maximum is the case: the removal is what frees that
+  control again, so when the row went it was still disabled, or not drawn at
+  all as Choose is, and neither is where somebody pressing Remove was.
 - **The list itself is the last place.** That is where the focus lands once the
   last row is gone and there is nothing to add from, as a field whose Project
   holds no Component it allows, and where the control that adds one cannot take
@@ -366,7 +368,8 @@ What follows from that order:
   it to is the one that went with the row. So the field definitions' More menu
   and the dialog that asks before a language goes call
   `afterRemovalOnceClosed` and pass `finalFocus={focus.finalFocus}`, which
-  places the focus the removal planned and tells the popup to leave it there.
+  places the focus where the removal left it and tells the popup to leave it
+  there.
   Without a removal behind it the popup keeps its own way, which is the control
   it was opened from, so Cancel still goes back to that row's own Remove.
 

@@ -208,9 +208,13 @@ export function useDefinitionsEditor<
       fieldModule(definition).withoutDefinition?.(definition, id) ?? definition;
     const staying = list.filter((definition) => definition.id !== id);
 
+    // Where the field stood among the rows the list draws. A group is drawn as
+    // its members rather than as a row of its own, so it is no row the focus
+    // can land on and no place it can be counted by either.
     focus.afterRemovalOnceClosed(
-      list.findIndex((definition) => definition.id === id),
-      staying.map((definition) => definition.id)
+      list
+        .filter((definition) => 'isGroup' in definition === false)
+        .findIndex((definition) => definition.id === id)
     );
     write(
       staying.map((definition) =>

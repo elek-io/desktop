@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { PlusIcon, XIcon } from 'lucide-react';
-import { useEffect, useRef, type ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement, type RefCallback } from 'react';
 import {
   type FieldPath,
   type FieldValues,
@@ -94,7 +94,7 @@ function OptionRow<
   total: number;
   /** Whether the stored value is text a label can be turned into. */
   derivesValue: boolean;
-  rowRef: (element: HTMLElement | null) => void;
+  rowRef: RefCallback<HTMLElement>;
   onRemove: (() => void) | undefined;
 }): ReactElement {
   const { t } = useLingui();
@@ -335,9 +335,7 @@ export function SelectDefinitionEditor<
                 position={index + 1}
                 total={options.length}
                 derivesValue={holdsText}
-                // Each row stands for the place it is at, so the rows that
-                // stay after a removal are the same places, one fewer.
-                rowRef={focus.rowRef(String(index))}
+                rowRef={focus.rowRef}
                 onRemove={
                   options.length > 1 && disabled === false && readOnly === false
                     ? () => {
@@ -345,12 +343,7 @@ export function SelectDefinitionEditor<
                           'options',
                           options.filter((_, candidate) => candidate !== index)
                         );
-                        focus.afterRemoval(
-                          index,
-                          options
-                            .map((_option, place) => String(place))
-                            .slice(0, -1)
-                        );
+                        focus.afterRemoval(index);
                       }
                     : undefined
                 }

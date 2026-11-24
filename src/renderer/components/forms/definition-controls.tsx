@@ -122,7 +122,10 @@ export interface DefinitionChoiceRowsProps<
  * already there, so the rows are what the field holds and nothing else.
  *
  * A row is one line with its own Remove, so that Remove is what stands for the
- * row the focus goes to once its neighbor is removed, see `useListFocus`.
+ * row the focus goes to once a row is removed. How many rows a removal takes is
+ * the consumer's own: a markdown field's blocks takes Task lists out with
+ * Lists, and the focus still lands on a row the list holds, because the place
+ * is taken once the list has been drawn again, see `useListFocus`.
  */
 export function DefinitionChoiceRows<
   TFieldValues extends FieldValues,
@@ -174,16 +177,11 @@ export function DefinitionChoiceRows<
                     variant="ghost"
                     size="icon-sm"
                     Icon={XIcon}
-                    ref={focus.rowRef(key)}
+                    ref={focus.rowRef}
                     disabled={disabled || readOnly}
                     onClick={() => {
                       onRemove(key);
-                      focus.afterRemoval(
-                        index,
-                        chosen
-                          .filter((_row, at) => at !== index)
-                          .map((row) => row.key)
-                      );
+                      focus.afterRemoval(index);
                     }}
                   >
                     {/* The name says what goes and what it goes from, since a

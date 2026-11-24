@@ -175,7 +175,7 @@ export function ProjectForm({
       shouldValidate: true,
       shouldDirty: true,
     });
-    focus.afterRemovalOnceClosed(supported.indexOf(language), staying);
+    focus.afterRemovalOnceClosed(supported.indexOf(language));
   }
   const supportedLanguages = supportedLanguageSchema.options.map((option) => {
     return {
@@ -364,7 +364,7 @@ export function ProjectForm({
                                   // The chip is this one control, so it is
                                   // where the focus lands once the language
                                   // before it was removed.
-                                  ref={focus.rowRef(language)}
+                                  ref={focus.rowRef}
                                   // Only an input can be read-only on its own, so
                                   // while the form saves the two controls that
                                   // change this Value take no press instead.

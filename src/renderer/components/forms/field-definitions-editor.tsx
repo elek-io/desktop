@@ -217,7 +217,7 @@ export function FieldDefinitionsList<
                     ? {}
                     : {
                         onChoose: () => definitions.choose(fieldDefinition.id),
-                        rowRef: definitions.focus.rowRef(fieldDefinition.id),
+                        rowRef: definitions.focus.rowRef,
                       })}
                 />
               </DraggableComponent>

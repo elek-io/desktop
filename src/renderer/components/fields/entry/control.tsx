@@ -191,8 +191,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
     const staying = chosenRefs.filter((reference) => reference.id !== entryId);
     field.onChange(staying as typeof field.value);
     focus.afterRemoval(
-      chosenRefs.findIndex((reference) => reference.id === entryId),
-      staying.map((reference) => reference.id)
+      chosenRefs.findIndex((reference) => reference.id === entryId)
     );
   }
 
@@ -243,7 +242,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    ref={focus.rowRef(row.id)}
+                    ref={focus.rowRef}
                     aria-describedby={describedBy}
                     aria-label={t`Remove the missing Entry from ${label}`}
                     onClick={() => remove(row.id)}
@@ -286,7 +285,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  ref={focus.rowRef(pickable.entry.id)}
+                  ref={focus.rowRef}
                   aria-describedby={describedBy}
                   aria-label={t`Remove ${title} from ${label}`}
                   onClick={() => remove(pickable.entry.id)}

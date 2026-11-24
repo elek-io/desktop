@@ -288,7 +288,7 @@ export interface FieldDefinitionPreviewProps {
    * Registers the row's own control, which is where the focus lands once the
    * field before it was removed, see `useListFocus`.
    */
-  rowRef?: ((element: HTMLElement | null) => void) | undefined;
+  rowRef?: React.RefCallback<HTMLElement> | undefined;
   /** Whether this is the field whose settings the pane beside it shows. */
   isChosen?: boolean;
   /** Whether the chosen field can be dragged to another place. */

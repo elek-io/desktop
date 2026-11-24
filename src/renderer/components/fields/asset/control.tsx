@@ -114,8 +114,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
     const staying = chosenRefs.filter((reference) => reference.id !== assetId);
     field.onChange(staying as typeof field.value);
     focus.afterRemoval(
-      chosenRefs.findIndex((reference) => reference.id === assetId),
-      staying.map((reference) => reference.id)
+      chosenRefs.findIndex((reference) => reference.id === assetId)
     );
   }
 
@@ -221,7 +220,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
                     variant="ghost"
                     size="icon-sm"
                     Icon={XIcon}
-                    ref={focus.rowRef(row.id)}
+                    ref={focus.rowRef}
                     aria-describedby={describedBy}
                     aria-label={t`Remove the missing Asset from ${label}`}
                     onClick={() => remove(row.id)}
@@ -280,7 +279,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
                     variant="ghost"
                     size="icon-sm"
                     Icon={XIcon}
-                    ref={focus.rowRef(asset.id)}
+                    ref={focus.rowRef}
                     aria-describedby={describedBy}
                     aria-label={t`Remove ${name} from ${label}`}
                     onClick={() => remove(asset.id)}

@@ -225,10 +225,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
     const current = sections();
     const staying = current.filter((_item, itemIndex) => itemIndex !== index);
     setSections(staying);
-    focus.afterRemoval(
-      index,
-      staying.map((item) => item.id)
-    );
+    focus.afterRemoval(index);
   }
 
   function moveSection(index: number, offset: number): void {
@@ -278,7 +275,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
               // Focused rather than tabbed to, so removing the section above
               // leaves the focus here instead of on the page.
               tabIndex={-1}
-              ref={focus.rowRef(item.id)}
+              ref={focus.rowRef}
               className="rounded-xl border"
             >
               {/* The section's own head, ruled off its fields, with the three
