@@ -487,9 +487,10 @@ function ProjectComponentUpdate(): ReactElement {
         </DialogContent>
       </Dialog>
 
-      {/* The one dialog a Field change Core refuses opens: what the save would
+      {/* The one dialog a field change Core refuses opens: what the save would
       delete, and the Entries that need a Value, each by its title and leading
-      to the Entry. A Component's Values are filled in the Entry itself. */}
+      to the Entry. A Component's Values are written nowhere yet, so those rows
+      say what there is to do instead. */}
       <RefusedChangeDialog
         open={refused !== null}
         question={t`Save the changes to the ${name} Component?`}

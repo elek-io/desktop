@@ -1,4 +1,3 @@
-import { t } from '@lingui/core/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { z } from 'zod';
 
@@ -172,23 +171,4 @@ export function lostValueLanguage(
   shown: SupportedLanguage
 ): SupportedLanguage {
   return issue.language ?? shown;
-}
-
-/**
- * What has to happen to one Entry before the change can be saved, in words.
- * Never Core's own message, which is written for a developer reading a log.
- */
-export function describeEntryIssue(issue: EntryIssueType): string {
-  switch (issue) {
-    case 'missing_required':
-      return t`needs a Value for this Field, which is now required and has no default`;
-    case 'type_mismatch':
-      return t`holds a Value that does not fit this Field anymore`;
-    case 'constraint_violation':
-      return t`holds a Value this Field no longer allows`;
-    case 'unique_collision':
-      return t`holds a Value another Entry already holds, and this Field is now unique`;
-    case 'content_loss':
-      return t`would lose what it holds in this Field, so the change is refused`;
-  }
 }

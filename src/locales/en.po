@@ -384,6 +384,10 @@ msgstr "A unique field takes no Default Value, since every Entry would start wit
 msgid "a Value"
 msgstr "a Value"
 
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "A Value for a section can't be filled in yet, here or in the Entry. To save this change, change the field so the sections below are allowed as they are, or open an Entry and remove the section, which deletes what it holds."
+msgstr "A Value for a section can't be filled in yet, here or in the Entry. To save this change, change the field so the sections below are allowed as they are, or open an Entry and remove the section, which deletes what it holds."
+
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Add a field"
 msgstr "Add a field"
@@ -1622,18 +1626,6 @@ msgstr "History"
 msgid "History of this Entry"
 msgstr "History of this Entry"
 
-#: src/renderer/lib/schemaChange.ts
-msgid "holds a Value another Entry already holds, and this Field is now unique"
-msgstr "holds a Value another Entry already holds, and this Field is now unique"
-
-#: src/renderer/lib/schemaChange.ts
-msgid "holds a Value that does not fit this Field anymore"
-msgstr "holds a Value that does not fit this Field anymore"
-
-#: src/renderer/lib/schemaChange.ts
-msgid "holds a Value this Field no longer allows"
-msgstr "holds a Value this Field no longer allows"
-
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "How much of a row it takes, where the row has the room."
 msgstr "How much of a row it takes, where the row has the room."
@@ -1892,10 +1884,6 @@ msgstr "Names this Component in your code. It has to be unique in this Project."
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "Needs a Value"
 msgstr "Needs a Value"
-
-#: src/renderer/lib/schemaChange.ts
-msgid "needs a Value for this Field, which is now required and has no default"
-msgstr "needs a Value for this Field, which is now required and has no default"
 
 #: src/renderer/components/asset-pane.tsx
 msgid "New file: {newFileName}"
@@ -3328,10 +3316,6 @@ msgstr "Width"
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "Would be lost:"
 msgstr "Would be lost:"
-
-#: src/renderer/lib/schemaChange.ts
-msgid "would lose what it holds in this Field, so the change is refused"
-msgstr "would lose what it holds in this Field, so the change is refused"
 
 #: src/renderer/components/fields/markdown/index.tsx
 msgid "Write something here, or clear the field completely."

@@ -38,7 +38,7 @@ import {
 } from '../helpers/entry.js';
 import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreRejectWithType } from '../helpers/ipc.js';
-import { navigate, projectSidebar } from '../helpers/navigation.js';
+import { mainPanel, navigate, projectSidebar } from '../helpers/navigation.js';
 import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
 import { setUserViaIpc } from '../helpers/user.js';
 
@@ -1061,9 +1061,17 @@ test.describe('Components', () => {
     const row = dialog.getByRole('listitem').first();
     await expect(row.getByRole('link', { name: 'Home' })).toBeVisible();
     await expect(dialog).not.toContainText(entry.id);
-    await expect(row).toContainText(
-      'needs a Value for this Field, which is now required and has no default'
-    );
+    // The row says where the Value is missing, and the line above the rows
+    // what there is to do, since such a Value is written nowhere yet: the
+    // Entry draws the fields the stored Component holds, and this change is
+    // the one that would add the field asking for it.
+    await expect(row).toContainText('Subline');
+    await expect(row).toContainText('Articles');
+    await expect(
+      dialog.getByText(
+        "A Value for a section can't be filled in yet, here or in the Entry. To save this change, change the field so the sections below are allowed as they are, or open an Entry and remove the section, which deletes what it holds."
+      )
+    ).toBeVisible();
     // Nothing here can answer it, so the button says so and takes no press.
     const save = dialog.getByRole('button', { name: 'Save' });
     await expect(save).toBeDisabled();
@@ -1080,6 +1088,96 @@ test.describe('Components', () => {
     await expect(
       mainWindow.getByRole('link', { name: /update component/i })
     ).toHaveCount(0);
+  });
+
+  test('keeps the unsaved Component settings while an Entry the dialog names is opened', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: { headline: stringValue({ en: 'Welcome' }) },
+          },
+        ]),
+      },
+    });
+
+    // Two unsaved changes to the settings: a new name and a field that is
+    // required and has no default, which is what Core refuses the save for.
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const componentName = mainWindow.getByLabel('Component name', {
+      exact: true,
+    });
+    await expect(componentName).toHaveValue('Teaser');
+    await componentName.fill('Teaser block');
+    await addFieldDefinition(mainWindow, { label: 'Subline' });
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    // Following the dialog's link leads straight to the Entry, without asking
+    // about the changes: they are kept rather than lost. It matters more here
+    // than for a Collection, because nothing in the dialog can answer a
+    // Component's rows, so coming back to the settings is the way through.
+    const dialog = mainWindow.getByRole('dialog');
+    await dialog.getByRole('link', { name: 'Home' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/[^/]+/update`)
+    );
+    await expect(mainWindow.getByRole('alertdialog')).toHaveCount(0);
+
+    // Coming back through the app, which is how the person gets back: the
+    // Components of the Project, then this one, which the list still names as
+    // it is stored.
+    await projectSidebar(mainWindow)
+      .getByRole('link', { name: 'Components' })
+      .click();
+    await mainPanel(mainWindow).getByRole('link', { name: 'Teaser' }).click();
+    await expect(mainWindow).toHaveURL(componentRoute);
+
+    // The settings stand as they were left, with Save there to press, while
+    // nothing of them was written.
+    await expect(componentName).toHaveValue('Teaser block');
+    await expect(
+      mainWindow.getByRole('button', { name: 'Settings of the Subline field' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Save changes' })
+    ).toBeEnabled();
+    const stored = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: component.id,
+    });
+    expect(stored.name).toEqual({ en: 'Teaser' });
+    expect(stored.fieldDefinitions.map((found) => found.slug)).toEqual([
+      'headline',
+    ]);
+
+    // And pressing Save again asks the same question, since the same change
+    // is still refused.
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await expect(dialog.getByRole('link', { name: 'Home' })).toBeVisible();
   });
 
   test('shows a Component change in the History by the name somebody gave it', async ({

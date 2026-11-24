@@ -6,6 +6,7 @@ import { Check, Trash2, TriangleAlertIcon } from 'lucide-react';
 import {
   useId,
   useMemo,
+  useRef,
   useState,
   type ReactElement,
   type RefObject,
@@ -43,7 +44,6 @@ import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import {
   acceptedContentLossOf,
-  describeEntryIssue,
   lostValueLanguage,
   lostValuesOf,
   neededValuesOf,
@@ -58,6 +58,7 @@ import {
   flattenFieldDefinitions,
   getValueSchemaFromFieldDefinition,
   valueSchema,
+  type Collection,
   type Entry,
   type FieldDefinition,
   type SupportedLanguage,
@@ -123,9 +124,10 @@ export interface RefusedChangeDialogProps {
   newFieldDefinitions: FieldDefinition[];
   /**
    * Whether the Values the change needs are written in this dialog. A
-   * Collection's are. A Component's are fixed in the Entry itself, since a
-   * resolution of one is keyed by the Component item it answers for, which
-   * nothing here writes yet, see contributing/not-yet-implemented.md.
+   * Collection's are. A Component's are written nowhere yet, here or in the
+   * Entry, since a resolution of one is keyed by the Component item it answers
+   * for, which nothing here writes yet, so those rows say what there is to do
+   * instead, see contributing/not-yet-implemented.md.
    */
   resolvable: boolean;
   /** The language the settings behind the dialog are read in. */
@@ -145,6 +147,12 @@ export interface RefusedChangeDialogProps {
   onFollowLink: () => void;
 }
 
+/** Everything the dialog draws of one refused change. */
+type RefusedChangeProps = Omit<
+  RefusedChangeDialogProps,
+  'open' | 'returnFocusTo'
+>;
+
 /**
  * The dialog of a refused field definition change.
  *
@@ -160,6 +168,18 @@ export function RefusedChangeDialog({
   returnFocusTo,
   ...change
 }: RefusedChangeDialogProps): ReactElement {
+  // What the dialog last drew, which is what it keeps while it closes. Both
+  // routes drop the refusal and close the dialog in one state change, so the
+  // issues are gone before the close animation has played, and a dialog that
+  // empties itself collapses to a line instead of fading out.
+  const drawn = useRef<RefusedChangeProps | null>(null);
+
+  if (issues.length > 0) {
+    drawn.current = { ...change, issues };
+  }
+
+  const shown = drawn.current;
+
   return (
     <Dialog
       open={open}
@@ -173,15 +193,14 @@ export function RefusedChangeDialog({
       head and the buttons, so the red button stays in view at the smallest
       window. */}
       <DialogContent className="sm:max-w-[560px]" finalFocus={returnFocusTo}>
-        {issues.length === 0 ? null : (
+        {shown === null ? null : (
           <RefusedChange
-            key={issues
+            key={shown.issues
               .map(
                 (issue) => `${issue.entryId}.${issue.fieldSlug}.${issue.issue}`
               )
               .join('|')}
-            issues={issues}
-            {...change}
+            {...shown}
           />
         )}
       </DialogContent>
@@ -200,7 +219,7 @@ function neededValuesWithFields(
     );
 
     // A field the save does not declare has no Value to write: Core names it
-    // for a Component's items, whose Values are fixed in the Entry itself.
+    // for a Component's items, whose Values nothing writes yet.
     return fieldDefinition === undefined ? [] : [{ issue, fieldDefinition }];
   });
 }
@@ -265,7 +284,7 @@ function RefusedChange({
   onCancel,
   onApply,
   onFollowLink,
-}: Omit<RefusedChangeDialogProps, 'open' | 'returnFocusTo'>): ReactElement {
+}: RefusedChangeProps): ReactElement {
   const { t } = useLingui();
   const {
     projectId,
@@ -276,7 +295,7 @@ function RefusedChange({
   const lost = lostValuesOf(issues);
   const needed = neededValuesOf(issues);
   // The Values this dialog writes, which is a Collection's alone, and the
-  // Entries that are fixed in their own editor instead, which is a Component's.
+  // Entries it only lists instead, which is a Component's.
   const written = useMemo(
     () =>
       resolvable ? neededValuesWithFields(needed, newFieldDefinitions) : [],
@@ -321,14 +340,19 @@ function RefusedChange({
     )
   );
 
-  /** One Entry as Desktop names it, which is the one way it is named. */
-  function entryName(issue: SchemaChangeIssue): string {
-    const entry = entriesById.get(issue.entryId);
-    const collection = isReadingCollections
+  /** The Collection one issue's Entry belongs to, once the list has arrived. */
+  function collectionOf(issue: SchemaChangeIssue): Collection | undefined {
+    return isReadingCollections
       ? undefined
       : collectionList.list.find(
           (candidate) => candidate.id === issue.collectionId
         );
+  }
+
+  /** One Entry as Desktop names it, which is the one way it is named. */
+  function entryName(issue: SchemaChangeIssue): string {
+    const entry = entriesById.get(issue.entryId);
+    const collection = collectionOf(issue);
 
     if (entry === undefined || collection === undefined) {
       // Only while the lists are still being read. The Entry is named by the
@@ -341,6 +365,18 @@ function RefusedChange({
       fieldDefinitions: flattenFieldDefinitions(collection.fieldDefinitions),
       language,
     });
+  }
+
+  /** That Collection by its plural name, or nothing while it is being read. */
+  function collectionName(issue: SchemaChangeIssue): string | null {
+    const collection = collectionOf(issue);
+
+    return collection === undefined
+      ? null
+      : translateContent({
+          key: 'collection.name.plural',
+          record: collection.name.plural,
+        });
   }
 
   /** One field as its label names it, out of the definitions that hold it. */
@@ -472,9 +508,8 @@ function RefusedChange({
   const [missingLanguage, missingValues] = [
     ...missingByLanguage.entries(),
   ].find(([, count]) => count > 0) ?? [undefined, 0];
-  // The Entries nothing here can answer for, which are a Component's: each one
-  // is fixed in its own editor, and until every one of them is, Core refuses
-  // the same change again.
+  // The Entries nothing here can answer for, which are a Component's: until
+  // every one of them holds the Value, Core refuses the same change again.
   const missing =
     missingLanguage === undefined ? undefined : languageName(missingLanguage);
   const blockedBy =
@@ -575,10 +610,14 @@ function RefusedChange({
         onSubmit={onSubmit}
         id={formId}
         blockedBy={blockedBy}
-        className="flex min-h-0 flex-col"
-        fieldsetClassName="flex min-h-0 flex-1 flex-col"
+        // A grid item and a fieldset refuse to shrink below their content on
+        // their own, so each box between the dialog and the rows is allowed
+        // to, and a row too long for the dialog truncates inside it rather
+        // than running past its edge.
+        className="flex min-h-0 min-w-0 flex-col"
+        fieldsetClassName="flex min-h-0 min-w-0 flex-1 flex-col"
       >
-        <DialogBody flush>
+        <DialogBody flush className="min-w-0">
           <div className="flex flex-col gap-3 px-5 pt-3 pb-5">
             {lost.length === 0 ? null : (
               <>
@@ -598,7 +637,7 @@ function RefusedChange({
                     return (
                       <li
                         key={`${issue.entryId}.${issue.componentItemId ?? ''}.${issue.fieldDefinitionId}.${issue.language ?? ''}`}
-                        className="flex items-center gap-3 border-b py-2"
+                        className="flex h-9 shrink-0 items-center gap-3 border-b"
                       >
                         <EntryLink
                           issue={issue}
@@ -687,39 +726,60 @@ function RefusedChange({
                     })}
                   </div>
                 )}
-                {/* A Value nothing here can write, which is a Component's: it is
-              filled in the Entry itself, so the row leads there and says what
-              has to happen. */}
+                {/* A Value nothing here can write, which is a Component's:
+              Core takes a resolution for a Component's item nowhere yet, so
+              one line says what there is to do instead and each row names
+              where the Value is missing, see
+              contributing/not-yet-implemented.md. */}
                 {listed.length === 0 ? null : (
-                  <ul className="flex flex-col border-t">
-                    {listed.map((issue) => {
-                      const section = sectionName(issue);
+                  <>
+                    <p className="text-small text-muted-foreground">
+                      <Trans>
+                        A Value for a section can&apos;t be filled in yet, here
+                        or in the Entry. To save this change, change the field
+                        so the sections below are allowed as they are, or open
+                        an Entry and remove the section, which deletes what it
+                        holds.
+                      </Trans>
+                    </p>
+                    <ul className="flex flex-col border-t">
+                      {listed.map((issue) => {
+                        const section = sectionName(issue);
+                        const collection = collectionName(issue);
 
-                      return (
-                        <li
-                          key={`${issue.entryId}.${issue.componentItemId ?? ''}.${issue.fieldDefinitionId}`}
-                          className="flex items-center gap-3 border-b py-2"
-                        >
-                          <EntryLink
-                            issue={issue}
-                            name={entryName(issue)}
-                            onFollowLink={onFollowLink}
-                          />
-                          <span className="truncate text-muted-foreground">
-                            {fieldName(issue, newFieldDefinitions)}
-                          </span>
-                          {section === null ? null : (
-                            <span className="shrink-0 text-muted-foreground">
-                              {section}
+                        return (
+                          <li
+                            key={`${issue.entryId}.${issue.componentItemId ?? ''}.${issue.fieldDefinitionId}`}
+                            className="flex h-9 shrink-0 items-center gap-3 border-b"
+                          >
+                            <EntryLink
+                              issue={issue}
+                              name={entryName(issue)}
+                              onFollowLink={onFollowLink}
+                            />
+                            <span className="truncate text-muted-foreground">
+                              {fieldName(issue, newFieldDefinitions)}
                             </span>
-                          )}
-                          <span className="ml-auto min-w-0 truncate text-muted-foreground">
-                            {describeEntryIssue(issue.issue)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                            {section === null ? null : (
+                              <span className="shrink-0 text-muted-foreground">
+                                {section}
+                              </span>
+                            )}
+                            {/* Which Collection the Entry is in, as the row of
+                          a loss spends its last column on the Value that
+                          would go: a Component reaches Entries of several
+                          Collections, and two Entries of one title are told
+                          apart by it. */}
+                            {collection === null ? null : (
+                              <span className="ml-auto shrink-0 text-muted-foreground">
+                                {collection}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
                 )}
               </>
             )}
@@ -727,11 +787,14 @@ function RefusedChange({
         </DialogBody>
       </AppForm>
 
-      <FormActions form={refusedChangeForm} id={formId} blockedBy={blockedBy}>
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            <Trans>Cancel</Trans>
-          </Button>
+      {/* The buttons and, below Save, the reason it waits, both inside the
+      dialog's own footer: the row of buttons keeps the dialog's width, so the
+      border above it and the padding around the reason are the dialog's. */}
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          <Trans>Cancel</Trans>
+        </Button>
+        <FormActions form={refusedChangeForm} id={formId} blockedBy={blockedBy}>
           {/* The button names the loss, as ci's rule for anything that deletes
           something kept on this computer asks. Without one there is nothing to
           warn about, so it is the primary Save. */}
@@ -746,8 +809,8 @@ function RefusedChange({
                 : t`Delete ${plural(lost.length, { one: '# Value', other: '# Values' })} from ${plural(lostEntries.length, { one: '# Entry', other: '# Entries' })}`}
             </SubmitButton>
           )}
-        </DialogFooter>
-      </FormActions>
+        </FormActions>
+      </DialogFooter>
     </FormLanguageContext>
   );
 }
@@ -781,7 +844,10 @@ function EntryLink({
       }}
       ignoreBlocker
       onClick={onFollowLink}
-      className="min-w-0 truncate font-medium underline decoration-link-underline decoration-2 underline-offset-4"
+      // The app's link: the 2 px underline in the link color, and the weight
+      // of whatever names the Entry, which is the row's own in a row and the
+      // label's above a field.
+      className="min-w-0 truncate underline decoration-link-underline decoration-2 underline-offset-2"
     >
       {name}
     </Link>
