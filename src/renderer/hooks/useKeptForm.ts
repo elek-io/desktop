@@ -35,9 +35,13 @@ export interface KeptForm<TValues> {
  * The unsaved state this page kept for itself, and the way to keep it.
  *
  * What comes back is dropped from the store as soon as this page holds it, so
- * the next visit that follows no link opens on what is stored rather than on a
- * draft somebody left behind. Outside the provider nothing is kept, which is
- * what the error screen and the not-found screen are.
+ * it is handed over once. A page that was left by the link and never came back
+ * leaves what it kept in the store, and the next visit to that page opens on
+ * it however it was reached, since nothing else drops it: coming back is as
+ * often a way through the app as the way the link went, and dropping the draft
+ * on the first step of it would lose what somebody typed. A reloaded or closed
+ * window keeps nothing. Outside the provider nothing is kept, which is what the
+ * error screen and the not-found screen are.
  *
  * It is `unknown` on the way through, because only the page knows the shape of
  * its own form, and it never crosses a process or a reload: a window that is

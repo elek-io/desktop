@@ -656,10 +656,13 @@ form.
   so it comes back holding unsaved changes: Save is there to press and leaving any
   other way asks again. The store sits above the route, because the page that
   keeps something is unmounted the moment the link is followed, and what comes
-  back is dropped as soon as the page holds it, so the next visit that follows no
-  link opens on what is stored. Nothing is persisted, so a reload or a closed
-  window keeps nothing, which is what the question before closing the window is
-  for.
+  back is dropped as soon as the page holds it, so it is handed over once. A page
+  that was left by the link and never came back leaves what it kept in the store,
+  and the next visit to it opens on that however it was reached: the way back
+  through the app is as much a way back as the one the link went, so nothing
+  drops a draft on the first step of it. Nothing is persisted, so a reload or a
+  closed window keeps nothing, which is what the question before closing the
+  window is for.
 - **A change of nothing but the search params.** The router runs its blockers on
   every push and replace, and a form keeps the language it edits in the search
   params, so `isLeavingThePage` compares the route rather than the address.
