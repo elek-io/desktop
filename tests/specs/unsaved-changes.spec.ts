@@ -441,14 +441,20 @@ test.describe('Leaving a page with changes nobody saved', () => {
 
     // Changed, so leaving would ask.
     await mainWindow
-      .getByLabel('Collection name (Plural)', { exact: true })
+
+      .getByRole('main')
+      .getByLabel('Collection name', { exact: true })
       .fill('Report');
 
     // Deleting the Collection takes the page off screen on purpose, and takes
     // everything typed into it with it, so there is nothing to ask about.
-    await mainWindow.getByRole('button', { name: 'Delete Collection' }).click();
+    await mainWindow.getByRole('button', { name: /^More for / }).click();
     await mainWindow
-      .getByRole('button', { name: 'Yes, delete this Collection' })
+      .getByRole('menuitem', { name: 'Delete Collection' })
+      .click();
+    await mainWindow
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete Collection' })
       .click();
 
     await expect(mainWindow).toHaveURL((url) =>
@@ -496,8 +502,9 @@ test.describe('Leaving a page with changes nobody saved', () => {
             projectId: project.id,
             collectionId: collection.id,
           }),
-        label: 'Collection name (Plural)',
-        question: 'Discard your changes to Configure Articles?',
+        label: 'Collection name',
+        question:
+          'Discard your changes to Settings of the Articles Collection?',
       },
       {
         open: async () =>

@@ -54,8 +54,8 @@ test.describe('History', () => {
     ).toBeVisible();
 
     // The collection commit renders with the CollectionDiff. Its page title is
-    // "<method> <objectType>" and a distinguishing Collection form field proves
-    // the CollectionDiff (not another diff) rendered.
+    // "<method> <objectType>" and a line only a Collection carries proves the
+    // CollectionDiff (not another diff) rendered.
     await mainPanel(mainWindow)
       .getByRole('link', { name: /create collection/i })
       .click();
@@ -63,7 +63,7 @@ test.describe('History', () => {
       mainWindow.getByRole('heading', { name: 'create collection' })
     ).toBeVisible();
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+      mainWindow.getByText('Collection slug', { exact: true })
     ).toBeVisible();
 
     // The entry commit renders with the EntryDiff. The "Title" field is unique
@@ -82,10 +82,9 @@ test.describe('History', () => {
     await expect(mainWindow.getByLabel('Name', { exact: true })).toBeVisible();
   });
 
-  // The CollectionDiff hydrates the Controller-bound fieldDefinitions read-only
-  // through reset(). The reused CollectionForm renders the definitions as
-  // previews, so a distinctively labelled field proves they came through the
-  // value rather than being dropped.
+  // The CollectionDiff reads the Collection at the commit and draws each field
+  // it defines as the one preview the settings show, so a distinctively
+  // labelled field proves they were read rather than dropped.
   test('renders a Collection’s field definitions in the history diff', async ({
     mainWindow,
   }) => {

@@ -418,15 +418,17 @@ test.describe('A form filled from its query', () => {
       collectionId: collection.id,
     });
     await expect(
-      mainWindow.getByLabel('Collection-Slug', { exact: true })
+      mainWindow.getByLabel('Collection slug', { exact: true })
     ).toBeVisible();
 
     // A Collection's settings say what each field needs the same way an Entry
     // does: its hand-written fields off Core's Collection schema, which caps a
     // slug at 128 characters, and the preview of each field definition off
-    // that definition.
-    expect(await rulesOf(mainWindow, 'Collection-Slug')).toBe(
-      'Required, up to 128 characters'
+    // that definition. A slug is also unique within the Project, which Core
+    // enforces where it saves rather than in the schema, so the field says
+    // that beside what the schema says.
+    expect(await rulesOf(mainWindow, 'Collection slug')).toBe(
+      'Required, up to 128 characters, unique'
     );
     expect(await rulesOf(mainWindow, 'Title')).toBe('Required');
 
@@ -740,37 +742,32 @@ test.describe('A form filled from its query', () => {
     // is written nowhere in this app.
     await navigateToCollectionCreate(mainWindow, project.id);
     await expect(
-      mainWindow.getByLabel('Collection-Slug', { exact: true })
+      mainWindow.getByLabel('Collection slug', { exact: true })
     ).toBeVisible();
     expect(await statedFieldsOf(mainWindow)).toEqual([
-      // Core takes any icon name Lucide ships, at most 64 characters, which is
-      // what the field reads off its schema.
       {
-        label: 'Icon',
-        rules: 'Required, up to 64 characters',
-        ariaRequired: 'true',
-      },
-      {
-        label: 'Collection name (Plural)',
+        label: 'Collection name',
         rules: 'Required',
         ariaRequired: 'true',
       },
       {
-        label: 'Entry name (Singular)',
+        label: 'Entry name',
         rules: 'Required',
+        ariaRequired: 'true',
+      },
+      // A slug is unique within the Project, which Core enforces where it
+      // saves, so the field says that after what its schema says.
+      {
+        label: 'Collection slug',
+        rules: 'Required, up to 128 characters, unique',
+        ariaRequired: 'true',
+      },
+      {
+        label: 'Entry slug',
+        rules: 'Required, up to 128 characters, unique',
         ariaRequired: 'true',
       },
       { label: 'Description', rules: 'Required', ariaRequired: 'true' },
-      {
-        label: 'Collection-Slug',
-        rules: 'Required, up to 128 characters',
-        ariaRequired: 'true',
-      },
-      {
-        label: 'Entry-Slug',
-        rules: 'Required, up to 128 characters',
-        ariaRequired: 'true',
-      },
     ]);
 
     // A Component's description may be left empty, which is the one field of

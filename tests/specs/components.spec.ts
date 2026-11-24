@@ -348,7 +348,9 @@ test.describe('Components', () => {
     });
     await pane.getByRole('button', { name: 'Add Component' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
-    await expect(pane.getByText('Teaser')).toBeVisible();
+    await expect(
+      pane.getByRole('listitem').filter({ hasText: 'Teaser' })
+    ).toBeVisible();
 
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
@@ -667,7 +669,9 @@ test.describe('Components', () => {
     });
     await pane.getByRole('button', { name: 'Add Component' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
-    await expect(pane.getByText('Teaser')).toBeVisible();
+    await expect(
+      pane.getByRole('listitem').filter({ hasText: 'Teaser' })
+    ).toBeVisible();
     await mainWindow.getByRole('button', { name: 'Save' }).click();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
@@ -949,9 +953,9 @@ test.describe('Components', () => {
     await expect(
       mainWindow.getByLabel('Component name', { exact: true })
     ).toHaveValue('Teaser');
-    await mainWindow
-      .getByRole('button', { name: 'Remove the Subline field' })
-      .click();
+    await chooseFieldDefinition(mainWindow, 'Subline');
+    await mainWindow.getByRole('button', { name: 'More for Subline' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
     // Core's Conflict carries the Entries it could not carry the change into,
@@ -988,7 +992,7 @@ test.describe('Components', () => {
       componentId: component.id,
     });
     await expect(
-      mainWindow.getByRole('button', { name: 'Remove the Subline field' })
+      mainWindow.getByRole('button', { name: 'Settings of the Subline field' })
     ).toBeVisible();
     await navigateToEntryUpdate(mainWindow, {
       projectId: project.id,
@@ -1017,12 +1021,12 @@ test.describe('Components', () => {
       .first()
       .click();
 
-    // The change is drawn with the editor's own form, read-only, so the
+    // The change is read at the commit and drawn without a form, so the
     // Component appears by its name and never as a bare id.
     await expect(mainWindow.getByText('Created')).toBeVisible();
     await expect(
-      mainWindow.getByLabel('Component name', { exact: true })
-    ).toHaveValue('Pull quote');
+      mainWindow.getByText('Pull quote', { exact: true })
+    ).toBeVisible();
   });
 
   // ci fixes Desktop's smallest window at 1168 by 560 px at 100% zoom, the size
@@ -1281,13 +1285,17 @@ test.describe('Components', () => {
       collectionId: collection.id,
     });
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+      mainWindow
+        .getByRole('main')
+        .getByLabel('Collection name', { exact: true })
     ).toHaveValue('Articles');
 
     // The field's own settings open from its row, and the Components it allows
     // are rows that name each of them.
     const pane = await chooseFieldDefinition(mainWindow, 'Sections');
-    await expect(pane.getByText('Quote')).toBeVisible();
+    await expect(
+      pane.getByRole('listitem').filter({ hasText: 'Quote' })
+    ).toBeVisible();
 
     // Add offers what the field does not allow yet, and nothing else.
     await pane.getByRole('button', { name: 'Add Component' }).click();
@@ -1298,7 +1306,9 @@ test.describe('Components', () => {
       mainWindow.getByRole('menuitem', { name: 'Quote' })
     ).toHaveCount(0);
     await mainWindow.getByRole('menuitem', { name: 'Hero' }).click();
-    await expect(pane.getByText('Hero')).toBeVisible();
+    await expect(
+      pane.getByRole('listitem').filter({ hasText: 'Hero' })
+    ).toBeVisible();
 
     // The edit dirties the page, and the save is Core's own update.
     const save = mainWindow.getByRole('button', { name: 'Save' });
@@ -1468,10 +1478,14 @@ test.describe('Components', () => {
     await expect(mainWindow.getByText('Articles, 1 Entry')).toBeVisible();
 
     const pane = await chooseFieldDefinition(mainWindow, 'Blocks');
-    await expect(pane.getByText('Quote')).toBeVisible();
+    await expect(
+      pane.getByRole('listitem').filter({ hasText: 'Quote' })
+    ).toBeVisible();
     await pane.getByRole('button', { name: 'Add Component' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Hero' }).click();
-    await expect(pane.getByText('Hero')).toBeVisible();
+    await expect(
+      pane.getByRole('listitem').filter({ hasText: 'Hero' })
+    ).toBeVisible();
 
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     await expect(mainWindow).toHaveURL(
@@ -1548,7 +1562,9 @@ test.describe('Components', () => {
     // The field that names the only Component there is holds it as a row, and
     // has nothing left to add.
     const blocks = await chooseFieldDefinition(mainWindow, 'Blocks');
-    await expect(blocks.getByText('Teaser')).toBeVisible();
+    await expect(
+      blocks.getByRole('listitem').filter({ hasText: 'Teaser' })
+    ).toBeVisible();
     await expect(
       blocks.getByRole('button', { name: 'Add Component' })
     ).toHaveCount(0);

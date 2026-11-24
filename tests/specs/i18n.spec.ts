@@ -104,12 +104,16 @@ test.describe('The app in one language', () => {
       collectionId: collection.id,
     });
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+      mainWindow
+        .getByRole('main')
+        .getByLabel('Collection name', { exact: true })
     ).toHaveValue('Articles');
     await mainWindow
-      .getByLabel('Collection name (Plural)', { exact: true })
+
+      .getByRole('main')
+      .getByLabel('Collection name', { exact: true })
       .fill('Blog posts');
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
     const collectionToast = mainWindow.getByText(
       'Collection Blog posts saved',
       {
@@ -249,15 +253,20 @@ test.describe('The app in one language', () => {
       collectionId: collection.id,
     });
     await expect(
-      mainWindow.getByRole('heading', { name: 'Configure Nachrichten' })
+      mainWindow.getByRole('heading', {
+        name: 'Settings of the Nachrichten Collection',
+      })
     ).toBeVisible();
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+      mainWindow
+        .getByRole('main')
+        .getByLabel('Collection name', { exact: true })
     ).toHaveValue('Articles');
     await mainWindow
+      .getByRole('main')
       .getByLabel('Description', { exact: true })
       .fill('What the dealership announces');
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
     await expect(
       mainWindow.getByText('Collection Nachrichten saved', { exact: true })
     ).toBeVisible();
@@ -325,8 +334,14 @@ test.describe('The app in one language', () => {
       projectId: project.id,
       collectionId: collection.id,
     });
-    await mainWindow.getByRole('button', { name: 'Delete Collection' }).click();
-    await confirmDialog(mainWindow, 'Yes, delete this Collection');
+    await mainWindow.getByRole('button', { name: /^More for / }).click();
+    await mainWindow
+      .getByRole('menuitem', { name: 'Delete Collection' })
+      .click();
+    await mainWindow
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete Collection' })
+      .click();
     await expect(
       mainWindow.getByText('Collection Articles deleted', { exact: true })
     ).toBeVisible();
