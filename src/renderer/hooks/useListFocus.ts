@@ -4,9 +4,10 @@ import * as React from 'react';
 // removed one's place, else the one before it, else the control that adds one
 // where that can take the focus, else the list itself.
 //
-// Every list that lets somebody remove a row from inside it uses this, so none
-// moves the focus its own way and a focus that falls to the body cannot creep
-// back in. See contributing/renderer/forms.md#keeping-focus-after-a-row-is-removed.
+// Every list in a form uses this, so no form moves the focus its own way and a
+// focus that falls to the body cannot creep back in. The Assets grid answers
+// the same order for itself, since a card goes only once the delete came back.
+// See contributing/renderer/forms.md#keeping-focus-after-a-row-is-removed.
 
 /** Whether a control can take the focus, which a disabled one cannot. */
 function takesFocus(element: HTMLElement | null): element is HTMLElement {

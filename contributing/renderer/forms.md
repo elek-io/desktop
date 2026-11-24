@@ -316,8 +316,14 @@ focus, else the list itself. A focus that falls to the body loses a keyboard
 user their place, which the redesign rules out.
 
 [`useListFocus`](../../src/renderer/hooks/useListFocus.ts) holds that one
-answer, and every list in the app takes it, so no list moves the focus its own
-way. A list registers what the focus can land on and says when a row went:
+answer, and every list in a form takes it, so no form moves the focus its own
+way. The Assets grid in
+[`routes/projects/$projectId/assets.tsx`](../../src/renderer/routes/projects/$projectId/assets.tsx)
+answers the same order for itself, because a card goes only once Core has
+deleted the Asset, so where the focus lands has to wait for the grid the delete
+brings back rather than being placed as the row is written.
+
+A list registers what the focus can land on and says when a row went:
 
 - `rowRef(key)` per row, keyed the way the list keys the row itself.
 - `addRef` on the control that adds a row, where the list has one.
