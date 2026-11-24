@@ -314,51 +314,52 @@ export function FieldDefinitionPreview({
       data-slot="field-definition-preview"
       data-chosen={isChosen}
       className={cn(
-        'relative col-span-12 rounded-md',
+        'relative col-span-12 py-2',
         fieldWidth(fieldDefinition.inputWidth),
+        // Every preview stands on the same text edge as the fields above it,
+        // and the chosen row alone bleeds out to the pane's edge, which is
+        // where ci draws its surface and its bar.
         isChosen
-          ? 'bg-muted shadow-[inset_2px_0_0_var(--color-foreground)]'
+          ? '-mx-(--pane-edge) bg-muted px-(--pane-edge) shadow-[inset_2px_0_0_var(--color-foreground)]'
           : null,
         className
       )}
     >
-      {/* The row's own padding keeps the grip's column free whether or not
-      this row is the chosen one, so choosing a field moves nothing. */}
-      <div className="relative py-2 pr-2 pl-6">
-        <FieldShell
-          label={label}
-          rules={module.rules(fieldDefinition)}
-          {...(description === null ? {} : { description })}
-        >
-          {(controlProps): ReactNode =>
-            module.Control({
-              field: previewField,
-              fieldDefinition,
-              disabled: true,
-              controlProps: controlPropsFor(fieldDefinition, controlProps),
-              label,
-            })
-          }
-        </FieldShell>
-        {onChoose === undefined ? null : (
-          // The whole row, as one control over the field it shows. Its own
-          // name says what it opens, since the field below it is a preview
-          // rather than something to fill in here.
-          <button
-            type="button"
-            aria-pressed={isChosen}
-            aria-label={t`Settings of the ${label} field`}
-            className="absolute inset-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            onClick={onChoose}
-          />
-        )}
-      </div>
+      <FieldShell
+        label={label}
+        rules={module.rules(fieldDefinition)}
+        {...(description === null ? {} : { description })}
+      >
+        {(controlProps): ReactNode =>
+          module.Control({
+            field: previewField,
+            fieldDefinition,
+            disabled: true,
+            controlProps: controlPropsFor(fieldDefinition, controlProps),
+            label,
+          })
+        }
+      </FieldShell>
+      {onChoose === undefined ? null : (
+        // The whole row, as one control over the field it shows. Its own
+        // name says what it opens, since the field below it is a preview
+        // rather than something to fill in here. Its ring sits inside its own
+        // edge, as the rows of the lists beside it have it, since the chosen
+        // row reaches the pane's edge.
+        <button
+          type="button"
+          aria-pressed={isChosen}
+          aria-label={t`Settings of the ${label} field`}
+          className="absolute inset-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          onClick={onChoose}
+        />
+      )}
       {/* Above the row's own control, so dragging the chosen field stays
       possible for whoever prefers it, as ci keeps it. */}
       {isChosen && isDraggable ? (
         <DragHandle
           id={fieldDefinition.id}
-          className="absolute top-2.5 left-0.5 z-10 size-5 bg-transparent"
+          className="absolute top-2.5 left-1 z-10 size-5 bg-transparent"
         />
       ) : null}
     </div>
