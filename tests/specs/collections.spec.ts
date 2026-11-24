@@ -1,6 +1,12 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
-import { flattenFieldDefinitions, type FieldType } from '@elek-io/core';
+import {
+  flattenFieldDefinitions,
+  type Collection,
+  type Entry,
+  type FieldType,
+  type Project,
+} from '@elek-io/core';
 
 import { test } from '../fixtures/electronApp.js';
 import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
@@ -8,6 +14,7 @@ import {
   addFieldDefinition,
   assetFieldDefinition,
   chooseFieldDefinition,
+  dynamicFieldDefinition,
   createCollection,
   createCollectionViaIpc,
   fillCollectionForm,
@@ -21,16 +28,23 @@ import {
   textFieldDefinition,
   toggleFieldDefinition,
 } from '../helpers/collection.js';
+import { createComponentViaIpc } from '../helpers/component.js';
 import { dismissDialog } from '../helpers/dialog.js';
 import {
   chooseLanguage,
+  componentValue,
   createEntryViaIpc,
   navigateToEntryUpdate,
+  readEntryViaIpc,
   stringValue,
 } from '../helpers/entry.js';
 import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreReject } from '../helpers/ipc.js';
-import { mainPanel, reloadWindow } from '../helpers/navigation.js';
+import {
+  mainPanel,
+  projectSidebar,
+  reloadWindow,
+} from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
   createProjectViaIpc,
@@ -683,9 +697,16 @@ test.describe('Collections', () => {
     await expect(mainWindow.getByLabel('Title')).toHaveValue('Launch day');
   });
 
-  test('says that a change Core refuses changed nothing', async ({
-    mainWindow,
-  }) => {
+  /**
+   * A Collection whose Entry holds a Value in a field that is about to go, with
+   * the settings open and that field removed from the form, which is the state
+   * Save is refused in.
+   */
+  async function removeSubtitleOf(mainWindow: Page): Promise<{
+    project: Project;
+    collection: Collection;
+    entry: Entry;
+  }> {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
@@ -715,22 +736,103 @@ test.describe('Collections', () => {
     await chooseFieldDefinition(mainWindow, 'Subtitle');
     await mainWindow.getByRole('button', { name: 'More for Subtitle' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+
+    return { project, collection, entry };
+  }
+
+  test('names what removing a field would delete, by Entry title, and applies it once confirmed', async ({
+    mainWindow,
+  }) => {
+    const { project, collection, entry } = await removeSubtitleOf(mainWindow);
+
     await mainWindow.getByRole('button', { name: 'Save' }).click();
 
-    // Answered in place rather than on the error screen, and it says that
-    // nothing was saved, which is Core's own guarantee.
+    // One dialog, answered in place rather than on the error screen: the
+    // question names the Collection, the sentence what the change does.
+    const dialog = mainWindow.getByRole('dialog');
     await expect(
-      mainWindow.getByText('Could not save this Collection')
+      dialog.getByRole('heading', {
+        name: 'Save the changes to the Articles Collection?',
+      })
     ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('dialog').locator('[data-slot="dialog-description"]')
-    ).toHaveText(
-      'Nothing was saved, and this Collection is exactly as it was. Your field changes reach Entries that already exist, and each one has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the field changes back for now.'
+    await expect(dialog.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Removing Subtitle deletes its Value from 1 Entry.'
     );
-    await dismissDialog(mainWindow);
+
+    // What would be lost, by the Entry's own title with a link to it, never by
+    // its id, with the Value struck through and said in words beside the line.
+    const lost = dialog.getByRole('listitem').filter({ hasText: 'Subtitle' });
+    await expect(lost.getByRole('link', { name: 'Launch day' })).toBeVisible();
+    await expect(lost).not.toContainText(entry.id);
+    // Read out with the Value, so what the line through it means is said in
+    // words too. An `sr-only` element keeps a box of its own, which is what
+    // tells it from one that is hidden from everybody.
+    await expect(lost.getByText('Would be lost:')).toBeVisible();
+    await expect(lost.locator('s')).toHaveText('What ships today');
+
+    // Nothing is written until the red button that names the loss is pressed.
+    const stillStored = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(stillStored.values['subtitle']).toBeDefined();
+
+    await dialog
+      .getByRole('button', { name: 'Remove Subtitle from 1 Entry' })
+      .click();
+
+    // The change went in, so the page leaves for the Collection, the stored
+    // Collection no longer declares the field and the Entry no longer holds it.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map((found) => found.slug)
+    ).toEqual(['title']);
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['subtitle']).toBeUndefined();
+  });
+
+  test('changes nothing when the dialog of a refused change is cancelled', async ({
+    mainWindow,
+  }) => {
+    const { project, collection, entry } = await removeSubtitleOf(mainWindow);
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+
+    // The dialog is gone and the settings are still open, so nothing was
+    // saved and nothing was lost of what was typed.
+    await expect(dialog).toHaveCount(0);
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}/update$`)
     );
+    await expect(
+      mainWindow.getByRole('button', { name: 'Settings of the Subtitle field' })
+    ).toHaveCount(0);
+
+    // Leaving any other way asks first, since the change is still unsaved.
+    await projectSidebar(mainWindow)
+      .getByRole('link', { name: 'Dashboard' })
+      .click();
+    const discard = mainWindow.locator('[data-slot="discard-changes-dialog"]');
+    await expect(
+      discard.getByRole('heading', {
+        name: 'Discard your changes to Settings of the Articles Collection?',
+      })
+    ).toBeVisible();
+    await discard.getByRole('button', { name: 'Keep editing' }).click();
 
     // The Project got no commit for the refused update. Both are looked for in
     // the main panel, because the Project's sidebar carries a Create Collection
@@ -753,6 +855,405 @@ test.describe('Collections', () => {
     await expect(mainWindow.getByLabel('Subtitle')).toHaveValue(
       'What ships today'
     );
+  });
+
+  test('keeps the unsaved settings while an Entry the dialog names is opened', async ({
+    mainWindow,
+  }) => {
+    const { collection } = await removeSubtitleOf(mainWindow);
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await dialog.getByRole('link', { name: 'Launch day' }).click();
+
+    // The link leads straight to the Entry, without asking about the changes:
+    // they are kept rather than lost.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/[^/]+/update`)
+    );
+    await expect(mainWindow.getByRole('alertdialog')).toHaveCount(0);
+    await expect(mainWindow.getByLabel('Subtitle')).toHaveValue(
+      'What ships today'
+    );
+
+    // Coming back through the app, which is how the person gets back: the way
+    // the suite arranges a route boots the window, and nothing of what was
+    // typed survives a boot, which is what the question before closing the
+    // window is for.
+    await mainWindow
+      .getByRole('link', { name: 'Settings of the Articles Collection' })
+      .click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
+    );
+
+    // The settings stand as they were left, with the field still removed and
+    // Save there to press.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Settings of the Title field' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Settings of the Subtitle field' })
+    ).toHaveCount(0);
+    await expect(
+      mainWindow.getByRole('button', { name: 'Save' })
+    ).toBeEnabled();
+
+    // And pressing it asks again, since the same change is still refused.
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      dialog.getByRole('button', { name: 'Remove Subtitle from 1 Entry' })
+    ).toBeVisible();
+  });
+
+  test('keeps the buttons of a refused change in view at the smallest window, in light and in dark mode', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+    // Enough Entries for the list of what would go to be longer than the
+    // dialog at the smallest window, which is what the body has to scroll.
+    for (let number = 1; number <= 20; number++) {
+      await createEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+        values: {
+          title: stringValue({ en: `Opening hours ${String(number)}` }),
+          subtitle: stringValue({ en: 'What ships today' }),
+        },
+      });
+    }
+
+    for (const theme of ['light', 'dark'] as const) {
+      // The theme is put on first, since it is applied through the app's own
+      // provider and reloads the renderer, which closes the dialog again.
+      await setTheme(mainWindow, theme);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await navigateToCollectionSettings(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+      });
+      await chooseFieldDefinition(mainWindow, 'Subtitle');
+      await mainWindow
+        .getByRole('button', { name: 'More for Subtitle' })
+        .click();
+      await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+      const save = mainWindow.getByRole('button', { name: 'Save' });
+      await save.click();
+
+      const dialog = mainWindow.getByRole('dialog');
+      await expect(
+        dialog.getByRole('button', { name: 'Remove Subtitle from 20 Entries' })
+      ).toBeVisible();
+      await waitForLayout(mainWindow);
+
+      const measured = await mainWindow.evaluate(() => {
+        const content = document.querySelector('[data-slot="dialog-content"]');
+        const body = document.querySelector(
+          '[data-slot="dialog-body"] [data-slot="scroll-area-viewport"]'
+        );
+        const footer = document.querySelector('[data-slot="dialog-footer"]');
+        if (content === null || body === null || footer === null) {
+          throw new Error('The dialog did not draw its body and its buttons');
+        }
+
+        return {
+          window: window.innerHeight,
+          dialog: content.getBoundingClientRect().bottom,
+          footer: footer.getBoundingClientRect().bottom,
+          scrolls: body.scrollHeight > body.clientHeight,
+        };
+      });
+
+      // The body is what scrolls, so the buttons stand inside the window
+      // rather than below its edge.
+      expect(measured.scrolls, theme).toBe(true);
+      expect(measured.footer, theme).toBeLessThanOrEqual(measured.window);
+      expect(measured.dialog, theme).toBeLessThanOrEqual(measured.window);
+
+      // Focus went into the dialog, and Cancel hands it back to the button it
+      // was opened from.
+      expect(
+        await mainWindow.evaluate(
+          () =>
+            document.activeElement?.closest('[data-slot="dialog-content"]') !==
+            null
+        ),
+        theme
+      ).toBe(true);
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(save).toBeFocused();
+    }
+  });
+
+  test('names what narrowing a field would strip, and applies it once confirmed', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const teaser = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const quote = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Quote' },
+      slug: 'quote',
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'line', label: { en: 'Line' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [teaser.id, quote.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        sections: componentValue([
+          {
+            componentId: quote.id,
+            values: { line: stringValue({ en: 'Ship it' }) },
+          },
+        ]),
+      },
+    });
+
+    // Taking the Quote out of what the field allows strips the section built
+    // from it, which only Core knows about, so the row reads what it says.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const sections = await chooseFieldDefinition(mainWindow, 'Sections');
+    await sections
+      .getByRole('button', { name: 'Remove Quote from Allowed Components' })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    const lost = dialog.getByRole('listitem').filter({ hasText: 'Sections' });
+    await expect(lost.getByRole('link', { name: 'Launch day' })).toBeVisible();
+    await expect(lost.locator('s')).toHaveText('1 section');
+
+    await dialog
+      .getByRole('button', { name: 'Delete 1 Value from 1 Entry' })
+      .click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['sections']?.content).toEqual([]);
+  });
+
+  test('fills in the Value an Entry needs in the dialog, and saves once it is filled', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Launch day' }) },
+    });
+
+    // A field that is required and has no default cannot be filled in by Core,
+    // so it asks for a Value per Entry.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await addFieldDefinition(mainWindow, { label: 'Author' });
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Author needs a Value in 1 Entry.'
+    );
+    // Nothing would be lost, so the button is the primary Save, and it waits
+    // until the Value is there, with the field saying so.
+    const save = dialog.getByRole('button', { name: 'Save' });
+    await expect(save).toBeDisabled();
+    await expect(
+      dialog.getByText("Missing, so the changes can't be saved yet")
+    ).toBeVisible();
+    // Said in words with the warning icon beside them, so neither the color
+    // nor the icon carries it alone.
+    await expect(
+      dialog.locator('[data-slot="field-warning"] svg').first()
+    ).toBeVisible();
+    await expect(dialog.getByText('English is missing 1 Value')).toBeVisible();
+
+    // The field stands under the Entry it belongs to, named by its title with
+    // a link to it, and is filled in right there.
+    const field = dialog.getByLabel('Author in Launch day', { exact: true });
+    await expect(
+      dialog.getByRole('link', { name: 'Launch day' })
+    ).toBeVisible();
+    await field.fill('Mara Klein');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['author']?.content).toEqual({
+      en: 'Mara Klein',
+    });
+  });
+
+  test('asks for the Value a refused change needs in every language of the Project', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'The articles', de: 'Die Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day', de: 'Starttag' }),
+      },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await addFieldDefinition(mainWindow, { label: 'Author' });
+    // A label in every language of the Project, so what blocks the save is
+    // the Value the change needs rather than a label it is missing.
+    await chooseLanguage(mainWindow, 'de');
+    await pane.getByLabel('Label', { exact: true }).fill('Autor');
+    await chooseLanguage(mainWindow, 'en');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    // Core takes the change only once every language of the Project holds the
+    // Value, so one language filled in is not enough and the switch above the
+    // rows is what the other is filled in through.
+    const dialog = mainWindow.getByRole('dialog');
+    const save = dialog.getByRole('button', { name: 'Save' });
+    // The row is named in the language the app is read in, as every label is,
+    // and holds the Value of the language the switch below the head shows.
+    const field = dialog.getByLabel('Author in Launch day', { exact: true });
+    await field.fill('Mara Klein');
+    await expect(dialog.getByText('German is missing 1 Value')).toBeVisible();
+    await expect(save).toBeDisabled();
+
+    // The page behind the dialog carries a switch of its own, so this one is
+    // addressed inside the dialog.
+    await dialog
+      .locator('[data-slot="language-switch"]')
+      .getByRole('button', { name: /^DE\b/ })
+      .click();
+    await expect(field).toHaveValue('');
+    await field.fill('Mara Kleinowski');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['author']?.content).toEqual({
+      en: 'Mara Klein',
+      de: 'Mara Kleinowski',
+    });
+  });
+
+  test('saves a field change Core does not refuse with no dialog', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        subtitle: stringValue({ en: 'What ships today' }),
+      },
+    });
+
+    // A renamed label and a looser rule reach every Entry without deleting
+    // anything, so Core carries them out itself.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Subtitle');
+    await pane.getByLabel('Label', { exact: true }).fill('Standfirst');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map(
+        (found) => found.label.en
+      )
+    ).toEqual(['Title', 'Standfirst']);
   });
 
   test('saves removing a field from a Collection with no Entries', async ({
@@ -784,9 +1285,9 @@ test.describe('Collections', () => {
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
-    await expect(
-      mainWindow.getByText('Could not save this Collection')
-    ).toBeHidden();
+    // Nothing is deleted, so Core carries the change out itself and no dialog
+    // asks about it.
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
     const saved = await readCollectionViaIpc(mainWindow, {
       projectId: project.id,
       id: collection.id,
@@ -835,9 +1336,9 @@ test.describe('Collections', () => {
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
-    await expect(
-      mainWindow.getByText('Could not save this Collection')
-    ).toBeHidden();
+    // Nothing is deleted, so Core carries the change out itself and no dialog
+    // asks about it.
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
     const saved = await readCollectionViaIpc(mainWindow, {
       projectId: project.id,
       id: collection.id,
@@ -1440,9 +1941,7 @@ test.describe('Collections', () => {
     await expect(
       settings.getByLabel('Collection slug', { exact: true })
     ).toHaveAttribute('aria-invalid', 'true');
-    await expect(
-      mainWindow.getByRole('dialog', { name: 'Could not save this Collection' })
-    ).toHaveCount(0);
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
     );
@@ -1474,8 +1973,10 @@ test.describe('Collections', () => {
     await mainWindow.getByRole('button', { name: 'Save' }).click();
 
     await expect(errorScreenTitle(mainWindow)).toBeVisible();
+    // The failure was not swallowed by the dialog built for the one refusal
+    // this form answers in place.
     await expect(
-      mainWindow.getByText('Could not save this Collection')
+      mainWindow.getByText('Save the changes to the Articles Collection?')
     ).toBeHidden();
   });
 

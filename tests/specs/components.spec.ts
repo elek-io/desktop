@@ -906,7 +906,7 @@ test.describe('Components', () => {
     ).toHaveValue('Welcome');
   });
 
-  test('names the Entry to fix when a Field change cannot be carried out, and writes no commit', async ({
+  test("names the Entry a Component's refused Field change reaches, by title, and applies the loss", async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -942,6 +942,13 @@ test.describe('Components', () => {
               subline: stringValue({ en: 'What ships today' }),
             },
           },
+          {
+            componentId: component.id,
+            values: {
+              headline: stringValue({ en: 'Also' }),
+              subline: stringValue({ en: 'And this' }),
+            },
+          },
         ]),
       },
     });
@@ -958,50 +965,121 @@ test.describe('Components', () => {
     await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
-    // Core's Conflict carries the Entries it could not carry the change into,
-    // which now crosses the IPC boundary, so the screen names the Entry to fix
-    // rather than only that something conflicts.
+    // One dialog, answered in place rather than on the error screen. Each
+    // Entry is named by its own title with a link to it, never by the id Core
+    // names it with, and the two sections of the same Entry are told apart by
+    // where each one sits.
+    const dialog = mainWindow.getByRole('dialog');
     await expect(
-      mainWindow.getByText('Could not save this Component')
+      dialog.getByRole('heading', {
+        name: 'Save the changes to the Teaser Component?',
+      })
     ).toBeVisible();
+    const rows = dialog.getByRole('listitem');
+    await expect(rows).toHaveCount(2);
     await expect(
-      mainWindow.getByRole('dialog').getByText(entry.id)
+      rows.first().getByRole('link', { name: 'Home' })
     ).toBeVisible();
-    await expect(
-      mainWindow
-        .getByRole('dialog')
-        .getByText('would lose what it holds in this Field')
-    ).toBeVisible();
-    await dismissDialog(mainWindow);
-    await expect(mainWindow).toHaveURL(componentRoute);
+    await expect(dialog).not.toContainText(entry.id);
+    await expect(rows.first()).toContainText('Section 1 of 2');
+    await expect(rows.last()).toContainText('Section 2 of 2');
+    await expect(rows.first().locator('s')).toHaveText('What ships today');
+    await expect(rows.last().locator('s')).toHaveText('And this');
 
-    // The Project got no commit for the refused update: the History lists the
-    // three creates that arranged this test and no Component update.
-    await navigateToHistory(mainWindow, project.id);
-    await expect(
-      mainWindow.getByRole('link', { name: /create component/i })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('link', { name: /update component/i })
-    ).toHaveCount(0);
+    await dialog
+      .getByRole('button', { name: 'Remove Subline from 1 Entry' })
+      .click();
 
-    // Re-reading the Component from Core shows the old model, with the Field
-    // still on it, and the Entry still holds its Value.
+    // The change went in, so the page leaves for the Components, the stored
+    // Component no longer declares the Field and neither section holds it.
+    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
+    const saved = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: component.id,
+    });
+    expect(saved.fieldDefinitions.map((found) => found.slug)).toEqual([
+      'headline',
+    ]);
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const sections = storedEntries[0]?.values['sections']?.content;
+    expect(
+      Array.isArray(sections)
+        ? sections.map((item) => Object.keys(item.values))
+        : []
+    ).toEqual([['headline'], ['headline']]);
+  });
+
+  test("leads to each Entry a Component's change leaves without a Value, and waits for it", async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: { headline: stringValue({ en: 'Welcome' }) },
+          },
+        ]),
+      },
+    });
+
+    // A Field that is required and has no default leaves every section of
+    // every Entry without a Value, and Core takes a Value for a Component's
+    // item nowhere but in the Entry itself, so the dialog leads there.
     await navigateToComponent(mainWindow, {
       projectId: project.id,
       componentId: component.id,
     });
     await expect(
-      mainWindow.getByRole('button', { name: 'Settings of the Subline field' })
-    ).toBeVisible();
-    await navigateToEntryUpdate(mainWindow, {
-      projectId: project.id,
-      collectionId: collection.id,
-      entryId: entry.id,
-    });
-    await expect(mainWindow.getByLabel('Subline')).toHaveValue(
-      'What ships today'
+      mainWindow.getByLabel('Component name', { exact: true })
+    ).toHaveValue('Teaser');
+    await addFieldDefinition(mainWindow, { label: 'Subline' });
+    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    const row = dialog.getByRole('listitem').first();
+    await expect(row.getByRole('link', { name: 'Home' })).toBeVisible();
+    await expect(dialog).not.toContainText(entry.id);
+    await expect(row).toContainText(
+      'needs a Value for this Field, which is now required and has no default'
     );
+    // Nothing here can answer it, so the button says so and takes no press.
+    const save = dialog.getByRole('button', { name: 'Save' });
+    await expect(save).toBeDisabled();
+    await expect(
+      dialog.getByText('Each Entry below needs a Value first')
+    ).toBeVisible();
+    // The control still takes a click, since it is not `disabled`, and the
+    // dialog stays where it is.
+    await save.click({ force: true });
+    await expect(dialog).toBeVisible();
+
+    // The Project got no commit for the refused update.
+    await navigateToHistory(mainWindow, project.id);
+    await expect(
+      mainWindow.getByRole('link', { name: /update component/i })
+    ).toHaveCount(0);
   });
 
   test('shows a Component change in the History by the name somebody gave it', async ({
