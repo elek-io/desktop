@@ -85,55 +85,53 @@ Components have the same shape of screens as Collections, and reuse their parts:
 
 Two restrictions are Core's and reach the authoring UI through the editor's `owner` prop: a Component holds no `slug` field and none of its fields can be unique, because uniqueness is enforced over a Collection's top level fields only. Both are read off `fieldTypesForbiddenInComponents` and the `owner` the base form receives, so neither is offered and then refused on save.
 
-## Creating field definitions for a Collection or a Component
+## Creating and editing field definitions
 
-When users create or update a Collection or a Component, they use one visual editor to define its fields.
+A Collection's and a Component's fields are defined in one editor, which is what the pane of 296 px beside those fields is.
 
-**Location:** [`components/forms/field-definitions-editor.tsx`](../../src/renderer/components/forms/field-definitions-editor.tsx) holds that editor, and `collection-form.tsx` and `component-form.tsx` each render it with their own `owner`. It is what owns the Add Field sheet, the sheet that grows a `dynamic` field, the previews, the reordering and the typed edit helpers, so a change to any of them reaches both object types at once.
+**Location:** [`components/forms/field-definitions-editor.tsx`](../../src/renderer/components/forms/field-definitions-editor.tsx) holds two halves of it, and `collection-form.tsx` and `component-form.tsx` each render both with their own `owner`, so a change to either reaches both object types at once.
 
-**Features:**
+- `FieldDefinitionsList` draws every field as editors see it, at its own width, with Add field below them. The whole row of a field is one control that opens its settings, so a pointer hits it wherever it lands, and the chosen row takes the muted surface, the bar and the grip for whoever drags.
+- `FieldDefinitionsPane` draws the pane: every field type in ci's groups while a field is being added, and otherwise the settings of the chosen field.
 
-- Add, remove, and reorder fields, by dragging or with the Move up and Move down buttons each preview carries. Dragging alone would fail WCAG 2.1.1 and 2.5.7, so both exist wherever one does
-- Allow more Components on a `dynamic` field that already exists, the one part of a definition that can be edited after it was added, see [Growing a dynamic field](#growing-a-dynamic-field)
-- Select field type (text, textarea, number, toggle, date, asset, entry, etc.)
-- Set labels and descriptions with multi-language support
-- Configure validation rules (min/max length, required, unique)
-- Set default values and input width
-- Preview how the form will look to content editors
+**What it does:**
 
-### Field Definition Form Architecture
+- Adds a field by choosing its type, which appends the field and opens its settings at once
+- Changes a field after it exists: its label, its type, its slug, its description, its width, the rules its type takes, a Default Value where Core takes one, Required, Unique and Disabled
+- Moves a field up or down from the More menu of its settings, and by dragging its grip. Dragging alone would fail WCAG 2.1.1 and 2.5.7, so both exist wherever one does
+- Removes a field from the same More menu
+- Shows every field as content editors will see it, so the settings and an Entry draw one field the same way
 
-Field-definition authoring is part of the type's folder: each type's own `DefinitionSpec` sits beside its control, and the registry reaches it as `DefinitionDraft`. One `AppForm` is mounted for the field type being added, and submission is native through a detached `SubmitButton` (`form={id}`), not an imperative ref. The pieces:
+### One form, one unsaved state
 
-- **A type's `DefinitionSpec`** lives in its folder, in `index.tsx` for a scalar type and in `definition.tsx` where the authoring form is a file of its own (`select`, `slug`, `asset`, `entry`, `markdown`, `dynamic`). A spec is the Core schema that validates the definition, a fresh draft via `makeDefaults`, an optional `Extras` for the type-specific controls, and the notes below. The module exposes it as `DefinitionDraft`, and a type whose authoring is not built leaves that member off, which is what the Add Field picker reads to offer the type as unavailable.
-- **`DefinitionDraft`** ([`forms/field-definition-draft.tsx`](../../src/renderer/components/forms/field-definition-draft.tsx)) is the shared engine. Given a `DefinitionSpec` it builds one real `AppForm`: it calls `useAppForm()` with the spec's resolver and defaults, rejects duplicate slugs, wraps `DefaultFieldDefinitionForm`, and renders the spec's `Extras` as children. This replaces the per-type wrapper file and its dedicated form, so there is one live form, remounted when the picker changes type, not 18 always-mounted ones. Its value-typed helpers (`DefaultValueInputField`, `MinMaxRow`) let a spec's `Extras` compose the common controls without a bespoke file. Pass `DefaultValueInputField` the HTML input type the field type's own control uses, not Core's field type.
-- **`DefaultFieldDefinitionForm`** ([`forms/default-field-definition-form.tsx`](../../src/renderer/components/forms/default-field-definition-form.tsx)) renders the fields every definition shares (label, slug, description, `inputWidth`, `isRequired`, `isUnique`, `isDisabled`) and takes the type-specific inputs as `children`. It also auto-generates the slug from the label until the user edits the slug manually. It reads no field type: where Core pins `isRequired` or `isUnique` to a literal, the spec carries a `requiredNote` or a `uniquenessNote`, and the presence of that note is what locks the switch and says why. Inside a Component uniqueness is answered for every type at once, which is Core's rule rather than a type's, so that sentence lives in the shared base.
+The page has one Save, and the pane beside the fields edits the same form the page is saved from. So:
 
-### Writing a `DefinitionSpec`
+- **`useDefinitionsEditor`** ([`hooks/useDefinitionsEditor.ts`](../../src/renderer/hooks/useDefinitionsEditor.ts)) binds `fieldDefinitions` as one `Controller` value and holds which field is open. Its helpers (`add`, `changeType`, `remove`, `moveBy`, `move`) each write a new array, which is what dirties the page and draws the preview again. The route calls it and hands the state to both halves of the editor, since the two live in different panes of the screen but belong to one form.
+- **Every control of a field's settings is an `AppField`** bound at `fieldDefinitions.<index>.<key>` of that form. That is what puts a refusal Core answers the save with below the field it is about, and what makes the preview follow each keystroke.
+- **A field keeps its id**, through every edit and through a type change, because Core matches field definitions by `id` and a new one would read as a removal plus an addition, see Core's [schema-changes doc](../../node_modules/@elek-io/core/docs/schema-changes.md).
 
-A spec ([`field-definition-draft.tsx`](../../src/renderer/components/forms/field-definition-draft.tsx)) is Core's per-type `schema` with the `resolver` built from it, a `makeDefaults` that returns a fresh draft, an optional `Extras` component for the controls beyond the shared base, and the optional `requiredNote` and `uniquenessNote` that lock those two switches. The schema stands beside the resolver because the draft's `AppForm` hands it to its fields, which read their own rules off it, and because one type's form values and its schema's output diverge, which a single member could not type for every type at once. Three rules govern what may go in one.
+### A type's own settings
 
-**Type-specific context arrives through `DefinitionExtrasProps`, and it is shared.** Every `Extras` receives `form`, `currentLanguage`, `supportedLanguages` and the Collection's current `fieldDefinitions`, whether it needs them or not. Only `select` reads the languages (its option labels are translatable) and only `slug` reads the sibling definitions (to offer non-slug string fields as slug sources, whose real ids Core's `slugSourceReferencesSuperRefinement` then validates). When a new type needs context the others do not, widen this one shared type rather than branching in the shared base or the sheet.
+Everything one field type knows about its own settings lives in its folder, as three members of its module:
 
-**A type's data fetching lives inside its own `Extras`.** The `entry` spec's `ofCollections` picker is backed by a Collections list query, and both the query and its `projectId` hook stay in the `Extras` component. The `dynamic` spec's `Extras` keeps its Components list query one level further down, inside the `OfComponentsPicker` it shares with the sheet that grows an existing field. Either way the shared engine never learns that a query exists, which is what keeps `DefinitionDraft` free of per-type knowledge.
+- **`definitionSchema(fieldDefinition)`** is the Core schema one definition of that type is checked against. The settings put it in scope through `FieldSchemaScopeContext` ([`hooks/useFieldSchemaScope.ts`](../../src/renderer/hooks/useFieldSchemaScope.ts)), and every `AppField` inside reads the rules beside its label off it, with its path taken relative to the chosen definition. The Collection's own schema cannot answer there: it describes the array as a union of every field type and a group, which the walk over a schema cannot see into. `select` is the one type that answers per definition, because Core backs it with a schema per option value type.
+- **`newDefinition({ id, supportedLanguages })`** is the definition choosing the type adds. The id comes in rather than being minted there, which is what lets a type change keep it.
+- **`DefinitionEditor`** draws the settings below the ones every definition shares. It is a component, not a function the shared editor calls, so the hooks a type needs belong to it and changing a field's type cannot reorder anybody else's. It receives a `DefinitionBinding`: the page's `form`, the `fieldDefinition` as that form holds it now, `path` to name one of its own keys, `set` to write one back, the `owner`, its `siblings` and the `language` the switch above the page shows.
 
-**One spec may diverge between its form values and its resolver output.** `markdown` is the only case. Its recursive `defaultValue` mdast tree blows react-hook-form's path-type instantiation, and the form never edits it (v1 keeps markdown defaults null), so its form values pin `defaultValue` to null while the resolver still yields a full `MarkdownFieldDefinition`. That divergence is the single `as unknown as Resolver` cast in the authoring layer, and it lives at that one seam. Do not reach for it elsewhere.
+`path` is typed against that type's own definition, so a key the type does not hold is a compile error where it is written. It is the one place a path on the page's form is asserted, see [forms.md](./forms.md#form-typing). A markdown field's Default Value is left out of those keys, because Core's recursive mdast tree is deeper than react-hook-form's path type walks and no field's settings bind a path inside a Default Value.
 
-One field type is special: Core backs `select` with two schemas, one for text options and one for number options. The select folder's authoring file ([`fields/select/definition.tsx`](../../src/renderer/components/fields/select/definition.tsx)) holds a `DefinitionSpec` for each variant and a value-type picker that mounts the matching one, and each variant carries its own notes, which is how a number select locks uniqueness while a text select does not. The folder is one field type either way, so the registry stays keyed on Core's own `FieldType`.
+Where Core pins `isRequired` or `isUnique` to a literal, the module answers `requiredNote` or `uniquenessNote` with the sentence that says why, and that sentence is what locks the control. A type change carries both over only where the new type leaves either a choice. Inside a Component uniqueness is answered for every type at once, which is Core's rule rather than a type's, so that sentence lives in the shared settings.
 
-The **Add Field sheet** ([`forms/add-field-sheet.tsx`](../../src/renderer/components/forms/add-field-sheet.tsx)) renders the field-type picker, asks the registry for the selected type's `DefinitionDraft`, renders that one in its body, and submits it with a single detached `SubmitButton` in its footer. It offers a type unless the type's folder carries no authoring form, or the object it would be added to cannot hold it, which the type's own `forbiddenInComponent` says. `CollectionForm` ([`forms/collection-form.tsx`](../../src/renderer/components/forms/collection-form.tsx)) embeds `<AddFieldSheet>` and receives each new definition through an `onAppend` callback.
+**A type's data fetching lives inside its own editor.** The `entry` editor's Collections list query, the `dynamic` editor's Components list query and the file types of `mime-type-rows.tsx` all sit at that level, so the shared settings never learn that a query exists.
 
-### Growing a dynamic field
+**Every list a type takes is rows with Add and Remove**, which is how ci draws each of them: a select's options, the Collections an `entry` field allows, the Components a `dynamic` field allows, the blocks and the inline marks a `markdown` field allows, the file types either reference field allows, and the fields a `slug` is written from. `DefinitionChoiceRows` ([`forms/definition-controls.tsx`](../../src/renderer/components/forms/definition-controls.tsx)) is that control: the rows are what the field holds, and Add offers what it does not hold yet. `DefinitionBounds` beside it is a type's Minimum and Maximum under one sentence, which both controls name, as ci draws them.
 
-A definition is add-only with one exception: a `dynamic` field can be given more Components after it was added, so a page can gain a new kind of section without losing the sections it has. Everything else about a definition is fixed once it is added, see [not-yet-implemented.md](../not-yet-implemented.md#field-definition-editing).
+### Taking a Component away from a dynamic field
 
-- The Edit button in a preview's chrome opens it, and the editor passes `onEdit` for a `dynamic` field alone, so no other type renders that control at all.
-- [`fields/dynamic/allow-components-sheet.tsx`](../../src/renderer/components/fields/dynamic/allow-components-sheet.tsx) is the sheet, which the `dynamic` module exposes as its `EditSheet`: one `AppForm` over Core's `dynamicFieldDefinitionSchema`, seeded with the stored definition, whose submit hands the definition back to the editor's `replaceDefinition` helper. The id and everything but `ofComponents` come back untouched, which is what keeps the sections Entries hold, since Core matches definitions by `id`.
-- **Only growing is offered, which is a limit on what the screen offers rather than a rule of its own.** Narrowing `ofComponents` strips every Component item no longer allowed, which Core refuses until the update accepts that loss, and showing what would go is not built yet. So the Components already allowed are listed in words instead of as a control that could be switched off, and a field whose `ofComponents` is empty already allows every Component of the Project and therefore offers nothing to add. Core stays the guard either way.
-- `OfComponentsPicker` ([`fields/dynamic/definition.tsx`](../../src/renderer/components/fields/dynamic/definition.tsx)) is the one picker both paths render: the Add Field sheet through the dynamic `Extras`, and this sheet with `lockedComponentIds` set to what the field allows already. What either offers is decided there rather than twice.
+Narrowing `ofComponents` strips every Component item no longer allowed, and Core refuses the update until that loss is accepted. The editor offers the Remove anyway and Core stays the guard: such a save changes nothing at all and says so, see [not-yet-implemented.md](../not-yet-implemented.md#settling-a-field-change-core-refuses).
 
 > [!NOTE]
-> To add authoring for a field type, add a `DefinitionSpec` to its folder (in `definition.tsx` where it needs a file of its own) and expose it as the module's `DefinitionDraft`. The picker reads the registry, so nothing else has to learn about it.
+> A field type Core adds fails to compile until its folder answers `Icon`, `group`, `definitionSchema`, `newDefinition` and `DefinitionEditor`, because the registry is a mapped type over Core's `FieldType`. Nothing else has to learn about it.
 
 ## Rendering Dynamic Forms
 
@@ -159,18 +157,23 @@ A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fiel
 | `label`                | Not a member: the field's label, handed to `Control` as a prop   |
 | `rules`                | What a field of this type says it needs, beside its label        |
 | `defaultContent`       | The Value's content for a new Entry                              |
-| `previewContent`       | The static content the Collection's preview shows                |
+| `previewContent`       | The static content a field's preview shows                       |
+| `Icon`                 | The icon ci draws for the type                                   |
+| `group`                | Which of ci's groups the type is offered in                      |
+| `definitionSchema`     | The Core schema one definition of this type is checked against   |
+| `newDefinition`        | The definition choosing the type adds                            |
+| `DefinitionEditor`     | The type's own settings, below the shared ones                   |
 | `isEmpty`              | Whether one language's content of this Value holds nothing       |
 | `renderValue`          | This Value in one language as text, where it is shown not edited |
 | `titleText`            | This Value's text where an Entry is named by one of its Values   |
 | `coreRefusalText`      | This type's words for a refusal Core wrote its own English for   |
-| `DefinitionDraft`      | The authoring form for a new definition of this type             |
+| `requiredNote`         | Why Required is fixed for this field, where Core pins it         |
+| `uniquenessNote`       | Why Unique is fixed for this field, the same way                 |
 | `forbiddenInComponent` | That Core refuses this type inside a Component                   |
 | `allowedComponentIds`  | Which Components a definition allows as a section                |
 | `withoutDefinition`    | How a definition forgets another one the editor removed          |
-| `EditSheet`            | The sheet that edits a definition of this type after it exists   |
 
-The last four are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components and the one that can be edited at all. `coreRefusalText` is optional too, and three types carry one: `slug`, `entry` and `markdown` are where the refusals Core words itself land, see [Where a refusal's words come from](#where-a-refusals-words-come-from). `DefinitionDraft` is optional too, for a type Core defines and the client cannot author yet, and every type carries one today.
+The last three are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components. `coreRefusalText` is optional too, and three types carry one: `slug`, `entry` and `markdown` are where the refusals Core words itself land, see [Where a refusal's words come from](#where-a-refusals-words-come-from). The two notes are optional for the same reason: a type Core leaves both switches free answers neither.
 
 **The registry** ([`fields/index.ts`](../../src/renderer/components/fields/index.ts)) is a mapped type over Core's `FieldType`, so a field type Core adds **fails to compile until it has a folder**, and the message names the types whose folder is missing. That mapped type is exported as `FieldTypeRegistry`, so the type test can name it rather than write it out again, see [forms.md](./forms.md#guardrails). Reach a module through `fieldModule(fieldDefinition)`, which is generic over the field type so the module and the definition stay correlated: every member of what comes back takes exactly the definition that was passed in. Always read the module from the definition it is about, never pair one definition's module with another definition.
 
@@ -289,9 +292,9 @@ Their definition forms add type-specific options:
 
 - The asset definition form ([`fields/asset/definition.tsx`](../../src/renderer/components/fields/asset/definition.tsx)) exposes `min` / `max` (how many Assets may be selected) plus `ofAssetMimeTypes` through its spec's `Extras`.
 - The entry definition form ([`fields/entry/definition.tsx`](../../src/renderer/components/fields/entry/definition.tsx)) adds an `ofCollections` list that restricts which Collections can be referenced (backed by a Collections query), plus `min` / `max`.
-- The dynamic definition form ([`fields/dynamic/definition.tsx`](../../src/renderer/components/fields/dynamic/definition.tsx)) is modelled on it: an `ofComponents` list restricting which Components may be added as a section, backed by a Components query, plus the `min` / `max` section counts. Each toggle carries its Component's name as its accessible name, so a Component is never shown by its id.
+- The dynamic field's own settings ([`fields/dynamic/definition.tsx`](../../src/renderer/components/fields/dynamic/definition.tsx)) are modelled on it: the Components a section may be built from as rows with Add and Remove, backed by a Components query, plus the `min` / `max` section counts. Each row carries its Component's name, so a Component is never shown by its id.
 
-`ofAssetMimeTypes` is authored through the shared [`asset-mime-type-picker.tsx`](../../src/renderer/components/forms/asset-mime-type-picker.tsx), used by both the asset folder's spec and the markdown folder's (where it constrains `assetReference` targets and only shows while `features.assetReferences` is on). It offers the distinct MIME types of the Project's own Assets rather than a hardcoded universe, and an empty selection means "any type".
+`ofAssetMimeTypes` is edited through the shared [`mime-type-rows.tsx`](../../src/renderer/components/forms/mime-type-rows.tsx), which the asset field's settings and the markdown field's both take (where it restricts `assetReference` targets and only shows while `features.assetReferences` is on). Add offers the distinct MIME types of the Project's own Assets rather than a hardcoded universe, and an empty list means "any type".
 
 ### The select field's options
 
@@ -405,7 +408,7 @@ in [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
 
 Entry forms submit like every other form in the app, through `AppForm` and a detached `SubmitButton`. That layer, along with `useAppMutation` for handling an expected `CoreError` in place (the Entry unique-value `Conflict` is the canonical case) and the [form typing rules](./forms.md#form-typing) that the generated schemas make necessary, is documented in [forms.md](./forms.md).
 
-One typing point is specific to this side. The field definitions editor binds `fieldDefinitions` as a single `Controller`-bound value, edited through typed append / replace / remove / move helpers, not as a `useFieldArray` of opaque `{ id }` rows. react-hook-form cannot type a field array whose element is the deep `FieldDefinitionOrGroup` union, and the opaque rows previously overwrote the definitions' real ids, which was the latent slug-source id bug. Keeping the real ids is also what makes a Component's update safe: Core matches field definitions by `id`, so a new one would read as a removal plus an addition and drop the content of every Entry holding the Component. See [`field-definitions-editor.tsx`](../../src/renderer/components/forms/field-definitions-editor.tsx).
+One typing point is specific to this side. `useDefinitionsEditor` binds `fieldDefinitions` as a single `Controller`-bound value, edited through typed add / change / remove / move helpers, not as a `useFieldArray` of opaque `{ id }` rows. react-hook-form cannot type a field array whose element is the deep `FieldDefinitionOrGroup` union, and the opaque rows previously overwrote the definitions' real ids, which was the latent slug-source id bug. Keeping the real ids is also what makes a Component's update safe: Core matches field definitions by `id`, so a new one would read as a removal plus an addition and drop the content of every Entry holding the Component. A field's own settings bind a path inside that value, which is how a refusal of one key lands on the control it is about, see [one form, one unsaved state](#one-form-one-unsaved-state).
 
 **Benefits:**
 

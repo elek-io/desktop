@@ -97,11 +97,12 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   map is the single source of the "expected" set, never a blanket
   `throwOnError: false`. Unhandled failures reach the root error boundary. See
   [error-handling.md](../error-handling.md).
-- **No validator's own words reach an Entry's fields.** One zod error map words
-  every refusal zod raises, and the field type a refusal Core worded itself
-  lands on words that one. An issue code without words fails the type check. A
-  Collection's and a Component's settings are the exception, where a
-  hand-written field shows a refusal of a field definition as Core wrote it. See
+- **No validator's own words reach a field.** One zod error map words every
+  refusal zod raises. A refusal Core worded itself is worded by the field type
+  it lands on where that field is a Value, and by the refusals of a Collection's,
+  a Component's and a field definition's settings everywhere else, with one
+  sentence standing for a refusal nothing knows. An issue code without words
+  fails the type check. See
   [The words a refused Value is explained in](#the-words-a-refused-value-is-explained-in).
 
 ## Writing a form
@@ -180,8 +181,8 @@ which owns the policies that used to be pasted at each call site:
 - **The submit event is always `stopPropagation`d**, so an `AppForm` rendered
   inside another form's React subtree cannot cross-submit its parent. This is not
   theoretical. A Sheet or Dialog is portaled out of the outer form's DOM, but React
-  still bubbles the synthetic submit event up the React tree, so the Add Field
-  sheet used to create the whole Collection when you added a field to it.
+  still bubbles the synthetic submit event up the React tree, so a form inside
+  a Sheet or a Dialog used to submit the page's form as well.
 - **`mode="view"`** renders the form read-only through a disabled `<fieldset>` and
   makes submit a no-op. It also reaches the generated fields through the
   `AppFormContext`, see [View-only forms and diffs](#view-only-forms-and-diffs).
@@ -375,12 +376,48 @@ so this is one fold rather than a per-type opt-in, and a field type Core adds
 inherits it. [`tests/specs/history.spec.ts`](../../tests/specs/history.spec.ts)
 drives it on the markdown field.
 
+An Entry's diff does this: one view-mode form for a create or a delete, and a
+before/after pair for an update.
+
+A Collection's and a Component's settings do not.
 [`components/collection-diff.tsx`](../../src/renderer/components/collection-diff.tsx)
-does this: one view-mode form for a create or a delete, and a before/after pair
-for an update. Because it is the same component the editor uses, a field added to
-the editor shows up in the diff with no extra work.
+and
 [`components/component-diff.tsx`](../../src/renderer/components/component-diff.tsx)
-is the same shape for a Component.
+read the object at each commit and draw it through the one field shell with no
+form behind it, because those settings are a whole screen of three panes rather
+than a form body a dialog can hold, and because nothing in a diff is edited. The
+fields it defines are drawn by `FieldDefinitionPreview`, which is the same
+preview the settings show, so a field type Core adds shows up there with no
+extra work.
+
+## A Collection's settings
+
+A Collection's settings are one page with one Save, and the pane of 296 px
+beside its fields is part of the same form. The screen is
+[`forms/collection-form.tsx`](../../src/renderer/components/forms/collection-form.tsx),
+which renders the `<AppForm>` around all of its panes, so the pane beside the
+fields edits the same unsaved state the fields do and a detached submit button
+is not needed at all.
+
+- **One form, one unsaved state.** `useDefinitionsEditor`
+  ([`hooks/useDefinitionsEditor.ts`](../../src/renderer/hooks/useDefinitionsEditor.ts))
+  holds the field definitions and which of them is open, and the route hands
+  that state to both halves of the editor. A field's settings are that type's
+  own `DefinitionEditor` in the pane, with every control bound into the page's
+  form, see
+  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#one-form-one-unsaved-state).
+- **One language at a time.** The switch above the page sets the language every
+  name, every label and every description binds, and it lives in the route's
+  search params, as an Entry's does.
+- **Save is blocked while a language misses a text.** Core takes a Collection
+  only once each of its names, its description and every field's label holds a
+  text in every language of the Project, and a field's description either holds
+  one in every language or none at all. `useMissingTranslations`
+  ([`hooks/useMissingTranslations.ts`](../../src/renderer/hooks/useMissingTranslations.ts))
+  counts that, which is what the line below Save and the marks on the switch
+  both read, so the two never disagree.
+- **A Component's settings take the same parts**, with their own layout until
+  that screen is rebuilt.
 
 ## The words a refused Value is explained in
 
@@ -416,11 +453,18 @@ reword fails there instead, and `entries.spec.ts` drives one of each type
 through a field and reads what that field says.
 
 The map is global, so a refusal zod raises reads the same under a hand-written
-field as under a generated one. What a hand-written field does not pass is
-`coreRefusalText`, so a refusal Core worded itself stands there as Core wrote
-it. A Collection's and a Component's settings are where that shows, since Core
-words its refusals of a field definition itself, and the rebuild of those forms
-words them.
+field as under a generated one. A refusal Core worded itself is the one that
+needs a second answer, and a field gets it either way:
+[`lib/settingsRefusals.ts`](../../src/renderer/lib/settingsRefusals.ts) words
+the refusals Core writes for a Collection, a Component and a field definition,
+matched by the opening of their text the same way, and
+`shownRefusalText` reads it for any field that passes no `coreRefusalText` of
+its own. So a slug Core keeps for itself, a slug two fields share, a minimum
+above a maximum, a Default Value outside a field's own bounds and a type a
+Component cannot hold all read as sentences an editor uses, and a refusal
+neither table knows falls to the one sentence for a refusal nothing has words
+for. `FieldSubtreeError` words what it renders through the same function, since
+a refusal of the field definitions array lands there rather than on a field.
 
 ## When an error has no field to land on
 
@@ -430,10 +474,10 @@ language a refusal lands on the language's own field, which the form only draws
 while that language is the one on screen, so the switch above the fields marks
 the language it sits in and says so for a screen reader, see
 [internationalization.md](./internationalization.md#one-language-at-a-time).
-The hand-written name and description fields of a Collection, a Component and a
-field definition still open a dialog per field, and a refusal in a language they
-are not drawing reaches the page as that trigger's invalid state alone, until
-the rebuild of those screens puts them on one switch too.
+A Collection's and a Component's settings edit one language at a time the same
+way, through the switch above the page: every name, every label and every
+description binds the language that switch shows, so a refusal in another
+language is marked on that language rather than on a field nobody is looking at.
 
 **A validation error with no mounted message.** zod validates the whole form
 value, so an error can land on a path that no field renders. The field
@@ -444,9 +488,9 @@ focus. Save simply did nothing.
 
 `AppForm` now passes `handleSubmit` an `onInvalid`. Every component that renders
 messages claims the paths it covers through `useErrorTarget(name)` (`AppField`
-claims its own path, and a generated field and `TranslatableField` claim the
-whole Value above the language they draw, because the switch above the fields
-marks a hidden language and the dialog trigger flags one). On a failed submit
+claims its own path, and a generated field claims the whole Value above the
+language it draws, because the switch above the fields marks a language nobody
+is looking at). On a failed submit
 `AppForm` flattens `formState.errors`, subtracts everything a claimed path
 covers, and says one sentence in a focused `role="alert"` at the top of the form
 where anything is left, plus an error through Core's logger so it is loud in a
@@ -699,16 +743,20 @@ Prefer that shape for a shared form body.
 A body that genuinely has to stay generic over its caller's values, because the
 create and the update shapes diverge in a key it edits, asserts only the field
 name (`as FieldPath<T>`), never the whole form. `CollectionForm`,
-`ComponentForm`, `EntryForm` and `FieldDefinitionsEditor` do that, each at the
-one line that names the path. An assertion there still compiles for a path the
+`ComponentForm`, `EntryForm`, `FieldDefinitionsList`, `useDefinitionsEditor` and
+`FieldDefinitionEditor` do that, each at the one line that names the path. The
+last of them is where a field type's own settings name their keys: the key is
+typed against that type's own definition, so a key the type does not hold is a
+compile error where it is written, and only the path onto the page's form is
+asserted. An assertion there still compiles for a path the
 form does not hold, so prefer taking the path in from the caller, where the form
 type is concrete: the report dialog's `ContactFields` and `AssetForm` do that,
 and a wrong path is a compile error at their call sites.
 
-`FieldDefinitionsEditor` does not constrain its `TFieldValues` to a shape holding
-`fieldDefinitions` either, although it reads exactly that key. A generated Core
-schema's **input** type for the array is not `FieldDefinitionOrGroup[]` itself, so
-such a constraint rejects every real caller.
+None of them constrains its `TFieldValues` to a shape holding `fieldDefinitions`
+either, although each reads exactly that key. A generated Core schema's **input**
+type for the array is not `FieldDefinitionOrGroup[]` itself, so such a constraint
+rejects every real caller.
 
 A cast that only erases the third generic needs none either. `EntryForm` used to
 carry one, because `FieldFromDefinition` declared its `form` as
@@ -1049,6 +1097,15 @@ react-hook-form overwrites each row's `id` with its own render key, so the slug
 source picker stored render keys instead of the definitions' real ids, which Core
 then rejected. A `Controller` holds one opaque value react-hook-form never
 introspects, so it sidesteps the depth limit and keeps the real ids.
+
+The chosen field's settings bind a path **inside** that value all the same, at
+`fieldDefinitions.<index>.<key>`. The `Controller` above them is subscribed to
+the whole array, so a write at any path below it draws the previews again, which
+is what makes the preview follow each keystroke, and the array keeps every
+definition's id because nothing replaces an element to edit one of its keys.
+That is what lets the page have one Save and one unsaved state while a refusal
+Core answers it with still lands on the control it is about, see
+[A Collection's settings](#a-collections-settings).
 
 **Why not a `useReducer` for the same array.** It would sit outside the resolver,
 so the Collection schema's refinements would not run, `formState.isDirty` would
