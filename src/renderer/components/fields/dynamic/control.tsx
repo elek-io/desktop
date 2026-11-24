@@ -25,6 +25,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import { Skeleton } from '@renderer/components/ui/skeleton';
+import { useListFocus } from '@renderer/hooks/useListFocus';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
@@ -113,11 +114,9 @@ export function DynamicControl<TFieldValues extends FieldValues>({
     translateContent,
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
-  // Each section's own group, so the focus can go to the one that takes a
-  // removed section's place, and the two it falls back to.
-  const sectionsById = React.useRef(new Map<string, HTMLDivElement>());
-  const addSectionRef = React.useRef<HTMLButtonElement>(null);
-  const listRef = React.useRef<HTMLDivElement>(null);
+  // Where the focus goes once a section is removed, which every list in the
+  // app answers the same way, see `useListFocus`.
+  const focus = useListFocus();
   // The surrounding AppForm is the provider, so the inner fields reach the same
   // form without this leaf having to be handed it through the registry.
   const form = useFormContext<TFieldValues>();
@@ -214,9 +213,9 @@ export function DynamicControl<TFieldValues extends FieldValues>({
   }
 
   /**
-   * Removes one section and leaves the focus in the list: on the section that
-   * takes its place, else the one before it, else Add section where that can
-   * take it, else the list itself.
+   * Removes one section and leaves the focus in the list, as every list does:
+   * on the section that takes its place, else the one before it, else Add
+   * section where that can take it, else the list itself.
    *
    * The sections that stay are keyed by their own id, so each keeps its element
    * and can be focused straight away. See
@@ -226,16 +225,10 @@ export function DynamicControl<TFieldValues extends FieldValues>({
     const current = sections();
     const staying = current.filter((_item, itemIndex) => itemIndex !== index);
     setSections(staying);
-
-    const next = staying[index] ?? staying[index - 1];
-    const section =
-      next === undefined ? undefined : sectionsById.current.get(next.id);
-    // Add section is still disabled where the removal is what frees it, since
-    // React has not re-rendered it yet, and a disabled control takes no focus.
-    // So the list takes it rather than the page.
-    const addSection =
-      addSectionRef.current?.disabled === false ? addSectionRef.current : null;
-    (section ?? addSection ?? listRef.current)?.focus();
+    focus.afterRemoval(
+      index,
+      staying.map((item) => item.id)
+    );
   }
 
   function moveSection(index: number, offset: number): void {
@@ -249,7 +242,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
 
   return (
     <div
-      ref={listRef}
+      ref={focus.listRef}
       className="grid gap-3"
       role="group"
       aria-label={label}
@@ -285,13 +278,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
               // Focused rather than tabbed to, so removing the section above
               // leaves the focus here instead of on the page.
               tabIndex={-1}
-              ref={(group) => {
-                if (group === null) {
-                  sectionsById.current.delete(item.id);
-                  return;
-                }
-                sectionsById.current.set(item.id, group);
-              }}
+              ref={focus.rowRef(item.id)}
               className="rounded-xl border"
             >
               {/* The section's own head, ruled off its fields, with the three
@@ -380,7 +367,7 @@ export function DynamicControl<TFieldValues extends FieldValues>({
           <DropdownMenuTrigger
             render={
               <Button
-                ref={addSectionRef}
+                ref={focus.addRef}
                 Icon={ListPlusIcon}
                 variant="outline"
                 size="sm"
