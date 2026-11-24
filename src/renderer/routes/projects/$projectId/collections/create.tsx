@@ -202,7 +202,6 @@ function ProjectCollectionCreate(): ReactElement {
       project={project}
       definitions={definitions}
       title={title}
-      collectionName={t`Collection`}
       language={shownLanguage}
       onLanguageChange={setLanguage}
       missingByLanguage={missingByLanguage}

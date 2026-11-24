@@ -240,7 +240,6 @@ function ProjectComponentCreate(): ReactElement {
         componentForm={createComponentForm}
         project={project}
         definitions={definitions}
-        componentName={t`Component`}
         language={shownLanguage}
         onLanguageChange={setLanguage}
         missingByLanguage={missingByLanguage}

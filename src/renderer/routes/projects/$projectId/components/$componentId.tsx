@@ -350,7 +350,6 @@ function ProjectComponentUpdate(): ReactElement {
         componentForm={updateComponentForm}
         project={project}
         definitions={definitions}
-        componentName={name}
         language={shownLanguage}
         onLanguageChange={setLanguage}
         missingByLanguage={missingByLanguage}

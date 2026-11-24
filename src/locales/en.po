@@ -812,7 +812,6 @@ msgid "Code blocks"
 msgstr "Code blocks"
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
-#: src/renderer/routes/projects/$projectId/collections/create.tsx
 msgid "Collection"
 msgstr "Collection"
 
@@ -847,7 +846,6 @@ msgid "Collections"
 msgstr "Collections"
 
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-#: src/renderer/routes/projects/$projectId/components/create.tsx
 msgid "Component"
 msgstr "Component"
 
@@ -1279,12 +1277,20 @@ msgid "Editors can't save an Entry without it."
 msgstr "Editors can't save an Entry without it."
 
 #: src/renderer/components/forms/field-definitions-editor.tsx
-msgid "Editors fill in these fields for all {ownerName}, in this order."
-msgstr "Editors fill in these fields for all {ownerName}, in this order."
+msgid "Editors fill in these fields for all {name}, in this order."
+msgstr "Editors fill in these fields for all {name}, in this order."
 
 #: src/renderer/components/forms/field-definitions-editor.tsx
-msgid "Editors fill in these fields in every section built from {ownerName}, in this order."
-msgstr "Editors fill in these fields in every section built from {ownerName}, in this order."
+msgid "Editors fill in these fields for every Entry, in this order."
+msgstr "Editors fill in these fields for every Entry, in this order."
+
+#: src/renderer/components/forms/field-definitions-editor.tsx
+msgid "Editors fill in these fields in every section built from {name}, in this order."
+msgstr "Editors fill in these fields in every section built from {name}, in this order."
+
+#: src/renderer/components/forms/field-definitions-editor.tsx
+msgid "Editors fill in these fields in every section built from this Component, in this order."
+msgstr "Editors fill in these fields in every section built from this Component, in this order."
 
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "Editors read the Value but can't change it."
@@ -2431,7 +2437,6 @@ msgid "Settings of the {collectionName} Collection"
 msgstr "Settings of the {collectionName} Collection"
 
 #: src/renderer/components/fields/field-from-definition.tsx
-#: src/renderer/components/forms/field-definitions-editor.tsx
 msgid "Settings of the {label} field"
 msgstr "Settings of the {label} field"
 
@@ -2557,6 +2562,10 @@ msgstr "Tell us what you think of elek.io Desktop. We read every one of these."
 #: src/renderer/components/fields/select/definition.tsx
 msgid "Text"
 msgstr "Text"
+
+#: src/renderer/components/forms/field-definitions-editor.tsx
+msgid "The {label} field"
+msgstr "The {label} field"
 
 #: src/renderer/lib/sync.ts
 msgid "The address this Project syncs with names no Project on elek.io Cloud. Ask whoever set up this Project to check it."

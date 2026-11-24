@@ -303,7 +303,6 @@ function ProjectCollectionUpdate(): ReactElement {
         project={project}
         definitions={definitions}
         title={title}
-        collectionName={collectionName}
         language={shownLanguage}
         onLanguageChange={setLanguage}
         missingByLanguage={missingByLanguage}

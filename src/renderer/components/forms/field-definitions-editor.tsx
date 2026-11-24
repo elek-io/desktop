@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { type ReactElement } from 'react';
 import {
+  useWatch,
   type FieldPath,
   type FieldValues,
   type UseFormReturn,
@@ -61,9 +62,60 @@ export interface FieldDefinitionsListProps<
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   definitions: DefinitionsEditorState;
   owner: FieldDefinitionsOwner;
-  /** What the fields are filled in for, such as the Collection's plural name. */
-  ownerName: string;
+  /**
+   * Where the form holds the name the fields are filled in for, which is the
+   * Collection's plural name or the Component's own, in the language on screen.
+   */
+  ownerNamePath: FieldPath<TFieldValues>;
   isViewOnly?: boolean;
+}
+
+/**
+ * What the fields are filled in for, which follows the name as it is typed and
+ * says it without a name while nobody has written one.
+ *
+ * Its own component, so a keystroke in the name draws this sentence again
+ * rather than every preview below it.
+ */
+function OwnerSentence<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
+  form,
+  owner,
+  ownerNamePath,
+}: {
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  owner: FieldDefinitionsOwner;
+  ownerNamePath: FieldPath<TFieldValues>;
+}): ReactElement {
+  const written: unknown = useWatch({
+    control: form.control,
+    name: ownerNamePath,
+  });
+  const name = typeof written === 'string' ? written.trim() : '';
+
+  if (name === '') {
+    return owner === 'collection' ? (
+      <Trans>
+        Editors fill in these fields for every Entry, in this order.
+      </Trans>
+    ) : (
+      <Trans>
+        Editors fill in these fields in every section built from this Component,
+        in this order.
+      </Trans>
+    );
+  }
+
+  return owner === 'collection' ? (
+    <Trans>Editors fill in these fields for all {name}, in this order.</Trans>
+  ) : (
+    <Trans>
+      Editors fill in these fields in every section built from {name}, in this
+      order.
+    </Trans>
+  );
 }
 
 /**
@@ -77,7 +129,7 @@ export function FieldDefinitionsList<
   form,
   definitions,
   owner,
-  ownerName,
+  ownerNamePath,
   isViewOnly = false,
 }: FieldDefinitionsListProps<TFieldValues, TTransformedValues>): ReactElement {
   const { translateContent } = useProject();
@@ -97,16 +149,11 @@ export function FieldDefinitionsList<
           )}
         </h2>
         <p className="mt-1 text-small text-muted-foreground">
-          {owner === 'collection' ? (
-            <Trans>
-              Editors fill in these fields for all {ownerName}, in this order.
-            </Trans>
-          ) : (
-            <Trans>
-              Editors fill in these fields in every section built from{' '}
-              {ownerName}, in this order.
-            </Trans>
-          )}
+          <OwnerSentence
+            form={form}
+            owner={owner}
+            ownerNamePath={ownerNamePath}
+          />
         </p>
       </div>
 
@@ -322,7 +369,9 @@ export function FieldDefinitionsPane<
 
   return (
     <aside
-      aria-label={t`Settings of the ${label} field`}
+      // Named after the field rather than after what the row button that opens
+      // it says, so a screen reader does not hear one name twice.
+      aria-label={t`The ${label} field`}
       className="flex min-h-0 flex-1 flex-col"
     >
       <PaneHead className="gap-2">
