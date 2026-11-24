@@ -15,12 +15,12 @@ import {
   openFieldTypes,
   readCollectionViaIpc,
   referenceFieldDefinition,
-  switchSettingsLanguage,
   textFieldDefinition,
   toggleFieldDefinition,
 } from '../helpers/collection.js';
 import { dismissDialog } from '../helpers/dialog.js';
 import {
+  chooseLanguage,
   createEntryViaIpc,
   navigateToEntryUpdate,
   stringValue,
@@ -371,7 +371,7 @@ test.describe('Collections', () => {
     // is nothing to confirm and no sheet left.
     await types.getByRole('button', { name: 'textarea', exact: true }).click();
     const pane = mainWindow.getByRole('complementary', {
-      name: /^Settings of the/,
+      name: /^The .*field$/,
     });
     await expect(pane).toBeVisible();
     await expect(
@@ -469,6 +469,14 @@ test.describe('Collections', () => {
       projectId: project.id,
       collectionId: collection.id,
     });
+    // The settings draw nothing at all until the Project is read, which runs
+    // Git one command at a time, so the rows are read once a field the read
+    // brought stands. A one-shot read before then sees an empty page.
+    await expect(
+      mainWindow.getByRole('main').getByLabel('Collection name', {
+        exact: true,
+      })
+    ).toHaveValue('Articles');
     const rows = async (): Promise<string[]> =>
       mainWindow
         .getByRole('button', { name: /^Settings of the/ })
@@ -512,7 +520,7 @@ test.describe('Collections', () => {
     ]);
     // The field it was open on is gone, so the pane closes with it.
     await expect(
-      mainWindow.getByRole('complementary', { name: /^Settings of the/ })
+      mainWindow.getByRole('complementary', { name: /^The .*field$/ })
     ).toHaveCount(0);
 
     // The order reaches Core, which is what the save is for.
@@ -873,7 +881,7 @@ test.describe('Collections', () => {
     ).toBeVisible();
 
     const pane = await chooseFieldDefinition(mainWindow, 'Title');
-    await switchSettingsLanguage(mainWindow, 'de');
+    await chooseLanguage(mainWindow, 'de');
 
     // Every name, the description and the chosen field's own texts follow the
     // one switch.
@@ -937,7 +945,7 @@ test.describe('Collections', () => {
     ).toBeVisible();
 
     // Filling German settles each of them, one at a time.
-    await switchSettingsLanguage(mainWindow, 'de');
+    await chooseLanguage(mainWindow, 'de');
     await settings
       .getByLabel('Collection name', { exact: true })
       .fill('Artikel');

@@ -250,19 +250,22 @@ export function entryRow(page: Page, title: string): Locator {
 }
 
 /**
- * The switch above an Entry's fields, which sets the language of the whole
- * Entry. It is a row of segments while they fit and one dropdown otherwise.
+ * The one switch above a form of generated fields, which sets the language of
+ * the whole page: an Entry's fields, a Collection's settings and a Component's
+ * alike. It is a row of segments while they fit and one dropdown otherwise.
  */
 export function languageSwitch(page: Page): Locator {
   return page.locator('[data-slot="language-switch"]');
 }
 
 /**
- * Take the whole Entry into another language, through the switch above its
+ * Take the whole page into another language, through the one switch above its
  * fields.
  *
  * It presses the segment while the languages stand side by side, and picks
- * from the dropdown the switch becomes when they do not fit.
+ * from the dropdown the switch becomes when they do not fit. Which of the two
+ * is drawn depends on the room the row leaves it, so a page with a pane open
+ * can draw the other shape than the same page without one.
  */
 export async function chooseLanguage(
   page: Page,

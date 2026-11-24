@@ -17,7 +17,6 @@ import {
   type SlugFieldDefinition,
   type StringSelectFieldDefinition,
   type ReferenceFieldDefinition,
-  type SupportedLanguage,
   type TelephoneFieldDefinition,
   type TextareaFieldDefinition,
   type TextFieldDefinition,
@@ -679,20 +678,6 @@ export async function fillCollectionForm(
 }
 
 /**
- * Switch the whole settings page to another language, which is what the names,
- * the labels and the descriptions are then edited in.
- */
-export async function switchSettingsLanguage(
-  page: Page,
-  language: SupportedLanguage
-): Promise<void> {
-  await page
-    .getByRole('group', { name: 'Language' })
-    .getByRole('button', { name: new RegExp(`^${language.toUpperCase()}`) })
-    .click();
-}
-
-/**
  * Open the pane of field types, which is what Add field does, and return it so
  * a caller can scope its locators to it.
  */
@@ -726,8 +711,9 @@ export async function chooseFieldDefinition(
     .click();
   // Found by what it is rather than by the field's own label, since the pane
   // names itself after that label and the label is one of the things edited in
-  // it.
-  const pane = page.getByRole('complementary', { name: /^Settings of the/ });
+  // it. A field with no label yet leaves the name "The field", so nothing
+  // stands between "The" and "field" there.
+  const pane = page.getByRole('complementary', { name: /^The .*field$/ });
   await expect(pane).toBeVisible();
 
   return pane;
@@ -769,7 +755,7 @@ export async function addFieldDefinition(
   // The new field has no label yet, so its pane is the one named after a field
   // with none.
   const pane = page.getByRole('complementary', {
-    name: /^Settings of the/,
+    name: /^The .*field$/,
   });
   await expect(pane).toBeVisible();
 
