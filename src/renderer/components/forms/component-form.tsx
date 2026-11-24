@@ -126,8 +126,15 @@ export function ComponentForm<
       // The form stands where a pane would, beside the list of Components, so
       // the rule between the two is drawn here: the panes of these settings
       // are the form's own children, so the first of them draws none.
-      className={cn('relative flex min-h-0 flex-1', paneDividerVariants())}
-      fieldsetClassName="flex min-h-0 w-full flex-1"
+      // `min-w-0` on both, or the form cannot shrink below what its panes
+      // measure and the pane of the chosen field is pushed out of the panel at
+      // ci's smallest window. A `fieldset` is `min-inline-size: min-content` by
+      // default, so the fieldset needs it as much as the form does.
+      className={cn(
+        'relative flex min-h-0 min-w-0 flex-1',
+        paneDividerVariants()
+      )}
+      fieldsetClassName="flex min-h-0 w-full min-w-0 flex-1"
     >
       <Panes>
         {/* The settings are what the screen is about, so they are the one main

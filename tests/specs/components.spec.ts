@@ -604,9 +604,18 @@ test.describe('Components', () => {
         if (list === undefined || form === undefined || side === undefined) {
           throw new Error('A pane of the screen has no box');
         }
+        const inside = panel.getBoundingClientRect();
         return {
-          // Nothing reaches past the panel it sits in, in either direction.
-          clipped: panes.some((pane) => pane.scrollWidth > pane.clientWidth),
+          // Nothing reaches past the panel it sits in: no pane over its own
+          // content, and no pane past the panel's own edges, which three panes
+          // beside each other are what risks.
+          clipped:
+            panes.some((pane) => pane.scrollWidth > pane.clientWidth) ||
+            panes.some(
+              (pane) =>
+                pane.getBoundingClientRect().right > inside.right + 1 ||
+                pane.getBoundingClientRect().bottom > inside.bottom + 1
+            ),
           fitsTheWindow:
             panel.getBoundingClientRect().right <= window.innerWidth &&
             panel.getBoundingClientRect().bottom <= window.innerHeight,
