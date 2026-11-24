@@ -481,7 +481,13 @@ test.describe('Collections', () => {
       'Settings of the Body field',
     ]);
 
-    await chooseFieldDefinition(mainWindow, 'Body');
+    const body = await chooseFieldDefinition(mainWindow, 'Body');
+    // The chosen field keeps the grip, for whoever would rather drag it, and
+    // no other row carries one.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Drag to reorder' })
+    ).toHaveCount(1);
+    await expect(body).toBeVisible();
     await mainWindow.getByRole('button', { name: 'More for Body' }).click();
     await mainWindow.getByRole('menuitem', { name: 'Move up' }).click();
     expect(await rows()).toEqual([
@@ -753,6 +759,57 @@ test.describe('Collections', () => {
           isRequired: false,
         }),
       ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await chooseFieldDefinition(mainWindow, 'Subtitle');
+    await mainWindow.getByRole('button', { name: 'More for Subtitle' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    await expect(
+      mainWindow.getByText('Could not save this Collection')
+    ).toBeHidden();
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map((found) => found.slug)
+    ).toEqual(['title']);
+  });
+
+  test('saves removing a field whose Value is empty in every Entry', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+    // An Entry that holds nothing in the field, which is no loss to Core, so
+    // the same removal that is refused for a filled field goes through.
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        subtitle: stringValue({ en: null }),
+      },
     });
 
     await navigateToCollectionSettings(mainWindow, {

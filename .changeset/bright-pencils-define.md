@@ -12,8 +12,8 @@ A field can be changed after it exists, which was not possible before. Choosing 
 
 The fields beside the pane follow every edit at once, so what editors will see is on screen before anything is saved. A field keeps its identity through every change, including a change of its type, which is what keeps the Values every Entry holds: a renamed slug moves its Values, a looser rule applies, and a type change goes through wherever the stored Values fit the new type. A change elek.io Core will not carry out saves nothing at all and says so, and the Collection stays exactly as it was.
 
-One language switch above the page switches every name, every label and every description, with the line "Switches names, labels and descriptions. Slugs and fields are the same in every language." Save waits while a language is still missing one of them and says which language misses how many, such as "German is missing 2 translations". Leaving the page with changes nobody saved asks first.
+One language switch above the page switches every name, every label and every description, with the line "Switches names, labels and descriptions. Slugs and fields are the same in every language." Save waits while a language is still missing one of them and says which language misses how many, such as "German is missing 1 translation". Leaving the page with changes nobody saved asks first.
 
-Every refusal is said in words an editor uses, below the field it is about: a slug two fields share, a slug elek.io keeps for itself, a minimum above a maximum, a Default Value outside a field's own bounds, a unique field that carries a Default Value, and a type a Component cannot hold. None of them shows the English a validator wrote.
+Every refusal is said in words an editor uses, below the field it is about: a slug two fields share, a slug elek.io keeps for itself, a minimum above a maximum, a Default Value outside a field's own bounds, and a unique field that carries a Default Value. None of them shows the English a validator wrote.
 
 A Component's fields are defined with the same editor and the same language switch.
