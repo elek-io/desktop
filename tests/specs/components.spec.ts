@@ -321,25 +321,37 @@ test.describe('Components', () => {
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
+    const made = new Map<string, string>();
+    // Two of them carry the same name, which Core allows, since only the slug
+    // has to be unique. The name alone leaves their order open, so the slug is
+    // what settles it.
     for (const { name, slug } of [
       { name: 'Hero', slug: 'hero' },
       { name: 'Call to action', slug: 'call-to-action' },
+      { name: 'Hero', slug: 'hero-wide' },
       { name: 'Opening hours', slug: 'opening-hours' },
       { name: 'Gallery', slug: 'gallery' },
     ]) {
-      await createComponentViaIpc(mainWindow, {
+      const component = await createComponentViaIpc(mainWindow, {
         projectId: project.id,
         name: { en: name },
         slug,
       });
+      made.set(slug, component.id);
     }
 
+    // Handed to the list in the worst order there is: by name and slug
+    // backwards.
     const listed = await listComponentsViaIpc(mainWindow, project.id);
     await stubCoreResolve(electronApp, 'core:components:list', {
       ...listed,
-      list: [...listed.list].sort((one, other) =>
-        (one.name.en ?? '') < (other.name.en ?? '') ? 1 : -1
-      ),
+      list: [...listed.list]
+        .sort((one, other) =>
+          `${one.name.en ?? ''}|${one.slug}`.localeCompare(
+            `${other.name.en ?? ''}|${other.slug}`
+          )
+        )
+        .reverse(),
     });
     await navigateToComponents(mainWindow, project.id);
 
@@ -351,8 +363,17 @@ test.describe('Components', () => {
       'Call to action',
       'Gallery',
       'Hero',
+      'Hero',
       'Opening hours',
     ]);
+
+    // Which of the two Hero rows stands first, read off what each row opens,
+    // since their names cannot tell them apart.
+    const opens = await componentListPane(mainWindow)
+      .locator('[data-slot="component-row"]')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute('href')));
+    expect(opens[2]).toContain(made.get('hero'));
+    expect(opens[3]).toContain(made.get('hero-wide'));
   });
 
   // How many Entries use each Component is the one read this list makes of its
