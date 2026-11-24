@@ -111,9 +111,9 @@ export interface SwitchControlProps<
  *
  * Reading the Value as it is would hand the switch `undefined` on the first
  * draw of a form whose Value has not arrived yet, which the switch takes as
- * having no state of its own to follow. It then keeps drawing the state it
- * started in and ignores the Value for good, so a stored `true` read as off,
- * announced off, and the first click on it changed nothing.
+ * having no state of its own to follow. It would then keep drawing the state
+ * it started in and ignore the Value for good, so a stored `true` would read
+ * as off, be announced off, and take a first click that changes nothing.
  */
 export function SwitchControl<TFieldValues extends FieldValues>({
   field,

@@ -889,9 +889,10 @@ subtly wrong and Core validates tightly:
 - **`SwitchControl`** binds a `Switch` to a boolean. It is on where the Value is
   `true` and off everywhere else, rather than passing the Value through: a form
   filled from its query holds `undefined` there on its first render, which the
-  switch reads as having no state to follow at all. It then kept drawing the
-  state it started in and ignored every later Value, so a stored `true` read as
-  off, announced itself off, and the first click on it changed nothing.
+  switch reads as having no state to follow at all. It would then keep drawing
+  the state it started in and ignore every later Value, so a stored `true`
+  would read as off, announce itself off, and take a first click that changes
+  nothing.
 - **`OptionChoice`** ([`fields/select/control.tsx`](../../src/renderer/components/fields/select/control.tsx)) is the choice between named options: a list of radio buttons up to seven of them and a combobox with a filter beyond that, with None leading wherever the Value may stay empty. The select field's control and the Default Value of a select's own settings are both it, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-select-fields-options). It lives in the select folder rather than here, because the select field is what it is about.
 - The transforms themselves are in
   [`lib/fieldValues.ts`](../../src/renderer/lib/fieldValues.ts), so a form that
