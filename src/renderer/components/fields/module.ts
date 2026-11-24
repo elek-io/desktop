@@ -7,7 +7,6 @@ import type {
   FieldValues,
   UseFormReturn,
 } from 'react-hook-form';
-
 import type { z } from 'zod';
 
 import type { FieldControlProps } from '@renderer/components/ui/field-controls';

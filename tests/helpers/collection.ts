@@ -724,9 +724,10 @@ export async function chooseFieldDefinition(
   await page
     .getByRole('button', { name: `Settings of the ${label} field` })
     .click();
-  const pane = page.getByRole('complementary', {
-    name: `Settings of the ${label} field`,
-  });
+  // Found by what it is rather than by the field's own label, since the pane
+  // names itself after that label and the label is one of the things edited in
+  // it.
+  const pane = page.getByRole('complementary', { name: /^Settings of the/ });
   await expect(pane).toBeVisible();
 
   return pane;

@@ -365,9 +365,13 @@ msgstr "A unique field takes no Default Value, since every Entry would start wit
 msgid "a Value"
 msgstr "a Value"
 
+#: src/renderer/components/fields/slug/definition.tsx
+msgid "Add a field"
+msgstr "Add a field"
+
 #: src/renderer/components/fields/markdown/definition.tsx
-msgid "Add"
-msgstr "Add"
+msgid "Add a mark"
+msgstr "Add a mark"
 
 #: src/renderer/components/report-dialog.tsx
 msgid "Add a name, or clear the email to send this anonymously."
@@ -400,10 +404,14 @@ msgstr "Add Collection"
 msgid "Add Component"
 msgstr "Add Component"
 
-#: src/renderer/components/fields/slug/definition.tsx
 #: src/renderer/components/forms/field-definitions-editor.tsx
 msgid "Add field"
 msgstr "Add field"
+
+#: src/renderer/components/fields/asset/definition.tsx
+#: src/renderer/components/fields/markdown/definition.tsx
+msgid "Add file type"
+msgstr "Add file type"
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "Add language"
@@ -2423,6 +2431,7 @@ msgid "Settings of the {collectionName} Collection"
 msgstr "Settings of the {collectionName} Collection"
 
 #: src/renderer/components/fields/field-from-definition.tsx
+#: src/renderer/components/forms/field-definitions-editor.tsx
 msgid "Settings of the {label} field"
 msgstr "Settings of the {label} field"
 
@@ -2798,7 +2807,6 @@ msgid "The same text was changed here and on another computer, so the two cannot
 msgstr "The same text was changed here and on another computer, so the two cannot be put together. Ask whoever set up this Project."
 
 #: src/renderer/components/forms/collection-form.tsx
-#: src/renderer/components/forms/component-form.tsx
 msgid "the settings of the chosen field"
 msgstr "the settings of the chosen field"
 

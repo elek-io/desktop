@@ -374,9 +374,11 @@ test.describe('Collections', () => {
       name: /^Settings of the/,
     });
     await expect(pane).toBeVisible();
-    await expect(pane.getByRole('combobox', { name: 'Type' })).toHaveText(
-      'textarea'
-    );
+    await expect(
+      pane
+        .getByRole('combobox', { name: 'Type', exact: true })
+        .locator('[data-slot="select-value"]')
+    ).toHaveText('textarea');
     await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
 
     await pane.getByLabel('Label', { exact: true }).fill('Teaser');
@@ -433,9 +435,11 @@ test.describe('Collections', () => {
     );
     // The type it holds, and the width it was saved at, as the one segment that
     // reads as pressed.
-    await expect(pane.getByRole('combobox', { name: 'Type' })).toHaveText(
-      /textarea|text/
-    );
+    await expect(
+      pane
+        .getByRole('combobox', { name: 'Type', exact: true })
+        .locator('[data-slot="select-value"]')
+    ).toHaveText('text');
     await expect(
       pane.getByRole('button', { name: '1/2', exact: true })
     ).toHaveAttribute('aria-pressed', 'true');
@@ -465,7 +469,7 @@ test.describe('Collections', () => {
       projectId: project.id,
       collectionId: collection.id,
     });
-    const rows = (): Promise<string[]> =>
+    const rows = async (): Promise<string[]> =>
       mainWindow
         .getByRole('button', { name: /^Settings of the/ })
         .evaluateAll((found) =>
@@ -872,7 +876,7 @@ test.describe('Collections', () => {
 
     // The switch marks the language that is missing something.
     await expect(
-      mainWindow.getByRole('button', { name: /^DE, missing 4 translations/ })
+      mainWindow.getByRole('button', { name: /DE.*missing 4 translations/ })
     ).toBeVisible();
 
     // Filling German settles each of them, one at a time.
@@ -1108,9 +1112,16 @@ test.describe('Collections', () => {
         fieldType,
       });
       await expect(
-        pane.getByRole('combobox', { name: 'Type' }),
+        pane
+          .getByRole('combobox', { name: 'Type', exact: true })
+          .locator('[data-slot="select-value"]'),
         `${fieldType} does not say what it is`
       ).toHaveText(fieldType);
+      // A select starts with one option and Core takes none that holds
+      // nothing, so the option it is saved with is written here.
+      if (fieldType === 'select') {
+        await pane.getByLabel('Option 1 label', { exact: true }).fill('High');
+      }
     }
 
     await mainWindow
@@ -1362,22 +1373,26 @@ test.describe('Collections', () => {
       ],
     });
 
-    await navigateToCollectionSettings(mainWindow, {
-      projectId: project.id,
-      collectionId: collection.id,
-    });
-    // With the pane of a chosen field open, which is the widest the screen gets.
-    await chooseFieldDefinition(mainWindow, 'Teaser');
-    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
-
     for (const theme of ['light', 'dark'] as const) {
+      // The theme is put on first, since it is applied through the app's own
+      // provider and reloads the renderer, which closes the pane again.
       await setTheme(mainWindow, theme);
+      await navigateToCollectionSettings(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+      });
+      // With the pane of a chosen field open, which is the widest the screen
+      // gets.
+      await chooseFieldDefinition(mainWindow, 'Teaser');
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
       await waitForLayout(mainWindow);
 
       const measured = await mainWindow.evaluate(() => {
         const panel = document.querySelector('[data-slot="panel"]');
+        // The panes of this screen, not the one the Project's layout draws
+        // around whatever is open.
         const panes = Array.from(
-          document.querySelectorAll('[data-slot="pane"]')
+          document.querySelectorAll('[data-slot="panes"] > [data-slot="pane"]')
         );
         if (panel === null || panes.length < 2) {
           throw new Error('The settings did not draw their panes');
