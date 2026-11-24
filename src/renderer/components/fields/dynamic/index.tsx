@@ -1,13 +1,19 @@
+import { msg } from '@lingui/core/macro';
+import { BlocksIcon } from 'lucide-react';
+
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { countRules } from '@renderer/components/fields/rules';
 import { noText, noTitle } from '@renderer/components/fields/value-contracts';
+import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 
-import { resolveOfComponents } from '@elek-io/core';
+import {
+  dynamicFieldDefinitionSchema,
+  resolveOfComponents,
+} from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
-import { AllowComponentsSheet } from './allow-components-sheet';
 import { DynamicControl } from './control';
-import { DynamicDefinitionDraft } from './definition';
+import { DynamicDefinitionEditor } from './definition';
 
 /**
  * The sections of a page: an ordered list of Component items, each holding that
@@ -21,6 +27,8 @@ export const dynamicField: FieldTypeModule<'dynamic'> = {
   // A list of sections is not one control, so the rules beside its label
   // carry required.
   acceptsAriaRequired: false,
+  Icon: BlocksIcon,
+  group: 'links',
   rules: countRules,
   Control: ({ field, fieldDefinition, disabled, controlProps }) => (
     <DynamicControl
@@ -47,14 +55,17 @@ export const dynamicField: FieldTypeModule<'dynamic'> = {
   allowedComponentIds: (fieldDefinition, everyComponentId) => [
     ...resolveOfComponents(fieldDefinition, everyComponentId),
   ],
-  // The one part of a definition that can be edited after it was added: which
-  // Components a section may be built from.
-  EditSheet: ({ fieldDefinition, onChange, onClose }) => (
-    <AllowComponentsSheet
-      fieldDefinition={fieldDefinition}
-      onAllow={onChange}
-      onClose={onClose}
-    />
-  ),
-  DefinitionDraft: (props) => <DynamicDefinitionDraft {...props} />,
+  uniquenessNote: () => msg`A dynamic field can't be unique.`,
+  definitionSchema: () => dynamicFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'component',
+    fieldType: 'dynamic',
+    isUnique: false,
+    ofComponents: [],
+    min: null,
+    max: null,
+  }),
+  DefinitionEditor: DynamicDefinitionEditor,
 };

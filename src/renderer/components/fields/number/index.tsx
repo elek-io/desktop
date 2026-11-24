@@ -1,73 +1,29 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { HashIcon } from 'lucide-react';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { numberRules } from '@renderer/components/fields/rules';
 import {
-  storedText,
   noTitle,
+  storedText,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
+import { DefinitionBounds } from '@renderer/components/forms/definition-controls';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
-import {
-  DefinitionDraft,
-  MinMaxRow,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
 import { AppField } from '@renderer/components/ui/app-form';
 import { TextControl } from '@renderer/components/ui/field-controls';
 
-import {
-  numberFieldDefinitionSchema,
-  uuid,
-  type NumberFieldDefinition,
-} from '@elek-io/core';
+import { numberFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
-
-const spec: DefinitionSpec<NumberFieldDefinition> = {
-  uniquenessNote: msg`Number fields cannot be unique.`,
-  schema: numberFieldDefinitionSchema,
-
-  resolver: zodResolver(numberFieldDefinitionSchema),
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'number',
-    fieldType: 'number',
-    defaultValue: null,
-    min: null,
-    max: null,
-    isUnique: false,
-  }),
-  Extras: ({ form }) => (
-    <>
-      <AppField
-        form={form}
-        name="defaultValue"
-        label={<Trans>Default value</Trans>}
-        description={<Trans>The initial value for the field.</Trans>}
-      >
-        {({ field, controlProps }) => (
-          <TextControl field={field} type="number" {...controlProps} />
-        )}
-      </AppField>
-      <MinMaxRow
-        form={form}
-        minName="min"
-        maxName="max"
-        minDescription={<Trans>The smallest value the user can enter.</Trans>}
-        maxDescription={<Trans>The largest value the user can enter.</Trans>}
-      />
-    </>
-  ),
-};
 
 /** A number. */
 export const numberField: FieldTypeModule<'number'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  Icon: HashIcon,
+  group: 'numbers',
   rules: numberRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextControl
@@ -83,5 +39,38 @@ export const numberField: FieldTypeModule<'number'> = {
   isEmpty: holdsNothing,
   renderValue: storedText,
   titleText: noTitle,
-  DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
+  uniquenessNote: () => msg`A number field can't be unique.`,
+  definitionSchema: () => numberFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'number',
+    fieldType: 'number',
+    defaultValue: null,
+    min: null,
+    max: null,
+    isUnique: false,
+  }),
+  DefinitionEditor: ({ form, path }) => (
+    <>
+      <AppField
+        form={form}
+        name={path('defaultValue')}
+        label={<Trans>Default Value</Trans>}
+        description={
+          <Trans>Every new Entry starts with it, in every language.</Trans>
+        }
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="number" {...controlProps} />
+        )}
+      </AppField>
+      <DefinitionBounds
+        form={form}
+        minName={path('min')}
+        maxName={path('max')}
+        description={<Trans>The number editors can enter.</Trans>}
+      />
+    </>
+  ),
 };

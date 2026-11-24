@@ -1,27 +1,64 @@
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useLingui } from '@lingui/react/macro';
 import { useMemo } from 'react';
 
 import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
-import { ComponentForm } from '@renderer/components/forms/component-form';
-import { useAppForm } from '@renderer/hooks/useAppForm';
+import { FieldDefinitionPreview } from '@renderer/components/fields/field-from-definition';
+import { FieldShell } from '@renderer/components/ui/app-form';
+import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { translatableDefault } from '@renderer/lib/utils';
+import { fieldRules } from '@renderer/lib/fieldRules';
 import { queryOptions } from '@renderer/queries';
 
-import {
-  updateComponentSchema,
-  type GitCommit,
-  type Project,
-} from '@elek-io/core';
+import { type Component, type GitCommit, type Project } from '@elek-io/core';
+
+/** A Component as it stood at one commit, read rather than edited. */
+function ComponentSettings({
+  component,
+}: {
+  component: Component;
+}): React.JSX.Element {
+  const { t } = useLingui();
+  const { translateContent } = useProject();
+  const line = (label: string, text: string): React.JSX.Element => (
+    <FieldShell label={label} rules={fieldRules({ required: false })}>
+      {() => <p className="text-sm">{text}</p>}
+    </FieldShell>
+  );
+
+  return (
+    <div className="flex flex-col gap-4 p-6">
+      {line(
+        t`Component name`,
+        translateContent({ key: 'component.name', record: component.name })
+      )}
+      {line(t`Component slug`, component.slug)}
+      {line(
+        t`Description`,
+        component.description === null
+          ? ''
+          : translateContent({
+              key: 'component.description',
+              record: component.description,
+            })
+      )}
+      <div className="@container grid grid-cols-12 gap-x-6 gap-y-2 border-t pt-4">
+        {component.fieldDefinitions.map((fieldDefinition) => (
+          <FieldDefinitionPreview
+            key={fieldDefinition.id}
+            fieldDefinition={fieldDefinition}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
- * What one commit changed about a Component, drawn with the same form the
- * editor uses, read-only. So the Component is named by the name somebody gave
- * it here too, and a field added to the editor shows up here with no extra
- * work. Modelled on `collection-diff.tsx`.
+ * What one commit changed about a Component, read at the commit before it and
+ * at the commit itself. Modelled on `collection-diff.tsx`.
  */
 export function ComponentDiff({
   project,
@@ -82,41 +119,6 @@ export function ComponentDiff({
       enabled: commitBefore !== undefined,
     });
 
-  // Seeded inline rather than from a shared object, so react-hook-form infers
-  // the form values from the resolver and reads these as its deep partial. A
-  // shared const would pin the value type to its own narrower shape instead.
-  const componentFormBefore = useAppForm({
-    resolver: zodResolver(updateComponentSchema),
-    defaultValues: {
-      projectId: project.id,
-      id: commit.message.reference.id,
-      name: translatableDefault({
-        supportedLanguages: project.settings.language.supported,
-        defaultValue: '',
-      }),
-      slug: '',
-      description: translatableDefault({
-        supportedLanguages: project.settings.language.supported,
-        defaultValue: '',
-      }),
-      fieldDefinitions: [],
-    },
-    // Filled from the query rather than reset in an effect.
-    ...(isReadingComponentBefore
-      ? {}
-      : {
-          values: {
-            projectId: project.id,
-            id: componentBefore.id,
-            name: componentBefore.name,
-            slug: componentBefore.slug,
-            description: componentBefore.description,
-            fieldDefinitions: componentBefore.fieldDefinitions,
-          },
-        }),
-    disabled: isReadingComponentBefore,
-  });
-
   const { data: componentAfter, isPending: isReadingComponentAfter } =
     useQueryNoError({
       ...queryOptions.components.read({
@@ -126,38 +128,6 @@ export function ComponentDiff({
       }),
       enabled: commitAfter !== undefined,
     });
-
-  const componentFormAfter = useAppForm({
-    resolver: zodResolver(updateComponentSchema),
-    defaultValues: {
-      projectId: project.id,
-      id: commit.message.reference.id,
-      name: translatableDefault({
-        supportedLanguages: project.settings.language.supported,
-        defaultValue: '',
-      }),
-      slug: '',
-      description: translatableDefault({
-        supportedLanguages: project.settings.language.supported,
-        defaultValue: '',
-      }),
-      fieldDefinitions: [],
-    },
-    // Filled from the query rather than reset in an effect.
-    ...(isReadingComponentAfter
-      ? {}
-      : {
-          values: {
-            projectId: project.id,
-            id: componentAfter.id,
-            name: componentAfter.name,
-            slug: componentAfter.slug,
-            description: componentAfter.description,
-            fieldDefinitions: componentAfter.fieldDefinitions,
-          },
-        }),
-    disabled: isReadingComponentAfter,
-  });
 
   if (
     isReadingHistory ||
@@ -175,51 +145,38 @@ export function ComponentDiff({
     return <DiffContainerSkeleton centered />;
   }
 
-  if (!commitBefore && commitAfter) {
+  // The object itself is read as well, since a query that is switched off
+  // stays pending and so says nothing about what it holds.
+  if (!commitBefore && commitAfter && componentAfter !== undefined) {
     return (
       <DiffContainer type="create" commit={commitAfter}>
-        <ComponentForm
-          schema={updateComponentSchema}
-          project={project}
-          componentForm={componentFormAfter}
-          isViewOnly
-        />
+        <ComponentSettings component={componentAfter} />
       </DiffContainer>
     );
   }
 
-  if (!commitAfter && commitBefore) {
+  if (!commitAfter && commitBefore && componentBefore !== undefined) {
     return (
       <DiffContainer type="delete" commit={commitBefore}>
-        <ComponentForm
-          schema={updateComponentSchema}
-          project={project}
-          componentForm={componentFormBefore}
-          isViewOnly
-        />
+        <ComponentSettings component={componentBefore} />
       </DiffContainer>
     );
   }
 
-  if (commitBefore && commitAfter) {
+  if (
+    commitBefore &&
+    commitAfter &&
+    componentBefore !== undefined &&
+    componentAfter !== undefined
+  ) {
     return (
       <>
         <DiffContainer type="before" commit={commitBefore}>
-          <ComponentForm
-            schema={updateComponentSchema}
-            project={project}
-            componentForm={componentFormBefore}
-            isViewOnly
-          />
+          <ComponentSettings component={componentBefore} />
         </DiffContainer>
 
         <DiffContainer type="after" commit={commitAfter}>
-          <ComponentForm
-            schema={updateComponentSchema}
-            project={project}
-            componentForm={componentFormAfter}
-            isViewOnly
-          />
+          <ComponentSettings component={componentAfter} />
         </DiffContainer>
       </>
     );

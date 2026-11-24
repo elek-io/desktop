@@ -1,10 +1,4 @@
-import { Trans, useLingui } from '@lingui/react/macro';
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  EditIcon,
-  TrashIcon,
-} from 'lucide-react';
+import { useLingui } from '@lingui/react/macro';
 import * as React from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -24,8 +18,6 @@ import {
   type AppFieldRenderProps,
   type FieldRefusal,
 } from '@renderer/components/ui/app-form';
-import { Button } from '@renderer/components/ui/button';
-import { ButtonGroup } from '@renderer/components/ui/button-group';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
 import {
   useAppFormMode,
@@ -264,42 +256,38 @@ export function FieldFromDefinition<
 
 export interface FieldDefinitionPreviewProps {
   fieldDefinition: FieldDefinition;
+  /**
+   * Opens this field's settings. Undefined where the fields are read rather
+   * than edited, and then the row is not a control at all.
+   */
+  onChoose?: (() => void) | undefined;
+  /** Whether this is the field whose settings the pane beside it shows. */
+  isChosen?: boolean;
+  /** Whether the chosen field can be dragged to another place. */
   isDraggable?: boolean;
-  /**
-   * Opens the editor for this definition. Undefined where nothing about it can
-   * be changed, so no edit control is rendered at all rather than a disabled
-   * one that says nothing and no keyboard reaches.
-   */
-  onEdit?: (() => void) | undefined;
-  /**
-   * Moves this definition one place up or down. Undefined where that move does
-   * not exist, so the button renders disabled rather than vanishing and
-   * shifting the rest of the chrome. Reordering by dragging alone would fail
-   * WCAG 2.1.1 and 2.5.7, so both exist wherever one does.
-   */
-  onMoveUp?: (() => void) | undefined;
-  onMoveDown?: (() => void) | undefined;
-  onDelete?: ((fieldDefinition: FieldDefinition) => void) | undefined;
   className?: string;
 }
 
 /**
- * A non-editable preview of a field definition, for the Collection and
- * Component editors.
+ * One field as editors see it, which is how a Collection's and a Component's
+ * settings show the fields they define.
  *
  * It draws the same shell as a real field, with no form behind it: the control
  * holds a static, disabled Value from the type's folder, so there are no
  * phantom form paths and the label still names a real, disabled control.
+ *
+ * The whole row opens the field's settings, so there is one way in and a
+ * pointer hits it wherever it lands. The chosen row takes the muted surface
+ * and the bar, as ci draws a chosen row, and keeps the grip for those who drag.
  */
 export function FieldDefinitionPreview({
   fieldDefinition,
+  onChoose,
+  isChosen = false,
   isDraggable = false,
-  onEdit,
-  onMoveUp,
-  onMoveDown,
-  onDelete,
   className,
 }: FieldDefinitionPreviewProps): React.ReactElement {
+  const { t } = useLingui();
   const { translateContent } = useProject();
   const module = fieldModule(fieldDefinition);
   const label = translateContent({
@@ -323,70 +311,20 @@ export function FieldDefinitionPreview({
 
   return (
     <div
+      data-slot="field-definition-preview"
+      data-chosen={isChosen}
       className={cn(
-        `col-span-12 flex items-center gap-2 ${fieldWidth(fieldDefinition.inputWidth)}`,
+        'relative col-span-12 rounded-md',
+        fieldWidth(fieldDefinition.inputWidth),
+        isChosen
+          ? 'bg-muted shadow-[inset_2px_0_0_var(--color-foreground)]'
+          : null,
         className
       )}
     >
-      {/* A vertical ButtonGroup, so the stack's rounding and borders follow
-      the buttons that are actually there rather than a condition per button. */}
-      <ButtonGroup orientation="vertical">
-        {isDraggable === true ? (
-          <>
-            <DragHandle id={fieldDefinition.id} />
-            <Button
-              Icon={ChevronUpIcon}
-              variant="secondary"
-              size="icon"
-              disabled={onMoveUp === undefined}
-              onClick={onMoveUp}
-            >
-              <span className="sr-only">
-                <Trans>Move the {label} field up</Trans>
-              </span>
-            </Button>
-            <Button
-              Icon={ChevronDownIcon}
-              variant="secondary"
-              size="icon"
-              disabled={onMoveDown === undefined}
-              onClick={onMoveDown}
-            >
-              <span className="sr-only">
-                <Trans>Move the {label} field down</Trans>
-              </span>
-            </Button>
-          </>
-        ) : null}
-        {onEdit !== undefined ? (
-          // A dynamic field is the only one with something to edit: the
-          // Components it allows. The name says that rather than "Edit", so
-          // pressing it holds no surprise.
-          <Button
-            Icon={EditIcon}
-            variant="secondary"
-            size="icon"
-            onClick={onEdit}
-          >
-            <span className="sr-only">
-              <Trans>Allow more Components on the {label} field</Trans>
-            </span>
-          </Button>
-        ) : null}
-        {onDelete !== undefined ? (
-          <Button
-            Icon={TrashIcon}
-            variant="destructive"
-            size="icon"
-            onClick={() => onDelete(fieldDefinition)}
-          >
-            <span className="sr-only">
-              <Trans>Remove the {label} field</Trans>
-            </span>
-          </Button>
-        ) : null}
-      </ButtonGroup>
-      <div className="flex w-full flex-col">
+      {/* The row's own padding keeps the grip's column free whether or not
+      this row is the chosen one, so choosing a field moves nothing. */}
+      <div className="relative py-2 pr-2 pl-6">
         <FieldShell
           label={label}
           rules={module.rules(fieldDefinition)}
@@ -402,7 +340,27 @@ export function FieldDefinitionPreview({
             })
           }
         </FieldShell>
+        {onChoose === undefined ? null : (
+          // The whole row, as one control over the field it shows. Its own
+          // name says what it opens, since the field below it is a preview
+          // rather than something to fill in here.
+          <button
+            type="button"
+            aria-pressed={isChosen}
+            aria-label={t`Settings of the ${label} field`}
+            className="absolute inset-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            onClick={onChoose}
+          />
+        )}
       </div>
+      {/* Above the row's own control, so dragging the chosen field stays
+      possible for whoever prefers it, as ci keeps it. */}
+      {isChosen && isDraggable ? (
+        <DragHandle
+          id={fieldDefinition.id}
+          className="absolute top-2.5 left-0.5 z-10 size-5 bg-transparent"
+        />
+      ) : null}
     </div>
   );
 }

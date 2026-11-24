@@ -1,4 +1,5 @@
-import { plural, t } from '@lingui/core/macro';
+import { msg, plural, t } from '@lingui/core/macro';
+import { ImageIcon } from 'lucide-react';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { countRules } from '@renderer/components/fields/rules';
@@ -7,10 +8,13 @@ import {
   referenceCount,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
+import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
+
+import { assetFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
 import { AssetControl } from './control';
-import { AssetDefinitionDraft } from './definition';
+import { AssetDefinitionEditor } from './definition';
 import { assetKindNote } from './kind';
 
 /** One or more of the Project's Assets, held as references. */
@@ -21,6 +25,8 @@ export const assetField: FieldTypeModule<'asset'> = {
   // which every one of those buttons names in `aria-describedby`, and Choose
   // and Replace say the word in their accessible name too.
   acceptsAriaRequired: false,
+  Icon: ImageIcon,
+  group: 'links',
   rules: (fieldDefinition) =>
     countRules(
       fieldDefinition,
@@ -49,5 +55,17 @@ export const assetField: FieldTypeModule<'asset'> = {
       : t`${plural(count, { one: '# Asset', other: '# Assets' })}`;
   },
   titleText: noTitle,
-  DefinitionDraft: (props) => <AssetDefinitionDraft {...props} />,
+  uniquenessNote: () => msg`A reference field can't be unique.`,
+  definitionSchema: () => assetFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'reference',
+    fieldType: 'asset',
+    isUnique: false,
+    min: null,
+    max: null,
+    ofAssetMimeTypes: [],
+  }),
+  DefinitionEditor: AssetDefinitionEditor,
 };

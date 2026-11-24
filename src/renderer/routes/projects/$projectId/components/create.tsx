@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
-import { msg } from '@lingui/core/macro';
+import { msg, plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useId, useState, type ReactElement } from 'react';
+import { useCallback, useId, useState, type ReactElement } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 
 import { ComponentForm } from '@renderer/components/forms/component-form';
@@ -24,20 +24,32 @@ import {
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
+import { useDefinitionsEditor } from '@renderer/hooks/useDefinitionsEditor';
+import { useMissingTranslations } from '@renderer/hooks/useMissingTranslations';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
-import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
-import { translatableDefault } from '@renderer/lib/utils';
+import {
+  entryLanguage,
+  entryLanguageSearchSchema,
+} from '@renderer/lib/entryLanguage';
+import { componentTranslatableTexts } from '@renderer/lib/missingTranslations';
+import {
+  withBlankDefinitionDescriptionsAsNull,
+  withEmptyDescriptionAsNull,
+} from '@renderer/lib/resolver';
+import { languageName, translatableDefault } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
   type CoreErrorType,
   type CreateComponentProps,
   getCreateComponentSchemaFromLanguages,
+  type SupportedLanguage,
 } from '@elek-io/core';
 
 export const Route = createFileRoute('/projects/$projectId/components/create')({
   component: ProjectComponentCreate,
+  validateSearch: entryLanguageSearchSchema,
 });
 
 // The slug another Component holds is said below the Slug field, so only the
@@ -78,8 +90,8 @@ function ProjectComponentCreate(): ReactElement {
       : getCreateComponentSchemaFromLanguages([]);
 
   const createComponentForm = useAppForm({
-    resolver: withEmptyDescriptionAsNull(
-      zodResolver(generatedCreateComponentSchema)
+    resolver: withBlankDefinitionDescriptionsAsNull(
+      withEmptyDescriptionAsNull(zodResolver(generatedCreateComponentSchema))
     ),
     defaultValues: {
       projectId,
@@ -132,6 +144,49 @@ function ProjectComponentCreate(): ReactElement {
     },
   });
 
+  const definitions = useDefinitionsEditor({
+    form: createComponentForm,
+    owner: 'component',
+    supportedLanguages: isReadingProject
+      ? []
+      : project.settings.language.supported,
+  });
+
+  // What keeps this Component from being created, in the words below the
+  // button, as the Collection's settings say it.
+  const languages = isReadingProject ? undefined : project.settings.language;
+  const missingByLanguage = useMissingTranslations({
+    form: createComponentForm,
+    textsOf: useCallback(componentTranslatableTexts, []),
+    languages,
+  });
+  const [missingLanguage, missingTexts] = [...missingByLanguage.entries()].find(
+    ([, count]) => count > 0
+  ) ?? [undefined, 0];
+  const missing =
+    missingLanguage === undefined ? undefined : languageName(missingLanguage);
+  const blockedBy =
+    missing === undefined
+      ? undefined
+      : t`${missing} is missing ${plural(missingTexts, { one: '# translation', other: '# translations' })}`;
+
+  const navigate = Route.useNavigate();
+  const supportedLanguages = languages?.supported ?? [];
+  const shownLanguage = entryLanguage({
+    search: Route.useSearch(),
+    supportedLanguages,
+    defaultLanguage: isReadingProject
+      ? undefined
+      : project.settings.language.default,
+  });
+  const setLanguage = (next: SupportedLanguage): void => {
+    void navigate({
+      search: (previous) => ({ ...previous, language: next }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
+
   function Description(): ReactElement {
     return (
       <Trans>
@@ -143,7 +198,7 @@ function ProjectComponentCreate(): ReactElement {
 
   function Actions(): ReactElement {
     return (
-      <FormActions form={createComponentForm} id={formId}>
+      <FormActions form={createComponentForm} id={formId} blockedBy={blockedBy}>
         <SubmitButton Icon={Check}>
           <Trans>Create Component</Trans>
         </SubmitButton>
@@ -184,6 +239,12 @@ function ProjectComponentCreate(): ReactElement {
         id={formId}
         componentForm={createComponentForm}
         project={project}
+        definitions={definitions}
+        componentName={t`Component`}
+        language={shownLanguage}
+        onLanguageChange={setLanguage}
+        missingByLanguage={missingByLanguage}
+        blockedBy={blockedBy}
         isViewOnly={isCreatingComponent}
         onFormSubmit={onCreate}
       />

@@ -1,5 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans } from '@lingui/react/macro';
+import { CalendarIcon } from 'lucide-react';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
@@ -10,52 +10,19 @@ import {
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
-import {
-  DefinitionDraft,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
 import { AppField } from '@renderer/components/ui/app-form';
 
-import {
-  dateFieldDefinitionSchema,
-  uuid,
-  type DateFieldDefinition,
-} from '@elek-io/core';
+import { dateFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
 import { DateControl } from './control';
-
-const spec: DefinitionSpec<DateFieldDefinition> = {
-  schema: dateFieldDefinitionSchema,
-
-  resolver: zodResolver(dateFieldDefinitionSchema),
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'string',
-    fieldType: 'date',
-    defaultValue: null,
-  }),
-  // Uses the bespoke date picker, not a plain text control, so it cannot route
-  // through DefaultValueInputField.
-  Extras: ({ form }) => (
-    <AppField
-      form={form}
-      name="defaultValue"
-      label={<Trans>Default value</Trans>}
-      description={<Trans>The initial value for the field.</Trans>}
-    >
-      {({ field, controlProps }) => (
-        <DateControl field={field} {...controlProps} />
-      )}
-    </AppField>
-  ),
-};
 
 /** A day, stored as a `YYYY-MM-DD` string. */
 export const dateField: FieldTypeModule<'date'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  Icon: CalendarIcon,
+  group: 'temporal',
   rules: scalarRules,
   Control: ({ field, disabled, controlProps }) => (
     <DateControl field={field} disabled={disabled} {...controlProps} />
@@ -75,5 +42,28 @@ export const dateField: FieldTypeModule<'date'> = {
       formatInUserLocale,
     }),
   titleText: textTitle,
-  DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
+  definitionSchema: () => dateFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'string',
+    fieldType: 'date',
+    defaultValue: null,
+  }),
+  // Its own picker rather than a text input, so the Default Value is chosen
+  // the way the field itself is filled in.
+  DefinitionEditor: ({ form, path }) => (
+    <AppField
+      form={form}
+      name={path('defaultValue')}
+      label={<Trans>Default Value</Trans>}
+      description={
+        <Trans>Every new Entry starts with it, in every language.</Trans>
+      }
+    >
+      {({ field, controlProps }) => (
+        <DateControl field={field} {...controlProps} />
+      )}
+    </AppField>
+  ),
 };

@@ -44,6 +44,7 @@ import {
   useErrorTarget,
   type AppFormContextValue,
 } from '@renderer/hooks/useAppFormContext';
+import { useFieldSchemaScope } from '@renderer/hooks/useFieldSchemaScope';
 import {
   useUnsavedChanges,
   useUnsavedChangesClaim,
@@ -53,6 +54,7 @@ import {
   fieldRules,
   fieldRulesFromSchema,
   fieldRulesLine,
+  withNotes,
   type FieldRules,
 } from '@renderer/lib/fieldRules';
 import {
@@ -131,6 +133,11 @@ export interface FieldShellProps {
   translateFrom?: ReactNode;
   /** The message of the one error this field shows, if any. */
   error?: string | undefined;
+  /**
+   * The id of a sentence outside this field that its control names as well,
+   * for a sentence two fields share, as ci's Minimum and Maximum do.
+   */
+  describedBy?: string | undefined;
   /** A field whose label, description and control sit side by side. */
   orientation?: 'vertical' | 'horizontal';
   className?: string;
@@ -158,6 +165,7 @@ export function FieldShell({
   warning,
   translateFrom,
   error,
+  describedBy: sharedDescribedBy,
   orientation = 'vertical',
   className,
   children,
@@ -192,6 +200,7 @@ export function FieldShell({
     translateFromPart === null ? null : translateFromId,
     description === undefined || description === null ? null : descriptionId,
     error === undefined ? null : errorId,
+    sharedDescribedBy ?? null,
   ]
     .filter((part): part is string => part !== null)
     .join(' ');
@@ -310,6 +319,12 @@ export interface AppFieldProps<
    */
   required?: boolean;
   /**
+   * A rule the Core schema cannot state, added to the ones it does, such as
+   * that a Collection's slug is unique within the Project, which Core enforces
+   * where it saves rather than in the schema.
+   */
+  notes?: string[];
+  /**
    * This field type's words for a refusal Core wrote its own English for, see
    * `FieldFromDefinition`. A hand-written field passes none, and then the
    * message stands as it arrived.
@@ -336,6 +351,7 @@ export function AppField<
   name,
   rules,
   required,
+  notes,
   coreRefusalText,
   children,
   ...shell
@@ -354,14 +370,22 @@ export function AppField<
   // because the schema a generated field is checked by is built from that
   // definition in the first place.
   const schema = useAppFormSchema();
+  // The schema of the part of the form this field sits in, where that part has
+  // one of its own, with this field's path relative to it. A field definition
+  // inside a Collection is the case, see `useFieldSchemaScope`.
+  const scope = useFieldSchemaScope();
+  const inScope = scope !== null && isAtOrBelow(name, scope.prefix);
   // What the schema says, which is nothing at all for a path it cannot follow,
   // and then the caller's own answer on top of it where it passed one. A list
   // is why the two are composed rather than ordered: its bounds come off the
   // schema while Required cannot, see `alsoRequired`.
   const fromSchema =
-    fieldRulesFromSchema(schema, name) ?? fieldRules({ required: false });
-  const shownRules =
-    rules ?? (required === true ? alsoRequired(fromSchema) : fromSchema);
+    fieldRulesFromSchema(
+      inScope ? scope.schema : schema,
+      inScope ? name.slice(scope.prefix.length + 1) : name
+    ) ?? fieldRules({ required: false });
+  const said = required === true ? alsoRequired(fromSchema) : fromSchema;
+  const shownRules = withNotes(rules ?? said, notes);
 
   return (
     <Controller

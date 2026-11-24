@@ -632,9 +632,13 @@ export default [
             '*.register',
             // The definition forms assert a field's path through a local
             // helper, since react-hook-form's FieldPath cannot reduce it for
-            // an unresolved generic.
+            // an unresolved generic. `set` writes one of a definition's own
+            // keys back through the same kind of helper, and `at` reads a key
+            // out of what a form holds, so both take a key rather than words.
             'base',
             'path',
+            'set',
+            'at',
             // A route id, which TanStack Router generates.
             'createFileRoute',
             // A browser API that takes a name, a selector or a feature rather

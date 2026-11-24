@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type MessageDescriptor } from '@lingui/core';
-import { msg } from '@lingui/core/macro';
+import { msg, plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check, Trash } from 'lucide-react';
-import { useId, useState, type ReactElement } from 'react';
+import { useCallback, useId, useState, type ReactElement } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 
 import { ComponentImpact } from '@renderer/components/component-impact';
@@ -37,20 +37,32 @@ import {
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
+import { useDefinitionsEditor } from '@renderer/hooks/useDefinitionsEditor';
+import { useMissingTranslations } from '@renderer/hooks/useMissingTranslations';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
-import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
+import {
+  entryLanguage,
+  entryLanguageSearchSchema,
+} from '@renderer/lib/entryLanguage';
+import { componentTranslatableTexts } from '@renderer/lib/missingTranslations';
+import {
+  withBlankDefinitionDescriptionsAsNull,
+  withEmptyDescriptionAsNull,
+} from '@renderer/lib/resolver';
 import {
   describeEntryIssue,
   entryIssuesOf,
   type SchemaChangeIssue,
 } from '@renderer/lib/schemaChange';
+import { languageName } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
   getUpdateComponentSchemaFromLanguages,
   type CoreErrorType,
+  type SupportedLanguage,
   type UpdateComponentProps,
 } from '@elek-io/core';
 
@@ -82,6 +94,7 @@ export const Route = createFileRoute(
   '/projects/$projectId/components/$componentId'
 )({
   component: ProjectComponentUpdate,
+  validateSearch: entryLanguageSearchSchema,
 });
 
 // Copy for a blocked delete, keyed by CoreError type.
@@ -143,8 +156,8 @@ function ProjectComponentUpdate(): ReactElement {
       : getUpdateComponentSchemaFromLanguages([]);
 
   const updateComponentForm = useAppForm({
-    resolver: withEmptyDescriptionAsNull(
-      zodResolver(generatedUpdateComponentSchema)
+    resolver: withBlankDefinitionDescriptionsAsNull(
+      withEmptyDescriptionAsNull(zodResolver(generatedUpdateComponentSchema))
     ),
     // Seed every bound value so each control is controlled from the first
     // render, before the Component arrives.
@@ -163,6 +176,14 @@ function ProjectComponentUpdate(): ReactElement {
     // as a removal plus an addition.
     ...(isReadingComponent ? {} : { values: { ...component, projectId } }),
     disabled: isReadingComponent,
+  });
+
+  const definitions = useDefinitionsEditor({
+    form: updateComponentForm,
+    owner: 'component',
+    supportedLanguages: isReadingProject
+      ? []
+      : project.settings.language.supported,
   });
 
   // Core raises Conflict on this path for two unrelated reasons, and the cause
@@ -218,9 +239,47 @@ function ProjectComponentUpdate(): ReactElement {
     );
   }
 
+  // What keeps this Component from being saved, in the words below Save. Core
+  // takes it only once every one of its names, labels and descriptions holds a
+  // text in every language of the Project.
+  const languages = isReadingProject ? undefined : project.settings.language;
+  const missingByLanguage = useMissingTranslations({
+    form: updateComponentForm,
+    textsOf: useCallback(componentTranslatableTexts, []),
+    languages: isReadingComponent ? undefined : languages,
+  });
+  const [missingLanguage, missingTexts] = [...missingByLanguage.entries()].find(
+    ([, count]) => count > 0
+  ) ?? [undefined, 0];
+  const missing =
+    missingLanguage === undefined ? undefined : languageName(missingLanguage);
+  const blockedBy =
+    missing === undefined
+      ? undefined
+      : t`${missing} is missing ${plural(missingTexts, { one: '# translation', other: '# translations' })}`;
+
+  // The language every name, label and description is edited in, which stays in
+  // the address, as the Collection's settings have it.
+  const navigate = Route.useNavigate();
+  const supportedLanguages = languages?.supported ?? [];
+  const shownLanguage = entryLanguage({
+    search: Route.useSearch(),
+    supportedLanguages,
+    defaultLanguage: isReadingProject
+      ? undefined
+      : project.settings.language.default,
+  });
+  const setLanguage = (next: SupportedLanguage): void => {
+    void navigate({
+      search: (previous) => ({ ...previous, language: next }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
+
   function Actions(): ReactElement {
     return (
-      <FormActions form={updateComponentForm} id={formId}>
+      <FormActions form={updateComponentForm} id={formId} blockedBy={blockedBy}>
         <SubmitButton requireDirty Icon={Check}>
           <Trans>Save changes</Trans>
         </SubmitButton>
@@ -290,6 +349,12 @@ function ProjectComponentUpdate(): ReactElement {
         id={formId}
         componentForm={updateComponentForm}
         project={project}
+        definitions={definitions}
+        componentName={name}
+        language={shownLanguage}
+        onLanguageChange={setLanguage}
+        missingByLanguage={missingByLanguage}
+        blockedBy={blockedBy}
         isViewOnly={isUpdatingComponent}
         onFormSubmit={onUpdate}
         unsavedChangesTitle={name}

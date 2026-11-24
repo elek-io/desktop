@@ -1,3 +1,6 @@
+import { i18n, type MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+
 import { assetField } from '@renderer/components/fields/asset';
 import { dateField } from '@renderer/components/fields/date';
 import { datetimeField } from '@renderer/components/fields/datetime';
@@ -17,9 +20,9 @@ import { timeField } from '@renderer/components/fields/time';
 import { toggleField } from '@renderer/components/fields/toggle';
 import { urlField } from '@renderer/components/fields/url';
 
-import type { FieldType } from '@elek-io/core';
+import { fieldTypeSchema, type FieldType } from '@elek-io/core';
 
-import type { FieldTypeModule } from './module';
+import type { FieldTypeGroup, FieldTypeModule } from './module';
 
 // The registry: one module per Core field type, assembled from the folders.
 // Everything outside a type's folder reads that type's module through
@@ -81,25 +84,97 @@ export function fieldModule<T extends FieldType>(fieldDefinition: {
   return FIELD_TYPES[fieldDefinition.fieldType];
 }
 
+/** ci's groups of field types, in the order the pane offers them. */
+const GROUP_WORDS = {
+  text: msg`Text`,
+  numbers: msg`Numbers`,
+  choices: msg`Choices`,
+  temporal: msg`Dates and times`,
+  contact: msg`Contact and web`,
+  links: msg`Links`,
+} satisfies Record<FieldTypeGroup, MessageDescriptor>;
+
+/** The groups in the order ci offers them. */
+const GROUP_ORDER: readonly (keyof typeof GROUP_WORDS)[] = [
+  'text',
+  'numbers',
+  'choices',
+  'temporal',
+  'contact',
+  'links',
+];
+
 /**
- * The field types the Add Field picker offers. A type whose folder carries no
- * authoring form is one Core defines and the client cannot author yet, so it is
- * listed as a type and offered as none.
+ * Every field type in the order ci reads them, inside their groups.
+ *
+ * Which group a type belongs to is that type's own answer. This only says in
+ * which order a group's types are offered, and a type it does not name yet
+ * still shows up, at the end of the group its folder names.
  */
-export const authorableFieldTypes: ReadonlySet<FieldType> = new Set(
-  Object.entries(FIELD_TYPES)
-    .filter(([, module]) => module.DefinitionDraft !== undefined)
-    .map(([fieldType]) => fieldType as FieldType)
-);
+const FIELD_TYPE_ORDER: readonly FieldType[] = [
+  'text',
+  'textarea',
+  'markdown',
+  'slug',
+  'number',
+  'range',
+  'toggle',
+  'select',
+  'date',
+  'time',
+  'datetime',
+  'email',
+  'url',
+  'telephone',
+  'ipv4',
+  'entry',
+  'asset',
+  'dynamic',
+];
+
+/** One of ci's groups, with the field types it holds. */
+export interface FieldTypesOfGroup {
+  group: FieldTypeGroup;
+  /** The group's name, read from the catalog as it is asked for. */
+  label: string;
+  /** Its field types, in the order ci draws them. */
+  fieldTypes: FieldType[];
+}
+
+function fieldTypesOf(group: FieldTypeGroup): FieldType[] {
+  const inGroup = fieldTypeSchema.options.filter(
+    (fieldType) => FIELD_TYPES[fieldType].group === group
+  );
+  const ordered = FIELD_TYPE_ORDER.filter((fieldType) =>
+    inGroup.includes(fieldType)
+  );
+
+  return [
+    ...ordered,
+    ...inGroup.filter((fieldType) => ordered.includes(fieldType) === false),
+  ];
+}
+
+/**
+ * Every field type in ci's groups, in ci's order, which is what the pane that
+ * adds a field offers and what the Type picker of a field's settings holds.
+ */
+export function fieldTypeGroups(): FieldTypesOfGroup[] {
+  return GROUP_ORDER.map((group) => ({
+    group,
+    label: i18n._(GROUP_WORDS[group]),
+    fieldTypes: fieldTypesOf(group),
+  }));
+}
 
 /**
  * The field types a Component cannot hold, which Core refuses on save. The Add
  * Field picker reads this, so the choice is never offered and then refused.
  */
 export const fieldTypesForbiddenInComponents: ReadonlySet<FieldType> = new Set(
-  Object.entries(FIELD_TYPES)
-    .filter(([, module]) => module.forbiddenInComponent === true)
-    .map(([fieldType]) => fieldType as FieldType)
+  fieldTypeSchema.options.filter(
+    (fieldType) => FIELD_TYPES[fieldType].forbiddenInComponent === true
+  )
 );
 
 export type { FieldTypeModule } from './module';

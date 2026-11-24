@@ -1,5 +1,6 @@
+import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import {
   type FieldPath,
   type FieldValues,
@@ -7,29 +8,40 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
-import { FieldDefinitionsEditor } from '@renderer/components/forms/field-definitions-editor';
-import { AppField, AppForm } from '@renderer/components/ui/app-form';
-import { TextControl } from '@renderer/components/ui/field-controls';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@renderer/components/ui/select';
+  FieldDefinitionsList,
+  FieldDefinitionsPane,
+} from '@renderer/components/forms/field-definitions-editor';
+import { LanguageSwitch } from '@renderer/components/language-switch';
+import { Pane, PaneHead, Panes } from '@renderer/components/pane';
 import {
-  TranslatableFormInputField,
-  TranslatableFormTextareaField,
-} from '@renderer/components/ui/translatable-field';
-import { COLLECTION_ICON_NAMES } from '@renderer/lib/collectionIcons';
+  AppField,
+  AppForm,
+  FormActions,
+} from '@renderer/components/ui/app-form';
+import {
+  TextareaControl,
+  TextControl,
+} from '@renderer/components/ui/field-controls';
+import { ScrollArea } from '@renderer/components/ui/scroll-area';
+import { type DefinitionsEditorState } from '@renderer/hooks/useDefinitionsEditor';
+import { uniqueNote } from '@renderer/lib/fieldRules';
 
-import { type Project } from '@elek-io/core';
+import { type Project, type SupportedLanguage } from '@elek-io/core';
 
-/** The icons a Collection is offered, as the value-to-label map a select needs. */
-const iconItems: Record<string, string> = Object.fromEntries(
-  COLLECTION_ICON_NAMES.map((name) => [name, name])
-);
+// A Collection's settings: one page with its names, its slugs and its
+// description, then the fields it defines as editors see them, and the pane of
+// 296 px beside them.
+//
+// The whole screen stands inside the one form it is saved from, so the pane
+// beside the fields edits the same unsaved state the fields do and the page has
+// one Save, see contributing/renderer/forms.md#a-collections-settings.
 
+// TFieldValues is the schema input, TTransformedValues the schema output
+// handleSubmit yields. Neither is constrained to a shape holding the keys this
+// addresses: a generated Core schema's input type for the field definitions is
+// not `FieldDefinitionOrGroup[]` itself, so such a constraint would reject
+// every real caller. See contributing/renderer/forms.md#form-typing.
 interface CollectionFormProps<
   TFieldValues extends FieldValues,
   TTransformedValues extends FieldValues,
@@ -41,15 +53,25 @@ interface CollectionFormProps<
    * rules off, so no limit Core sets is written out here.
    */
   schema: unknown;
-  children?: React.ReactNode;
+  /** The field definitions of this form, with which of them is open. */
+  definitions: DefinitionsEditorState;
+  /** The page's title, which the question before losing changes names too. */
+  title: string;
+  /** The Collection's own plural name, which the fields are filled in for. */
+  collectionName: string;
+  /** The screen's one primary button. */
+  submit: ReactNode;
+  /** The More menu beside it, which a Collection that exists carries. */
+  more?: ReactNode;
+  /** The language every name, label and description is edited in. */
+  language: SupportedLanguage;
+  onLanguageChange: (language: SupportedLanguage) => void;
+  /** How many texts each language is still missing. */
+  missingByLanguage: Map<SupportedLanguage, number>;
+  /** Why the Collection cannot be saved yet, see `AppForm`. */
+  blockedBy?: string | undefined;
   isViewOnly?: boolean;
   onFormSubmit?: SubmitHandler<TTransformedValues>;
-  /**
-   * Associates the form with a submit button rendered outside it (in the page
-   * header via `Page`'s `actions`). That button carries `type="submit"` and the
-   * same `form={id}`, so it submits this form from outside its subtree.
-   */
-  id?: string;
   /** The page's title, which turns the leave guard on, see `AppForm`. */
   unsavedChangesTitle?: string | undefined;
 }
@@ -58,187 +80,200 @@ export function CollectionForm<
   TFieldValues extends FieldValues,
   TTransformedValues extends FieldValues,
 >({
-  collectionForm: genericForm,
+  collectionForm,
   project,
   schema,
-  children,
+  definitions,
+  title,
+  collectionName,
+  submit,
+  more,
+  language,
+  onLanguageChange,
+  missingByLanguage,
+  blockedBy,
   isViewOnly = false,
   onFormSubmit = () => {},
-  id,
   unsavedChangesTitle,
 }: CollectionFormProps<TFieldValues, TTransformedValues>): ReactElement {
   const { t } = useLingui();
-
+  const supportedLanguages = project.settings.language.supported;
   // Every form this serves holds these keys, but react-hook-form's FieldPath
   // cannot resolve a literal path for an unresolved generic, so each name is
   // asserted here. Asserting the name rather than the whole form is what keeps
-  // the form-cast guardrail intact, see contributing/renderer/forms.md#form-typing.
+  // the form-cast guardrail intact, see
+  // contributing/renderer/forms.md#form-typing.
   const path = (name: string): FieldPath<TFieldValues> =>
     name as FieldPath<TFieldValues>;
+  // A slug has to be unique within the Project, which Core enforces where it
+  // saves rather than in the schema, so the field says it beside what the
+  // schema says.
+  const unique = [uniqueNote()];
+  // Whether the pane beside the fields has anything to show, which is what
+  // decides if the screen draws a second pane at all.
+  const hasPane = definitions.isAddingField || definitions.chosen !== undefined;
 
   return (
     <AppForm
-      form={genericForm}
+      form={collectionForm}
       schema={schema}
       onSubmit={onFormSubmit}
-      id={id}
       mode={isViewOnly ? 'view' : 'edit'}
+      blockedBy={blockedBy}
       unsavedChangesTitle={unsavedChangesTitle}
+      className="flex min-h-0 flex-1"
+      fieldsetClassName="flex min-h-0 w-full flex-1"
     >
-      <div className="space-y-6 p-6">
-        <div className="grid grid-cols-12 items-start gap-6">
-          <AppField
-            form={genericForm}
-            name={path('icon')}
-            label={<Trans>Icon</Trans>}
-            className="col-span-12 sm:col-span-2"
-          >
-            {({ field, controlProps, disabled }) => (
-              <Select
-                items={iconItems}
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={disabled}
-              >
-                {/* The trigger is the real focusable control, so the
-                control-association props land there rather than on the root,
-                which forwards none of them. */}
-                <SelectTrigger {...controlProps}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COLLECTION_ICON_NAMES.map((name) => {
-                    return (
-                      <SelectItem key={name} value={name}>
-                        {name}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            )}
-          </AppField>
+      <Panes>
+        {/* The settings are what the screen is about, so they are the one main
+        landmark, with the pane of the chosen field beside them. */}
+        <Pane name={t`these settings`}>
+          <main className="flex min-h-0 flex-1 flex-col">
+            <PaneHead className="pb-1.5">
+              <h1 className="min-w-0 flex-1 truncate text-h3">{title}</h1>
+              {more}
+              <FormActions form={collectionForm} blockedBy={blockedBy}>
+                {submit}
+              </FormActions>
+            </PaneHead>
+            {/* The switch stands below the title and above the fields, which
+            is where ci draws it, with the line that says what it switches. A
+            Project of one language has nothing to switch between, so it
+            carries no row. */}
+            {supportedLanguages.length > 1 ? (
+              <div className="flex items-center gap-3 px-(--pane-edge) pb-4">
+                <LanguageSwitch
+                  languages={supportedLanguages.map((candidate) => ({
+                    language: candidate,
+                    missing: missingByLanguage.get(candidate) ?? 0,
+                    hasError: false,
+                  }))}
+                  language={language}
+                  onLanguageChange={onLanguageChange}
+                  missingWords={(count) =>
+                    plural(count, {
+                      one: '# translation',
+                      other: '# translations',
+                    })
+                  }
+                />
+                <p className="text-small text-muted-foreground">
+                  <Trans>
+                    Switches names, labels and descriptions. Slugs and fields
+                    are the same in every language.
+                  </Trans>
+                </p>
+              </div>
+            ) : null}
+            <ScrollArea className="flex-1">
+              <div className="grid grid-cols-12 gap-x-6 gap-y-4 px-(--pane-edge) pb-6">
+                <AppField
+                  form={collectionForm}
+                  name={path(`name.plural.${language}`)}
+                  label={<Trans>Collection name</Trans>}
+                  description={
+                    <Trans>In plural, such as &quot;Blog posts&quot;.</Trans>
+                  }
+                  className="col-span-12 @min-[344px]:col-span-6"
+                >
+                  {({ field, controlProps }) => (
+                    <TextControl field={field} type="text" {...controlProps} />
+                  )}
+                </AppField>
 
-          <AppField
-            form={genericForm}
-            name={path(`name.plural.${project.settings.language.default}`)}
-            label={<Trans>Collection name (Plural)</Trans>}
-            description={
-              <Trans>
-                The name of your new collection. Choose a short name in plural
-                that explains the content of the collection - e.g.
-                &quot;Blogposts&quot;.
-              </Trans>
-            }
-            className="col-span-12 sm:col-span-5"
-          >
-            {({ field, controlProps }) => (
-              <TranslatableFormInputField
-                form={genericForm}
-                title={t`Collection name (Plural)`}
-                description={t`The name of your new collection. Choose a short name in plural that explains the content of the collection - e.g. "Blogposts".`}
-                type="text"
-                field={field}
-                controlProps={controlProps}
-                errors={genericForm.formState.errors}
-                supportedLanguages={project.settings.language.supported}
+                <AppField
+                  form={collectionForm}
+                  name={path(`name.singular.${language}`)}
+                  label={<Trans>Entry name</Trans>}
+                  description={
+                    <Trans>
+                      In singular, for one Entry, such as &quot;Blog post&quot;.
+                    </Trans>
+                  }
+                  className="col-span-12 @min-[344px]:col-span-6"
+                >
+                  {({ field, controlProps }) => (
+                    <TextControl field={field} type="text" {...controlProps} />
+                  )}
+                </AppField>
+
+                <AppField
+                  form={collectionForm}
+                  name={path('slug.plural')}
+                  label={<Trans>Collection slug</Trans>}
+                  notes={unique}
+                  description={
+                    <Trans>
+                      Names this Collection in your code and in API paths.
+                    </Trans>
+                  }
+                  className="col-span-12 @min-[344px]:col-span-6"
+                >
+                  {({ field, controlProps }) => (
+                    <TextControl
+                      field={field}
+                      type="text"
+                      className="font-mono"
+                      {...controlProps}
+                    />
+                  )}
+                </AppField>
+
+                <AppField
+                  form={collectionForm}
+                  name={path('slug.singular')}
+                  label={<Trans>Entry slug</Trans>}
+                  notes={unique}
+                  description={<Trans>The Collection slug in singular.</Trans>}
+                  className="col-span-12 @min-[344px]:col-span-6"
+                >
+                  {({ field, controlProps }) => (
+                    <TextControl
+                      field={field}
+                      type="text"
+                      className="font-mono"
+                      {...controlProps}
+                    />
+                  )}
+                </AppField>
+
+                <AppField
+                  form={collectionForm}
+                  name={path(`description.${language}`)}
+                  label={<Trans>Description</Trans>}
+                  description={
+                    <Trans>What this Collection holds, for your team.</Trans>
+                  }
+                  className="col-span-12"
+                >
+                  {({ field, controlProps }) => (
+                    <TextareaControl field={field} rows={2} {...controlProps} />
+                  )}
+                </AppField>
+              </div>
+
+              <FieldDefinitionsList
+                form={collectionForm}
+                definitions={definitions}
+                owner="collection"
+                ownerName={collectionName}
+                isViewOnly={isViewOnly}
               />
-            )}
-          </AppField>
-
-          <AppField
-            form={genericForm}
-            name={path(`name.singular.${project.settings.language.default}`)}
-            label={<Trans>Entry name (Singular)</Trans>}
-            description={
-              <Trans>
-                The name of each Entry inside your new Collection. Choose a
-                short name in singular - e.g. &quot;Blogpost&quot;.
-              </Trans>
-            }
-            className="col-span-12 sm:col-span-5"
-          >
-            {({ field, controlProps }) => (
-              <TranslatableFormInputField
-                form={genericForm}
-                title={t`Entry name (Singular)`}
-                description={t`The name of each Entry inside your new Collection. Choose a short name in singular - e.g. "Blogpost".`}
-                type="text"
-                field={field}
-                controlProps={controlProps}
-                errors={genericForm.formState.errors}
-                supportedLanguages={project.settings.language.supported}
-              />
-            )}
-          </AppField>
-
-          <AppField
-            form={genericForm}
-            name={path(`description.${project.settings.language.default}`)}
-            label={<Trans>Description</Trans>}
-            description={
-              <Trans>
-                A description of what this new Collection is used for.
-              </Trans>
-            }
-            className="col-span-12 sm:col-span-12"
-          >
-            {({ field, controlProps }) => (
-              <TranslatableFormTextareaField
-                form={genericForm}
-                title={t`Description`}
-                description={t`A description of what this new Collection is used for.`}
-                field={field}
-                controlProps={controlProps}
-                errors={genericForm.formState.errors}
-                supportedLanguages={project.settings.language.supported}
-              />
-            )}
-          </AppField>
-        </div>
-
-        <AppField
-          form={genericForm}
-          name={path('slug.plural')}
-          label={<Trans>Collection-Slug</Trans>}
-          description={
-            <Trans>
-              A lowercase version without any special characters of the
-              Collection name. It's used to identify this Collection and needs
-              to be unique.
-            </Trans>
-          }
-        >
-          {({ field, controlProps }) => (
-            <TextControl field={field} type="text" {...controlProps} />
-          )}
-        </AppField>
-
-        <AppField
-          form={genericForm}
-          name={path('slug.singular')}
-          label={<Trans>Entry-Slug</Trans>}
-          description={
-            <Trans>
-              A lowercase version without any special characters of the Entry's
-              name. It's used to identify this Collection's Entries and needs to
-              be unique.
-            </Trans>
-          }
-        >
-          {({ field, controlProps }) => (
-            <TextControl field={field} type="text" {...controlProps} />
-          )}
-        </AppField>
-      </div>
-
-      <FieldDefinitionsEditor
-        form={genericForm}
-        project={project}
-        owner="collection"
-        isViewOnly={isViewOnly}
-      />
-      {children}
+            </ScrollArea>
+          </main>
+        </Pane>
+        {hasPane ? (
+          <Pane width="list" name={t`the settings of the chosen field`}>
+            <FieldDefinitionsPane
+              form={collectionForm}
+              definitions={definitions}
+              owner="collection"
+              supportedLanguages={supportedLanguages}
+              language={language}
+            />
+          </Pane>
+        ) : null}
+      </Panes>
     </AppForm>
   );
 }

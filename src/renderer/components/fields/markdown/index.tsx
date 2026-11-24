@@ -1,4 +1,5 @@
-import { t } from '@lingui/core/macro';
+import { msg, t } from '@lingui/core/macro';
+import { FileTextIcon } from 'lucide-react';
 
 import { coreRefusals } from '@renderer/components/fields/core-refusals';
 import { holdsNoMarkdown } from '@renderer/components/fields/empty-values';
@@ -8,16 +9,18 @@ import {
   emptyPreview,
   noTitle,
 } from '@renderer/components/fields/value-contracts';
+import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 
 import {
   extractText,
+  markdownFieldDefinitionSchema,
   type MdAstRoot,
   type SupportedLanguage,
 } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
 import { MarkdownControl } from './control';
-import { MarkdownDefinitionDraft } from './definition';
+import { MarkdownDefinitionEditor } from './definition';
 
 /** Rich text, stored as Core's mdast tree rather than as a markdown string. */
 export const markdownField: FieldTypeModule<'markdown'> = {
@@ -26,6 +29,8 @@ export const markdownField: FieldTypeModule<'markdown'> = {
   // so the editor is told the control's props through ProseMirror's own
   // `attributes` rather than reached into.
   acceptsAriaRequired: true,
+  Icon: FileTextIcon,
+  group: 'text',
   rules: scalarRules,
   Control: ({ field, fieldDefinition, disabled, controlProps, label }) => (
     <MarkdownControl
@@ -73,5 +78,41 @@ export const markdownField: FieldTypeModule<'markdown'> = {
     }
     return null;
   },
-  DefinitionDraft: (props) => <MarkdownDefinitionDraft {...props} />,
+  uniquenessNote: () => msg`A markdown field can't be unique.`,
+  definitionSchema: () => markdownFieldDefinitionSchema,
+  // Its Default Value is a tree nobody edits yet, so a new field starts
+  // without one, see contributing/not-yet-implemented.md.
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'mdast',
+    fieldType: 'markdown',
+    isUnique: false,
+    defaultValue: null,
+    min: null,
+    max: null,
+    features: {
+      headings: [],
+      blockquotes: false,
+      lists: false,
+      taskListItems: false,
+      codeBlocks: false,
+      thematicBreak: false,
+      tables: false,
+      footnotes: false,
+      rawHtml: false,
+      emphasis: false,
+      strong: false,
+      inlineCode: false,
+      strikethrough: false,
+      hardLineBreaks: false,
+      externalLinks: false,
+      externalImages: false,
+      entryReferences: false,
+      assetReferences: false,
+    },
+    ofCollections: [],
+    ofAssetMimeTypes: [],
+  }),
+  DefinitionEditor: MarkdownDefinitionEditor,
 };

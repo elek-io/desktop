@@ -44,11 +44,23 @@ export interface LanguageSwitchProps {
   /** The language on screen, which is the one segment that reads as pressed. */
   language: SupportedLanguage;
   onLanguageChange: (language: SupportedLanguage) => void;
+  /**
+   * What a language is missing, in words, for the sentence a screen reader
+   * hears. An Entry misses Values, while a Collection's settings miss
+   * translations of its names and labels, so the page that counts them words
+   * its own count.
+   */
+  missingWords?: (count: number) => string;
 }
 
 /** Whether a language has something somebody has to go and look at. */
 function needsAttention(state: LanguageState): boolean {
   return state.missing > 0 || state.hasError;
+}
+
+/** What a language of an Entry is missing, which is Values of its fields. */
+function missingValueWords(count: number): string {
+  return plural(count, { one: '# Value', other: '# Values' });
 }
 
 /**
@@ -59,18 +71,17 @@ function needsAttention(state: LanguageState): boolean {
  * segment hides it beside the code it shows while an option of the dropdown
  * takes it as its name.
  */
-function useLanguageText(): (state: LanguageState) => string {
+function useLanguageText(
+  missingWords: (count: number) => string
+): (state: LanguageState) => string {
   const { t } = useLingui();
 
   return (state) => {
     const name = languageName(state.language);
-    const missingValues = state.missing;
 
-    if (missingValues > 0) {
-      return t`${name}, missing ${plural(missingValues, {
-        one: '# Value',
-        other: '# Values',
-      })}`;
+    if (state.missing > 0) {
+      const what = missingWords(state.missing);
+      return t`${name}, missing ${what}`;
     }
     if (state.hasError) {
       return t`${name}, with a Value that was refused`;
@@ -98,9 +109,10 @@ function LanguageSegments({
   languages,
   language,
   onLanguageChange,
+  missingWords = missingValueWords,
 }: LanguageSwitchProps): ReactElement {
   const { t } = useLingui();
-  const languageText = useLanguageText();
+  const languageText = useLanguageText(missingWords);
 
   return (
     <ToggleGroup
@@ -142,9 +154,10 @@ function LanguageDropdown({
   languages,
   language,
   onLanguageChange,
+  missingWords = missingValueWords,
 }: LanguageSwitchProps): ReactElement {
   const { t } = useLingui();
-  const languageText = useLanguageText();
+  const languageText = useLanguageText(missingWords);
   const chosen = languages.find((state) => state.language === language);
   const items = Object.fromEntries(
     languages.map((state) => [state.language, languageName(state.language)])

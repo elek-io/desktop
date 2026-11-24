@@ -1,23 +1,25 @@
-import { t } from '@lingui/core/macro';
+import { msg, t } from '@lingui/core/macro';
+import { Link2Icon } from 'lucide-react';
 
 import { coreRefusals } from '@renderer/components/fields/core-refusals';
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
 import {
-  storedText,
   emptyPreview,
+  storedText,
   textTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
+import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
 
-import { slug } from '@elek-io/core';
+import { slug, slugFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
 import { SlugControl } from './control';
-import { SlugDefinitionDraft } from './definition';
+import { SlugDefinitionEditor } from './definition';
 
 /**
- * A machine readable name, derived from other fields of the same Entry.
+ * A machine readable name, written from other fields of the same Entry.
  *
  * Core forbids one inside a Component, because uniqueness is enforced over a
  * Collection's top level fields only.
@@ -25,6 +27,8 @@ import { SlugDefinitionDraft } from './definition';
 export const slugField: FieldTypeModule<'slug'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  Icon: Link2Icon,
+  group: 'text',
   rules: scalarRules,
   forbiddenInComponent: true,
   Control: ({ field, fieldDefinition, disabled, controlProps }) => (
@@ -41,11 +45,6 @@ export const slugField: FieldTypeModule<'slug'> = {
   isEmpty: holdsNothing,
   renderValue: storedText,
   titleText: textTitle,
-  // A slug is the one definition that points at sibling definitions, so it is
-  // the one that has to forget a definition the editor removed. Core's
-  // slugSourceReferencesSuperRefinement rejects a source id that no longer
-  // exists, and an error on the definitions array has no control to land on, so
-  // a stale id would block every later save with no visible reason.
   // Core refuses text that holds nothing a slug can be made of, and a slug
   // that is not yet in the form this field's settings ask for. The second says
   // the form it needs, worked out with Core's own helper and this field's own
@@ -71,6 +70,11 @@ export const slugField: FieldTypeModule<'slug'> = {
       ? null
       : t`This field needs "${canonical}" instead.`;
   },
+  // A slug is the one definition that points at sibling definitions, so it is
+  // the one that has to forget a definition the editor removed. Core's
+  // slugSourceReferencesSuperRefinement rejects a source id that no longer
+  // exists, and an error on the definitions array has no control to land on, so
+  // a stale id would block every later save with no visible reason.
   withoutDefinition: (fieldDefinition, removedDefinitionId) =>
     fieldDefinition.ofFieldDefinitions.includes(removedDefinitionId)
       ? {
@@ -80,5 +84,20 @@ export const slugField: FieldTypeModule<'slug'> = {
           ),
         }
       : fieldDefinition,
-  DefinitionDraft: (props) => <SlugDefinitionDraft {...props} />,
+  uniquenessNote: () =>
+    msg`A slug is always unique, so one Entry can be found by it.`,
+  definitionSchema: () => slugFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'string',
+    fieldType: 'slug',
+    isUnique: true,
+    defaultValue: null,
+    separator: '-',
+    lowercase: true,
+    decamelize: true,
+    ofFieldDefinitions: [],
+  }),
+  DefinitionEditor: SlugDefinitionEditor,
 };

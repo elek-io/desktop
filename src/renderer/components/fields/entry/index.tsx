@@ -1,4 +1,5 @@
-import { plural, t } from '@lingui/core/macro';
+import { msg, plural, t } from '@lingui/core/macro';
+import { FileSymlinkIcon } from 'lucide-react';
 
 import { coreRefusals } from '@renderer/components/fields/core-refusals';
 import { holdsNothing } from '@renderer/components/fields/empty-values';
@@ -8,10 +9,13 @@ import {
   referenceCount,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
+import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
+
+import { entryFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
 import { EntryControl } from './control';
-import { EntryDefinitionDraft } from './definition';
+import { EntryDefinitionEditor } from './definition';
 
 /** One or more Entries of the Collections the field allows, held as references. */
 export const entryField: FieldTypeModule<'entry'> = {
@@ -21,6 +25,8 @@ export const entryField: FieldTypeModule<'entry'> = {
   // which every one of those buttons names in `aria-describedby`, and Choose
   // says the word in its accessible name too.
   acceptsAriaRequired: false,
+  Icon: FileSymlinkIcon,
+  group: 'links',
   rules: countRules,
   Control: ({ field, fieldDefinition, disabled, controlProps, label }) => (
     <EntryControl
@@ -52,5 +58,17 @@ export const entryField: FieldTypeModule<'entry'> = {
     message.startsWith(coreRefusals.foreignCollection)
       ? t`One Entry here is from a Collection this field doesn't take. Choose another one.`
       : null,
-  DefinitionDraft: (props) => <EntryDefinitionDraft {...props} />,
+  uniquenessNote: () => msg`A reference field can't be unique.`,
+  definitionSchema: () => entryFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'reference',
+    fieldType: 'entry',
+    isUnique: false,
+    ofCollections: [],
+    min: null,
+    max: null,
+  }),
+  DefinitionEditor: EntryDefinitionEditor,
 };

@@ -1,5 +1,12 @@
-import type { ReactElement, ReactNode } from 'react';
-import type { ControllerRenderProps, FieldValues } from 'react-hook-form';
+import type { MessageDescriptor } from '@lingui/core';
+import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import type {
+  ControllerRenderProps,
+  FieldPath,
+  FieldValues,
+  UseFormReturn,
+} from 'react-hook-form';
 
 import type { FieldControlProps } from '@renderer/components/ui/field-controls';
 import type { FieldRules } from '@renderer/lib/fieldRules';
@@ -42,8 +49,7 @@ export interface FieldTypeControlProps<
    *
    * A control whose element takes no name from a `<label>` says it itself: a
    * group of radio buttons, a combobox, the markdown editor's editable element
-   * and each button of a picker. It is the language dialog's own label inside
-   * that dialog, so a control there is named after the language it edits.
+   * and each button of a picker.
    */
   label: string;
 }
@@ -59,30 +65,75 @@ export interface FieldTypeRenderValueProps<T extends FieldType> {
   formatInUserLocale: (date: Date, pattern: string) => string;
 }
 
-/** The authoring form for a new field definition of one type. */
-export interface FieldTypeDefinitionDraftProps {
-  id: string;
-  existingSlugs: string[];
-  /** The Collection's or Component's current definitions, with their real ids. */
-  fieldDefinitions: FieldDefinitionOrGroup[];
-  supportedLanguages: SupportedLanguage[];
-  defaultLanguage: SupportedLanguage;
-  owner: FieldDefinitionsOwner;
-  onAdd: (definition: FieldDefinition) => void;
-}
-
 /**
- * Which object holds the field definitions being authored. A Collection and a
- * Component share the authoring layer, and the owner decides the restrictions
- * Core puts on a Component's fields.
+ * Which object holds the field definitions being edited. A Collection and a
+ * Component share the whole editor, and the owner decides the two restrictions
+ * Core puts on a Component's fields: which field types it may hold at all, and
+ * that none of its fields can be unique.
  */
 export type FieldDefinitionsOwner = 'collection' | 'component';
 
-/** The sheet that edits a definition of this type after it was added. */
-export interface FieldTypeEditSheetProps<T extends FieldType> {
+/**
+ * Which of ci's groups a field type is offered in, in the pane that adds a
+ * field. The order of the groups themselves is in `index.ts`.
+ */
+export type FieldTypeGroup =
+  'text' | 'numbers' | 'choices' | 'temporal' | 'contact' | 'links';
+
+/**
+ * One field definition with its Default Value widened, for naming paths on it.
+ *
+ * A markdown field's Default Value is Core's recursive mdast tree, which
+ * react-hook-form's path type cannot walk, and no field's settings bind a path
+ * inside a Default Value, so the tree is left out of the paths.
+ */
+type WithWidenedDefault<D> = D extends unknown
+  ? Omit<D, 'defaultValue'> & { defaultValue?: unknown }
+  : never;
+
+/** A key of one field definition of this type, as a form path names it. */
+export type DefinitionKey<T extends FieldType> = FieldPath<
+  WithWidenedDefault<DefinitionOf<T>>
+>;
+
+/**
+ * One field definition bound to the one form the page saves.
+ *
+ * A field's settings are that type's own editor, drawn into the form the whole
+ * page is saved from rather than a form of its own, so the page has one Save
+ * and one unsaved state. `path` is the one place a path on that form is
+ * asserted, which is what lets a type's editor name its own keys and have them
+ * checked against its own definition type. See
+ * contributing/renderer/forms.md#a-collections-settings.
+ */
+export interface DefinitionBinding<
+  T extends FieldType,
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+> {
+  /** The form the page is saved from. */
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  /** This definition as that form holds it right now. */
   fieldDefinition: DefinitionOf<T>;
-  onChange: (definition: DefinitionOf<T>) => void;
-  onClose: () => void;
+  /** Where one of this definition's own keys sits on that form. */
+  path: (key: DefinitionKey<T>) => FieldPath<TFieldValues>;
+  /**
+   * Writes one of this definition's own keys back, which dirties the page and
+   * draws the preview again.
+   */
+  set: (key: DefinitionKey<T>, value: unknown) => void;
+  /** Which object holds the definition. */
+  owner: FieldDefinitionsOwner;
+  /**
+   * Every definition of the same object, with their real ids, as the form
+   * holds them. Only a slug field reads them, to offer the fields a slug can
+   * be written from.
+   */
+  siblings: FieldDefinitionOrGroup[];
+  /** The Project's languages, for a key that holds one text per language. */
+  supportedLanguages: SupportedLanguage[];
+  /** The language the switch above the page shows. */
+  language: SupportedLanguage;
 }
 
 /**
@@ -109,6 +160,13 @@ export interface FieldTypeModule<T extends FieldType> {
    * toggle and a range are the two, and neither can be left empty.
    */
   acceptsAriaRequired: boolean;
+  /**
+   * The icon ci draws for this type in the pane that adds a field, and beside
+   * it in the Type picker.
+   */
+  Icon: LucideIcon;
+  /** Which of ci's groups the type is offered in. */
+  group: FieldTypeGroup;
   /**
    * What a field of this type says about itself at the top right of its label,
    * such as "Required, up to 200 characters".
@@ -179,14 +237,54 @@ export interface FieldTypeModule<T extends FieldType> {
     content: unknown;
   }) => string | null;
   /**
-   * The authoring form for a new definition of this type. A type Core defines
-   * but the client cannot author yet leaves it off, which is what the Add Field
-   * picker reads to offer the type as unavailable.
+   * The Core schema one definition of this type is checked against, which the
+   * fields of its settings read their own rules off, so no limit Core keeps on
+   * a field definition is written out again. It takes the definition, because
+   * Core backs one field type with more than one schema where its Value can be
+   * of more than one type, as a select's options can.
    */
-  DefinitionDraft?: (props: FieldTypeDefinitionDraftProps) => ReactElement;
+  definitionSchema: (fieldDefinition: DefinitionOf<T>) => unknown;
   /**
-   * Core forbids a field of this type inside a Component, so the Add Field
-   * picker never offers it there.
+   * A new definition of this type, as choosing the type in the pane adds it.
+   *
+   * The id comes in rather than being minted here, so changing a field's type
+   * keeps the id Core matches the definition by, and with it the Values every
+   * Entry holds.
+   */
+  newDefinition: (props: {
+    id: string;
+    supportedLanguages: SupportedLanguage[];
+  }) => DefinitionOf<T>;
+  /**
+   * This type's own settings, below the ones every field definition shares.
+   *
+   * Drawn as a component rather than called as a function, so the hooks a
+   * type's own editor needs belong to it and changing a field's type cannot
+   * reorder anybody else's.
+   */
+  DefinitionEditor: <
+    TFieldValues extends FieldValues,
+    TTransformedValues extends FieldValues = TFieldValues,
+  >(
+    binding: DefinitionBinding<T, TFieldValues, TTransformedValues>
+  ) => ReactNode;
+  /**
+   * Why Required is fixed for this field, where Core pins it to a literal.
+   * A sentence means the control shows a fact and says why, rather than
+   * offering a choice nobody has, and a type change keeps the new type's own
+   * answer rather than carrying the old field's over.
+   *
+   * It takes the definition, because a type whose Value can be of more than
+   * one type answers per Value type, as a select's options do.
+   */
+  requiredNote?: (fieldDefinition: DefinitionOf<T>) => MessageDescriptor | null;
+  /** Why Unique is fixed for this field, the same way. */
+  uniquenessNote?: (
+    fieldDefinition: DefinitionOf<T>
+  ) => MessageDescriptor | null;
+  /**
+   * Core forbids a field of this type inside a Component, so the pane of field
+   * types never offers it there.
    */
   forbiddenInComponent?: boolean;
   /**
@@ -206,10 +304,4 @@ export interface FieldTypeModule<T extends FieldType> {
     fieldDefinition: DefinitionOf<T>,
     removedDefinitionId: string
   ) => DefinitionOf<T>;
-  /**
-   * The sheet that edits a definition of this type after it exists. Only a
-   * `dynamic` field can be edited, so every other module leaves this off and
-   * is offered no edit control at all.
-   */
-  EditSheet?: (props: FieldTypeEditSheetProps<T>) => ReactElement;
 }

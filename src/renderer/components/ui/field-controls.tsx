@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { ControllerRenderProps, FieldValues } from 'react-hook-form';
 
+import { Checkbox } from '@renderer/components/ui/checkbox';
 import { Input } from '@renderer/components/ui/input';
 import { Switch } from '@renderer/components/ui/switch';
 import { Textarea } from '@renderer/components/ui/textarea';
@@ -121,6 +122,34 @@ export function SwitchControl<TFieldValues extends FieldValues>({
 }: SwitchControlProps<TFieldValues>): React.ReactElement {
   return (
     <Switch
+      {...field}
+      checked={field.value === true}
+      onCheckedChange={field.onChange}
+      {...props}
+    />
+  );
+}
+
+export interface CheckboxControlProps<
+  TFieldValues extends FieldValues,
+> extends React.ComponentProps<typeof Checkbox> {
+  field: ControllerRenderProps<TFieldValues>;
+}
+
+/**
+ * A checkbox bound to one boolean Value, which is how ci draws a field
+ * definition's Required and Unique.
+ *
+ * It carries the same contract as the switch: checked where the Value is
+ * `true` and unchecked everywhere else, so a Value that has not arrived yet
+ * cannot leave the box drawing a state of its own, see `SwitchControl`.
+ */
+export function CheckboxControl<TFieldValues extends FieldValues>({
+  field,
+  ...props
+}: CheckboxControlProps<TFieldValues>): React.ReactElement {
+  return (
+    <Checkbox
       {...field}
       checked={field.value === true}
       onCheckedChange={field.onChange}

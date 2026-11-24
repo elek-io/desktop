@@ -1,73 +1,29 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans } from '@lingui/react/macro';
+import { AlignLeftIcon } from 'lucide-react';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { textRules } from '@renderer/components/fields/rules';
 import {
-  storedText,
   emptyPreview,
+  storedText,
   textTitle,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
+import { DefinitionBounds } from '@renderer/components/forms/definition-controls';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
-import {
-  DefinitionDraft,
-  MinMaxRow,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
 import { AppField } from '@renderer/components/ui/app-form';
 import { TextareaControl } from '@renderer/components/ui/field-controls';
 
-import {
-  textareaFieldDefinitionSchema,
-  uuid,
-  type TextareaFieldDefinition,
-} from '@elek-io/core';
+import { textareaFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
-
-const spec: DefinitionSpec<TextareaFieldDefinition> = {
-  schema: textareaFieldDefinitionSchema,
-
-  resolver: zodResolver(textareaFieldDefinitionSchema),
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'string',
-    fieldType: 'textarea',
-    defaultValue: null,
-    min: null,
-    max: null,
-  }),
-  Extras: ({ form }) => (
-    <>
-      <AppField
-        form={form}
-        name="defaultValue"
-        label={<Trans>Default value</Trans>}
-        description={<Trans>The initial value for the field.</Trans>}
-      >
-        {({ field, controlProps }) => (
-          <TextareaControl field={field} {...controlProps} />
-        )}
-      </AppField>
-      <MinMaxRow
-        form={form}
-        minName="min"
-        maxName="max"
-        minDescription={
-          <Trans>The fewest characters the user can enter.</Trans>
-        }
-        maxDescription={<Trans>The most characters the user can enter.</Trans>}
-      />
-    </>
-  ),
-};
 
 /** Several lines of text. */
 export const textareaField: FieldTypeModule<'textarea'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  Icon: AlignLeftIcon,
+  group: 'text',
   rules: textRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextareaControl field={field} disabled={disabled} {...controlProps} />
@@ -78,5 +34,36 @@ export const textareaField: FieldTypeModule<'textarea'> = {
   isEmpty: holdsNothing,
   renderValue: storedText,
   titleText: textTitle,
-  DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
+  definitionSchema: () => textareaFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'string',
+    fieldType: 'textarea',
+    defaultValue: null,
+    min: null,
+    max: null,
+  }),
+  DefinitionEditor: ({ form, path }) => (
+    <>
+      <AppField
+        form={form}
+        name={path('defaultValue')}
+        label={<Trans>Default Value</Trans>}
+        description={
+          <Trans>Every new Entry starts with it, in every language.</Trans>
+        }
+      >
+        {({ field, controlProps }) => (
+          <TextareaControl field={field} rows={2} {...controlProps} />
+        )}
+      </AppField>
+      <DefinitionBounds
+        form={form}
+        minName={path('min')}
+        maxName={path('max')}
+        description={<Trans>The number of characters editors can enter.</Trans>}
+      />
+    </>
+  ),
 };

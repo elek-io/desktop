@@ -70,6 +70,25 @@ export function alwaysFilledFieldRules(): FieldRules {
   return { required: true, words: [] };
 }
 
+/**
+ * The rules a schema says, with a rule only the caller knows added after them.
+ *
+ * It exists for a rule Core enforces where it saves rather than in the schema,
+ * such as a Collection's slug being unique within the Project, which the walk
+ * over a schema cannot find. It adds words, never a limit a schema already
+ * states.
+ */
+export function withNotes(
+  rules: FieldRules,
+  notes: string[] | undefined
+): FieldRules {
+  if (notes === undefined || notes.length === 0) {
+    return rules;
+  }
+
+  return { required: rules.required, words: [...rules.words, ...notes] };
+}
+
 /** The one line a field's label shows, or `null` where it has no rules. */
 export function fieldRulesLine(rules: FieldRules): string | null {
   const [first, ...rest] = rules.words;

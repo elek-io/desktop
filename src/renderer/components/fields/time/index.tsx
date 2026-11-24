@@ -1,4 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans } from '@lingui/react/macro';
+import { ClockIcon } from 'lucide-react';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import { scalarRules } from '@renderer/components/fields/rules';
@@ -9,41 +10,19 @@ import {
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
-import {
-  DefaultValueInputField,
-  DefinitionDraft,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
+import { AppField } from '@renderer/components/ui/app-form';
 import { TextControl } from '@renderer/components/ui/field-controls';
 
-import {
-  timeFieldDefinitionSchema,
-  uuid,
-  type TimeFieldDefinition,
-} from '@elek-io/core';
+import { timeFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
-
-const spec: DefinitionSpec<TimeFieldDefinition> = {
-  schema: timeFieldDefinitionSchema,
-
-  resolver: zodResolver(timeFieldDefinitionSchema),
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'string',
-    fieldType: 'time',
-    defaultValue: null,
-  }),
-  Extras: ({ form }) => (
-    <DefaultValueInputField form={form} name="defaultValue" type="time" />
-  ),
-};
 
 /** A time of day, stored as an ISO time without a zone. */
 export const timeField: FieldTypeModule<'time'> = {
   translatable: true,
   acceptsAriaRequired: true,
+  Icon: ClockIcon,
+  group: 'temporal',
   rules: scalarRules,
   Control: ({ field, disabled, controlProps }) => (
     <TextControl
@@ -66,5 +45,26 @@ export const timeField: FieldTypeModule<'time'> = {
       formatInUserLocale,
     }),
   titleText: textTitle,
-  DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
+  definitionSchema: () => timeFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'string',
+    fieldType: 'time',
+    defaultValue: null,
+  }),
+  DefinitionEditor: ({ form, path }) => (
+    <AppField
+      form={form}
+      name={path('defaultValue')}
+      label={<Trans>Default Value</Trans>}
+      description={
+        <Trans>Every new Entry starts with it, in every language.</Trans>
+      }
+    >
+      {({ field, controlProps }) => (
+        <TextControl field={field} type="time" {...controlProps} />
+      )}
+    </AppField>
+  ),
 };

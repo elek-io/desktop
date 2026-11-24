@@ -1,19 +1,13 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { i18n, type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
-import { useWatch } from 'react-hook-form';
+import { type FieldValues } from 'react-hook-form';
 
-import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
-import {
-  DefinitionDraft,
-  type DefinitionDraftProps,
-  type DefinitionExtrasProps,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
+import { type DefinitionBinding } from '@renderer/components/fields/module';
+import { DefinitionChoiceRows } from '@renderer/components/forms/definition-controls';
 import { AppField } from '@renderer/components/ui/app-form';
-import { SwitchControl } from '@renderer/components/ui/field-controls';
+import { CheckboxControl } from '@renderer/components/ui/field-controls';
 import {
   Select,
   SelectContent,
@@ -21,23 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
-import { Switch } from '@renderer/components/ui/switch';
 import { useProject } from '@renderer/hooks/useProject';
 
-import {
-  flattenFieldDefinitions,
-  slugFieldDefinitionSchema,
-  uuid,
-  type SlugFieldDefinition,
-} from '@elek-io/core';
+import { flattenFieldDefinitions } from '@elek-io/core';
 
-// Authoring for the slug field type. See
+// The settings of a slug field. See
 // contributing/renderer/dynamic-form-field-generation.md.
 //
-// Its `ofFieldDefinitions` source list reads the other definitions already on
-// the Collection (non-slug string fields) and stores their real ids, which Core's
-// slugSourceReferencesSuperRefinement then validates. It is the only Extras that
-// reads `fieldDefinitions` from DefinitionExtrasProps.
+// Its source list reads the other definitions of the same object, the non-slug
+// text fields among them, and stores their real ids, which Core's
+// slugSourceReferencesSuperRefinement then checks.
 
 // A select item cannot hold an empty string, so "no separator" needs a sentinel
 // eslint-disable-next-line lingui/no-unlocalized-strings
@@ -57,98 +44,101 @@ function separatorItems(): Record<string, string> {
   );
 }
 
-function SlugExtras({
+/**
+ * The settings of a slug field: which fields it is made from, and the form the
+ * slug is written in.
+ */
+export function SlugDefinitionEditor<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
   form,
-  fieldDefinitions,
-}: DefinitionExtrasProps<SlugFieldDefinition>): ReactElement {
+  fieldDefinition,
+  path,
+  set,
+  siblings,
+}: DefinitionBinding<'slug', TFieldValues, TTransformedValues>): ReactElement {
+  const { t } = useLingui();
   const { translateContent } = useProject();
-
-  // Slugs can only derive from text-like sibling fields
-  const eligibleSources = flattenFieldDefinitions(fieldDefinitions).filter(
+  // A slug can only be made of text fields that are not slugs themselves,
+  // which is what Core allows as a source.
+  const sources = flattenFieldDefinitions(siblings).filter(
     (definition) =>
-      definition.valueType === 'string' && definition.fieldType !== 'slug'
+      definition.valueType === 'string' &&
+      definition.fieldType !== 'slug' &&
+      definition.id !== fieldDefinition.id
   );
-
-  const selectedSourceIds = useWatch({
-    control: form.control,
-    name: 'ofFieldDefinitions',
-  });
-
-  function toggleSource(sourceId: string): void {
-    const next = selectedSourceIds.includes(sourceId)
-      ? selectedSourceIds.filter((id) => id !== sourceId)
-      : [...selectedSourceIds, sourceId];
-    // Store the sources in the order their fields appear in the Collection,
-    // so the derived slug is predictable no matter the toggle order
-    form.setValue(
-      'ofFieldDefinitions',
-      eligibleSources
-        .filter((definition) => next.includes(definition.id))
-        .map((definition) => definition.id)
-    );
-  }
+  const chosenIds = fieldDefinition.ofFieldDefinitions;
+  const sourceTitle = (id: string): string => {
+    const source = sources.find((definition) => definition.id === id);
+    if (source === undefined) {
+      return t`A field that is gone`;
+    }
+    return translateContent({
+      key: 'fieldDefinition.label',
+      record: source.label,
+    });
+  };
+  const madeFrom = t`Made from`;
 
   return (
     <>
-      <AppField
+      <DefinitionChoiceRows
         form={form}
-        name="ofFieldDefinitions"
-        label={<Trans>Generate from Fields</Trans>}
+        name={path('ofFieldDefinitions')}
+        label={madeFrom}
+        labelText={madeFrom}
         description={
           <Trans>
-            The slug is generated from the selected Fields while creating an
-            Entry, in the order the Fields appear in the Collection. If none are
-            selected, users enter the slug manually.
+            The slug is written from these fields, in this order, while an Entry
+            is created.
           </Trans>
         }
-      >
-        {/* A list of switches rather than one control, so the group carries the
-        association props and each switch names its own Field. */}
-        {({ controlProps }) => (
-          <div className="space-y-2" {...controlProps}>
-            {eligibleSources.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                <Trans>
-                  No text based Fields to generate from yet. Add one first or
-                  leave this empty.
-                </Trans>
-              </p>
-            ) : (
-              eligibleSources.map((definition) => (
-                <div
-                  key={definition.id}
-                  className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
-                >
-                  <div className="mr-4">
-                    <span className="text-sm font-medium">
-                      {translateContent({
-                        key: 'fieldDefinition.label',
-                        record: definition.label,
-                      })}
-                    </span>
-                  </div>
-                  <Switch
-                    aria-label={translateContent({
-                      key: 'fieldDefinition.label',
-                      record: definition.label,
-                    })}
-                    checked={selectedSourceIds.includes(definition.id)}
-                    onCheckedChange={() => toggleSource(definition.id)}
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </AppField>
+        chosen={chosenIds.map((id) => ({ key: id, title: sourceTitle(id) }))}
+        offered={sources
+          .filter((definition) => chosenIds.includes(definition.id) === false)
+          .map((definition) => ({
+            key: definition.id,
+            title: translateContent({
+              key: 'fieldDefinition.label',
+              record: definition.label,
+            }),
+          }))}
+        addLabel={t`Add field`}
+        emptyNote={
+          <Trans>Editors write the slug themselves while this is empty.</Trans>
+        }
+        nothingToAddNote={
+          sources.length === 0 ? (
+            <Trans>Add a text field first, then come back to choose it.</Trans>
+          ) : undefined
+        }
+        onAdd={(id) =>
+          // Kept in the order the fields stand in, so the slug reads the same
+          // however the sources were picked.
+          set(
+            'ofFieldDefinitions',
+            sources
+              .filter(
+                (definition) =>
+                  definition.id === id || chosenIds.includes(definition.id)
+              )
+              .map((definition) => definition.id)
+          )
+        }
+        onRemove={(id) =>
+          set(
+            'ofFieldDefinitions',
+            chosenIds.filter((chosen) => chosen !== id)
+          )
+        }
+      />
 
       <AppField
         form={form}
-        name="separator"
+        name={path('separator')}
         label={<Trans>Separator</Trans>}
-        description={
-          <Trans>The character placed between words of the slug.</Trans>
-        }
+        description={<Trans>What stands between the words of the slug.</Trans>}
       >
         {({ field, controlProps, disabled }) => (
           <Select
@@ -178,65 +168,32 @@ function SlugExtras({
 
       <AppField
         form={form}
-        name="lowercase"
+        name={path('lowercase')}
         label={<Trans>Lowercase</Trans>}
-        description={<Trans>Convert the slug to lowercase.</Trans>}
         orientation="horizontal"
-        className="gap-4 rounded-lg border border-border p-3 shadow-xs"
+        description={<Trans>Writes the slug in small letters.</Trans>}
       >
         {({ field, controlProps }) => (
-          <SwitchControl field={field} {...controlProps} />
+          <CheckboxControl field={field} {...controlProps} />
         )}
       </AppField>
 
       <AppField
         form={form}
-        name="decamelize"
+        name={path('decamelize')}
         label={<Trans>Decamelize</Trans>}
+        orientation="horizontal"
         description={
           <Trans>
-            Split camelCase words, so &quot;myWord&quot; becomes
+            Splits camelCase words, so &quot;myWord&quot; becomes
             &quot;my-word&quot;.
           </Trans>
         }
-        orientation="horizontal"
-        className="gap-4 rounded-lg border border-border p-3 shadow-xs"
       >
         {({ field, controlProps }) => (
-          <SwitchControl field={field} {...controlProps} />
+          <CheckboxControl field={field} {...controlProps} />
         )}
       </AppField>
     </>
   );
-}
-
-const slugSpec: DefinitionSpec<SlugFieldDefinition> = {
-  uniquenessNote: msg`Slugs are always unique, so a single Entry can be identified by it.`,
-  schema: slugFieldDefinitionSchema,
-
-  resolver: zodResolver(slugFieldDefinitionSchema),
-  // Slugs are always unique and have no default value; the separator/lowercase/
-  // decamelize deltas and the (initially empty) source list round out the type.
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'string',
-    fieldType: 'slug',
-    isUnique: true,
-    defaultValue: null,
-    separator: '-',
-    lowercase: true,
-    decamelize: true,
-    ofFieldDefinitions: [],
-  }),
-  Extras: SlugExtras,
-};
-
-/**
- * The slug authoring entry. A normal DefinitionDraft over the slug spec; the
- * sibling definitions the source picker needs arrive through the widened
- * DefinitionDraftProps and are ignored by every other type.
- */
-export function SlugDefinitionDraft(props: DefinitionDraftProps): ReactElement {
-  return <DefinitionDraft {...props} spec={slugSpec} />;
 }

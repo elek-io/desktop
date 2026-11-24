@@ -7,15 +7,19 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
-import { FieldDefinitionsEditor } from '@renderer/components/forms/field-definitions-editor';
-import { AppField, AppForm } from '@renderer/components/ui/app-form';
-import { TextControl } from '@renderer/components/ui/field-controls';
 import {
-  TranslatableFormInputField,
-  TranslatableFormTextareaField,
-} from '@renderer/components/ui/translatable-field';
+  FieldDefinitionsList,
+  FieldDefinitionsPane,
+} from '@renderer/components/forms/field-definitions-editor';
+import { LanguageSwitch } from '@renderer/components/language-switch';
+import { AppField, AppForm } from '@renderer/components/ui/app-form';
+import {
+  TextareaControl,
+  TextControl,
+} from '@renderer/components/ui/field-controls';
+import { type DefinitionsEditorState } from '@renderer/hooks/useDefinitionsEditor';
 
-import { type Project } from '@elek-io/core';
+import { type Project, type SupportedLanguage } from '@elek-io/core';
 
 // TFieldValues is the schema input (loose), TTransformedValues the schema output
 // handleSubmit yields. See contributing/renderer/forms.md#form-typing.
@@ -30,6 +34,17 @@ interface ComponentFormProps<
    * rules off, so no limit Core sets is written out here.
    */
   schema: unknown;
+  /** The field definitions of this form, with which of them is open. */
+  definitions: DefinitionsEditorState;
+  /** The Component's own name, which the fields are filled in for. */
+  componentName: string;
+  /** The language every name, label and description is edited in. */
+  language: SupportedLanguage;
+  onLanguageChange: (language: SupportedLanguage) => void;
+  /** How many texts each language is still missing. */
+  missingByLanguage: Map<SupportedLanguage, number>;
+  /** Why the Component cannot be saved yet, see `AppForm`. */
+  blockedBy?: string | undefined;
   children?: React.ReactNode;
   isViewOnly?: boolean;
   onFormSubmit?: SubmitHandler<TTransformedValues>;
@@ -44,8 +59,12 @@ interface ComponentFormProps<
 }
 
 /**
- * Shared form body of a Component: its name, slug and description, then its
- * field definitions through the editor a Collection uses too.
+ * Shared form body of a Component: its name, slug and description, then the
+ * fields it defines through the editor a Collection uses too.
+ *
+ * The Component screen keeps its own layout until it is rebuilt, so the pane of
+ * the chosen field stands beside the fields inside the page rather than as a
+ * pane of the main panel.
  *
  * Generic over the form values, because the create (`projectId`), update
  * (`id`) and view-only shapes diverge and cannot be one union prop. Only the
@@ -59,6 +78,12 @@ export function ComponentForm<
   componentForm,
   project,
   schema,
+  definitions,
+  componentName,
+  language,
+  onLanguageChange,
+  missingByLanguage,
+  blockedBy,
   children,
   isViewOnly = false,
   onFormSubmit = () => {},
@@ -66,10 +91,10 @@ export function ComponentForm<
   unsavedChangesTitle,
 }: ComponentFormProps<TFieldValues, TTransformedValues>): ReactElement {
   const { t } = useLingui();
-
-  const defaultLanguage = project.settings.language.default;
+  const supportedLanguages = project.settings.language.supported;
   const path = (name: string): FieldPath<TFieldValues> =>
     name as FieldPath<TFieldValues>;
+  const hasPane = definitions.isAddingField || definitions.chosen !== undefined;
 
   return (
     <AppForm
@@ -78,86 +103,113 @@ export function ComponentForm<
       onSubmit={onFormSubmit}
       id={id}
       mode={isViewOnly ? 'view' : 'edit'}
+      blockedBy={blockedBy}
       unsavedChangesTitle={unsavedChangesTitle}
     >
-      <div className="space-y-6 p-6">
-        <div className="grid grid-cols-12 items-start gap-6">
-          <AppField
-            form={componentForm}
-            name={path(`name.${defaultLanguage}`)}
-            label={<Trans>Component name</Trans>}
-            description={
-              <Trans>
-                What this group of fields is, in singular, such as
-                &quot;Teaser&quot;.
-              </Trans>
-            }
-            className="col-span-12 sm:col-span-6"
-          >
-            {({ field, controlProps }) => (
-              <TranslatableFormInputField
-                form={componentForm}
-                title={t`Component name`}
-                description={t`What this group of fields is, in singular, such as "Teaser".`}
-                type="text"
-                field={field}
-                controlProps={controlProps}
-                errors={componentForm.formState.errors}
-                supportedLanguages={project.settings.language.supported}
-              />
-            )}
-          </AppField>
-
-          <AppField
-            form={componentForm}
-            name={path('slug')}
-            label={<Trans>Component slug</Trans>}
-            description={
-              <Trans>
-                A lowercase version of the name without special characters. It
-                identifies this Component and has to be unique in this Project.
-              </Trans>
-            }
-            className="col-span-12 sm:col-span-6"
-          >
-            {({ field, controlProps }) => (
-              <TextControl field={field} type="text" {...controlProps} />
-            )}
-          </AppField>
-
-          <AppField
-            form={componentForm}
-            name={path(`description.${defaultLanguage}`)}
-            label={<Trans>Description</Trans>}
-            description={
-              <Trans>
-                Optional. What this Component is used for. Leave every language
-                empty for no description, or fill them all.
-              </Trans>
-            }
-            className="col-span-12"
-          >
-            {({ field, controlProps }) => (
-              <TranslatableFormTextareaField
-                form={componentForm}
-                title={t`Description`}
-                description={t`What this Component is used for. Leave every language empty for no description, or fill them all.`}
-                field={field}
-                controlProps={controlProps}
-                errors={componentForm.formState.errors}
-                supportedLanguages={project.settings.language.supported}
-              />
-            )}
-          </AppField>
+      {/* One switch for every name, label and description of the page, as the
+      Collection's settings have it. A Project of one language has nothing to
+      switch between, so it carries no row. */}
+      {supportedLanguages.length > 1 ? (
+        <div className="flex items-center gap-3 pb-4">
+          <LanguageSwitch
+            languages={supportedLanguages.map((candidate) => ({
+              language: candidate,
+              missing: missingByLanguage.get(candidate) ?? 0,
+              hasError: false,
+            }))}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            missingWords={(count) => t`${count} translations`}
+          />
+          <p className="text-small text-muted-foreground">
+            <Trans>
+              Switches names, labels and descriptions. Slugs and fields are the
+              same in every language.
+            </Trans>
+          </p>
         </div>
+      ) : null}
+
+      <div className="grid grid-cols-12 gap-x-6 gap-y-4">
+        <AppField
+          form={componentForm}
+          name={path(`name.${language}`)}
+          label={<Trans>Component name</Trans>}
+          description={
+            <Trans>
+              What this group of fields is, in singular, such as
+              &quot;Teaser&quot;.
+            </Trans>
+          }
+          className="col-span-12 @min-[344px]:col-span-6"
+        >
+          {({ field, controlProps }) => (
+            <TextControl field={field} type="text" {...controlProps} />
+          )}
+        </AppField>
+
+        <AppField
+          form={componentForm}
+          name={path('slug')}
+          label={<Trans>Component slug</Trans>}
+          description={
+            <Trans>
+              Names this Component in your code. It has to be unique in this
+              Project.
+            </Trans>
+          }
+          className="col-span-12 @min-[344px]:col-span-6"
+        >
+          {({ field, controlProps }) => (
+            <TextControl
+              field={field}
+              type="text"
+              className="font-mono"
+              {...controlProps}
+            />
+          )}
+        </AppField>
+
+        <AppField
+          form={componentForm}
+          name={path(`description.${language}`)}
+          label={<Trans>Description</Trans>}
+          description={
+            <Trans>What this Component is used for, for your team.</Trans>
+          }
+          className="col-span-12"
+        >
+          {({ field, controlProps }) => (
+            <TextareaControl field={field} rows={2} {...controlProps} />
+          )}
+        </AppField>
       </div>
 
-      <FieldDefinitionsEditor
-        form={componentForm}
-        project={project}
-        owner="component"
-        isViewOnly={isViewOnly}
-      />
+      <div className="-mx-(--pane-edge) mt-6 flex min-w-0 items-start">
+        <div className="min-w-0 flex-1">
+          <FieldDefinitionsList
+            form={componentForm}
+            definitions={definitions}
+            owner="component"
+            ownerName={componentName}
+            isViewOnly={isViewOnly}
+          />
+        </div>
+        {hasPane ? (
+          <aside
+            aria-label={t`the settings of the chosen field`}
+            className="w-74 flex-none border-l [--pane-edge:16px]"
+          >
+            <FieldDefinitionsPane
+              form={componentForm}
+              definitions={definitions}
+              owner="component"
+              supportedLanguages={supportedLanguages}
+              language={language}
+            />
+          </aside>
+        ) : null}
+      </div>
       {children}
     </AppForm>
   );

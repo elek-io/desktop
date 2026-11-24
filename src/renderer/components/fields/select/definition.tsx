@@ -1,28 +1,26 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { Plus, TrashIcon } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { useFieldArray, useWatch, type UseFormReturn } from 'react-hook-form';
+import { PlusIcon, XIcon } from 'lucide-react';
+import { useEffect, useRef, type ReactElement } from 'react';
+import {
+  type FieldPath,
+  type FieldValues,
+  type UseFormReturn,
+} from 'react-hook-form';
 
+import {
+  type DefinitionBinding,
+  type DefinitionOf,
+} from '@renderer/components/fields/module';
 import {
   OptionChoice,
   type ChoiceOption,
 } from '@renderer/components/fields/select/control';
-import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
-import {
-  DefinitionDraft,
-  type DefinitionDraftProps,
-  type DefinitionExtrasProps,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
 import { AppField } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   TextControl,
   type FieldControlProps,
 } from '@renderer/components/ui/field-controls';
-import { Label } from '@renderer/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -30,82 +28,130 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
-import { TranslatableFormInputField } from '@renderer/components/ui/translatable-field';
 import { rawTextFromInput } from '@renderer/lib/fieldValues';
 import { translatableDefault } from '@renderer/lib/utils';
 
-import {
-  numberSelectFieldDefinitionSchema,
-  slug,
-  stringSelectFieldDefinitionSchema,
-  uuid,
-  type NumberSelectFieldDefinition,
-  type StringSelectFieldDefinition,
-  type SupportedLanguage,
-} from '@elek-io/core';
+import { slug, type SupportedLanguage } from '@elek-io/core';
 
-// Authoring for the select field type. See
+// The settings of a select field. See
 // contributing/renderer/dynamic-form-field-generation.md.
 //
-// Core backs the one 'select' FieldType with two schemas, so this file holds a
-// DefinitionSpec per option value type (string / number) plus the picker that
-// mounts the matching one. Its option labels are translatable, which is why it
-// reads the language context from DefinitionExtrasProps.
+// Core backs the one `select` field type with two schemas, one per option value
+// type, so the options are rows of text or rows of numbers and the type of the
+// options is a setting of its own.
 
-type SelectValueType = 'string' | 'number';
+/** One option of the list, as either of Core's two select schemas holds it. */
+type SelectOption = DefinitionOf<'select'>['options'][number];
 
-/** The value-type picker. Not part of the form data - it selects which schema
- * and draft are active, so it lives above the form. */
-function ValueTypeSelect({
-  valueType,
-  onValueTypeChange,
+/** What one option reads as in the Default Value's list. */
+function optionDisplay(
+  option: SelectOption,
+  index: number,
+  language: SupportedLanguage,
+  fallback: (position: number) => string
+): string {
+  const label = option.label[language];
+  if (label !== undefined && label !== '') {
+    return label;
+  }
+  if (option.value !== '') {
+    return String(option.value);
+  }
+  return fallback(index + 1);
+}
+
+/**
+ * One option: the words editors read and the value that is stored, with the way
+ * to take the option out again.
+ *
+ * The value follows the label while nobody has written one, which is what makes
+ * a list of options something to fill in rather than to think about twice.
+ */
+function OptionRow<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
+  form,
+  labelName,
+  valueName,
+  position,
+  derivesValue,
+  onRemove,
 }: {
-  valueType: SelectValueType;
-  onValueTypeChange: (valueType: SelectValueType) => void;
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  labelName: FieldPath<TFieldValues>;
+  valueName: FieldPath<TFieldValues>;
+  position: number;
+  /** Whether the stored value is text a label can be turned into. */
+  derivesValue: boolean;
+  onRemove: (() => void) | undefined;
 }): ReactElement {
   const { t } = useLingui();
-  // Not a form field (it selects which schema is active, above the form), so it
-  // uses a plain Label bound to the trigger id rather than an AppField, which
-  // needs a form and a path to bind its label to.
-  const selectId = useId();
-  const descriptionId = useId();
+  const labelText: unknown = form.watch(labelName);
+  const derived = slug(typeof labelText === 'string' ? labelText : '');
+  // The value a label wrote last, or `null` for an option that came with one
+  // of its own, so writing a value by hand stops the deriving for good.
+  const valueFromLabel = useRef<string | null>(
+    derivesValue && form.getValues(valueName) === '' ? '' : null
+  );
+
+  useEffect(() => {
+    if (derivesValue && form.getValues(valueName) === valueFromLabel.current) {
+      valueFromLabel.current = derived;
+      form.setValue(valueName, derived as never, { shouldDirty: true });
+    }
+  }, [form, valueName, derived, derivesValue]);
+
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={selectId}>
-        <Trans>Type of options</Trans>
-      </Label>
-      <Select
-        items={{ string: t`Text`, number: t`Number` }}
-        value={valueType}
-        onValueChange={(value) => {
-          if (value !== null) {
-            onValueTypeChange(value);
-          }
-        }}
+    <div className="flex items-start gap-2">
+      <AppField
+        form={form}
+        name={labelName}
+        label={<span className="sr-only">{t`Option ${position} label`}</span>}
+        className="flex-1"
       >
-        <SelectTrigger id={selectId} aria-describedby={descriptionId}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="string">
-            <Trans>Text</Trans>
-          </SelectItem>
-          <SelectItem value="number">
-            <Trans>Number</Trans>
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      <p id={descriptionId} className="text-sm text-muted-foreground">
-        <Trans>
-          Whether the options of this Field hold text or number values.
-        </Trans>
-      </p>
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="text" {...controlProps} />
+        )}
+      </AppField>
+      <AppField
+        form={form}
+        name={valueName}
+        label={<span className="sr-only">{t`Option ${position} value`}</span>}
+        className="flex-1"
+      >
+        {({ field, controlProps }) =>
+          derivesValue ? (
+            // An option's value is a plain string, not a Value that may be
+            // empty, so the null-for-empty transform does not apply.
+            <TextControl
+              field={field}
+              type="text"
+              transform={rawTextFromInput}
+              className="font-mono"
+              {...controlProps}
+            />
+          ) : (
+            <TextControl field={field} type="number" {...controlProps} />
+          )
+        }
+      </AppField>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        Icon={XIcon}
+        disabled={onRemove === undefined}
+        onClick={onRemove}
+      >
+        <span className="sr-only">{t`Remove option ${position}`}</span>
+      </Button>
     </div>
   );
 }
 
 /**
- * A Default Value picker keyed by option index, which is what the select
+ * A Default Value picker keyed by option position, which is what the select
  * field's own control is: a list of radio buttons led by None, since a Default
  * Value may stay empty, and a dropdown with a filter once the list is long.
  *
@@ -146,444 +192,180 @@ function DefaultOptionChoice({
   );
 }
 
-function StringSelectOptionRow({
-  form,
-  index,
-  currentLanguage,
-  supportedLanguages,
-  onRemove,
-}: {
-  form: UseFormReturn<StringSelectFieldDefinition>;
-  index: number;
-  currentLanguage: SupportedLanguage;
-  supportedLanguages: SupportedLanguage[];
-  onRemove: (() => void) | undefined;
-}): ReactElement {
-  const { t } = useLingui();
-
-  const position = index + 1;
-  const labelValue = useWatch({
-    control: form.control,
-    name: `options.${index}.label.${currentLanguage}`,
-  });
-  // Auto-generate the value from the label until the value is edited manually
-  useEffect(() => {
-    if (form.getFieldState(`options.${index}.value`).isDirty === false) {
-      form.setValue(`options.${index}.value`, slug(labelValue ?? ''));
-    }
-  }, [form, labelValue, index]);
-
-  return (
-    <div className="flex items-start gap-2">
-      {/* sr-only labels name the option inputs for screen readers and for
-      role and label based E2E, which the old option rows lacked. */}
-      <AppField
-        form={form}
-        name={`options.${index}.label.${currentLanguage}`}
-        label={<span className="sr-only">{t`Option ${position} label`}</span>}
-        className="flex-1"
-      >
-        {({ field, controlProps }) => (
-          <TranslatableFormInputField
-            form={form}
-            title={t`Label`}
-            description={t`The label users see for this option.`}
-            type="text"
-            field={field}
-            controlProps={controlProps}
-            errors={form.formState.errors}
-            supportedLanguages={supportedLanguages}
-          />
-        )}
-      </AppField>
-      <AppField
-        form={form}
-        name={`options.${index}.value`}
-        label={<span className="sr-only">{t`Option ${position} value`}</span>}
-        className="flex-1"
-      >
-        {({ field, controlProps }) => (
-          // Option values are plain strings, not nullable Values, so the
-          // null-for-empty transform of a text control does not apply
-          <TextControl
-            field={field}
-            type="text"
-            transform={rawTextFromInput}
-            {...controlProps}
-          />
-        )}
-      </AppField>
-      <Button
-        type="button"
-        variant="destructive"
-        size="icon"
-        Icon={TrashIcon}
-        disabled={onRemove === undefined}
-        onClick={onRemove}
-      >
-        <span className="sr-only">{t`Remove option ${position}`}</span>
-      </Button>
-    </div>
-  );
-}
-
-function StringSelectExtras({
-  form,
-  currentLanguage,
-  supportedLanguages,
-}: DefinitionExtrasProps<StringSelectFieldDefinition>): ReactElement {
-  const { t } = useLingui();
-  // Read once, since the field's label and the name of its group of radio
-  // buttons are the same words.
-  const defaultValueLabel = t`Default value`;
-  const options = useFieldArray({ control: form.control, name: 'options' });
-  const watchedOptions = useWatch({ control: form.control, name: 'options' });
-
-  const optionDisplay = (
-    option: StringSelectFieldDefinition['options'][number],
-    index: number
-  ): string => {
-    const label = option.label[currentLanguage];
-    if (label !== undefined && label !== '') {
-      return label;
-    }
-    if (option.value !== '') {
-      return option.value;
-    }
-    const position = index + 1;
-    return t`Option ${position}`;
-  };
-  const items = watchedOptions.map((option, index) => ({
-    itemValue: String(index),
-    display: optionDisplay(option, index),
-  }));
-
-  return (
-    <>
-      <AppField
-        form={form}
-        name="options"
-        label={<Trans>Options</Trans>}
-        description={
-          <Trans>
-            The options a user can choose between. The label is what users see,
-            the value is what gets stored.
-          </Trans>
-        }
-      >
-        {({ controlProps }) => (
-          <div {...controlProps}>
-            <div className="space-y-2">
-              {options.fields.map((option, index) => (
-                <StringSelectOptionRow
-                  key={option.id}
-                  form={form}
-                  index={index}
-                  currentLanguage={currentLanguage}
-                  supportedLanguages={supportedLanguages}
-                  onRemove={
-                    options.fields.length > 1
-                      ? () => options.remove(index)
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              Icon={Plus}
-              onClick={() =>
-                options.append({
-                  value: '',
-                  label: translatableDefault({
-                    supportedLanguages,
-                    defaultValue: '',
-                  }),
-                })
-              }
-            >
-              <Trans>Add option</Trans>
-            </Button>
-          </div>
-        )}
-      </AppField>
-      <AppField
-        form={form}
-        name="defaultValue"
-        label={defaultValueLabel}
-        description={<Trans>The initial option for the field.</Trans>}
-      >
-        {({ field, controlProps, disabled }) => (
-          <DefaultOptionChoice
-            label={defaultValueLabel}
-            controlProps={controlProps}
-            field={field}
-            disabled={disabled}
-            items={items}
-            selectedIndex={
-              field.value === null
-                ? -1
-                : watchedOptions.findIndex(
-                    (option) => option.value === field.value
-                  )
-            }
-            onSelectIndex={(index) =>
-              field.onChange(
-                index === null ? null : (watchedOptions[index]?.value ?? null)
-              )
-            }
-          />
-        )}
-      </AppField>
-    </>
-  );
-}
-
-function NumberSelectOptionRow({
-  form,
-  index,
-  currentLanguage,
-  supportedLanguages,
-  onRemove,
-}: {
-  form: UseFormReturn<NumberSelectFieldDefinition>;
-  index: number;
-  currentLanguage: SupportedLanguage;
-  supportedLanguages: SupportedLanguage[];
-  onRemove: (() => void) | undefined;
-}): ReactElement {
-  const { t } = useLingui();
-
-  const position = index + 1;
-
-  return (
-    <div className="flex items-start gap-2">
-      <AppField
-        form={form}
-        name={`options.${index}.label.${currentLanguage}`}
-        label={<span className="sr-only">{t`Option ${position} label`}</span>}
-        className="flex-1"
-      >
-        {({ field, controlProps }) => (
-          <TranslatableFormInputField
-            form={form}
-            title={t`Label`}
-            description={t`The label users see for this option.`}
-            type="text"
-            field={field}
-            controlProps={controlProps}
-            errors={form.formState.errors}
-            supportedLanguages={supportedLanguages}
-          />
-        )}
-      </AppField>
-      <AppField
-        form={form}
-        name={`options.${index}.value`}
-        label={<span className="sr-only">{t`Option ${position} value`}</span>}
-        className="flex-1"
-      >
-        {({ field, controlProps }) => (
-          <TextControl type="number" field={field} {...controlProps} />
-        )}
-      </AppField>
-      <Button
-        type="button"
-        variant="destructive"
-        size="icon"
-        Icon={TrashIcon}
-        disabled={onRemove === undefined}
-        onClick={onRemove}
-      >
-        <span className="sr-only">{t`Remove option ${position}`}</span>
-      </Button>
-    </div>
-  );
-}
-
-function NumberSelectExtras({
-  form,
-  currentLanguage,
-  supportedLanguages,
-}: DefinitionExtrasProps<NumberSelectFieldDefinition>): ReactElement {
-  const { t } = useLingui();
-  // Read once, since the field's label and the name of its group of radio
-  // buttons are the same words.
-  const defaultValueLabel = t`Default value`;
-  const options = useFieldArray({ control: form.control, name: 'options' });
-  const watchedOptions = useWatch({ control: form.control, name: 'options' });
-
-  const optionDisplay = (
-    option: NumberSelectFieldDefinition['options'][number]
-  ): string => {
-    const label = option.label[currentLanguage];
-    if (label !== undefined && label !== '') {
-      return label;
-    }
-    return String(option.value);
-  };
-  const items = watchedOptions.map((option, index) => ({
-    itemValue: String(index),
-    display: optionDisplay(option),
-  }));
-
-  return (
-    <>
-      <AppField
-        form={form}
-        name="options"
-        label={<Trans>Options</Trans>}
-        description={
-          <Trans>
-            The options a user can choose between. The label is what users see,
-            the value is what gets stored.
-          </Trans>
-        }
-      >
-        {({ controlProps }) => (
-          <div {...controlProps}>
-            <div className="space-y-2">
-              {options.fields.map((option, index) => (
-                <NumberSelectOptionRow
-                  key={option.id}
-                  form={form}
-                  index={index}
-                  currentLanguage={currentLanguage}
-                  supportedLanguages={supportedLanguages}
-                  onRemove={
-                    options.fields.length > 1
-                      ? () => options.remove(index)
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              Icon={Plus}
-              onClick={() =>
-                options.append({
-                  value: 0,
-                  label: translatableDefault({
-                    supportedLanguages,
-                    defaultValue: '',
-                  }),
-                })
-              }
-            >
-              <Trans>Add option</Trans>
-            </Button>
-          </div>
-        )}
-      </AppField>
-      <AppField
-        form={form}
-        name="defaultValue"
-        label={defaultValueLabel}
-        description={<Trans>The initial option for the field.</Trans>}
-      >
-        {({ field, controlProps, disabled }) => (
-          <DefaultOptionChoice
-            label={defaultValueLabel}
-            controlProps={controlProps}
-            field={field}
-            disabled={disabled}
-            items={items}
-            selectedIndex={
-              field.value === null
-                ? -1
-                : watchedOptions.findIndex(
-                    (option) => option.value === field.value
-                  )
-            }
-            onSelectIndex={(index) =>
-              field.onChange(
-                index === null ? null : (watchedOptions[index]?.value ?? null)
-              )
-            }
-          />
-        )}
-      </AppField>
-    </>
-  );
-}
-
-const stringSelectSpec: DefinitionSpec<StringSelectFieldDefinition> = {
-  schema: stringSelectFieldDefinitionSchema,
-
-  resolver: zodResolver(stringSelectFieldDefinitionSchema),
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'string',
-    fieldType: 'select',
-    defaultValue: null,
-    options: [
-      {
-        value: '',
-        label: translatableDefault({
-          supportedLanguages: langs,
-          defaultValue: '',
-        }),
-      },
-    ],
-  }),
-  Extras: StringSelectExtras,
-};
-
-const numberSelectSpec: DefinitionSpec<NumberSelectFieldDefinition> = {
-  // Only a number select's options are numbers, so a string select is left
-  // without a note and its uniqueness stays a real choice.
-  uniquenessNote: msg`Number fields cannot be unique.`,
-  schema: numberSelectFieldDefinitionSchema,
-
-  resolver: zodResolver(numberSelectFieldDefinitionSchema),
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'number',
-    fieldType: 'select',
-    isUnique: false,
-    defaultValue: null,
-    min: null,
-    max: null,
-    options: [
-      {
-        value: 0,
-        label: translatableDefault({
-          supportedLanguages: langs,
-          defaultValue: '',
-        }),
-      },
-    ],
-  }),
-  Extras: NumberSelectExtras,
-};
-
 /**
- * The select authoring entry. Holds which option value-type is active and mounts
- * the matching draft, keyed so switching gives each variant its own fresh draft.
- * The value-type picker sits above the form; the draft below is a normal
- * DefinitionDraft, so the sheet's detached SubmitButton submits whichever variant
- * is active with no special wiring.
+ * The settings of a select field: whether its options hold text or numbers,
+ * the options themselves as rows with Add and Remove, and which of them a new
+ * Entry starts with.
  */
-export function SelectDefinitionDraft(
-  props: DefinitionDraftProps
-): ReactElement {
-  // The variant the draft opens on, which is a value type rather than a word.
-  // eslint-disable-next-line lingui/no-unlocalized-strings
-  const [valueType, setValueType] = useState<SelectValueType>('string');
+export function SelectDefinitionEditor<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
+  form,
+  fieldDefinition,
+  path,
+  set,
+  supportedLanguages,
+  language,
+}: DefinitionBinding<
+  'select',
+  TFieldValues,
+  TTransformedValues
+>): ReactElement {
+  const { t } = useLingui();
+  // Read once, since the field's label and the name of its group of radio
+  // buttons are the same words.
+  const defaultValueLabel = t`Default Value`;
+  const holdsText = fieldDefinition.valueType === 'string';
+  const options = fieldDefinition.options;
+  const items = options.map((option, index) => ({
+    itemValue: String(index),
+    display: optionDisplay(
+      option,
+      index,
+      language,
+      (position) => t`Option ${position}`
+    ),
+  }));
+  const emptyLabel = (): Record<string, string> =>
+    translatableDefault({ supportedLanguages, defaultValue: '' });
 
   return (
-    <div className="space-y-6">
-      <ValueTypeSelect valueType={valueType} onValueTypeChange={setValueType} />
-      {valueType === 'string' ? (
-        <DefinitionDraft key="string" {...props} spec={stringSelectSpec} />
-      ) : (
-        <DefinitionDraft key="number" {...props} spec={numberSelectSpec} />
-      )}
-    </div>
+    <>
+      <AppField
+        form={form}
+        name={path('valueType')}
+        label={<Trans>Type of options</Trans>}
+        description={<Trans>Whether its options hold text or numbers.</Trans>}
+      >
+        {({ controlProps, disabled }) => (
+          <Select
+            items={{ string: t`Text`, number: t`Number` }}
+            value={fieldDefinition.valueType}
+            disabled={disabled}
+            onValueChange={(value) => {
+              if (value === null || value === fieldDefinition.valueType) {
+                return;
+              }
+              // The options and the Default Value hold the other type from
+              // here, so they start over rather than being carried across as
+              // values Core would refuse.
+              set('valueType', value);
+              set('options', [
+                value === 'string'
+                  ? { value: '', label: emptyLabel() }
+                  : { value: 0, label: emptyLabel() },
+              ]);
+              set('defaultValue', null);
+              if (value === 'number') {
+                set('min', null);
+                set('max', null);
+                set('isUnique', false);
+              }
+            }}
+          >
+            {/* The trigger is the real focusable control, so the
+            control-association props land there rather than on the root. */}
+            <SelectTrigger {...controlProps}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="string">
+                <Trans>Text</Trans>
+              </SelectItem>
+              <SelectItem value="number">
+                <Trans>Number</Trans>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </AppField>
+
+      <AppField
+        form={form}
+        name={path('options')}
+        label={<Trans>Options</Trans>}
+        description={
+          <Trans>
+            The label is what editors read, the value is what is stored.
+          </Trans>
+        }
+      >
+        {({ controlProps, disabled, readOnly }) => (
+          <div className="flex flex-col gap-2" {...controlProps}>
+            {options.map((_option, index) => (
+              <OptionRow
+                // The row stands for the option at this place of the list,
+                // which is also what the paths inside it are bound to, so the
+                // place is what identifies it.
+                // eslint-disable-next-line react/no-array-index-key
+                key={index}
+                form={form}
+                labelName={path(`options.${index}.label.${language}`)}
+                valueName={path(`options.${index}.value`)}
+                position={index + 1}
+                derivesValue={holdsText}
+                onRemove={
+                  options.length > 1 && disabled === false && readOnly === false
+                    ? () =>
+                        set(
+                          'options',
+                          options.filter((_, candidate) => candidate !== index)
+                        )
+                    : undefined
+                }
+              />
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              Icon={PlusIcon}
+              disabled={disabled || readOnly}
+              className="w-fit"
+              onClick={() =>
+                set('options', [
+                  ...options,
+                  holdsText
+                    ? { value: '', label: emptyLabel() }
+                    : { value: 0, label: emptyLabel() },
+                ])
+              }
+            >
+              <Trans>Add option</Trans>
+            </Button>
+          </div>
+        )}
+      </AppField>
+
+      <AppField
+        form={form}
+        name={path('defaultValue')}
+        label={defaultValueLabel}
+        description={
+          <Trans>Every new Entry starts with it, in every language.</Trans>
+        }
+      >
+        {({ field, controlProps, disabled }) => (
+          <DefaultOptionChoice
+            label={defaultValueLabel}
+            controlProps={controlProps}
+            field={field}
+            disabled={disabled}
+            items={items}
+            selectedIndex={
+              field.value === null || field.value === undefined
+                ? -1
+                : options.findIndex((option) => option.value === field.value)
+            }
+            onSelectIndex={(index) =>
+              field.onChange(
+                index === null ? null : (options[index]?.value ?? null)
+              )
+            }
+          />
+        )}
+      </AppField>
+    </>
   );
 }

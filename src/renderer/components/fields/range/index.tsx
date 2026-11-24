@@ -1,63 +1,23 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { SlidersHorizontalIcon } from 'lucide-react';
 
 import { holdsNothing } from '@renderer/components/fields/empty-values';
 import {
-  storedText,
   noTitle,
+  storedText,
   translatableContent,
 } from '@renderer/components/fields/value-contracts';
+import { DefinitionBounds } from '@renderer/components/forms/definition-controls';
 import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
-import {
-  DefaultValueInputField,
-  DefinitionDraft,
-  MinMaxRow,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
+import { AppField } from '@renderer/components/ui/app-form';
+import { TextControl } from '@renderer/components/ui/field-controls';
 import { alwaysFilledFieldRules } from '@renderer/lib/fieldRules';
 
-import {
-  rangeFieldDefinitionSchema,
-  uuid,
-  type RangeFieldDefinition,
-} from '@elek-io/core';
+import { rangeFieldDefinitionSchema } from '@elek-io/core';
 
 import { type FieldTypeModule } from '../module';
 import { RangeControl } from './control';
-
-const spec: DefinitionSpec<RangeFieldDefinition> = {
-  uniquenessNote: msg`Number fields cannot be unique.`,
-  requiredNote: msg`Ranges are always required, since the slider always returns a number.`,
-  schema: rangeFieldDefinitionSchema,
-
-  resolver: zodResolver(rangeFieldDefinitionSchema),
-  // Range is always required and its default, min and max are mandatory numbers.
-  // isRequired and isUnique are re-narrowed here to Core's literal types.
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'number',
-    fieldType: 'range',
-    defaultValue: 50,
-    min: 0,
-    max: 100,
-    isRequired: true,
-    isUnique: false,
-  }),
-  Extras: ({ form }) => (
-    <>
-      <DefaultValueInputField form={form} name="defaultValue" type="number" />
-      <MinMaxRow
-        form={form}
-        minName="min"
-        maxName="max"
-        minDescription={<Trans>The lowest end of the slider.</Trans>}
-        maxDescription={<Trans>The highest end of the slider.</Trans>}
-      />
-    </>
-  ),
-};
 
 /** A number picked on a slider between a minimum and a maximum. */
 export const rangeField: FieldTypeModule<'range'> = {
@@ -65,6 +25,8 @@ export const rangeField: FieldTypeModule<'range'> = {
   // The `slider` role does not take `aria-required`, and a range always holds
   // a number anyway.
   acceptsAriaRequired: false,
+  Icon: SlidersHorizontalIcon,
+  group: 'numbers',
   // A slider always holds a number, so Required would name a rule nobody can
   // break, and its ends are the control's own value domain.
   rules: alwaysFilledFieldRules,
@@ -82,5 +44,41 @@ export const rangeField: FieldTypeModule<'range'> = {
   isEmpty: holdsNothing,
   renderValue: storedText,
   titleText: noTitle,
-  DefinitionDraft: (props) => <DefinitionDraft {...props} spec={spec} />,
+  requiredNote: () =>
+    msg`A range is always required, since the slider always holds a number.`,
+  uniquenessNote: () => msg`A number field can't be unique.`,
+  definitionSchema: () => rangeFieldDefinitionSchema,
+  newDefinition: ({ id, supportedLanguages }) => ({
+    ...baseDefaults(supportedLanguages),
+    id,
+    valueType: 'number',
+    fieldType: 'range',
+    defaultValue: 50,
+    min: 0,
+    max: 100,
+    isRequired: true,
+    isUnique: false,
+  }),
+  DefinitionEditor: ({ form, path }) => (
+    <>
+      <AppField
+        form={form}
+        name={path('defaultValue')}
+        label={<Trans>Default Value</Trans>}
+        description={
+          <Trans>Every new Entry starts with it, in every language.</Trans>
+        }
+      >
+        {({ field, controlProps }) => (
+          <TextControl field={field} type="number" {...controlProps} />
+        )}
+      </AppField>
+      <DefinitionBounds
+        form={form}
+        minName={path('min')}
+        maxName={path('max')}
+        description={<Trans>The two ends of the slider.</Trans>}
+      />
+    </>
+  ),
 };

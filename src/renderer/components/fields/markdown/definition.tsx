@@ -1,416 +1,297 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { i18n, type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { type ReactElement } from 'react';
-import { type Resolver } from 'react-hook-form';
+import { type FieldValues } from 'react-hook-form';
 
-import { AssetMimeTypePicker } from '@renderer/components/forms/asset-mime-type-picker';
-import { baseDefaults } from '@renderer/components/forms/field-definition-defaults';
+import { type DefinitionBinding } from '@renderer/components/fields/module';
 import {
-  DefinitionDraft,
-  type DefinitionDraftProps,
-  type DefinitionExtrasProps,
-  type DefinitionSpec,
-} from '@renderer/components/forms/field-definition-draft';
-import { AppField } from '@renderer/components/ui/app-form';
-import { FieldLegend, FieldSet } from '@renderer/components/ui/field';
-import { TextControl } from '@renderer/components/ui/field-controls';
-import { Skeleton } from '@renderer/components/ui/skeleton';
-import { Switch } from '@renderer/components/ui/switch';
+  DefinitionBounds,
+  DefinitionChoiceRows,
+  type DefinitionChoice,
+} from '@renderer/components/forms/definition-controls';
+import { MimeTypeRows } from '@renderer/components/forms/mime-type-rows';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { queryOptions } from '@renderer/queries';
 
 import {
-  markdownFieldDefinitionSchema,
   markdownHeadingDepthSchema,
-  uuid,
   type MarkdownFeatures,
-  type MarkdownFieldDefinition,
 } from '@elek-io/core';
 
-// Authoring for the markdown field type. See
+// The settings of a markdown field. See
 // contributing/renderer/dynamic-form-field-generation.md and
 // renderer/markdown-editor.md.
 //
-// This is the one spec whose form values and resolver output diverge: the form
-// pins the recursive `defaultValue` mdast tree to null (it blows RHF's path-type
-// instantiation, and v1 never edits it) while the resolver still yields a full
-// MarkdownFieldDefinition. Hence the single `as unknown as Resolver` cast below.
+// What a markdown field allows is two lists, as ci draws every list a type
+// takes: the blocks its text can be built from, and what can be marked inside
+// a line. Each row is one thing the editor may use, so the rows are what the
+// field allows and Add offers the rest.
 
-// MarkdownFieldDefinition.defaultValue is a recursive mdast tree that blows
-// react-hook-form's path type instantiation. The form never edits it (v1 keeps
-// markdown defaults null), so the form values pin it to null. The resolver
-// still validates and yields the full MarkdownFieldDefinition.
-type MarkdownFieldDefinitionFormValues = Omit<
-  MarkdownFieldDefinition,
-  'defaultValue'
-> & { defaultValue: null };
-
+/** The features that are not one boolean of their own, as a heading level is. */
 type BooleanFeature = Exclude<keyof MarkdownFeatures, 'headings'>;
 
-/** One row of the feature list, with its words held as catalog messages. */
+/* eslint-disable lingui/no-unlocalized-strings -- the keys a block and a
+   restriction are stored under, which nobody reads as words. */
+
+/** The key a heading level is stored under in the list of blocks. */
+const HEADING_PREFIX = 'heading-';
+
+/**
+ * The restriction a feature carries, by the feature it belongs to.
+ *
+ * A restriction says nothing once what it restricts is gone, so taking the
+ * feature away clears it rather than keeping a list nothing reads.
+ */
+const RESTRICTION_OF: Partial<
+  Record<BooleanFeature, 'ofCollections' | 'ofAssetMimeTypes'>
+> = {
+  entryReferences: 'ofCollections',
+  assetReferences: 'ofAssetMimeTypes',
+};
+
+/* eslint-enable lingui/no-unlocalized-strings */
+
+/** One thing a markdown field can allow, with the words it reads as. */
 interface MarkdownFeatureRow {
   key: BooleanFeature;
   label: MessageDescriptor;
-  hint: MessageDescriptor;
 }
 
 const blockFeatures: MarkdownFeatureRow[] = [
-  {
-    key: 'blockquotes',
-    label: msg`Blockquotes`,
-    hint: msg`Quoted text blocks.`,
-  },
-  { key: 'lists', label: msg`Lists`, hint: msg`Bulleted and numbered lists.` },
-  {
-    key: 'taskListItems',
-    label: msg`Task list items`,
-    hint: msg`Checkboxes inside lists. Requires lists.`,
-  },
-  {
-    key: 'codeBlocks',
-    label: msg`Code blocks`,
-    hint: msg`Multi line code with an optional language.`,
-  },
-  {
-    key: 'thematicBreak',
-    label: msg`Thematic breaks`,
-    hint: msg`Horizontal rules between sections.`,
-  },
-  {
-    key: 'tables',
-    label: msg`Tables`,
-    hint: msg`Tables with aligned columns.`,
-  },
-  {
-    key: 'footnotes',
-    label: msg`Footnotes`,
-    hint: msg`Footnote references and definitions.`,
-  },
-  {
-    key: 'rawHtml',
-    label: msg`Raw HTML`,
-    hint: msg`Raw HTML passes through unsanitized. Whatever renders this Field must sanitize it.`,
-  },
+  { key: 'blockquotes', label: msg`Quotes` },
+  { key: 'lists', label: msg`Lists` },
+  { key: 'taskListItems', label: msg`Task lists` },
+  { key: 'codeBlocks', label: msg`Code blocks` },
+  { key: 'thematicBreak', label: msg`Dividers` },
+  { key: 'tables', label: msg`Tables` },
+  { key: 'footnotes', label: msg`Footnotes` },
+  { key: 'rawHtml', label: msg`Raw HTML` },
 ];
 
 const inlineFeatures: MarkdownFeatureRow[] = [
-  { key: 'emphasis', label: msg`Emphasis`, hint: msg`Italic text.` },
-  { key: 'strong', label: msg`Strong`, hint: msg`Bold text.` },
-  {
-    key: 'inlineCode',
-    label: msg`Inline code`,
-    hint: msg`Code spans inside text.`,
-  },
-  {
-    key: 'strikethrough',
-    label: msg`Strikethrough`,
-    hint: msg`Struck through text.`,
-  },
-  {
-    key: 'hardLineBreaks',
-    label: msg`Hard line breaks`,
-    hint: msg`Line breaks inside a paragraph.`,
-  },
-  {
-    key: 'externalLinks',
-    label: msg`External links`,
-    hint: msg`Links to external URLs.`,
-  },
-  {
-    key: 'externalImages',
-    label: msg`External images`,
-    hint: msg`Images from external URLs.`,
-  },
-  {
-    key: 'entryReferences',
-    label: msg`Entry references`,
-    hint: msg`Links to Entries of this Project.`,
-  },
-  {
-    key: 'assetReferences',
-    label: msg`Asset references`,
-    hint: msg`Images and files from this Project's Assets.`,
-  },
+  { key: 'strong', label: msg`Bold` },
+  { key: 'emphasis', label: msg`Italic` },
+  { key: 'strikethrough', label: msg`Struck through` },
+  { key: 'inlineCode', label: msg`Code` },
+  { key: 'hardLineBreaks', label: msg`Line breaks` },
+  { key: 'externalLinks', label: msg`Links to the web` },
+  { key: 'externalImages', label: msg`Images from the web` },
+  { key: 'entryReferences', label: msg`Links to Entries` },
+  { key: 'assetReferences', label: msg`Assets of this Project` },
 ];
 
-function MarkdownExtras({
+/**
+ * The next features, with the ones a feature depends on taken into account.
+ *
+ * Core refuses task lists without lists, so taking lists away takes task lists
+ * with them, and a restriction that only means anything while its feature is
+ * on is cleared with it.
+ */
+function featuresWithout(
+  features: MarkdownFeatures,
+  key: BooleanFeature
+): MarkdownFeatures {
+  return {
+    ...features,
+    [key]: false,
+    ...(key === 'lists' ? { taskListItems: false } : {}),
+  };
+}
+
+/** The settings of a markdown field: what its text may be built from. */
+export function MarkdownDefinitionEditor<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
   form,
-}: DefinitionExtrasProps<MarkdownFieldDefinitionFormValues>): ReactElement {
+  fieldDefinition,
+  path,
+  set,
+}: DefinitionBinding<
+  'markdown',
+  TFieldValues,
+  TTransformedValues
+>): ReactElement {
   const { t } = useLingui();
   const { projectId, translateContent } = useProject();
   const { data: collectionList, isPending: isReadingCollections } =
     useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
+  const collections = isReadingCollections ? [] : collectionList.list;
+  const features = fieldDefinition.features;
+  const headingRow = (depth: number): DefinitionChoice => ({
+    key: `${HEADING_PREFIX}${String(depth)}`,
+    title: t`Heading ${depth}`,
+  });
+  // Task lists are offered only once lists are, since Core refuses the one
+  // without the other.
+  const isOffered = (key: BooleanFeature): boolean =>
+    features[key] === false && (key !== 'taskListItems' || features.lists);
+  const featureRows = (rows: MarkdownFeatureRow[]): DefinitionChoice[] =>
+    rows
+      .filter((row) => features[row.key])
+      .map((row) => ({ key: row.key, title: i18n._(row.label) }));
+  const offeredRows = (rows: MarkdownFeatureRow[]): DefinitionChoice[] =>
+    rows
+      .filter((row) => isOffered(row.key))
+      .map((row) => ({ key: row.key, title: i18n._(row.label) }));
+  const setFeature = (key: string, allowed: boolean): void => {
+    if (key.startsWith(HEADING_PREFIX)) {
+      const depth = Number(key.slice(HEADING_PREFIX.length));
+      set('features', {
+        ...features,
+        headings: allowed
+          ? [...features.headings, depth].sort((one, other) => one - other)
+          : features.headings.filter((enabled) => enabled !== depth),
+      });
+      return;
+    }
 
-  const enabledHeadings = form.watch('features.headings');
-  const listsEnabled = form.watch('features.lists');
-  const entryReferencesEnabled = form.watch('features.entryReferences');
-  const assetReferencesEnabled = form.watch('features.assetReferences');
-  const selectedCollectionIds = form.watch('ofCollections');
-
-  function toggleHeadingDepth(
-    depth: MarkdownFeatures['headings'][number]
-  ): void {
-    const next = enabledHeadings.includes(depth)
-      ? enabledHeadings.filter((enabled) => enabled !== depth)
-      : [...enabledHeadings, depth].sort((a, b) => a - b);
-    form.setValue('features.headings', next);
-  }
-
-  function toggleCollection(collectionId: string): void {
-    form.setValue(
-      'ofCollections',
-      selectedCollectionIds.includes(collectionId)
-        ? selectedCollectionIds.filter((id) => id !== collectionId)
-        : [...selectedCollectionIds, collectionId]
-    );
-  }
-
-  const featureRow = (feature: MarkdownFeatureRow): ReactElement => (
-    <AppField
-      key={feature.key}
-      form={form}
-      name={`features.${feature.key}`}
-      label={i18n._(feature.label)}
-      description={i18n._(feature.hint)}
-      orientation="horizontal"
-      className="gap-4 rounded-lg border border-border p-3 shadow-xs"
-    >
-      {({ field, controlProps }) => (
-        <Switch
-          {...controlProps}
-          aria-label={i18n._(feature.label)}
-          checked={field.value}
-          disabled={feature.key === 'taskListItems' && listsEnabled === false}
-          onCheckedChange={(checked) => {
-            field.onChange(checked);
-            // Core rejects task list items without lists
-            if (feature.key === 'lists' && checked === false) {
-              form.setValue('features.taskListItems', false);
-            }
-            // Turning a reference feature off hides its restriction picker,
-            // so clear the restriction with it rather than storing a list
-            // that nothing reads.
-            if (feature.key === 'entryReferences' && checked === false) {
-              form.setValue('ofCollections', []);
-            }
-            if (feature.key === 'assetReferences' && checked === false) {
-              form.setValue('ofAssetMimeTypes', []);
-            }
-          }}
-        />
-      )}
-    </AppField>
-  );
+    const feature = blockFeatures
+      .concat(inlineFeatures)
+      .find((row) => row.key === key);
+    if (feature === undefined) {
+      return;
+    }
+    if (allowed) {
+      set('features', { ...features, [feature.key]: true });
+      return;
+    }
+    set('features', featuresWithout(features, feature.key));
+    const restriction = RESTRICTION_OF[feature.key];
+    if (restriction !== undefined) {
+      set(restriction, []);
+    }
+  };
+  const blocksLabel = t`Blocks`;
+  const inlineLabel = t`Inside a line`;
+  const collectionsLabel = t`Entries from Collections`;
+  const chosenCollectionIds = fieldDefinition.ofCollections;
 
   return (
     <>
-      <div className="flex flex-row items-center justify-between space-x-2">
-        <AppField
+      <DefinitionChoiceRows
+        form={form}
+        name={path('features')}
+        label={blocksLabel}
+        labelText={blocksLabel}
+        description={
+          <Trans>What the text can be built from, besides paragraphs.</Trans>
+        }
+        chosen={[
+          ...features.headings.map(headingRow),
+          ...featureRows(blockFeatures),
+        ]}
+        offered={[
+          ...markdownHeadingDepthSchema.options
+            .map((option) => option.value)
+            .filter((depth) => features.headings.includes(depth) === false)
+            .map(headingRow),
+          ...offeredRows(blockFeatures),
+        ]}
+        addLabel={t`Add block`}
+        emptyNote={<Trans>Editors write paragraphs only.</Trans>}
+        nothingToAddNote={<Trans>Every block is allowed.</Trans>}
+        onAdd={(key) => setFeature(key, true)}
+        onRemove={(key) => setFeature(key, false)}
+      />
+
+      <DefinitionChoiceRows
+        form={form}
+        name={path('features.strong')}
+        label={inlineLabel}
+        labelText={inlineLabel}
+        description={<Trans>What editors can mark inside a line.</Trans>}
+        chosen={featureRows(inlineFeatures)}
+        offered={offeredRows(inlineFeatures)}
+        addLabel={t`Add`}
+        emptyNote={<Trans>Editors write plain text only.</Trans>}
+        nothingToAddNote={<Trans>Everything is allowed.</Trans>}
+        onAdd={(key) => setFeature(key, true)}
+        onRemove={(key) => setFeature(key, false)}
+      />
+
+      {features.entryReferences ? (
+        <DefinitionChoiceRows
           form={form}
-          name="min"
-          label={<Trans>Minimum</Trans>}
+          name={path('ofCollections')}
+          label={collectionsLabel}
+          labelText={collectionsLabel}
           description={
             <Trans>
-              The minimum number of blocks (paragraphs, headings, lists) the
-              content needs.
+              Editors can only link an Entry of these Collections. Every
+              Collection is allowed while this is empty.
             </Trans>
           }
-        >
-          {({ field, controlProps }) => (
-            <TextControl field={field} type="number" {...controlProps} />
-          )}
-        </AppField>
-        <AppField
-          form={form}
-          name="max"
-          label={<Trans>Maximum</Trans>}
-          description={
-            <Trans>The maximum number of blocks the content can hold.</Trans>
-          }
-        >
-          {({ field, controlProps }) => (
-            <TextControl field={field} type="number" {...controlProps} />
-          )}
-        </AppField>
-      </div>
-
-      <FieldSet>
-        <FieldLegend>
-          <Trans>Block features</Trans>
-        </FieldLegend>
-        <div className="space-y-2">
-          <AppField
-            form={form}
-            name="features.headings"
-            label={<Trans>Headings</Trans>}
-            description={
-              <Trans>
-                Which heading levels can be used. None disables headings.
-              </Trans>
-            }
-            className="rounded-lg border border-border p-3 shadow-xs"
-          >
-            {({ controlProps }) => (
-              <div className="flex flex-row gap-4" {...controlProps}>
-                {markdownHeadingDepthSchema.options.map((option) => {
-                  const depth = option.value;
-                  return (
-                    <label
-                      key={depth}
-                      className="flex flex-col items-center gap-1 text-sm"
-                    >
-                      <Trans>H{depth}</Trans>
-                      <Switch
-                        aria-label={t`Heading level ${depth}`}
-                        checked={enabledHeadings.includes(depth)}
-                        onCheckedChange={() => toggleHeadingDepth(depth)}
-                      />
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </AppField>
-          {blockFeatures.map((feature) => featureRow(feature))}
-        </div>
-      </FieldSet>
-
-      <FieldSet>
-        <FieldLegend>
-          <Trans>Inline features</Trans>
-        </FieldLegend>
-        <div className="space-y-2">
-          {inlineFeatures.map((feature) => featureRow(feature))}
-        </div>
-      </FieldSet>
-
-      {entryReferencesEnabled === true ? (
-        <AppField
-          form={form}
-          name="ofCollections"
-          label={<Trans>Restrict Entry references to Collections</Trans>}
-          description={
-            <Trans>
-              Only Entries from the selected Collections can be referenced. If
-              none are selected, Entries from all Collections are available.
-            </Trans>
-          }
-        >
-          {({ controlProps }) => (
-            <div className="space-y-2" {...controlProps}>
-              {isReadingCollections === true ? (
-                <Skeleton className="h-10" />
-              ) : collectionList.list.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  <Trans>No Collections available in this project.</Trans>
-                </p>
-              ) : (
-                collectionList.list.map((collection) => {
-                  const name = translateContent({
+          chosen={chosenCollectionIds.map((id) => ({
+            key: id,
+            title:
+              collections.find((candidate) => candidate.id === id) === undefined
+                ? t`A Collection that is gone`
+                : translateContent({
                     key: 'collection.name.plural',
-                    record: collection.name.plural,
-                  });
-                  return (
-                    <div
-                      key={collection.id}
-                      className="flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-xs"
-                    >
-                      <div className="mr-4">
-                        <span className="text-sm font-medium">{name}</span>
-                      </div>
-                      <Switch
-                        aria-label={name}
-                        checked={selectedCollectionIds.includes(collection.id)}
-                        onCheckedChange={() => toggleCollection(collection.id)}
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
-        </AppField>
+                    record:
+                      collections.find((candidate) => candidate.id === id)?.name
+                        .plural ?? {},
+                  }),
+          }))}
+          offered={collections
+            .filter(
+              (collection) =>
+                chosenCollectionIds.includes(collection.id) === false
+            )
+            .map((collection) => ({
+              key: collection.id,
+              title: translateContent({
+                key: 'collection.name.plural',
+                record: collection.name.plural,
+              }),
+            }))}
+          addLabel={t`Add Collection`}
+          emptyNote={<Trans>Every Collection is allowed.</Trans>}
+          nothingToAddNote={
+            collections.length === 0 ? (
+              <Trans>This Project holds no other Collection yet.</Trans>
+            ) : undefined
+          }
+          onAdd={(id) => set('ofCollections', [...chosenCollectionIds, id])}
+          onRemove={(id) =>
+            set(
+              'ofCollections',
+              chosenCollectionIds.filter((chosen) => chosen !== id)
+            )
+          }
+        />
       ) : null}
 
-      {assetReferencesEnabled === true ? (
-        <AppField
+      {features.assetReferences ? (
+        <MimeTypeRows
           form={form}
-          name="ofAssetMimeTypes"
-          label={<Trans>Restrict Asset references to file types</Trans>}
+          name={path('ofAssetMimeTypes')}
+          label={t`Assets of file types`}
           description={
             <Trans>
-              Only Assets of the selected file types can be referenced. If none
-              are selected, Assets of any type are available.
+              Editors can only place an Asset of these types. Every type is
+              allowed while this is empty.
             </Trans>
           }
-        >
-          {({ field, controlProps }) => (
-            <div {...controlProps}>
-              <AssetMimeTypePicker
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </div>
-          )}
-        </AppField>
+          chosen={fieldDefinition.ofAssetMimeTypes}
+          onChange={(mimeTypes) => set('ofAssetMimeTypes', mimeTypes)}
+        />
       ) : null}
+
+      <DefinitionBounds
+        form={form}
+        minName={path('min')}
+        maxName={path('max')}
+        description={
+          <Trans>
+            The number of blocks, such as paragraphs and headings, the text can
+            hold.
+          </Trans>
+        }
+      />
     </>
   );
-}
-
-const markdownSpec: DefinitionSpec<MarkdownFieldDefinitionFormValues> = {
-  uniquenessNote: msg`Markdown fields cannot be unique.`,
-  // The resolver is typed over the schema input, whose recursive defaultValue
-  // tree the form values pin to null (see MarkdownFieldDefinitionFormValues).
-  // Every value the form holds is valid schema input, the Resolver generics just
-  // cannot express that. This is the one cast this migration step adds.
-  schema: markdownFieldDefinitionSchema,
-  resolver: zodResolver(
-    markdownFieldDefinitionSchema
-  ) as unknown as Resolver<MarkdownFieldDefinitionFormValues>,
-  // Markdown fields are never unique, keep the default value null, and default
-  // every feature off (Core expects Desktop to opt features in explicitly).
-  makeDefaults: (langs) => ({
-    ...baseDefaults(langs),
-    id: uuid(),
-    valueType: 'mdast',
-    fieldType: 'markdown',
-    isUnique: false,
-    defaultValue: null,
-    min: null,
-    max: null,
-    features: {
-      headings: [],
-      blockquotes: false,
-      lists: false,
-      taskListItems: false,
-      codeBlocks: false,
-      thematicBreak: false,
-      tables: false,
-      footnotes: false,
-      rawHtml: false,
-      emphasis: false,
-      strong: false,
-      inlineCode: false,
-      strikethrough: false,
-      hardLineBreaks: false,
-      externalLinks: false,
-      externalImages: false,
-      entryReferences: false,
-      assetReferences: false,
-    },
-    ofCollections: [],
-    ofAssetMimeTypes: [],
-  }),
-  Extras: MarkdownExtras,
-};
-
-/** The markdown authoring entry: a DefinitionDraft over the markdown spec. */
-export function MarkdownDefinitionDraft(
-  props: DefinitionDraftProps
-): ReactElement {
-  return <DefinitionDraft {...props} spec={markdownSpec} />;
 }
