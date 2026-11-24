@@ -1099,11 +1099,14 @@ then rejected. A `Controller` holds one opaque value react-hook-form never
 introspects, so it sidesteps the depth limit and keeps the real ids.
 
 The chosen field's settings bind a path **inside** that value all the same, at
-`fieldDefinitions.<index>.<key>`. The `Controller` above them is subscribed to
-the whole array, so a write at any path below it draws the previews again, which
-is what makes the preview follow each keystroke, and the array keeps every
-definition's id because nothing replaces an element to edit one of its keys.
-That is what lets the page have one Save and one unsaved state while a refusal
+`fieldDefinitions.<index>.<key>`. That `Controller` is written through rather
+than read: `useController` is told about its own exact path, so its value is
+already stale once a field's settings have written inside the array. What draws
+the previews again is `useDefinitionsEditor`'s own `form.subscribe` on the
+array's name, which answers a write at any path below it and refills the list
+the previews are drawn from. That is what makes the preview follow each
+keystroke, and the array keeps every definition's id because nothing replaces an
+element to edit one of its keys. That is what lets the page have one Save and one unsaved state while a refusal
 Core answers it with still lands on the control it is about, see
 [A Collection's settings](#a-collections-settings).
 

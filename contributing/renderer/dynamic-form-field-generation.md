@@ -124,7 +124,7 @@ Where Core pins `isRequired` or `isUnique` to a literal, the module answers `req
 
 **A type's data fetching lives inside its own editor.** The `entry` editor's Collections list query, the `dynamic` editor's Components list query and the file types of `mime-type-rows.tsx` all sit at that level, so the shared settings never learn that a query exists.
 
-**Every list a type takes is rows with Add and Remove**, which is how ci draws each of them: a select's options, the Collections an `entry` field allows, the Components a `dynamic` field allows, the blocks and the inline marks a `markdown` field allows, the file types either reference field allows, and the fields a `slug` is written from. `DefinitionChoiceRows` ([`forms/definition-controls.tsx`](../../src/renderer/components/forms/definition-controls.tsx)) is that control: the rows are what the field holds, and Add offers what it does not hold yet. `DefinitionBounds` beside it is a type's Minimum and Maximum under one sentence, which both controls name, as ci draws them.
+**Every list a type takes is rows with Add and Remove**, which is how ci draws each of them: a select's options, the Collections an `entry` field allows, the Components a `dynamic` field allows, the blocks and the inline marks a `markdown` field allows, the file types an `asset` and a `markdown` field allow, and the fields a `slug` is written from. `DefinitionChoiceRows` ([`forms/definition-controls.tsx`](../../src/renderer/components/forms/definition-controls.tsx)) is that control: the rows are what the field holds, and Add offers what it does not hold yet. `DefinitionBounds` beside it is a type's Minimum and Maximum under one sentence, which both controls name, as ci draws them.
 
 ### Taking a Component away from a dynamic field
 
