@@ -1132,6 +1132,59 @@ test.describe('Collections', () => {
     });
   });
 
+  test('waits for the Value a save that also deletes one needs, and applies both at once', async ({
+    mainWindow,
+  }) => {
+    const { project, collection, entry } = await removeSubtitleOf(mainWindow);
+
+    // One save with both halves at once: Subtitle goes, and an Author that is
+    // required and has no default leaves the same Entry without a Value.
+    await addFieldDefinition(mainWindow, { label: 'Author' });
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Removing Subtitle deletes its Value from 1 Entry. Author needs a Value in 1 Entry.'
+    );
+
+    // The red button names the loss and, like Save, waits until the Value the
+    // same change needs is filled in.
+    const apply = dialog.getByRole('button', {
+      name: 'Remove Subtitle from 1 Entry',
+    });
+    await expect(apply).toBeDisabled();
+    await expect(dialog.getByText('English is missing 1 Value')).toBeVisible();
+
+    // It still takes a click, since it is `aria-disabled` rather than
+    // `disabled`, and the press writes nothing.
+    await apply.click({ force: true });
+    await expect(dialog).toBeVisible();
+    const untouched = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(untouched.values['subtitle']).toBeDefined();
+
+    // Once the Value is there, one press carries the loss and the Value.
+    await dialog
+      .getByLabel('Author in Launch day', { exact: true })
+      .fill('Mara Klein');
+    await expect(apply).toBeEnabled();
+    await apply.click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const applied = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(applied.values['subtitle']).toBeUndefined();
+    expect(applied.values['author']?.content).toEqual({ en: 'Mara Klein' });
+  });
+
   test('asks for the Value a refused change needs in every language of the Project', async ({
     mainWindow,
   }) => {
