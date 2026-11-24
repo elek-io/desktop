@@ -172,6 +172,20 @@ function layers(boxShadow: string): string[] {
 }
 
 /**
+ * The 1 px inset ring an element draws, or `undefined` while it draws none.
+ *
+ * A switch that is off is a ring rather than a shadow, and `transition-all`
+ * walks its spread up to 1 px, so the ring reads as a ring only on the frame
+ * the transition lands on. Polling this is what says a switch has settled.
+ */
+function insetRing(boxShadow: string): string | undefined {
+  return boxShadow
+    .split(/,(?![^(]*\))/)
+    .map((layer) => layer.trim())
+    .find((layer) => layer.endsWith('0px 0px 0px 1px inset'));
+}
+
+/**
  * One shadow layer, as its color and the lengths beside it.
  *
  * A computed box shadow names its color first and a token names it last, so
@@ -375,26 +389,26 @@ test.describe('Every control', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
 
     // The switch stored on, so turning it off starts the transition it takes
-    // its surface, its ring and its thumb over. The track reaching the surface
-    // ci gives it is what says the transition is through, so the rest is read
-    // after that rather than off the frame the click left behind.
+    // its surface, its ring and its thumb over. The ring lands last of the
+    // three, because its spread only reads 1 px on the frame the transition
+    // ends on, while a color is rounded to the one it ends on earlier. So the
+    // ring this test reads is what it waits for, and the rest is read after
+    // that rather than off the frame the click left behind.
     await expect
       .poll(
         async () =>
-          toBytes(
-            parseColor(
-              await mainWindow.evaluate(() => {
-                const track = document.querySelector('[data-slot="switch"]');
-                if (track === null) {
-                  throw new Error('The form draws no switch');
-                }
-                return getComputedStyle(track).backgroundColor;
-              })
-            )
+          insetRing(
+            await mainWindow.evaluate(() => {
+              const track = document.querySelector('[data-slot="switch"]');
+              if (track === null) {
+                throw new Error('The form draws no switch');
+              }
+              return getComputedStyle(track).boxShadow;
+            })
           ),
-        { message: 'the track of a switch that is off' }
+        { message: 'the ring of a switch that is off' }
       )
-      .toEqual(toBytes(parseColor(colors.light.card.oklch)));
+      .toBeDefined();
 
     const measured = await mainWindow.evaluate(() => {
       const track = document.querySelector('[data-slot="switch"]');
@@ -412,6 +426,7 @@ test.describe('Every control', () => {
           h: Math.round(thumbBox.height),
         },
         ring: getComputedStyle(track).boxShadow,
+        trackFill: getComputedStyle(track).backgroundColor,
         thumbFill: getComputedStyle(thumb).backgroundColor,
       };
     });
@@ -420,14 +435,14 @@ test.describe('Every control', () => {
     // 1 px ring in the input color, and the thumb in the muted color.
     expect(measured.size).toEqual({ w: 32, h: 18 });
     expect(measured.thumb).toEqual({ w: 12, h: 12 });
+    expect(toBytes(parseColor(measured.trackFill))).toEqual(
+      toBytes(parseColor(colors.light.card.oklch))
+    );
     expect(toBytes(parseColor(measured.thumbFill))).toEqual(
       toBytes(parseColor(colors.light['muted-foreground'].oklch))
     );
 
-    const ring = measured.ring
-      .split(/,(?![^(]*\))/)
-      .map((layer) => layer.trim())
-      .find((layer) => layer.endsWith('0px 0px 0px 1px inset'));
+    const ring = insetRing(measured.ring);
     expect(ring).toBeDefined();
     expect(
       toBytes(parseColor((ring ?? '').replace(' 0px 0px 0px 1px inset', '')))
