@@ -157,12 +157,16 @@ export function useDefinitionsEditor<
       id: chosen.id,
       supportedLanguages,
     });
+    // Everything every definition holds is kept, so a type change changes the
+    // type and nothing else. Core takes `isDisabled` on every type, so it
+    // needs no answer from the type the field becomes.
     replace({
       ...next,
       slug: chosen.slug,
       label: chosen.label,
       description: chosen.description,
       inputWidth: chosen.inputWidth,
+      isDisabled: chosen.isDisabled,
     });
     // Required and Unique are carried over only where the new type leaves
     // either a choice, since Core pins both on a type that has none. They are
