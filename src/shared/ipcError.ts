@@ -1,4 +1,8 @@
-import { type CoreErrorType, type EntryIssue } from '@elek-io/core';
+import {
+  type CollectionsNarrowedLoss,
+  type CoreErrorType,
+  type EntryIssue,
+} from '@elek-io/core';
 
 /**
  * Cross-process helpers to preserve a CoreError's `type` across the IPC
@@ -42,20 +46,53 @@ export function isCoreErrorType(value: unknown): value is CoreErrorType {
 /**
  * The keys of one of Core's field definition issues that may cross IPC.
  *
- * Everything else an issue carries is content somebody wrote:
- * `transformedValues` holds every Value of the Entry and `currentValue` the one
- * that cannot follow the change. No screen reads either, and a refused change
- * in a large Collection would otherwise pack every affected Entry's content
- * into one message, so they are dropped here, at the boundary, rather than at
- * the reader. The list is typed against Core's own `EntryIssue`, so a key
- * renamed there fails to compile.
+ * Where the issue sits and why it was refused, which is what the dialog of a
+ * refused change draws a row from: the Entry, its Collection, the field
+ * definition by id and by its new slug, the Component item the field belongs
+ * to where it does, and the issue itself. Each is an id or a name, never
+ * something somebody wrote.
+ *
+ * `transformedValues` is the one key of every issue that stays in the main
+ * process: it holds every Value of the Entry, so a refused change in a large
+ * Collection would pack the content of each affected Entry into one message.
+ * It is dropped here, at the boundary, rather than at the reader.
+ *
+ * The list is typed against Core's own `EntryIssue`, so a key renamed there
+ * fails to compile.
  */
 const forwardedIssueKeys = [
   'entryId',
   'collectionId',
+  'fieldDefinitionId',
   'fieldSlug',
+  'componentItemId',
   'issue',
 ] as const satisfies readonly (keyof EntryIssue)[];
+
+/**
+ * The keys a `content_loss` issue carries on top of those, which cross for
+ * that one issue type only.
+ *
+ * `currentValue` is the Value the change would delete, and nothing else of the
+ * Entry: the whole Value of a removed field, or only the items a narrowed
+ * allowlist would strip. It crosses because the dialog strikes it through, so
+ * the person sees what goes before they accept it, and only Core knows which
+ * items of a narrowing those are. `reason` says what about the change deletes
+ * it, and `itemCount` and `language` where the drop is partial.
+ *
+ * No other issue's `currentValue` crosses. The other four issue types are
+ * answered with a corrected Value, which is written in the dialog rather than
+ * read from what is stored, so the Value that cannot follow the change is of
+ * no use on screen. The list is typed against Core's `CollectionsNarrowedLoss`,
+ * the one loss shape that carries all four, so a key renamed there fails to
+ * compile.
+ */
+const forwardedContentLossKeys = [
+  'reason',
+  'currentValue',
+  'itemCount',
+  'language',
+] as const satisfies readonly (keyof CollectionsNarrowedLoss)[];
 
 /**
  * Whether a value is an object literal rather than a class instance, a `Date`,
@@ -75,17 +112,21 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * One element of an array cause, narrowed to what may cross.
  *
  * An element carrying Core's `issue` key is one of its field definition
- * issues, so it crosses as the keys above and nothing else. Anything else
- * crosses as it is, so a cause of another shape is not silently emptied.
+ * issues, so it crosses as the keys above and nothing else, with the Value a
+ * `content_loss` would delete on top of them. Anything else crosses as it is,
+ * so a cause of another shape is not silently emptied.
  */
 function encodableIssue(candidate: unknown): unknown {
   if (isPlainObject(candidate) === false || 'issue' in candidate === false) {
     return candidate;
   }
 
-  return Object.fromEntries(
-    forwardedIssueKeys.map((key) => [key, candidate[key]])
-  );
+  const keys: readonly string[] =
+    candidate['issue'] === 'content_loss'
+      ? [...forwardedIssueKeys, ...forwardedContentLossKeys]
+      : forwardedIssueKeys;
+
+  return Object.fromEntries(keys.map((key) => [key, candidate[key]]));
 }
 
 /**
@@ -139,7 +180,8 @@ function encodableCause(cause: unknown): unknown {
  * The cause that is worth the trouble is the issue list Core attaches to a
  * `Conflict` it raises for a field definition change it cannot carry out,
  * which is what lets a screen name the Entry to fix. Each issue crosses as
- * `forwardedIssueKeys` and nothing else. See `entryIssuesOf` in the renderer's
+ * `forwardedIssueKeys`, a `content_loss` with `forwardedContentLossKeys` on
+ * top, and nothing else. See `entryIssuesOf` in the renderer's
  * `lib/schemaChange.ts`, the one typed reader of it. Every other array of
  * plain objects crosses as Core wrote it, which is how the dangling references
  * of a refused sync reach their reader, and a shape nothing reads, such as the
