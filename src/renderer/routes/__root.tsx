@@ -38,6 +38,7 @@ import {
 } from '@renderer/components/ui/empty';
 import { Toaster } from '@renderer/components/ui/sonner';
 import { BreadcrumbProvider } from '@renderer/providers/BreadcrumbProvider';
+import { KeptFormsProvider } from '@renderer/providers/KeptFormsProvider';
 import { UnsavedChangesProvider } from '@renderer/providers/UnsavedChangesProvider';
 import { UserProvider } from '@renderer/providers/UserProvider';
 import { queryClient, queryOptions } from '@renderer/queries';
@@ -264,10 +265,15 @@ function RootComponent(): ReactElement {
           same question in the same dialog, and so the main process is told
           about every form on screen at once. */}
           <UnsavedChangesProvider>
-            <AppHeader trail={<HeaderTrail />} user={<HeaderUser />} />
-            <AppGround>
-              <Outlet />
-            </AppGround>
+            {/* Above the route too, so a page that links to an Entry and
+            expects the person back keeps what nobody saved while it is
+            unmounted. */}
+            <KeptFormsProvider>
+              <AppHeader trail={<HeaderTrail />} user={<HeaderUser />} />
+              <AppGround>
+                <Outlet />
+              </AppGround>
+            </KeptFormsProvider>
           </UnsavedChangesProvider>
           <Toaster />
           <TanStackRouterDevtools
