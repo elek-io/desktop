@@ -129,6 +129,43 @@ export function assetReferenceValue(assetId: string): ReferencedValue {
 }
 
 /**
+ * Build an asset reference Value pointing at several Assets, in the order the
+ * field holds them, which is the order its rows stand in. The singular
+ * `assetReferenceValue` is the one-Asset case of it.
+ */
+export function assetReferencesValue(assetIds: string[]): ReferencedValue {
+  return {
+    objectType: 'value',
+    valueType: 'reference',
+    content: {
+      en: assetIds.map((id) => ({ id, objectType: 'asset' as const })),
+    },
+  };
+}
+
+/**
+ * Build an entry reference Value pointing at several Entries of one
+ * Collection, in the order the field holds them. Core wants the Collection
+ * beside each id, so it is passed once for all of them.
+ */
+export function entryReferencesValue(
+  collectionId: string,
+  entryIds: string[]
+): ReferencedValue {
+  return {
+    objectType: 'value',
+    valueType: 'reference',
+    content: {
+      en: entryIds.map((id) => ({
+        id,
+        objectType: 'entry' as const,
+        collectionId,
+      })),
+    },
+  };
+}
+
+/**
  * Build a dynamic field's Value: the ordered sections of a page. Unlike every
  * other Value its content is one flat array rather than a record per language,
  * and each item names the Component it is built from plus that Component's own

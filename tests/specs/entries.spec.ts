@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -2826,6 +2826,14 @@ test.describe('An Entry in three panes', () => {
             componentId: hero.id,
             values: { headline: stringValue({ en: 'Second' }) },
           },
+          {
+            componentId: hero.id,
+            values: { headline: stringValue({ en: 'Third' }) },
+          },
+          {
+            componentId: hero.id,
+            values: { headline: stringValue({ en: 'Fourth' }) },
+          },
         ]),
       },
     });
@@ -2839,26 +2847,43 @@ test.describe('An Entry in three panes', () => {
     // Each section is a group of its own, headed by its Component and its
     // place in the list.
     const sections = mainWindow.locator('[data-slot="section"]');
-    await expect(sections).toHaveCount(2);
+    await expect(sections).toHaveCount(4);
     await expect(sections.first()).toContainText('Hero');
-    await expect(sections.first()).toContainText('Section 1 of 2');
+    await expect(sections.first()).toContainText('Section 1 of 4');
+
+    // Driven from the keyboard, which is who loses their place when the focus
+    // falls to the page.
+    const remove = mainWindow.getByRole('button', {
+      name: 'Remove the Hero section',
+    });
+    const removeFromTheKeyboard = async (at: number): Promise<void> => {
+      await remove.nth(at).focus();
+      await mainWindow.keyboard.press('Enter');
+    };
+    const headlineOf = (at: number): Locator =>
+      sections.nth(at).getByLabel('Headline', { exact: true });
 
     // Removing the first one leaves the focus on the section that takes its
     // place rather than on the page.
-    await mainWindow
-      .getByRole('button', { name: 'Remove the Hero section' })
-      .first()
-      .click();
-    await expect(sections).toHaveCount(1);
-    await expect(sections.first()).toBeFocused();
-    await expect(
-      mainWindow.getByLabel('Headline', { exact: true })
-    ).toHaveValue('Second');
+    await removeFromTheKeyboard(0);
+    await expect(sections).toHaveCount(3);
+    await expect(sections.nth(0)).toBeFocused();
+    await expect(headlineOf(0)).toHaveValue('Second');
 
-    // And the last one leaves it on Add section, the one thing left to press.
-    await mainWindow
-      .getByRole('button', { name: 'Remove the Hero section' })
-      .click();
+    // One in the middle: the same again.
+    await removeFromTheKeyboard(1);
+    await expect(sections).toHaveCount(2);
+    await expect(sections.nth(1)).toBeFocused();
+    await expect(headlineOf(1)).toHaveValue('Fourth');
+
+    // The last one: nothing takes its place, so the section before it has it.
+    await removeFromTheKeyboard(1);
+    await expect(sections).toHaveCount(1);
+    await expect(sections.nth(0)).toBeFocused();
+    await expect(headlineOf(0)).toHaveValue('Second');
+
+    // And with no section left, Add section, the one thing left to press.
+    await removeFromTheKeyboard(0);
     await expect(sections).toHaveCount(0);
     await expect(
       mainWindow.getByRole('button', { name: 'Add section' })
