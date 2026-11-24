@@ -1106,9 +1106,9 @@ the previews again is `useDefinitionsEditor`'s own `form.subscribe` on the
 array's name, which answers a write at any path below it and refills the list
 the previews are drawn from. That is what makes the preview follow each
 keystroke, and the array keeps every definition's id because nothing replaces an
-element to edit one of its keys. That is what lets the page have one Save and one unsaved state while a refusal
-Core answers it with still lands on the control it is about, see
-[A Collection's settings](#a-collections-settings).
+element to edit one of its keys. That is what lets the page have one Save and
+one unsaved state while a refusal Core answers it with still lands on the
+control it is about, see [A Collection's settings](#a-collections-settings).
 
 **Why not a `useReducer` for the same array.** It would sit outside the resolver,
 so the Collection schema's refinements would not run, `formState.isDirty` would
