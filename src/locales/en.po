@@ -647,6 +647,10 @@ msgstr "Can't reach elek.io Cloud. Check your internet connection and try again.
 msgid "Can't reach the Git repository"
 msgstr "Can't reach the Git repository"
 
+#: src/renderer/components/component-list.tsx
+msgid "Can't read how many Entries use it, {fields, plural, one {# field} other {# fields}}"
+msgstr "Can't read how many Entries use it, {fields, plural, one {# field} other {# fields}}"
+
 #: src/renderer/components/project-state.tsx
 msgid "Can't read the Releases"
 msgstr "Can't read the Releases"

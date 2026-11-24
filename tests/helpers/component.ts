@@ -3,6 +3,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import {
   type Component,
   type CreateComponentProps,
+  type ListComponentsProps,
+  type PaginatedList,
   type UpdateComponentProps,
 } from '@elek-io/core';
 
@@ -50,6 +52,22 @@ export async function updateComponentViaIpc(
     async (p) => window.ipc.core.components.update(p),
     props
   );
+}
+
+/**
+ * List the Project's Components directly over IPC, in the order Core answers.
+ *
+ * Used to hand a stub of `core:components:list` the Components Core really
+ * holds, in an order of the spec's own choosing.
+ */
+export async function listComponentsViaIpc(
+  page: Page,
+  projectId: string
+): Promise<PaginatedList<Component>> {
+  return page.evaluate(async (p) => window.ipc.core.components.list(p), {
+    projectId,
+    limit: 0,
+  } satisfies ListComponentsProps);
 }
 
 /** Read a Component directly over IPC, to assert what was written. */

@@ -24,6 +24,7 @@ import {
   componentRow,
   createComponentViaIpc,
   fillComponentForm,
+  listComponentsViaIpc,
   navigateToComponent,
   navigateToComponentCreate,
   navigateToComponents,
@@ -43,7 +44,13 @@ import {
   stringValue,
 } from '../helpers/entry.js';
 import { errorScreenTitle } from '../helpers/error.js';
-import { stubCoreRejectWithType } from '../helpers/ipc.js';
+import {
+  recordCoreCallProps,
+  recordedCoreCallProps,
+  stubCoreRejectWithType,
+  stubCoreResolve,
+} from '../helpers/ipc.js';
+import { recordedLogs, recordLogsViaIpc } from '../helpers/log.js';
 import { mainPanel, navigate, projectSidebar } from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
@@ -127,7 +134,12 @@ test.describe('Components', () => {
     ).toBeVisible();
 
     // The list beside it names it by the name somebody gave it, not by its id,
-    // and the row it opened is the one marked current.
+    // and the row it opened is the one marked current, to a screen reader as
+    // well as by its surface.
+    await expect(componentRow(mainWindow, 'Teaser')).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
     await expect(componentRow(mainWindow, 'Teaser')).toHaveAttribute(
       'data-active',
       'true'
@@ -299,6 +311,206 @@ test.describe('Components', () => {
     );
   });
 
+  // ci's list stands in the order of the names it shows. Core answers in the
+  // order the uuid folders sit on disk, which nobody set and which differs
+  // from Project to Project, so the list is handed the Components in the worst
+  // order there is here: their names backwards.
+  test('lists the Components by name, whatever order Core answers in', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    for (const { name, slug } of [
+      { name: 'Hero', slug: 'hero' },
+      { name: 'Call to action', slug: 'call-to-action' },
+      { name: 'Opening hours', slug: 'opening-hours' },
+      { name: 'Gallery', slug: 'gallery' },
+    ]) {
+      await createComponentViaIpc(mainWindow, {
+        projectId: project.id,
+        name: { en: name },
+        slug,
+      });
+    }
+
+    const listed = await listComponentsViaIpc(mainWindow, project.id);
+    await stubCoreResolve(electronApp, 'core:components:list', {
+      ...listed,
+      list: [...listed.list].sort((one, other) =>
+        (one.name.en ?? '') < (other.name.en ?? '') ? 1 : -1
+      ),
+    });
+    await navigateToComponents(mainWindow, project.id);
+
+    await expect(componentRow(mainWindow, 'Gallery')).toBeVisible();
+    const names = await componentListPane(mainWindow)
+      .locator('[data-slot="component-name"]')
+      .allTextContents();
+    expect(names).toEqual([
+      'Call to action',
+      'Gallery',
+      'Hero',
+      'Opening hours',
+    ]);
+  });
+
+  // How many Entries use each Component is the one read this list makes of its
+  // own. The Components were read when it fails, so the list stays a list and
+  // each row says what it cannot tell rather than the pane saying the
+  // Components could not be read.
+  test('names every Component and opens it while how many Entries use them cannot be read', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    test.setTimeout(120000);
+
+    await recordLogsViaIpc(electronApp);
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const used = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Gallery' },
+      slug: 'gallery',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [used.id] }),
+      ],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        sections: componentValue([
+          {
+            componentId: used.id,
+            values: { title: stringValue({ en: 'A section' }) },
+          },
+        ]),
+      },
+    });
+
+    await stubCoreRejectWithType(electronApp, 'core:entries:list', 'Internal');
+    await navigateToComponents(mainWindow, project.id);
+
+    // Every Component is named, with how many fields it has, which is read off
+    // the Component itself. It takes the retries of the Entries' own query to
+    // get there, which is why the first row waits.
+    await expect(componentRow(mainWindow, 'Teaser')).toContainText(
+      "Can't read how many Entries use it, 1 field",
+      { timeout: 25000 }
+    );
+    await expect(componentRow(mainWindow, 'Gallery')).toContainText(
+      "Can't read how many Entries use it, 1 field"
+    );
+    // And nothing says a count it does not have, in either direction.
+    await expect(
+      componentListPane(mainWindow).getByText('Not used yet')
+    ).toHaveCount(0);
+    await expect(
+      componentListPane(mainWindow).getByText('uses it')
+    ).toHaveCount(0);
+    await expect(
+      componentListPane(mainWindow).getByRole('heading', {
+        name: /^Components\s*2$/,
+      })
+    ).toBeVisible();
+
+    // The pane says neither that the Components could not be read nor takes
+    // the window to the error screen.
+    await expect(
+      mainWindow.getByText("Desktop can't read the Components of this Project.")
+    ).toBeHidden();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
+
+    // And a row still opens the Component it names.
+    await chooseComponent(mainWindow, 'Teaser');
+    await expect(mainWindow).toHaveURL(componentRoute);
+    await expect(
+      mainWindow.getByRole('heading', {
+        name: 'Settings of the Teaser Component',
+      })
+    ).toBeVisible();
+
+    // The failure is in the log file with its type, the way a pane's boundary
+    // writes one, so a read the list answered itself is never only on screen.
+    const logged = (await recordedLogs(electronApp)).filter((record) =>
+      record.message.startsWith('Component usage error:')
+    );
+    expect(logged.length).toBeGreaterThan(0);
+    expect(logged[0]?.level).toBe('error');
+    expect(logged[0]?.meta['error.type']).toBe('Internal');
+  });
+
+  // Only a Collection whose fields embed a Component at all can hold a section
+  // built from one, so the Entries of every other Collection are never read
+  // for the counts. What the list hands Core is recorded while Core keeps
+  // answering, so the counts the rows show are the real ones.
+  test('reads the Entries of the Collection that embeds a Component, and of no other', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const holder = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+    // One Collection that embeds nothing, so no Entry of it can hold a
+    // section.
+    const plain = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Note' }, plural: { en: 'Notes' } },
+      slug: { singular: 'note', plural: 'notes' },
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: holder.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: { title: stringValue({ en: 'A section' }) },
+          },
+        ]),
+      },
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: plain.id,
+      values: { title: stringValue({ en: 'Just a note' }) },
+    });
+
+    await recordCoreCallProps(electronApp, 'core:entries:list');
+    await navigateToComponents(mainWindow, project.id);
+    await expect(componentRow(mainWindow, 'Teaser')).toContainText(
+      '1 Entry uses it'
+    );
+
+    const read = (await recordedCoreCallProps(electronApp)).map((props) =>
+      typeof props === 'object' && props !== null && 'collectionId' in props
+        ? props.collectionId
+        : null
+    );
+    expect(read).toContain(holder.id);
+    expect(read).not.toContain(plain.id);
+  });
+
   test('saves a renamed Component from its one Save and keeps it chosen', async ({
     mainWindow,
   }) => {
@@ -329,6 +541,10 @@ test.describe('Components', () => {
     // The Component stays chosen beside its list, with nothing left unsaved.
     await expect(mainWindow).toHaveURL(componentRoute);
     await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(componentRow(mainWindow, 'Promo')).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
     await expect(componentRow(mainWindow, 'Promo')).toHaveAttribute(
       'data-active',
       'true'
@@ -563,6 +779,13 @@ test.describe('Components', () => {
         textFieldDefinition({ slug: 'subline', label: { en: 'Subline' } }),
       ],
     });
+    // A second Component, so the chosen row's own surface can be measured
+    // against a row nobody chose.
+    await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Gallery' },
+      slug: 'gallery',
+    });
 
     for (const theme of ['light', 'dark'] as const) {
       // The theme is put on first, since it is applied through the app's own
@@ -579,11 +802,51 @@ test.describe('Components', () => {
       await waitForLayout(mainWindow);
 
       // The row the address names is the one marked current, which is what
-      // says where in the list the open settings belong.
+      // says where in the list the open settings belong, to a screen reader
+      // and by the surface and the bar a sighted editor reads.
+      await expect(
+        componentRow(mainWindow, 'Teaser'),
+        `${theme} mode leaves the chosen row unmarked`
+      ).toHaveAttribute('aria-current', 'page');
       await expect(
         componentRow(mainWindow, 'Teaser'),
         `${theme} mode leaves the chosen row unmarked`
       ).toHaveAttribute('data-active', 'true');
+
+      const marks = await mainWindow.evaluate(() => {
+        const rows = Array.from(
+          document.querySelectorAll('[data-slot="component-row"]')
+        );
+        const chosen = rows.find(
+          (row) => row.getAttribute('data-active') !== null
+        );
+        const unchosen = rows.find(
+          (row) => row.getAttribute('data-active') === null
+        );
+        if (chosen === undefined || unchosen === undefined) {
+          throw new Error(
+            `The list drew ${String(rows.length)} rows, one chosen and one not`
+          );
+        }
+        const read = (row: ProbedElement): { surface: string; bar: string } => {
+          const style = getComputedStyle(row);
+          return { surface: style.backgroundColor, bar: style.boxShadow };
+        };
+        return { chosen: read(chosen), unchosen: read(unchosen) };
+      });
+
+      // The surface and the bar are what a sighted editor reads it by, so the
+      // chosen row is measured against the row beside it rather than only by
+      // the attribute its own CSS hooks on.
+      expect(
+        marks.chosen.surface,
+        `${theme} mode draws the chosen row on the same surface as the rest`
+      ).not.toBe(marks.unchosen.surface);
+      expect(
+        marks.chosen.bar,
+        `${theme} mode leaves the chosen row without its bar`
+      ).not.toBe('none');
+      expect(marks.unchosen.bar).toBe('none');
 
       const measured = await mainWindow.evaluate(() => {
         const panel = document.querySelector('[data-slot="panel"]');

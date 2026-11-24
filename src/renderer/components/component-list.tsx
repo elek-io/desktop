@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
@@ -9,6 +10,7 @@ import { ScrollArea } from '@renderer/components/ui/scroll-area';
 import { SkeletonRows } from '@renderer/components/ui/skeleton';
 import { useComponentUsage } from '@renderer/hooks/useComponentUsage';
 import { useProject } from '@renderer/hooks/useProject';
+import { cn } from '@renderer/lib/utils';
 import { buttonVariants } from '@renderer/lib/variants';
 
 import { type Component } from '@elek-io/core';
@@ -36,18 +38,26 @@ function ComponentRow({
   component: Component;
   /** The Component's name, in the language the app is read in. */
   name: string;
-  /** How many Entries hold a section built from it. */
-  entriesUsing: number;
+  /**
+   * How many Entries hold a section built from it, or `null` where that could
+   * not be read.
+   */
+  entriesUsing: number | null;
 }): ReactElement {
   const { t } = useLingui();
   const fields = component.fieldDefinitions.length;
   // One sentence per case rather than a phrase spliced into one, so a
   // translation can word a Component nobody uses yet its own way, see
-  // contributing/renderer/internationalization.md.
+  // contributing/renderer/internationalization.md. The row says what it cannot
+  // tell rather than claiming nothing uses it, as a Project card says it
+  // cannot read the Releases, and it says it of the count alone: how many
+  // fields the Component has is read off the Component itself.
   const says =
-    entriesUsing === 0
-      ? t`Not used yet, ${plural(fields, { one: '# field', other: '# fields' })}`
-      : t`${plural(entriesUsing, { one: '# Entry uses it', other: '# Entries use it' })}, ${plural(fields, { one: '# field', other: '# fields' })}`;
+    entriesUsing === null
+      ? t`Can't read how many Entries use it, ${plural(fields, { one: '# field', other: '# fields' })}`
+      : entriesUsing === 0
+        ? t`Not used yet, ${plural(fields, { one: '# field', other: '# fields' })}`
+        : t`${plural(entriesUsing, { one: '# Entry uses it', other: '# Entries use it' })}, ${plural(fields, { one: '# field', other: '# fields' })}`;
 
   return (
     <Link
@@ -63,7 +73,13 @@ function ComponentRow({
         </span>
         <span
           data-slot="component-use"
-          className="truncate text-small text-muted-foreground"
+          className={cn(
+            'truncate text-small',
+            // In the warning color where it says what it cannot tell, as ci
+            // colors a state nothing is wrong with but nothing is known about
+            // either.
+            entriesUsing === null ? 'text-warning' : 'text-muted-foreground'
+          )}
         >
           {says}
         </span>
@@ -87,7 +103,14 @@ export interface ComponentListPaneProps {
  * How many Entries use each one is read here rather than passed in, so a read
  * that fails is answered in this pane rather than taking the screen with it.
  * The rows wait for it, so a row says what it says once rather than gaining
- * half of it a moment later.
+ * half of it a moment later. A read that failed leaves every row standing and
+ * says in the row that the count could not be read, since the Components
+ * themselves were read and the list is the only way to one.
+ *
+ * The rows stand in the order of the names they show, as ci's list does. Core
+ * answers in the order the Components sit on disk, which is the order of their
+ * uuid folders, so the same Components would stand in a different order in
+ * every Project.
  */
 export function ComponentListPane({
   projectId,
@@ -95,8 +118,33 @@ export function ComponentListPane({
 }: ComponentListPaneProps): ReactElement {
   const { t } = useLingui();
   const { translateContent } = useProject();
-  const { entriesByComponent, isPending: isReadingUsage } =
-    useComponentUsage(projectId);
+  const {
+    entriesByComponent,
+    isPending: isReadingUsage,
+    error: usageError,
+  } = useComponentUsage(projectId);
+  // By the name the row shows, in the language the app is read in, so a
+  // German reader gets German's own order. A name that reads the same for the
+  // collator, such as two Components called Hero, is settled by the slug,
+  // which is unique in the Project, so an order nobody set is never left to
+  // the disk. `numeric` keeps Section 2 ahead of Section 10.
+  const byName = new Intl.Collator(i18n.locale, { numeric: true });
+  const rows =
+    components === undefined
+      ? []
+      : components
+          .map((component) => ({
+            component,
+            name: translateContent({
+              key: 'component.name',
+              record: component.name,
+            }),
+          }))
+          .sort(
+            (one, other) =>
+              byName.compare(one.name, other.name) ||
+              byName.compare(one.component.slug, other.component.slug)
+          );
 
   return (
     // The rows are the way from one Component to the next, which is what makes
@@ -139,16 +187,17 @@ export function ComponentListPane({
               data-slot="component-list"
               className="-mx-(--pane-edge) border-t [&>*:last-child]:border-b-0"
             >
-              {components.map((component) => (
+              {rows.map(({ component, name }) => (
                 <ComponentRow
                   key={component.id}
                   projectId={projectId}
                   component={component}
-                  name={translateContent({
-                    key: 'component.name',
-                    record: component.name,
-                  })}
-                  entriesUsing={entriesByComponent.get(component.id) ?? 0}
+                  name={name}
+                  entriesUsing={
+                    usageError === null
+                      ? (entriesByComponent.get(component.id) ?? 0)
+                      : null
+                  }
                 />
               ))}
             </div>
