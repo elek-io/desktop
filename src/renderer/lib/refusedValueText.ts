@@ -1,6 +1,10 @@
 import { plural, t } from '@lingui/core/macro';
 import { z } from 'zod';
 
+import { settingsRefusalText } from '@renderer/lib/settingsRefusals';
+
+import type { FieldErrorMessage } from './formErrors';
+
 // The words a refused Value is explained in, one sentence per zod issue code,
 // read from the message catalog at the moment the issue is raised.
 //
@@ -53,6 +57,41 @@ function wrongShapeText(): string {
  */
 export function unknownRefusalText(): string {
   return t`This field can't take that. Change it to save.`;
+}
+
+/**
+ * The sentence the field shows for the message it renders, if any.
+ *
+ * Every refusal zod raises arrives already worded, through the error map
+ * `lib/refusedValueText.ts` installs. The exception is an issue Core raised
+ * with a message of its own, which zod lets outrank every map and which
+ * therefore still carries Core's English: it arrives under zod's `custom`
+ * code. A field of an Entry hands it to its own field type, which knows the
+ * refusals of a Value, and every other field words it through the refusals of
+ * a Collection's, a Component's and a field definition's settings. Either way
+ * one sentence stands for a refusal nothing knows, so Core's English never
+ * reaches a field.
+ *
+ * A message `setError` put here is worded by whoever called it, so only
+ * `custom` is handed on.
+ */
+export function shownRefusalText(
+  found: FieldErrorMessage | undefined,
+  content: unknown,
+  coreRefusalText:
+    ((refusal: { message: string; content: unknown }) => string) | undefined
+): string | undefined {
+  if (found === undefined) {
+    return undefined;
+  }
+
+  if (found.type !== 'custom') {
+    return found.message;
+  }
+  if (coreRefusalText !== undefined) {
+    return coreRefusalText({ message: found.message, content });
+  }
+  return settingsRefusalText(found.message) ?? unknownRefusalText();
 }
 
 /** The words for a string that is not in the format its field type asks for. */

@@ -64,6 +64,7 @@ import {
   type FieldErrorMessage,
 } from '@renderer/lib/formErrors';
 import { isLeavingThePage } from '@renderer/lib/leaveGuard';
+import { shownRefusalText } from '@renderer/lib/refusedValueText';
 import { cn } from '@renderer/lib/utils';
 
 // The form layer: the one <form>, the one submit control, the one field shell
@@ -71,32 +72,6 @@ import { cn } from '@renderer/lib/utils';
 // field type lives in components/fields/ instead.
 //
 // See contributing/renderer/forms.md.
-
-/**
- * The sentence the field shows for the message it renders, if any.
- *
- * Every refusal zod raises arrives already worded, through the error map
- * `lib/refusedValueText.ts` installs. The exception is an issue Core raised
- * with a message of its own, which zod lets outrank every map and which
- * therefore still carries Core's English: it arrives under zod's `custom`
- * code, and the field type it landed on words it through `coreRefusalText`.
- * A message `setError` put here is worded by whoever called it, so only
- * `custom` is handed on.
- */
-function fieldErrorText(
-  found: FieldErrorMessage | undefined,
-  content: unknown,
-  coreRefusalText: ((refusal: FieldRefusal) => string) | undefined
-): string | undefined {
-  if (found === undefined) {
-    return undefined;
-  }
-
-  if (found.type !== 'custom' || coreRefusalText === undefined) {
-    return found.message;
-  }
-  return coreRefusalText({ message: found.message, content });
-}
 
 /** One refusal Core wrote its own English for, as a field type is handed it. */
 export interface FieldRefusal {
@@ -392,7 +367,7 @@ export function AppField<
       control={form.control}
       name={name}
       render={({ field, fieldState }) => {
-        const error = fieldErrorText(
+        const error = shownRefusalText(
           fieldErrorMessage(fieldState.error, name, (path) =>
             hasDeeperErrorTarget(path, name)
           ),
@@ -768,9 +743,15 @@ export function FieldSubtreeError<
   useErrorTarget(name);
   const { errors } = useFormState({ control: form.control, name });
   const containerRef = useRef<HTMLDivElement>(null);
-  const messages = collectFieldErrorMessages(errors).filter((error) =>
-    isAtOrBelow(error.path, name)
-  );
+  const messages = collectFieldErrorMessages(errors)
+    .filter((error) => isAtOrBelow(error.path, name))
+    // Core words its refusals of a field definition itself, and a refusal of
+    // the array lands here rather than on a field, so each one is read in an
+    // editor's words here too.
+    .map((error) => ({
+      ...error,
+      message: shownRefusalText(error, undefined, undefined) ?? error.message,
+    }));
   // A primitive key, so the effect refocuses when the set of messages changes but
   // not on every re-render (the array is rebuilt each time).
   const messageKey = messages.map((error) => error.path).join(',');

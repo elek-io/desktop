@@ -241,6 +241,10 @@ msgstr "A Component a Collection or another Component still uses cannot be delet
 msgid "A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again."
 msgstr "A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again."
 
+#: src/renderer/lib/settingsRefusals.ts
+msgid "A Component holds no slug field. Choose another type."
+msgstr "A Component holds no slug field. Choose another type."
+
 #: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "A Component is a group of fields an Entry can hold more than once, in any order. A page uses them as its sections."
 msgstr "A Component is a group of fields an Entry can hold more than once, in any order. A page uses them as its sections."
@@ -269,6 +273,10 @@ msgstr "A Component was renamed"
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "A Component's fields can't be unique, since one Component is used in more than one place."
 msgstr "A Component's fields can't be unique, since one Component is used in more than one place."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "A Component's fields can't be unique."
+msgstr "A Component's fields can't be unique."
 
 #: src/renderer/components/fields/dynamic/index.tsx
 msgid "A dynamic field can't be unique."
@@ -329,6 +337,14 @@ msgstr "A Release is a version of the whole Project that your website and apps b
 msgid "A required condition was not met, so the action was stopped."
 msgstr "A required condition was not met, so the action was stopped."
 
+#: src/renderer/lib/settingsRefusals.ts
+msgid "A slug can only be written from a text field."
+msgstr "A slug can only be written from a text field."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "A slug can't be written from itself."
+msgstr "A slug can't be written from itself."
+
 #: src/renderer/components/fields/slug/index.tsx
 msgid "A slug is always unique, so one Entry can be found by it."
 msgstr "A slug is always unique, so one Entry can be found by it."
@@ -340,6 +356,10 @@ msgstr "A toggle can't be unique, since it is either on or off."
 #: src/renderer/components/fields/toggle/index.tsx
 msgid "A toggle is always required, since it is either on or off."
 msgstr "A toggle is always required, since it is either on or off."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "A unique field takes no Default Value, since every Entry would start with the same one."
+msgstr "A unique field takes no Default Value, since every Entry would start with the same one."
 
 #: src/renderer/lib/changeSentence.ts
 msgid "a Value"
@@ -491,6 +511,10 @@ msgstr "Another Component in this Project already uses this slug. Choose another
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "Another Entry already uses this Value. Change it to save."
 msgstr "Another Entry already uses this Value. Change it to save."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "Another field already uses this slug. Choose another one."
+msgstr "Another field already uses this slug. Choose another one."
 
 #: src/renderer/components/forms/project-form.tsx
 #: src/renderer/lib/gitHost.ts
@@ -724,9 +748,17 @@ msgstr "Choose a file to add as an Asset"
 msgid "Choose a file to replace {fileName}"
 msgstr "Choose a file to replace {fileName}"
 
+#: src/renderer/lib/settingsRefusals.ts
+msgid "Choose a separator from the list."
+msgstr "Choose a separator from the list."
+
 #: src/renderer/lib/refusedValueText.ts
 msgid "Choose a time."
 msgstr "Choose a time."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "Choose the Default Value from the options above."
+msgstr "Choose the Default Value from the options above."
 
 #: src/renderer/components/asset-pane.tsx
 #: src/renderer/components/release-dialog.tsx
@@ -2500,6 +2532,10 @@ msgstr "Tables"
 msgid "Task lists"
 msgstr "Task lists"
 
+#: src/renderer/lib/settingsRefusals.ts
+msgid "Task lists need Lists as well."
+msgstr "Task lists need Lists as well."
+
 #: src/renderer/components/report-dialog.tsx
 msgid "Tell us what happened, in a sentence or two."
 msgstr "Tell us what happened, in a sentence or two."
@@ -2548,6 +2584,10 @@ msgstr "The default language can't be deleted. Please select another language as
 #: src/renderer/lib/release.ts
 msgid "The default language changed"
 msgstr "The default language changed"
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "The Default Value doesn't fit between the minimum and the maximum."
+msgstr "The Default Value doesn't fit between the minimum and the maximum."
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId.tsx
 msgid "the Entries of this Collection"
@@ -2695,6 +2735,10 @@ msgstr "The label is what editors read, the value is what is stored."
 #: src/renderer/components/markdown/link-dialog.tsx
 msgid "The link applies to the text selected in the editor. Core accepts http(s), mailto and tel URLs, plus relative and fragment links."
 msgstr "The link applies to the text selected in the editor. Core accepts http(s), mailto and tel URLs, plus relative and fragment links."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "The minimum can't be above the maximum."
+msgstr "The minimum can't be above the maximum."
 
 #: src/renderer/components/fields/number/index.tsx
 msgid "The number editors can enter."
@@ -2848,6 +2892,10 @@ msgstr "This computer"
 msgid "This computer only"
 msgstr "This computer only"
 
+#: src/renderer/lib/settingsRefusals.ts
+msgid "This Default Value holds something the field doesn't allow."
+msgstr "This Default Value holds something the field doesn't allow."
+
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 msgid "this Entry"
 msgstr "this Entry"
@@ -2879,6 +2927,14 @@ msgstr "This field does not take an Asset of that type. Choose another one."
 #: src/renderer/components/fields/dynamic/control.tsx
 msgid "This field holds at most {sectionMaximum} sections. Remove one to add another."
 msgstr "This field holds at most {sectionMaximum} sections. Remove one to add another."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "This field is gone. Take it out of the list."
+msgstr "This field is gone. Take it out of the list."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "This field is in the list twice."
+msgstr "This field is in the list twice."
 
 #: src/renderer/components/fields/slug/index.tsx
 msgid "This field needs \"{canonical}\" instead."
@@ -2981,6 +3037,10 @@ msgstr "This text has too many levels inside it. Take some out to save."
 #: src/renderer/lib/coreErrorText.ts
 msgid "This was written by a newer version of elek.io. Update to open it."
 msgstr "This was written by a newer version of elek.io. Update to open it."
+
+#: src/renderer/lib/settingsRefusals.ts
+msgid "This word is kept for elek.io. Choose another slug."
+msgstr "This word is kept for elek.io. Choose another slug."
 
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Tilde (~)"
