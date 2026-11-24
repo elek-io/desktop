@@ -18,6 +18,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu';
 import { FieldDescription } from '@renderer/components/ui/field';
 import { TextControl } from '@renderer/components/ui/field-controls';
+import { useListFocus } from '@renderer/hooks/useListFocus';
 
 // The controls more than one field type's settings are built from: a pair of
 // bounds, and a list a type takes as rows with Add and Remove.
@@ -119,6 +120,9 @@ export interface DefinitionChoiceRowsProps<
  *
  * Add offers what is not in the list yet rather than toggling a row that is
  * already there, so the rows are what the field holds and nothing else.
+ *
+ * A row is one line with its own Remove, so that Remove is what stands for the
+ * row the focus goes to once its neighbor is removed, see `useListFocus`.
  */
 export function DefinitionChoiceRows<
   TFieldValues extends FieldValues,
@@ -138,16 +142,28 @@ export function DefinitionChoiceRows<
   onRemove,
 }: DefinitionChoiceRowsProps<TFieldValues, TTransformedValues>): ReactElement {
   const { t } = useLingui();
+  const focus = useListFocus();
 
   return (
     <AppField form={form} name={name} label={label} description={description}>
       {({ controlProps, disabled, readOnly }) => (
-        <div className="flex flex-col gap-2" {...controlProps}>
+        <div
+          className="flex flex-col gap-2"
+          {...controlProps}
+          ref={focus.listRef}
+          // The rows and the control that adds one are several controls rather
+          // than one, so this is a group named by the field's own label, and
+          // it is focusable only to be focused: it is where the focus lands
+          // once the last row was removed and nothing else can take it.
+          role="group"
+          aria-label={labelText}
+          tabIndex={-1}
+        >
           {chosen.length === 0 ? (
             <p className="text-small text-muted-foreground">{emptyNote}</p>
           ) : (
             <ul className="flex flex-col divide-y rounded-md border">
-              {chosen.map(({ key, title }) => (
+              {chosen.map(({ key, title }, index) => (
                 <li
                   key={key}
                   className="flex items-center gap-2 py-1 pr-1 pl-2.5"
@@ -158,8 +174,17 @@ export function DefinitionChoiceRows<
                     variant="ghost"
                     size="icon-sm"
                     Icon={XIcon}
+                    ref={focus.rowRef(key)}
                     disabled={disabled || readOnly}
-                    onClick={() => onRemove(key)}
+                    onClick={() => {
+                      onRemove(key);
+                      focus.afterRemoval(
+                        index,
+                        chosen
+                          .filter((_row, at) => at !== index)
+                          .map((row) => row.key)
+                      );
+                    }}
                   >
                     {/* The name says what goes and what it goes from, since a
                     row of icons says nothing on its own. */}
@@ -186,6 +211,7 @@ export function DefinitionChoiceRows<
                     variant="outline"
                     size="sm"
                     Icon={PlusIcon}
+                    ref={focus.addRef}
                     disabled={disabled || readOnly}
                     className="w-fit"
                   />

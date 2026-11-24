@@ -45,6 +45,10 @@ they exist is in [Why it is built this way](#why-it-is-built-this-way).
   page, closing the window and quitting alike. The form's own Save never asks,
   nor does a way out the page takes on purpose. See
   [Leaving unsaved changes](#leaving-unsaved-changes).
+- **A list keeps the focus inside itself when a row is removed.** Every list
+  takes that answer from `useListFocus`, so none moves the focus its own way
+  and no removal drops a keyboard user on the page. See
+  [Keeping focus after a row is removed](#keeping-focus-after-a-row-is-removed).
 - **A form takes no edit while its own save runs.** Every field it draws is
   read-only until the state the save brings back has arrived, so an edit typed
   in between cannot be dropped by the state that arrives. Read-only rather than
@@ -305,25 +309,60 @@ const blockedBy = missing === 0 ? undefined : t`...`;
 
 ## Keeping focus after a row is removed
 
-A form that holds a list of rows somebody can remove, which is a dynamic
-field's sections today, leaves the focus inside that list rather than on the
-page: the row that takes the removed one's place, else the one before it, else
-the control that adds one where that control can take the focus, else the list
-itself. A focus that falls to the body loses a keyboard user their place, which
-the redesign rules out.
+Every list of rows somebody can remove leaves the focus inside that list rather
+than on the page: the row that takes the removed one's place, else the one
+before it, else the control that adds one where that control can take the
+focus, else the list itself. A focus that falls to the body loses a keyboard
+user their place, which the redesign rules out.
 
-- Each row is a `role="group"` with `tabIndex={-1}`, named by what it is and
-  where it stands, such as "Hero, section 1 of 3". It is focusable only to be
-  focused, so the tab order is unchanged.
-- The rows that stay are keyed by their own id, so each keeps its element and
-  can be focused straight after the list was written, see
+[`useListFocus`](../../src/renderer/hooks/useListFocus.ts) holds that one
+answer, and every list in the app takes it, so no list moves the focus its own
+way. A list registers what the focus can land on and says when a row went:
+
+- `rowRef(key)` per row, keyed the way the list keys the row itself.
+- `addRef` on the control that adds a row, where the list has one.
+- `listRef` on the list, which is a `role="group"` with `tabIndex={-1}`, named
+  by the field's own label or by the heading above it. It is focusable only to
+  be focused, so the tab order is unchanged.
+- `afterRemoval(removed, staying)` from the handler that writes the shorter
+  list, with the keys of the rows that stay in the order they stand in.
+
+What stands for a row is the row's own element where an editor works inside it,
+and the row's own control where the row is that one control:
+
+| List                                                                             | What the focus lands on                                                                                                                   |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| A dynamic field's sections                                                       | The section, a group named "Hero, section 1 of 3"                                                                                         |
+| A select's options                                                               | The row, a group named "Option 2 of 3", since the one option Core needs has its Remove switched off and a disabled control takes no focus |
+| The Collections, Components, blocks, source fields and file types a field allows | The row's Remove, which says what it takes out of what                                                                                    |
+| A reference field's picked Assets and Entries                                    | The row's Remove                                                                                                                          |
+| The Project's languages                                                          | The chip's Remove                                                                                                                         |
+| A Collection's and a Component's fields                                          | The row, which is one control over the field it shows                                                                                     |
+
+What follows from that order:
+
+- **The rows that stay keep their elements.** Each is keyed by its own id, so
+  the row that takes a removed row's place can be focused straight after the
+  list was written, see
   [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-sections-of-a-page-the-dynamic-field).
-- The list itself is focusable the same way, which is where the focus lands once
-  the last row is gone and there is nothing to add from, as a field whose
-  Project holds no Component it allows, and where the control that adds one
-  cannot take the focus. A list at its maximum is that second case: the removal
-  is what frees the control again, so at the moment the focus is placed it is
-  still disabled and a disabled control takes none.
+  A select's options have no id of their own and stand for the place they are
+  at, so that list registers its rows by their place and one place fewer stays.
+- **The control that adds a row takes the focus only where it can.** A list at
+  its maximum is the case: the removal is what frees that control again, so at
+  the moment the focus is placed it is still disabled, or not drawn at all as
+  Choose is, and neither takes focus.
+- **The list itself is the last place.** That is where the focus lands once the
+  last row is gone and there is nothing to add from, as a field whose Project
+  holds no Component it allows, and where the control that adds one cannot take
+  the focus.
+- **A removal pressed inside a menu or a dialog is handed over.** Such a popup
+  returns the focus itself once it has closed, and the control it would return
+  it to is the one that went with the row. So the field definitions' More menu
+  and the dialog that asks before a language goes call
+  `afterRemovalOnceClosed` and pass `finalFocus={focus.finalFocus}`, which
+  places the focus the removal planned and tells the popup to leave it there.
+  Without a removal behind it the popup keeps its own way, which is the control
+  it was opened from, so Cancel still goes back to that row's own Remove.
 
 ## A form is read-only while it saves
 

@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
+import { useListFocus } from '@renderer/hooks/useListFocus';
 import { rawTextFromInput } from '@renderer/lib/fieldValues';
 import { translatableDefault } from '@renderer/lib/utils';
 
@@ -66,6 +67,11 @@ function optionDisplay(
  *
  * The value follows the label while nobody has written one, which is what makes
  * a list of options something to fill in rather than to think about twice.
+ *
+ * The row is a group of its own, named by where it stands, and focusable only
+ * to be focused: it is where the focus lands once the option above it was
+ * removed, see `useListFocus`. Its own Remove cannot take that focus, since
+ * the last option left is one Core needs and its Remove is therefore off.
  */
 function OptionRow<
   TFieldValues extends FieldValues,
@@ -75,15 +81,20 @@ function OptionRow<
   labelName,
   valueName,
   position,
+  total,
   derivesValue,
+  rowRef,
   onRemove,
 }: {
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
   labelName: FieldPath<TFieldValues>;
   valueName: FieldPath<TFieldValues>;
   position: number;
+  /** How many options the list holds, which the row's name says too. */
+  total: number;
   /** Whether the stored value is text a label can be turned into. */
   derivesValue: boolean;
+  rowRef: (element: HTMLElement | null) => void;
   onRemove: (() => void) | undefined;
 }): ReactElement {
   const { t } = useLingui();
@@ -103,7 +114,13 @@ function OptionRow<
   }, [form, valueName, derived, derivesValue]);
 
   return (
-    <div className="flex items-start gap-2">
+    <div
+      className="flex items-start gap-2"
+      ref={rowRef}
+      role="group"
+      aria-label={t`Option ${position} of ${total}`}
+      tabIndex={-1}
+    >
       <AppField
         form={form}
         name={labelName}
@@ -213,9 +230,12 @@ export function SelectDefinitionEditor<
   TTransformedValues
 >): ReactElement {
   const { t } = useLingui();
+  const focus = useListFocus();
   // Read once, since the field's label and the name of its group of radio
   // buttons are the same words.
   const defaultValueLabel = t`Default Value`;
+  // The same for the list of options, whose group says what it holds.
+  const optionsLabel = t`Options`;
   const holdsText = fieldDefinition.valueType === 'string';
   const options = fieldDefinition.options;
   const items = options.map((option, index) => ({
@@ -284,7 +304,7 @@ export function SelectDefinitionEditor<
       <AppField
         form={form}
         name={path('options')}
-        label={<Trans>Options</Trans>}
+        label={optionsLabel}
         description={
           <Trans>
             The label is what editors read, the value is what is stored.
@@ -292,7 +312,16 @@ export function SelectDefinitionEditor<
         }
       >
         {({ controlProps, disabled, readOnly }) => (
-          <div className="flex flex-col gap-2" {...controlProps}>
+          <div
+            className="flex flex-col gap-2"
+            {...controlProps}
+            ref={focus.listRef}
+            // The rows and Add option are several controls rather than one, so
+            // this is a group named by the field's own label.
+            role="group"
+            aria-label={optionsLabel}
+            tabIndex={-1}
+          >
             {options.map((_option, index) => (
               <OptionRow
                 // The row stands for the option at this place of the list,
@@ -304,14 +333,25 @@ export function SelectDefinitionEditor<
                 labelName={path(`options.${index}.label.${language}`)}
                 valueName={path(`options.${index}.value`)}
                 position={index + 1}
+                total={options.length}
                 derivesValue={holdsText}
+                // Each row stands for the place it is at, so the rows that
+                // stay after a removal are the same places, one fewer.
+                rowRef={focus.rowRef(String(index))}
                 onRemove={
                   options.length > 1 && disabled === false && readOnly === false
-                    ? () =>
+                    ? () => {
                         set(
                           'options',
                           options.filter((_, candidate) => candidate !== index)
-                        )
+                        );
+                        focus.afterRemoval(
+                          index,
+                          options
+                            .map((_option, place) => String(place))
+                            .slice(0, -1)
+                        );
+                      }
                     : undefined
                 }
               />
@@ -321,6 +361,7 @@ export function SelectDefinitionEditor<
               variant="outline"
               size="sm"
               Icon={PlusIcon}
+              ref={focus.addRef}
               disabled={disabled || readOnly}
               className="w-fit"
               onClick={() =>

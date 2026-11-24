@@ -7,7 +7,7 @@ import {
   Trash2Icon,
   XIcon,
 } from 'lucide-react';
-import { type ReactElement } from 'react';
+import { useId, type ReactElement } from 'react';
 import {
   useWatch,
   type FieldPath,
@@ -133,6 +133,7 @@ export function FieldDefinitionsList<
   isViewOnly = false,
 }: FieldDefinitionsListProps<TFieldValues, TTransformedValues>): ReactElement {
   const { translateContent } = useProject();
+  const headingId = useId();
   // Every form this serves holds the array under this key, asserted once here
   // as the editor's own helpers do, see
   // contributing/renderer/forms.md#form-typing.
@@ -141,7 +142,7 @@ export function FieldDefinitionsList<
   return (
     <section className="flex flex-col gap-4 border-t px-(--pane-edge) py-6">
       <div>
-        <h2 className="text-h4">
+        <h2 id={headingId} className="text-h4">
           {owner === 'collection' ? (
             <Trans>Define this Collection&apos;s fields</Trans>
           ) : (
@@ -164,7 +165,17 @@ export function FieldDefinitionsList<
       contributing/renderer/forms.md#when-an-error-has-no-field-to-land-on. */}
       <FieldSubtreeError form={form} name={name} />
 
-      <div className="@container grid grid-cols-12 gap-x-6 gap-y-2">
+      <div
+        className="@container grid grid-cols-12 gap-x-6 gap-y-2"
+        ref={definitions.focus.listRef}
+        // The fields and Add field are several controls rather than one, so the
+        // list is a group named by the heading above it, and it is focusable
+        // only to be focused: it is where the focus lands once the last field
+        // was removed and nothing else can take it, see `useListFocus`.
+        role="group"
+        aria-labelledby={headingId}
+        tabIndex={-1}
+      >
         <SortableFieldArray
           items={definitions.list}
           onReorder={definitions.move}
@@ -206,6 +217,7 @@ export function FieldDefinitionsList<
                     ? {}
                     : {
                         onChoose: () => definitions.choose(fieldDefinition.id),
+                        rowRef: definitions.focus.rowRef(fieldDefinition.id),
                       })}
                 />
               </DraggableComponent>
@@ -221,6 +233,7 @@ export function FieldDefinitionsList<
           size="sm"
           Icon={PlusIcon}
           className="w-fit"
+          ref={definitions.focus.addRef}
           aria-pressed={definitions.isAddingField}
           onClick={definitions.addField}
         >
@@ -391,7 +404,13 @@ export function FieldDefinitionsPane<
             }
           />
           <DropdownMenuPortal>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="end"
+              // This pane goes with the field, so the focus goes where the
+              // removal left it in the list rather than to a control that is
+              // no longer there, see `useListFocus`.
+              finalFocus={definitions.focus.finalFocus}
+            >
               {/* Moving a field needs no dragging, as WCAG 2.5.7 asks. */}
               <DropdownMenuItem
                 disabled={at <= 0}

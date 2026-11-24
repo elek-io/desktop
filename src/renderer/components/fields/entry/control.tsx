@@ -15,6 +15,7 @@ import {
 } from '@renderer/components/pickers/entry-picker-dialog';
 import { Button } from '@renderer/components/ui/button';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
+import { useListFocus } from '@renderer/hooks/useListFocus';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
@@ -65,6 +66,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
 }: FormEntryFieldProps<TFieldValues>): React.ReactElement {
   const { t } = useLingui();
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
+  const focus = useListFocus();
 
   const {
     projectId,
@@ -180,11 +182,17 @@ export function EntryControl<TFieldValues extends FieldValues>({
     );
   }
 
+  /**
+   * Takes one Entry out of the field and leaves the focus in the list: on the
+   * row that takes its place, else the one before it, else Choose where that
+   * can take it, else the list itself. See `useListFocus`.
+   */
   function remove(entryId: string): void {
-    field.onChange(
-      chosenRefs.filter(
-        (reference) => reference.id !== entryId
-      ) as typeof field.value
+    const staying = chosenRefs.filter((reference) => reference.id !== entryId);
+    field.onChange(staying as typeof field.value);
+    focus.afterRemoval(
+      chosenRefs.findIndex((reference) => reference.id === entryId),
+      staying.map((reference) => reference.id)
     );
   }
 
@@ -192,8 +200,18 @@ export function EntryControl<TFieldValues extends FieldValues>({
     <div
       {...controlProps}
       className={cn('flex flex-col gap-2', className)}
-      ref={field.ref}
+      ref={(element) => {
+        field.ref(element);
+        focus.listRef(element);
+      }}
       onBlur={field.onBlur}
+      // The rows and Choose are several controls rather than one, so this is a
+      // group named by the field's own label, and it is focusable only to be
+      // focused: it is where the focus lands once the last row was removed and
+      // Choose is not back yet.
+      role="group"
+      aria-label={label}
+      tabIndex={-1}
     >
       {chosenRows.length === 0 ? (
         <div className={rowClassName} data-slot="field-row">
@@ -225,6 +243,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
                     type="button"
                     variant="ghost"
                     size="sm"
+                    ref={focus.rowRef(row.id)}
                     aria-describedby={describedBy}
                     aria-label={t`Remove the missing Entry from ${label}`}
                     onClick={() => remove(row.id)}
@@ -267,6 +286,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  ref={focus.rowRef(pickable.entry.id)}
                   aria-describedby={describedBy}
                   aria-label={t`Remove ${title} from ${label}`}
                   onClick={() => remove(pickable.entry.id)}
@@ -288,6 +308,7 @@ export function EntryControl<TFieldValues extends FieldValues>({
           variant="outline"
           size="sm"
           className="self-start"
+          ref={focus.addRef}
           aria-describedby={describedBy}
           aria-label={chooseName}
           onClick={() => setIsPickerOpen(true)}

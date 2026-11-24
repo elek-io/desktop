@@ -284,6 +284,11 @@ export interface FieldDefinitionPreviewProps {
    * than edited, and then the row is not a control at all.
    */
   onChoose?: (() => void) | undefined;
+  /**
+   * Registers the row's own control, which is where the focus lands once the
+   * field before it was removed, see `useListFocus`.
+   */
+  rowRef?: ((element: HTMLElement | null) => void) | undefined;
   /** Whether this is the field whose settings the pane beside it shows. */
   isChosen?: boolean;
   /** Whether the chosen field can be dragged to another place. */
@@ -306,6 +311,7 @@ export interface FieldDefinitionPreviewProps {
 export function FieldDefinitionPreview({
   fieldDefinition,
   onChoose,
+  rowRef,
   isChosen = false,
   isDraggable = false,
   className,
@@ -375,6 +381,7 @@ export function FieldDefinitionPreview({
           aria-label={t`Settings of the ${label} field`}
           className="absolute inset-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           onClick={onChoose}
+          {...(rowRef === undefined ? {} : { ref: rowRef })}
         />
       )}
       {/* Above the row's own control, so dragging the chosen field stays

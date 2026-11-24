@@ -50,6 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@renderer/components/ui/select';
+import { useListFocus } from '@renderer/hooks/useListFocus';
 import { alwaysFilledFieldRules } from '@renderer/lib/fieldRules';
 import {
   projectLocationSchema,
@@ -144,6 +145,10 @@ export function ProjectForm({
   unsavedChangesTitle,
 }: ProjectFormProps): React.JSX.Element {
   const { t } = useLingui();
+  const focus = useListFocus();
+  // Read once, since the list of languages is a group that says the same as
+  // the label above it.
+  const languagesLabel = t`Languages`;
 
   const [
     isDeleteDefaultLanguageDialogOpen,
@@ -156,14 +161,21 @@ export function ProjectForm({
   const [languagePendingRemoval, setLanguagePendingRemoval] =
     useState<SupportedLanguage | null>(null);
 
+  /**
+   * Takes one language out of the list and leaves the focus in it: on the row
+   * that takes its place, else the one before it. The dialog that asked
+   * returns the focus once it has closed, so the place is kept for it rather
+   * than taken here, see `useListFocus`.
+   */
   function removeLanguage(language: SupportedLanguage): void {
-    projectForm.setValue(
-      'settings.language.supported',
-      projectForm
-        .watch('settings.language.supported')
-        .filter((value) => value !== language),
-      { shouldValidate: true, shouldDirty: true }
-    );
+    const supported = projectForm.watch('settings.language.supported');
+    const staying = supported.filter((value) => value !== language);
+
+    projectForm.setValue('settings.language.supported', staying, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    focus.afterRemovalOnceClosed(supported.indexOf(language), staying);
   }
   const supportedLanguages = supportedLanguageSchema.options.map((option) => {
     return {
@@ -305,7 +317,7 @@ export function ProjectForm({
               <AppField
                 form={projectForm}
                 name="settings.language.supported"
-                label={<Trans>Languages</Trans>}
+                label={languagesLabel}
                 // A Project cannot be saved without a language, which is the one
                 // thing a list's schema cannot say, see `lib/fieldRules.ts`.
                 required
@@ -329,7 +341,16 @@ export function ProjectForm({
                     controlProps;
 
                   return (
-                    <div {...groupProps}>
+                    <div
+                      {...groupProps}
+                      ref={focus.listRef}
+                      // The chips and the picker are several controls rather
+                      // than one, so this is a group named by the field's own
+                      // label.
+                      role="group"
+                      aria-label={languagesLabel}
+                      tabIndex={-1}
+                    >
                       <ul className="flex flex-wrap">
                         {field.value.map((language) => {
                           return (
@@ -340,6 +361,10 @@ export function ProjectForm({
                                   variant="ghost"
                                   size="icon"
                                   className="ml-4 rounded-full"
+                                  // The chip is this one control, so it is
+                                  // where the focus lands once the language
+                                  // before it was removed.
+                                  ref={focus.rowRef(language)}
                                   // Only an input can be read-only on its own, so
                                   // while the form saves the two controls that
                                   // change this Value take no press instead.
@@ -398,6 +423,7 @@ export function ProjectForm({
                               <Button
                                 variant="outline"
                                 Icon={Plus}
+                                ref={focus.addRef}
                                 disabled={readOnly}
                               />
                             }
@@ -489,7 +515,12 @@ export function ProjectForm({
             }
           }}
         >
-          <AlertDialogContent>
+          <AlertDialogContent
+            // The chip that opened this dialog goes with the language, so the
+            // focus goes where the removal left it rather than to a control
+            // that is no longer there, see `useListFocus`.
+            finalFocus={focus.finalFocus}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>
                 <Trans>

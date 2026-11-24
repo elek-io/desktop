@@ -12,6 +12,7 @@ import { AssetDisplay } from '@renderer/components/asset-display';
 import { AssetPickerDialog } from '@renderer/components/pickers/asset-picker-dialog';
 import { Button } from '@renderer/components/ui/button';
 import { type FieldControlProps } from '@renderer/components/ui/field-controls';
+import { useListFocus } from '@renderer/hooks/useListFocus';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { cn, formatBytes } from '@renderer/lib/utils';
@@ -64,6 +65,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
 }: FormAssetFieldProps<TFieldValues>): React.ReactElement {
   const { t } = useLingui();
   const [openPicker, setOpenPicker] = React.useState<OpenPicker | null>(null);
+  const focus = useListFocus();
 
   const { projectId } = useProject();
   const { data: assetList, isPending: isReadingAssets } = useQueryNoError(
@@ -103,11 +105,17 @@ export function AssetControl<TFieldValues extends FieldValues>({
     isInvalid ? 'border-error' : 'border-border'
   );
 
+  /**
+   * Takes one Asset out of the field and leaves the focus in the list: on the
+   * row that takes its place, else the one before it, else Choose where that
+   * can take it, else the list itself. See `useListFocus`.
+   */
   function remove(assetId: string): void {
-    field.onChange(
-      chosenRefs.filter(
-        (reference) => reference.id !== assetId
-      ) as typeof field.value
+    const staying = chosenRefs.filter((reference) => reference.id !== assetId);
+    field.onChange(staying as typeof field.value);
+    focus.afterRemoval(
+      chosenRefs.findIndex((reference) => reference.id === assetId),
+      staying.map((reference) => reference.id)
     );
   }
 
@@ -169,8 +177,18 @@ export function AssetControl<TFieldValues extends FieldValues>({
     <div
       {...controlProps}
       className={cn('flex flex-col gap-2', className)}
-      ref={field.ref}
+      ref={(element) => {
+        field.ref(element);
+        focus.listRef(element);
+      }}
       onBlur={field.onBlur}
+      // The rows and Choose are several controls rather than one, so this is a
+      // group named by the field's own label, and it is focusable only to be
+      // focused: it is where the focus lands once the last row was removed and
+      // Choose is not back yet.
+      role="group"
+      aria-label={label}
+      tabIndex={-1}
     >
       {chosenRows.length === 0 ? (
         <div className={rowClassName} data-slot="field-row">
@@ -203,6 +221,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
                     variant="ghost"
                     size="icon-sm"
                     Icon={XIcon}
+                    ref={focus.rowRef(row.id)}
                     aria-describedby={describedBy}
                     aria-label={t`Remove the missing Asset from ${label}`}
                     onClick={() => remove(row.id)}
@@ -261,6 +280,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
                     variant="ghost"
                     size="icon-sm"
                     Icon={XIcon}
+                    ref={focus.rowRef(asset.id)}
                     aria-describedby={describedBy}
                     aria-label={t`Remove ${name} from ${label}`}
                     onClick={() => remove(asset.id)}
@@ -280,6 +300,7 @@ export function AssetControl<TFieldValues extends FieldValues>({
           variant="outline"
           size="sm"
           className="self-start"
+          ref={focus.addRef}
           aria-describedby={describedBy}
           aria-label={chooseName}
           onClick={() => setOpenPicker({ kind: 'choose' })}

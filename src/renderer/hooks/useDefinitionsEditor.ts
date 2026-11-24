@@ -8,6 +8,7 @@ import {
 
 import { fieldModule } from '@renderer/components/fields';
 import { type FieldDefinitionsOwner } from '@renderer/components/fields/module';
+import { useListFocus, type ListFocus } from '@renderer/hooks/useListFocus';
 
 import {
   uuid,
@@ -57,6 +58,12 @@ export interface DefinitionsEditorState {
   changeType: (fieldType: FieldType) => void;
   /** Removes one definition, and every reference the others held to it. */
   remove: (id: string) => void;
+  /**
+   * Where the focus goes once a field is removed, which is the list's own
+   * business while the removal is pressed in the pane beside it, see
+   * `useListFocus`.
+   */
+  focus: ListFocus;
   /** Moves one definition one place up or down. */
   moveBy: (id: string, offset: number) => void;
   /** Moves one definition to where another one stands, which dragging does. */
@@ -84,6 +91,7 @@ export function useDefinitionsEditor<
   TTransformedValues
 >): DefinitionsEditorState {
   const [pane, setPane] = useState<OpenPane>({ kind: 'none' });
+  const focus = useListFocus();
   // Every form this serves holds the array under this key, but FieldPath cannot
   // resolve a literal path for an unresolved generic, so the name is asserted
   // once here, see contributing/renderer/forms.md#form-typing.
@@ -191,22 +199,28 @@ export function useDefinitionsEditor<
   // Removing a definition also asks every other definition to forget it, which
   // only a slug field has to do. Each type's folder answers that, so this never
   // reads a field type.
+  //
+  // The focus goes to the field that takes the removed one's place, else the
+  // one before it, else Add field. The menu it was pressed in returns the
+  // focus once it has closed, so the place is kept for it.
   const remove = (id: string): void => {
     const withoutSource = (definition: FieldDefinition): FieldDefinition =>
       fieldModule(definition).withoutDefinition?.(definition, id) ?? definition;
+    const staying = list.filter((definition) => definition.id !== id);
 
+    focus.afterRemovalOnceClosed(
+      list.findIndex((definition) => definition.id === id),
+      staying.map((definition) => definition.id)
+    );
     write(
-      list
-        .filter((definition) => definition.id !== id)
-        .map((definition) =>
-          'isGroup' in definition
-            ? {
-                ...definition,
-                fieldDefinitions:
-                  definition.fieldDefinitions.map(withoutSource),
-              }
-            : withoutSource(definition)
-        )
+      staying.map((definition) =>
+        'isGroup' in definition
+          ? {
+              ...definition,
+              fieldDefinitions: definition.fieldDefinitions.map(withoutSource),
+            }
+          : withoutSource(definition)
+      )
     );
     setPane((open) =>
       open.kind === 'field' && open.id === id ? { kind: 'none' } : open
@@ -250,6 +264,7 @@ export function useDefinitionsEditor<
     add,
     changeType,
     remove,
+    focus,
     moveBy,
     move,
   };
