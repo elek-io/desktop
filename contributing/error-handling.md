@@ -97,7 +97,7 @@ A query failure is not fatal to the view. It belongs to the one pane that read i
 
 Two rules follow for a screen:
 
-- **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it. The one exception is the Project card below.
+- **A screen does not catch a failed read.** No `isError` branch, no `throwOnError: false`. The pane the read happens in already answers it. The two exceptions are the Project card and the list of Components below, and both answer a read that says something _about_ what the pane holds rather than what it holds.
 - **A read belongs inside the pane that shows it.** A boundary only catches what is thrown below it, so a read in a layout above two panes takes both of them, which is right when both depend on it and wrong when one does. Read in the component that shows the data.
 
 ### The reads a screen catches: a Project card's own
@@ -123,6 +123,17 @@ Each card runs its own two reads, which is what lets a slow or failing one hold 
 - **One failure is one record.** Each effect keeps the errors it has written in a `WeakSet`, so neither a re-render nor a second screen reading the same error writes it again. A read that runs again and fails again is its own failure and its own record, which is what a second reader of a stale query brings about.
 
 Every reader of the check is in the table above. A screen that needs it later shows its failure as a state the same way, through `useProjectState`, rather than catching a read of its own.
+
+### The other read a screen catches: how many Entries use a Component
+
+The list of Components says in each row how many Entries use that Component, which [`useComponentUsage`](/src/renderer/hooks/useComponentUsage.ts) counts off the Entries of every Collection that embeds one. Those reads of Entries are the hook's own, and it answers their failure itself, for the same reason the card does: the Components were read, the list is the only way into one, and a boundary cannot tell the two reads apart. So the row reads "Can't read how many Entries use it, 2 fields", in the warning color, and the list stays a list.
+
+- It says it of the count alone. How many fields a Component has is read off the Component itself, so the row still says that, and no row claims "Not used yet" when nothing was counted.
+- One failed read makes every count unknown, since a Component can hold a section in any Collection that embeds it.
+- The opt-out is for this read alone, spread onto `entries.list` in the hook rather than written into the query's own options, because the Collection's own screens read the same query and leave a failure to their pane.
+- **It logs what it caught the way a pane's boundary does**, with the message `Component usage error: ...`, from an effect and once per error object, as above.
+- The Components and the Collections it reads besides are not caught: without them there is no list and no row to say anything in, and the sidebar reads the Collections above every pane anyway, so a refused read of those reaches the root error screen.
+- The retry is opening the screen again, which refetches a query that settled as an error.
 
 ### Expected errors: handled in place
 
@@ -423,6 +434,7 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 | A read fails above every pane             | Root error boundary                                         | Boundary error log plus the `onCaughtError` log                       |
 | A Project card's check of the remote      | A state line in the card, Sync as the retry                 | `Project card check error` log                                        |
 | A Project card's read of the Releases     | A state line where the last Release stands                  | `Project card Releases error` log                                     |
+| The Components list's count of Entries    | The row says it cannot tell, the list stands                | `Component usage error` log                                           |
 | Unexpected mutation error                 | Root error boundary                                         | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
 | Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page               | None by default                                                       |
 | Handled `type` whose cause names no field | Root error boundary                                         | Boundary error log plus the `onCaughtError` log                       |

@@ -272,7 +272,7 @@ A query failure is not fatal to the view. The pane that read it keeps its place 
 
 Two rules follow for a screen:
 
-- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does. The Project card's own reads are the exception, below.
+- **Do not catch a failed read.** No `isError` branch and no `throwOnError: false`. Both would show the same sentence and write nothing to the log, while the pane's boundary logs what it caught exactly as the root boundary does. A Project card's own reads and the Components list's count of Entries are the exceptions, below.
 - **Read inside the pane that shows the data.** A boundary catches only what is thrown below it, so a read in a layout above two panes takes both of them. That is right when both depend on it, and wrong when one does.
 
 A failed write and a component that throws are not a read: they still replace the whole view with the root error screen, which offers Report an issue. How the two are told apart, and what a pane's name in the sentence comes from, is in [Error Handling](../error-handling.md#a-read-that-failed-the-pane-says-so).
@@ -282,6 +282,8 @@ A failed write and a component that throws are not a read: they still replace th
 A Project's card runs the one check of the Git repository, `projects.getChanges`, and answers its failure itself as a state line rather than leaving it to a boundary. It is the only query in the app whose own options carry `throwOnError: false`, it retries nothing, and a card reads it with a plain `useQuery` rather than `useQueryNoError`. The card's read of the Releases is answered the same way, opted out for that read alone, since nothing else catches a failed `releases.list`. What that buys, and what each of them logs so the failure still reaches the log file, is in [Error Handling](../error-handling.md#the-reads-a-screen-catches-a-project-cards-own).
 
 Four places draw it, the sidebar's card for the open Project, one card per Project on the Projects page, the Remove confirm of a Project's Settings and the change rows of its Dashboard, and all of them read it through [`useProjectState`](../../src/renderer/hooks/useProjectState.ts), which is also where that log is written. Each one runs its own, so a slow or failing read holds up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder, and one Project whose Releases cannot be read leaves every other card standing.
+
+The second such read is how many Entries use each Component, which [`useComponentUsage`](../../src/renderer/hooks/useComponentUsage.ts) reads for the list of Components, opted out for those reads alone in the same way. The row says it cannot tell, rather than the pane saying the Components could not be read when they were, see [Error Handling](../error-handling.md#the-other-read-a-screen-catches-how-many-entries-use-a-component).
 
 ### What a Project card reads
 

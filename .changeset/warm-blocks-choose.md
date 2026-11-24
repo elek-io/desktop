@@ -8,6 +8,7 @@ Components used to be a page of rows, and opening one took you off it to a form 
 
 The settings beside it are laid out like a Collection's: the Component's name, its slug and its description, then the fields it defines as editors will see them, with the settings of the field you chose in the pane on the right.
 
+- **The list is in alphabetical order**, by the name each Component carries in the language you read the app in, so you find one where you expect it rather than wherever it happens to sit.
 - **One Save** for the whole screen, the Component's own fields and the fields it defines alike. While a language is still missing a name, a label or a description, Save says which language misses how many and stays where it is, so you can reach it and read the reason rather than hunting for a button that went away.
 - **It asks before changes are lost.** Choosing the next Component in the list, leaving the screen or closing the window with something unsaved asks "Discard your changes to Settings of the Teaser Component?" first. Keep editing changes nothing.
 - **Saving keeps you where you are**, with the Component still chosen, instead of dropping you back on the list.
