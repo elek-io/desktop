@@ -36,8 +36,6 @@ interface ComponentFormProps<
   schema: unknown;
   /** The field definitions of this form, with which of them is open. */
   definitions: DefinitionsEditorState;
-  /** The Component's own name, which the fields are filled in for. */
-  componentName: string;
   /** The language every name, label and description is edited in. */
   language: SupportedLanguage;
   onLanguageChange: (language: SupportedLanguage) => void;
@@ -79,7 +77,6 @@ export function ComponentForm<
   project,
   schema,
   definitions,
-  componentName,
   language,
   onLanguageChange,
   missingByLanguage,
@@ -121,7 +118,10 @@ export function ComponentForm<
             onLanguageChange={onLanguageChange}
             missingWords={(count) => t`${count} translations`}
           />
-          <p className="text-small text-muted-foreground">
+          {/* The sentence gives way rather than taking the room the switch
+          needs for ci's segments, so it wraps instead of the switch collapsing
+          to a dropdown. */}
+          <p className="min-w-0 flex-1 text-small text-muted-foreground">
             <Trans>
               Switches names, labels and descriptions. Slugs and fields are the
               same in every language.
@@ -130,7 +130,10 @@ export function ComponentForm<
         </div>
       ) : null}
 
-      <div className="grid grid-cols-12 gap-x-6 gap-y-4">
+      {/* A query container, so a pair of fields stacks by the room the editor
+      has rather than by the width of the window, which is the measure ci draws
+      them against. */}
+      <div className="@container grid grid-cols-12 gap-x-6 gap-y-4">
         <AppField
           form={componentForm}
           name={path(`name.${language}`)}
@@ -191,7 +194,7 @@ export function ComponentForm<
             form={componentForm}
             definitions={definitions}
             owner="component"
-            ownerName={componentName}
+            ownerNamePath={path(`name.${language}`)}
             isViewOnly={isViewOnly}
           />
         </div>

@@ -57,8 +57,6 @@ interface CollectionFormProps<
   definitions: DefinitionsEditorState;
   /** The page's title, which the question before losing changes names too. */
   title: string;
-  /** The Collection's own plural name, which the fields are filled in for. */
-  collectionName: string;
   /** The screen's one primary button. */
   submit: ReactNode;
   /** The More menu beside it, which a Collection that exists carries. */
@@ -85,7 +83,6 @@ export function CollectionForm<
   schema,
   definitions,
   title,
-  collectionName,
   submit,
   more,
   language,
@@ -157,7 +154,10 @@ export function CollectionForm<
                     })
                   }
                 />
-                <p className="text-small text-muted-foreground">
+                {/* The sentence gives way rather than taking the room the
+                switch needs for ci's segments, so it wraps instead of the
+                switch collapsing to a dropdown. */}
+                <p className="min-w-0 flex-1 text-small text-muted-foreground">
                   <Trans>
                     Switches names, labels and descriptions. Slugs and fields
                     are the same in every language.
@@ -166,7 +166,10 @@ export function CollectionForm<
               </div>
             ) : null}
             <ScrollArea className="flex-1">
-              <div className="grid grid-cols-12 gap-x-6 gap-y-4 px-(--pane-edge) pb-6">
+              {/* A query container, so a pair of fields stacks by the room the
+              editor has rather than by the width of the window, which is the
+              measure ci draws them against. */}
+              <div className="@container grid grid-cols-12 gap-x-6 gap-y-4 px-(--pane-edge) pb-6">
                 <AppField
                   form={collectionForm}
                   name={path(`name.plural.${language}`)}
@@ -256,7 +259,7 @@ export function CollectionForm<
                 form={collectionForm}
                 definitions={definitions}
                 owner="collection"
-                ownerName={collectionName}
+                ownerNamePath={path(`name.plural.${language}`)}
                 isViewOnly={isViewOnly}
               />
             </ScrollArea>
