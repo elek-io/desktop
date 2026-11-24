@@ -3,32 +3,27 @@ import { type MessageDescriptor } from '@lingui/core';
 import { msg, plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { Check, Trash } from 'lucide-react';
-import { useCallback, useId, useRef, useState, type ReactElement } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { Check, Ellipsis, Trash2 } from 'lucide-react';
+import { useCallback, useRef, useState, type ReactElement } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 import { type z } from 'zod';
 
-import { ComponentImpact } from '@renderer/components/component-impact';
 import { ComponentForm } from '@renderer/components/forms/component-form';
-import { Page } from '@renderer/components/page';
-import { PageSection } from '@renderer/components/page-section';
 import {
   RefusedChangeDialog,
   type RefusedChangeAnswer,
 } from '@renderer/components/refused-change-dialog';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@renderer/components/ui/alert-dialog';
-import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
+import { SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -39,6 +34,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu';
 import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
@@ -111,7 +113,7 @@ const saveErrorFallback = msg`This Component could not be saved. Please review y
 function ProjectComponentUpdate(): ReactElement {
   const { t } = useLingui();
 
-  const router = useRouter();
+  const navigate = Route.useNavigate();
   const { projectId, componentId } = Route.useParams();
   // Save, which the dialog of a refused change hands the focus back to.
   const saveRef = useRef<HTMLButtonElement>(null);
@@ -128,7 +130,6 @@ function ProjectComponentUpdate(): ReactElement {
       ? undefined
       : translateContent({ key: 'component.name', record: component.name })
   );
-  const formId = useId();
   const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
   // The change Core refused and everything it refused it for, which is what
@@ -137,6 +138,7 @@ function ProjectComponentUpdate(): ReactElement {
     props: UpdateComponentProps;
     issues: SchemaChangeIssue[];
   } | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleteErrorDialogOpen, setIsDeleteErrorDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<unknown>(null);
 
@@ -241,18 +243,12 @@ function ProjectComponentUpdate(): ReactElement {
       },
     });
 
+  // The Component's name, or the domain term while it is still loading, so the
+  // title takes one placeholder rather than being assembled around it.
   const name = isReadingComponent
     ? t`Component`
     : translateContent({ key: 'component.name', record: component.name });
-
-  function Description(): ReactElement {
-    return (
-      <Trans>
-        A Component is a group of fields an Entry can hold more than once, in
-        any order. Its fields cannot be unique, and it holds no slug field.
-      </Trans>
-    );
-  }
+  const title = t`Settings of the ${name} Component`;
 
   // What keeps this Component from being saved, in the words below Save. Core
   // takes it only once every one of its names, labels and descriptions holds a
@@ -275,7 +271,6 @@ function ProjectComponentUpdate(): ReactElement {
 
   // The language every name, label and description is edited in, which stays in
   // the address, as the Collection's settings have it.
-  const navigate = Route.useNavigate();
   const supportedLanguages = languages?.supported ?? [];
   const shownLanguage = entryLanguage({
     search: Route.useSearch(),
@@ -285,22 +280,14 @@ function ProjectComponentUpdate(): ReactElement {
       : project.settings.language.default,
   });
   const setLanguage = (next: SupportedLanguage): void => {
+    // It replaces rather than pushes, so the way back leads out of the settings
+    // rather than through every language that was looked at.
     void navigate({
       search: (previous) => ({ ...previous, language: next }),
       replace: true,
       resetScroll: false,
     });
   };
-
-  function Actions(): ReactElement {
-    return (
-      <FormActions form={updateComponentForm} id={formId} blockedBy={blockedBy}>
-        <SubmitButton ref={saveRef} requireDirty Icon={Check}>
-          <Trans>Save changes</Trans>
-        </SubmitButton>
-      </FormActions>
-    );
-  }
 
   /**
    * Saves the Component, and answers a Field change Core refuses with the one
@@ -327,10 +314,10 @@ function ProjectComponentUpdate(): ReactElement {
       return;
     }
     setRefused(null);
-    await router.navigate({
-      to: '/projects/$projectId/components',
-      params: { projectId },
-    });
+    // The Component stays chosen beside its list, so this page stays open and
+    // the form is made pristine again with what went in. Without it Save would
+    // stay available and leaving would ask about changes that are saved.
+    updateComponentForm.reset(updateComponentForm.getValues());
   };
 
   const onUpdate: SubmitHandler<UpdateComponentProps> = async (props) => {
@@ -353,14 +340,16 @@ function ProjectComponentUpdate(): ReactElement {
   const onDelete = async (): Promise<void> => {
     try {
       await deleteComponent({ projectId, id: componentId });
+      setIsDeleteConfirmOpen(false);
       // The page takes this way out itself, so leaving it asks nothing: the
       // Component and everything typed into it are gone.
-      await router.navigate({
+      await navigate({
         to: '/projects/$projectId/components',
         params: { projectId },
         ignoreBlocker: true,
       });
     } catch (error) {
+      setIsDeleteConfirmOpen(false);
       handleDeleteError(error);
     }
   };
@@ -373,94 +362,113 @@ function ProjectComponentUpdate(): ReactElement {
   }
 
   return (
-    <Page title={name} description={<Description />} actions={<Actions />}>
+    <>
       <ComponentForm
         schema={generatedUpdateComponentSchema}
-        id={formId}
         componentForm={updateComponentForm}
         project={project}
         definitions={definitions}
+        title={title}
         language={shownLanguage}
         onLanguageChange={setLanguage}
         missingByLanguage={missingByLanguage}
         blockedBy={blockedBy}
         isViewOnly={isUpdatingComponent}
         onFormSubmit={onUpdate}
-        unsavedChangesTitle={name}
-      >
-        <ComponentImpact componentId={componentId} />
-
-        <PageSection title={t`Danger Zone`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm leading-6 font-medium">
-                <Trans>Delete this Component</Trans>
-              </p>
-            </div>
-            <div>
-              <AlertDialog>
-                <AlertDialogTrigger
-                  render={<Button variant="destructive" Icon={Trash} />}
+        unsavedChangesTitle={title}
+        submit={
+          <SubmitButton ref={saveRef} requireDirty Icon={Check}>
+            <Trans>Save</Trans>
+          </SubmitButton>
+        }
+        more={
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  Icon={Ellipsis}
+                  aria-label={t`More for ${name}`}
+                />
+              }
+            />
+            <DropdownMenuPortal>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setIsDeleteConfirmOpen(true)}
                 >
+                  <Trash2 />
                   <Trans>Delete Component</Trans>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      <Trans>Delete this Component?</Trans>
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      <Trans>
-                        A Component a Collection or another Component still uses
-                        cannot be deleted. This cannot be undone.
-                      </Trans>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      <Trans>Cancel</Trans>
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      Icon={Trash}
-                      onClick={onDelete}
-                    >
-                      <Trans>Yes, delete this Component</Trans>
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenu>
+        }
+      />
 
-              <Dialog
-                open={isDeleteErrorDialogOpen}
-                onOpenChange={setIsDeleteErrorDialogOpen}
-              >
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      <Trans>Could not delete this Component</Trans>
-                    </DialogTitle>
-                    <DialogDescription>
-                      {describeCoreError(
-                        deleteErrorType,
-                        deleteErrorDescriptions,
-                        deleteErrorFallback
-                      )}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose
-                      render={<Button type="button" variant="secondary" />}
-                    >
-                      <Trans>Close</Trans>
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </PageSection>
-      </ComponentForm>
+      {/*
+        The confirm names what goes and who it reaches, as ci rules for
+        deleting. Its red button is a Button rather than the dialog's own
+        action, so the dialog stays until the delete answered and a refusal can
+        take its place.
+      */}
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <Trans>Delete {name}?</Trans>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <Trans>
+                It goes for everyone on this Project once you sync, in every
+                language.
+              </Trans>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost">
+              <Trans>Cancel</Trans>
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              Icon={Trash2}
+              onClick={() => void onDelete()}
+            >
+              <Trans>Delete Component</Trans>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={isDeleteErrorDialogOpen}
+        onOpenChange={setIsDeleteErrorDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>Could not delete this Component</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              {describeCoreError(
+                deleteErrorType,
+                deleteErrorDescriptions,
+                deleteErrorFallback
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="ghost" />}>
+              <Trans>Close</Trans>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={isSaveErrorDialogOpen}
@@ -480,7 +488,7 @@ function ProjectComponentUpdate(): ReactElement {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose render={<Button type="button" variant="secondary" />}>
+            <DialogClose render={<Button type="button" variant="ghost" />}>
               <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
@@ -512,6 +520,6 @@ function ProjectComponentUpdate(): ReactElement {
         onApply={onApplyRefusedChange}
         onFollowLink={() => keptSettings.keep(updateComponentForm.getValues())}
       />
-    </Page>
+    </>
   );
 }

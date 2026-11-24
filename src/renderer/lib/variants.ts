@@ -275,6 +275,18 @@ export const chipVariants = cva(
   'inline-flex items-center justify-center whitespace-nowrap px-4 py-1 rounded-full text-sm font-medium border border-border'
 );
 
+/**
+ * The rule between two panes: 1 px on the left edge, inset 8 px from the
+ * panel's top and bottom.
+ *
+ * Its own builder, because a screen whose panes are not siblings draws it once
+ * itself: the panes of a form stand inside that form, so the first of them
+ * draws none and the form draws this in its place.
+ */
+export const paneDividerVariants = cva(
+  "before:absolute before:inset-y-2 before:left-0 before:w-px before:bg-border before:content-['']"
+);
+
 /*
   The panes of the main panel. Panes are divided by a rule rather than split
   into panels of their own, so every pane but the first draws the divider on
@@ -283,7 +295,7 @@ export const chipVariants = cva(
   See contributing/renderer/theming-and-styling.md.
 */
 export const paneVariants = cva(
-  "relative flex min-h-0 min-w-0 flex-col overflow-hidden before:absolute before:inset-y-2 before:left-0 before:w-px before:bg-border before:content-[''] first:before:hidden",
+  `relative flex min-h-0 min-w-0 flex-col overflow-hidden ${paneDividerVariants()} first:before:hidden`,
   {
     variants: {
       width: {

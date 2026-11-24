@@ -5,12 +5,11 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useCallback, useId, useState, type ReactElement } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
 import { type SubmitHandler } from 'react-hook-form';
 
 import { ComponentForm } from '@renderer/components/forms/component-form';
-import { Page } from '@renderer/components/page';
-import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
+import { SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -75,7 +74,6 @@ function ProjectComponentCreate(): ReactElement {
   } = useProject();
   const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
-  const formId = useId();
 
   // Resolve against Core's language-aware schema, which requires a value for
   // every Project language. Falls back to an empty language set until the
@@ -187,25 +185,6 @@ function ProjectComponentCreate(): ReactElement {
     });
   };
 
-  function Description(): ReactElement {
-    return (
-      <Trans>
-        A Component is a group of fields an Entry can hold more than once, in
-        any order. Its fields cannot be unique, and it holds no slug field.
-      </Trans>
-    );
-  }
-
-  function Actions(): ReactElement {
-    return (
-      <FormActions form={createComponentForm} id={formId} blockedBy={blockedBy}>
-        <SubmitButton Icon={Check}>
-          <Trans>Create Component</Trans>
-        </SubmitButton>
-      </FormActions>
-    );
-  }
-
   const onCreate: SubmitHandler<CreateComponentProps> = async (props) => {
     let component;
     try {
@@ -228,24 +207,28 @@ function ProjectComponentCreate(): ReactElement {
     return <></>;
   }
 
+  const title = t`Create Component`;
+
   return (
-    <Page
-      title={t`Create a new Component`}
-      description={<Description />}
-      actions={<Actions />}
-    >
+    <>
       <ComponentForm
         schema={generatedCreateComponentSchema}
-        id={formId}
         componentForm={createComponentForm}
         project={project}
         definitions={definitions}
+        title={title}
         language={shownLanguage}
         onLanguageChange={setLanguage}
         missingByLanguage={missingByLanguage}
         blockedBy={blockedBy}
         isViewOnly={isCreatingComponent}
         onFormSubmit={onCreate}
+        unsavedChangesTitle={title}
+        submit={
+          <SubmitButton Icon={Check}>
+            <Trans>Create Component</Trans>
+          </SubmitButton>
+        }
       />
 
       <Dialog
@@ -266,12 +249,12 @@ function ProjectComponentCreate(): ReactElement {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose render={<Button type="button" variant="secondary" />}>
+            <DialogClose render={<Button type="button" variant="ghost" />}>
               <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Page>
+    </>
   );
 }

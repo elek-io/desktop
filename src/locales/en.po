@@ -63,16 +63,13 @@ msgid "{count, plural, one {# Entry} other {# Entries}}"
 msgstr "{count, plural, one {# Entry} other {# Entries}}"
 
 #: src/renderer/components/forms/collection-form.tsx
+#: src/renderer/components/forms/component-form.tsx
 msgid "{count, plural, one {# translation} other {# translations}}"
 msgstr "{count, plural, one {# translation} other {# translations}}"
 
 #: src/renderer/components/language-switch.tsx
 msgid "{count, plural, one {# Value} other {# Values}}"
 msgstr "{count, plural, one {# Value} other {# Values}}"
-
-#: src/renderer/components/forms/component-form.tsx
-msgid "{count} translations"
-msgstr "{count} translations"
 
 #: src/renderer/components/release-summary.tsx
 msgid "{currentVersion} becomes {nextVersion}"
@@ -82,6 +79,10 @@ msgstr "{currentVersion} becomes {nextVersion}"
 msgid "{defaultName}, the default"
 msgstr "{defaultName}, the default"
 
+#: src/renderer/components/component-list.tsx
+msgid "{entriesUsing, plural, one {# Entry uses it} other {# Entries use it}}, {fields, plural, one {# field} other {# fields}}"
+msgstr "{entriesUsing, plural, one {# Entry uses it} other {# Entries use it}}, {fields, plural, one {# field} other {# fields}}"
+
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "{field} in {entry}"
 msgstr "{field} in {entry}"
@@ -89,10 +90,6 @@ msgstr "{field} in {entry}"
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "{field} in <0/>"
 msgstr "{field} in <0/>"
-
-#: src/renderer/routes/projects/$projectId/components/index.tsx
-msgid "{fieldCount, plural, one {# field} other {# fields}}"
-msgstr "{fieldCount, plural, one {# field} other {# fields}}"
 
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "{images, plural, one {# image} other {# images}} and {otherFiles, plural, one {# other file} other {# other files}}"
@@ -142,10 +139,6 @@ msgstr "{missing} is missing {missingTexts, plural, one {# translation} other {#
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "{missing} is missing {missingValues, plural, one {# Value} other {# Values}}"
 msgstr "{missing} is missing {missingValues, plural, one {# Value} other {# Values}}"
-
-#: src/renderer/components/component-impact.tsx
-msgid "{name}, {total, plural, one {# Entry} other {# Entries}}"
-msgstr "{name}, {total, plural, one {# Entry} other {# Entries}}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{name}, {when}"
@@ -252,10 +245,6 @@ msgid "a Component"
 msgstr "a Component"
 
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "A Component a Collection or another Component still uses cannot be deleted. This cannot be undone."
-msgstr "A Component a Collection or another Component still uses cannot be deleted. This cannot be undone."
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 #: src/renderer/routes/projects/$projectId/components/create.tsx
 msgid "A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again."
 msgstr "A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again."
@@ -263,15 +252,6 @@ msgstr "A Component cannot use itself, not directly and not through another Comp
 #: src/renderer/lib/settingsRefusals.ts
 msgid "A Component holds no slug field. Choose another type."
 msgstr "A Component holds no slug field. Choose another type."
-
-#: src/renderer/routes/projects/$projectId/components/index.tsx
-msgid "A Component is a group of fields an Entry can hold more than once, in any order. A page uses them as its sections."
-msgstr "A Component is a group of fields an Entry can hold more than once, in any order. A page uses them as its sections."
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-#: src/renderer/routes/projects/$projectId/components/create.tsx
-msgid "A Component is a group of fields an Entry can hold more than once, in any order. Its fields cannot be unique, and it holds no slug field."
-msgstr "A Component is a group of fields an Entry can hold more than once, in any order. Its fields cannot be unique, and it holds no slug field."
 
 #: src/renderer/components/fields/dynamic/definition.tsx
 msgid "A Component that is gone"
@@ -899,9 +879,9 @@ msgstr "Component name"
 msgid "Component slug"
 msgstr "Component slug"
 
+#: src/renderer/components/component-list.tsx
 #: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/components.tsx
-#: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "Components"
 msgstr "Components"
 
@@ -1059,18 +1039,15 @@ msgstr "Create {entryName}"
 msgid "Create a new {entryName}"
 msgstr "Create a new {entryName}"
 
-#: src/renderer/routes/projects/$projectId/components/create.tsx
-msgid "Create a new Component"
-msgstr "Create a new Component"
-
 #: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/collections/create.tsx
 #: src/renderer/routes/projects/$projectId/collections/index.tsx
 msgid "Create Collection"
 msgstr "Create Collection"
 
+#: src/renderer/components/component-list.tsx
+#: src/renderer/routes/projects/$projectId/components.tsx
 #: src/renderer/routes/projects/$projectId/components/create.tsx
-#: src/renderer/routes/projects/$projectId/components/index.tsx
 msgid "Create Component"
 msgstr "Create Component"
 
@@ -1096,10 +1073,6 @@ msgstr "Created"
 #: src/renderer/components/release-dialog.tsx
 msgid "Creating Release"
 msgstr "Creating Release"
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "Danger Zone"
-msgstr "Danger Zone"
 
 #: src/renderer/components/user-dropdown.tsx
 msgid "Dark"
@@ -1160,6 +1133,7 @@ msgstr "Delete {collectionName}?"
 msgid "Delete {fileName}?"
 msgstr "Delete {fileName}?"
 
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Delete {name}?"
 msgstr "Delete {name}?"
@@ -1179,14 +1153,6 @@ msgstr "Delete Component"
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Delete Project"
 msgstr "Delete Project"
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "Delete this Component"
-msgstr "Delete this Component"
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "Delete this Component?"
-msgstr "Delete this Component?"
 
 #: src/renderer/components/diff-container.tsx
 msgid "Deleted"
@@ -1674,6 +1640,10 @@ msgstr "Inline code"
 msgid "Inside a line"
 msgstr "Inside a line"
 
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "It goes for everyone on this Project once you sync, in every language."
+msgstr "It goes for everyone on this Project once you sync, in every language."
+
 #: src/renderer/components/fields/markdown/definition.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Italic"
@@ -1752,6 +1722,10 @@ msgstr "Loading"
 #: src/renderer/components/entry-list.tsx
 msgid "Loading Entries"
 msgstr "Loading Entries"
+
+#: src/renderer/components/component-list.tsx
+msgid "Loading the Components"
+msgstr "Loading the Components"
 
 #: src/renderer/components/entry-history.tsx
 msgid "Loading the History"
@@ -1842,6 +1816,10 @@ msgstr "More for {fileName}"
 msgid "More for {label}"
 msgstr "More for {label}"
 
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "More for {name}"
+msgstr "More for {name}"
+
 #: src/renderer/components/ui/pagination.tsx
 msgid "More pages"
 msgstr "More pages"
@@ -1878,8 +1856,8 @@ msgid "Names this Collection in your code and in API paths."
 msgstr "Names this Collection in your code and in API paths."
 
 #: src/renderer/components/forms/component-form.tsx
-msgid "Names this Component in your code. It has to be unique in this Project."
-msgstr "Names this Component in your code. It has to be unique in this Project."
+msgid "Names this Component in your code."
+msgstr "Names this Component in your code."
 
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "Needs a Value"
@@ -1918,16 +1896,16 @@ msgstr "No Assets yet. Add one on the Assets screen first."
 msgid "No Changes found"
 msgstr "No Changes found"
 
-#: src/renderer/components/component-impact.tsx
-msgid "No Collection uses this Component yet, so saving changes nothing but the Component itself."
-msgstr "No Collection uses this Component yet, so saving changes nothing but the Component itself."
-
 #: src/renderer/routes/projects/$projectId/collections/index.tsx
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "No Collections yet"
 msgstr "No Collections yet"
 
 #: src/renderer/routes/projects/$projectId/components/index.tsx
+msgid "No Component chosen"
+msgstr "No Component chosen"
+
+#: src/renderer/routes/projects/$projectId/components.tsx
 msgid "No Components yet"
 msgstr "No Components yet"
 
@@ -1989,6 +1967,10 @@ msgstr "None"
 msgid "None yet"
 msgstr "None yet"
 
+#: src/renderer/components/component-list.tsx
+msgid "Not used yet, {fields, plural, one {# field} other {# fields}}"
+msgstr "Not used yet, {fields, plural, one {# field} other {# fields}}"
+
 #: src/renderer/routes/__root.tsx
 msgid "Nothing about it was sent to us, so a report is how we find out."
 msgstr "Nothing about it was sent to us, so a report is how we find out."
@@ -2009,7 +1991,7 @@ msgstr "Nothing has changed in this Project yet."
 msgid "Nothing has changed since version {currentVersion}, so there is nothing to release."
 msgstr "Nothing has changed since version {currentVersion}, so there is nothing to release."
 
-#: src/renderer/routes/projects/$projectId/components/index.tsx
+#: src/renderer/routes/projects/$projectId/components.tsx
 msgid "Nothing in this Project is built from Components yet. Create one to give a Collection a field whose sections an editor fills in."
 msgstr "Nothing in this Project is built from Components yet. Create one to give a Collection a field whose sections an editor fills in."
 
@@ -2388,6 +2370,7 @@ msgstr "Retry"
 #: src/renderer/components/refused-change-dialog.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 #: src/renderer/routes/user/profile.tsx
@@ -2406,10 +2389,6 @@ msgstr "Save a copy"
 msgid "Save a copy of {fileName}"
 msgstr "Save a copy of {fileName}"
 
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "Save changes"
-msgstr "Save changes"
-
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Save the changes to the {collectionName} Collection?"
 msgstr "Save the changes to the {collectionName} Collection?"
@@ -2423,10 +2402,6 @@ msgstr "Save the changes to the {name} Component?"
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "Saving deletes {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}."
 msgstr "Saving deletes {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}."
-
-#: src/renderer/components/component-impact.tsx
-msgid "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
-msgstr "Saving reaches {collectionCount, plural, one {# Collection} other {# Collections}} and {entryTotal, plural, one {# Entry} other {# Entries}}. Every Entry that holds a section built from this Component is rewritten in the same change."
 
 #: src/renderer/components/project-sidebar.tsx
 msgid "Search comes later"
@@ -2487,6 +2462,10 @@ msgstr "Settings of the {collectionName} Collection"
 #: src/renderer/components/fields/field-from-definition.tsx
 msgid "Settings of the {label} field"
 msgstr "Settings of the {label} field"
+
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "Settings of the {name} Component"
+msgstr "Settings of the {name} Component"
 
 #: src/renderer/routes/projects/index.tsx
 msgid "Share changes with everyone on the Project."
@@ -2642,6 +2621,10 @@ msgstr "the changes of this Project"
 #: src/renderer/components/forms/collection-form.tsx
 msgid "The Collection slug in singular."
 msgstr "The Collection slug in singular."
+
+#: src/renderer/routes/projects/$projectId/components.tsx
+msgid "the Components of this Project"
+msgstr "the Components of this Project"
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "The default language can't be deleted. Please select another language as the default and then delete this language."
@@ -2864,6 +2847,7 @@ msgid "The same text was changed here and on another computer, so the two cannot
 msgstr "The same text was changed here and on another computer, so the two cannot be put together. Ask whoever set up this Project."
 
 #: src/renderer/components/forms/collection-form.tsx
+#: src/renderer/components/forms/component-form.tsx
 msgid "the settings of the chosen field"
 msgstr "the settings of the chosen field"
 
@@ -2892,6 +2876,7 @@ msgid "Theme"
 msgstr "Theme"
 
 #: src/renderer/components/forms/collection-form.tsx
+#: src/renderer/components/forms/component-form.tsx
 msgid "these settings"
 msgstr "these settings"
 
@@ -2926,6 +2911,10 @@ msgstr "this Collection"
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "This Collection could not be deleted. Please try again."
 msgstr "This Collection could not be deleted. Please try again."
+
+#: src/renderer/routes/projects/$projectId/components/index.tsx
+msgid "this Component"
+msgstr "this Component"
 
 #: src/renderer/routes/projects/$projectId/components/create.tsx
 msgid "This Component could not be created. Please review your changes and try again."
@@ -3238,10 +3227,6 @@ msgstr "What editors can mark inside a line."
 msgid "What is missing, what got in your way, or what you would like to see next."
 msgstr "What is missing, what got in your way, or what you would like to see next."
 
-#: src/renderer/components/component-impact.tsx
-msgid "What saving changes"
-msgstr "What saving changes"
-
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "What stands between the words of the slug."
 msgstr "What stands between the words of the slug."
@@ -3328,10 +3313,6 @@ msgstr "Write something here, or clear the field completely."
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Writes the slug in small letters."
 msgstr "Writes the slug in small letters."
-
-#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
-msgid "Yes, delete this Component"
-msgstr "Yes, delete this Component"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "You added {thing}"

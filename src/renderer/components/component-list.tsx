@@ -1,0 +1,160 @@
+import { plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
+import { Link } from '@tanstack/react-router';
+import { PlusIcon } from 'lucide-react';
+import { type ReactElement } from 'react';
+
+import { PaneHead } from '@renderer/components/pane';
+import { ScrollArea } from '@renderer/components/ui/scroll-area';
+import { SkeletonRows } from '@renderer/components/ui/skeleton';
+import { useComponentUsage } from '@renderer/hooks/useComponentUsage';
+import { useProject } from '@renderer/hooks/useProject';
+import { buttonVariants } from '@renderer/lib/variants';
+
+import { type Component } from '@elek-io/core';
+
+// The Components of a Project as ci's list of 296 px beside the chosen one: one
+// ruled row each, with the Component's name, how many Entries use it and how
+// many fields it defines. Create Component stands in the head.
+
+/**
+ * One Component of the list: its name, how many Entries use it and how many
+ * fields it has.
+ *
+ * The whole row is the link, so there is one way in, and the Component it opens
+ * is in the address. The open row takes the muted surface and the bar, and its
+ * focus ring is drawn inside the row, which the pane's edge would otherwise
+ * clip.
+ */
+function ComponentRow({
+  projectId,
+  component,
+  name,
+  entriesUsing,
+}: {
+  projectId: string;
+  component: Component;
+  /** The Component's name, in the language the app is read in. */
+  name: string;
+  /** How many Entries hold a section built from it. */
+  entriesUsing: number;
+}): ReactElement {
+  const { t } = useLingui();
+  const fields = component.fieldDefinitions.length;
+  // One sentence per case rather than a phrase spliced into one, so a
+  // translation can word a Component nobody uses yet its own way, see
+  // contributing/renderer/internationalization.md.
+  const says =
+    entriesUsing === 0
+      ? t`Not used yet, ${plural(fields, { one: '# field', other: '# fields' })}`
+      : t`${plural(entriesUsing, { one: '# Entry uses it', other: '# Entries use it' })}, ${plural(fields, { one: '# field', other: '# fields' })}`;
+
+  return (
+    <Link
+      data-slot="component-row"
+      to="/projects/$projectId/components/$componentId"
+      params={{ projectId, componentId: component.id }}
+      activeProps={{ 'data-active': true }}
+      className="flex items-start gap-2.5 border-b px-(--pane-edge) py-2.5 no-underline hover:bg-muted/50 focus-visible:-outline-offset-4 data-active:bg-muted data-active:shadow-[inset_2px_0_0_var(--color-foreground)]"
+    >
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span data-slot="component-name" className="truncate font-medium">
+          {name}
+        </span>
+        <span
+          data-slot="component-use"
+          className="truncate text-small text-muted-foreground"
+        >
+          {says}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+export interface ComponentListPaneProps {
+  projectId: string;
+  /**
+   * The Project's Components, or `undefined` while they are still being read.
+   */
+  components: Component[] | undefined;
+}
+
+/**
+ * The pane of 296 px beside the chosen Component: how many Components the
+ * Project has, Create Component, and one row per Component.
+ *
+ * How many Entries use each one is read here rather than passed in, so a read
+ * that fails is answered in this pane rather than taking the screen with it.
+ * The rows wait for it, so a row says what it says once rather than gaining
+ * half of it a moment later.
+ */
+export function ComponentListPane({
+  projectId,
+  components,
+}: ComponentListPaneProps): ReactElement {
+  const { t } = useLingui();
+  const { translateContent } = useProject();
+  const { entriesByComponent, isPending: isReadingUsage } =
+    useComponentUsage(projectId);
+
+  return (
+    // The rows are the way from one Component to the next, which is what makes
+    // this a navigation rather than a column of content.
+    <nav aria-label={t`Components`} className="flex min-h-0 flex-1 flex-col">
+      <PaneHead>
+        {/* The chosen Component beside it carries the screen's h1, so the
+        list's own title is the heading below it. */}
+        <h2 className="flex min-w-0 flex-1 items-baseline gap-2 text-label">
+          <span className="truncate">
+            <Trans>Components</Trans>
+          </span>
+          {components === undefined ? null : (
+            <span className="font-normal text-muted-foreground">
+              {components.length}
+            </span>
+          )}
+        </h2>
+        {/* A link rather than a button, because it opens a page, which is what
+        lets the question before losing changes catch it. It takes the ghost
+        icon button's own look, as ci draws it. */}
+        <Link
+          to="/projects/$projectId/components/create"
+          params={{ projectId }}
+          aria-label={t`Create Component`}
+          className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+        >
+          <PlusIcon />
+        </Link>
+      </PaneHead>
+      <ScrollArea className="flex-1">
+        {/* The rows span the pane rather than its text edge, so a row's rule
+        ends on the pane's divider the way ci draws it, which is what the
+        negative margin takes back, and each row carries the edge itself. */}
+        <div className="px-(--pane-edge) pb-6">
+          {components === undefined || isReadingUsage ? (
+            <SkeletonRows label={t`Loading the Components`} />
+          ) : (
+            <div
+              data-slot="component-list"
+              className="-mx-(--pane-edge) border-t [&>*:last-child]:border-b-0"
+            >
+              {components.map((component) => (
+                <ComponentRow
+                  key={component.id}
+                  projectId={projectId}
+                  component={component}
+                  name={translateContent({
+                    key: 'component.name',
+                    record: component.name,
+                  })}
+                  entriesUsing={entriesByComponent.get(component.id) ?? 0}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </nav>
+  );
+}
