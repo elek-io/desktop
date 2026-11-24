@@ -428,16 +428,17 @@ test.describe('Components', () => {
       "Can't read how many Entries use it, 1 field",
       { timeout: 25000 }
     );
-    await expect(componentRow(mainWindow, 'Gallery')).toContainText(
-      "Can't read how many Entries use it, 1 field"
-    );
-    // And nothing says a count it does not have, in either direction.
-    await expect(
-      componentListPane(mainWindow).getByText('Not used yet')
-    ).toHaveCount(0);
-    await expect(
-      componentListPane(mainWindow).getByText('uses it')
-    ).toHaveCount(0);
+    // And no row says a count it does not have, in either direction: what
+    // stands in place of the count is the whole of what each row says below
+    // its name.
+    expect(
+      await componentListPane(mainWindow)
+        .locator('[data-slot="component-use"]')
+        .allTextContents()
+    ).toEqual([
+      "Can't read how many Entries use it, 1 field",
+      "Can't read how many Entries use it, 1 field",
+    ]);
     await expect(
       componentListPane(mainWindow).getByRole('heading', {
         name: /^Components\s*2$/,

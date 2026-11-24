@@ -101,11 +101,11 @@ export interface ComponentListPaneProps {
  * Project has, Create Component, and one row per Component.
  *
  * How many Entries use each one is read here rather than passed in, so a read
- * that fails is answered in this pane rather than taking the screen with it.
- * The rows wait for it, so a row says what it says once rather than gaining
- * half of it a moment later. A read that failed leaves every row standing and
- * says in the row that the count could not be read, since the Components
- * themselves were read and the list is the only way to one.
+ * that fails is answered in this pane's own rows rather than taking the screen
+ * with it. The rows wait for it, so a row says what it says once rather than
+ * gaining half of it a moment later. A read that failed leaves every row
+ * standing and says in the row that the count could not be read, since the
+ * Components themselves were read and the list is the only way to one.
  *
  * The rows stand in the order of the names they show, as ci's list does. Core
  * answers in the order the Components sit on disk, which is the order of their
@@ -123,9 +123,10 @@ export function ComponentListPane({
     isPending: isReadingUsage,
     error: usageError,
   } = useComponentUsage(projectId);
-  // By the name the row shows, in the language the app is read in, so a
-  // German reader gets German's own order. A name that reads the same for the
-  // collator, such as two Components called Hero, is settled by the slug,
+  // By the name the row shows, compared in the language the app is read in, so
+  // the order follows that language's own rules rather than the code points,
+  // which would put Teaser ahead of gallery. A name that reads the same for
+  // the collator, such as two Components called Hero, is settled by the slug,
   // which is unique in the Project, so an order nobody set is never left to
   // the disk. `numeric` keeps Section 2 ahead of Section 10.
   const byName = new Intl.Collator(i18n.locale, { numeric: true });
