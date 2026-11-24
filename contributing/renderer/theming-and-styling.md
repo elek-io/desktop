@@ -189,6 +189,8 @@ The window is one ground with a panel on it, which is what every screen is laid 
 
 **One text edge per pane.** `--pane-edge` is set by `paneVariants` in [`variants.ts`](../../src/renderer/lib/variants.ts): 24 px in the main area and 16 px in a pane of 296 px. Everything inside a pane starts on it, through `px-(--pane-edge)`, so a title, a row and a card share one edge instead of each picking a padding.
 
+**A pane's divider is read off its place among its siblings**, which is why a screen whose panes are not siblings draws it once itself. The Components screen is that case: the panes of a Component's settings are children of the form that saves them, so the first of them draws none and the form carries `paneDividerVariants()` from the same file in its place. A screen whose panes are siblings, as a Collection's Entries beside an Entry are, needs nothing.
+
 **A pane also owns what happens when its read fails**, which is in [error-handling.md](../error-handling.md#a-read-that-failed-the-pane-says-so).
 
 **The header has two slots rather than three components.** The root error screen renders the header outside `UserProvider` and `BreadcrumbProvider`, so it can pass neither the breadcrumb trail nor the user. `RootComponent` passes `HeaderTrail` and `HeaderUser`, and the error screen passes nothing.

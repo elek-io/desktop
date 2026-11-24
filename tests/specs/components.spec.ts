@@ -242,7 +242,10 @@ test.describe('Components', () => {
         sections: componentValue([
           {
             componentId: used.id,
-            values: { title: stringValue({ en: 'A section' }) },
+            values: {
+              title: stringValue({ en: 'A section' }),
+              subline: stringValue({ en: 'Its subline' }),
+            },
           },
         ]),
       },
@@ -491,7 +494,9 @@ test.describe('Components', () => {
     await pane.getByLabel('Label', { exact: true }).fill('Überschrift');
 
     await expect(save).not.toHaveAttribute('aria-disabled', 'true');
-    await saveComponent(mainWindow, 'Anreisser');
+    // The toast names the Component in the language the app is read in, which
+    // is English, so it is the English name that stands in it.
+    await saveComponent(mainWindow, 'Teaser');
   });
 
   test('asks before the next Component in the list takes what nobody saved', async ({

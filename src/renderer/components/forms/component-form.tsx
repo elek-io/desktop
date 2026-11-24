@@ -39,7 +39,8 @@ import { type Project, type SupportedLanguage } from '@elek-io/core';
 // Laid out like a Collection's settings, which ci's rule for Components asks
 // of it, and the whole screen stands inside the one form it is saved from, so
 // the pane beside the fields edits the same unsaved state the fields do and
-// the page has one Save, see contributing/renderer/forms.md#a-components-settings.
+// the page has one Save, see
+// contributing/renderer/forms.md#a-components-settings.
 
 // TFieldValues is the schema input, TTransformedValues the schema output
 // handleSubmit yields. Neither is constrained to a shape holding the keys this

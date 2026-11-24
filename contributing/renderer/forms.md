@@ -469,8 +469,30 @@ is not needed at all.
   ([`hooks/useMissingTranslations.ts`](../../src/renderer/hooks/useMissingTranslations.ts))
   counts that, which is what the line below Save and the marks on the switch
   both read, so the two never disagree.
-- **A Component's settings take the same parts**, with their own layout until
-  that screen is rebuilt.
+
+### A Component's settings
+
+A Component's settings are the same screen with the same parts, in
+[`forms/component-form.tsx`](../../src/renderer/components/forms/component-form.tsx):
+one `<AppForm>` around its panes, one Save, one language switch, the leave
+guard, and the pane of 296 px for the chosen field. It differs from a
+Collection's in three ways, each of them the screen's own rather than the
+form layer's.
+
+- **It stands beside the list of Components**, which the layout route
+  [`components.tsx`](../../src/renderer/routes/projects/$projectId/components.tsx)
+  draws, so a Component is chosen and opened without leaving the screen. Its
+  panes are therefore children of the form rather than siblings of that list,
+  which is what the divider in
+  [theming-and-styling.md](./theming-and-styling.md#the-window-the-ground-the-panel-and-its-panes)
+  is about.
+- **Save keeps the page**, with the Component still chosen, so the form is made
+  pristine again with what went in, as a Project's General settings do. A
+  Collection's settings are a page of their own and leave for the Collection
+  instead.
+- **One name and one slug**, where a Collection has two of each, and no field
+  of a Component can be unique, see
+  [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#components).
 
 ## The words a refused Value is explained in
 
