@@ -1570,10 +1570,17 @@ test.describe('Components', () => {
     ).toHaveCount(0);
     // Taking it away is offered, since Core is the one that decides whether
     // the sections built from it may go, see contributing/not-yet-implemented.md.
+    await blocks
+      .getByRole('button', { name: 'Remove Teaser from Allowed Components' })
+      .click();
     await expect(
-      blocks.getByRole('button', {
-        name: 'Remove Teaser from Allowed Components',
-      })
+      blocks.getByRole('listitem').filter({ hasText: 'Teaser' })
+    ).toHaveCount(0);
+    // With nothing named it allows every Component again, and Add offers the
+    // one there is.
+    await expect(blocks.getByText('Every Component is allowed.')).toBeVisible();
+    await expect(
+      blocks.getByRole('button', { name: 'Add Component' })
     ).toBeVisible();
   });
 });
