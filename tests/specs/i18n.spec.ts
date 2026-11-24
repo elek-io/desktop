@@ -22,6 +22,7 @@ import {
   fillComponentForm,
   navigateToComponent,
   navigateToComponentCreate,
+  openDeleteComponent,
 } from '../helpers/component.js';
 import { confirmDialog } from '../helpers/dialog.js';
 import { fillEntryForm, navigateToEntryCreate } from '../helpers/entry.js';
@@ -348,8 +349,10 @@ test.describe('The app in one language', () => {
       projectId: project.id,
       componentId: component.id,
     });
-    await mainWindow.getByRole('button', { name: 'Delete Component' }).click();
-    await confirmDialog(mainWindow, 'Yes, delete this Component');
+    const confirm = await openDeleteComponent(mainWindow, 'Teaser');
+    await confirm
+      .getByRole('button', { name: 'Delete Component', exact: true })
+      .click();
     await expect(
       mainWindow.getByText('Component Teaser deleted', { exact: true })
     ).toBeVisible();
