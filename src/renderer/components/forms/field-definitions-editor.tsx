@@ -213,7 +213,10 @@ function FieldTypesPane({
   );
 
   return (
-    <>
+    <aside
+      aria-label={t`Add field`}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <PaneHead>
         <h2 className="min-w-0 flex-1 truncate text-label">
           <Trans>Add field</Trans>
@@ -258,7 +261,7 @@ function FieldTypesPane({
           ))}
         </div>
       </ScrollArea>
-    </>
+    </aside>
   );
 }
 
@@ -321,7 +324,10 @@ export function FieldDefinitionsPane<
   );
 
   return (
-    <>
+    <aside
+      aria-label={t`Settings of the ${label} field`}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <PaneHead className="gap-2">
         <h2 className="min-w-0 flex-1 truncate text-label">{label}</h2>
         <span className="text-small text-muted-foreground">
@@ -392,6 +398,6 @@ export function FieldDefinitionsPane<
           />
         </div>
       </ScrollArea>
-    </>
+    </aside>
   );
 }

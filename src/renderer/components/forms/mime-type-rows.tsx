@@ -30,6 +30,8 @@ export interface MimeTypeRowsProps<
   label: string;
   description: ReactNode;
   chosen: string[];
+  /** What Add says, since the label alone would read as a heading. */
+  addLabel: string;
   onChange: (mimeTypes: string[]) => void;
 }
 
@@ -42,6 +44,7 @@ export function MimeTypeRows<
   label,
   description,
   chosen,
+  addLabel,
   onChange,
 }: MimeTypeRowsProps<TFieldValues, TTransformedValues>): ReactElement {
   const { projectId } = useProject();
@@ -67,7 +70,7 @@ export function MimeTypeRows<
       offered={inProject
         .filter((mimeType) => chosen.includes(mimeType) === false)
         .map(row)}
-      addLabel={label}
+      addLabel={addLabel}
       emptyNote={<Trans>Every file type is allowed.</Trans>}
       nothingToAddNote={
         inProject.length === 0 ? (

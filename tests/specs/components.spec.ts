@@ -13,7 +13,8 @@ import {
   createCollectionViaIpc,
   dynamicFieldDefinition,
   navigateToCollectionSettings,
-  openAddFieldSheet,
+  chooseFieldDefinition,
+  openFieldTypes,
   readCollectionViaIpc,
   textFieldDefinition,
 } from '../helpers/collection.js';
@@ -88,7 +89,6 @@ test.describe('Components', () => {
     await addFieldDefinition(mainWindow, {
       label: 'Headline',
       description: 'The headline of the teaser',
-      owner: 'component',
     });
 
     await mainWindow.getByRole('button', { name: 'Create Component' }).click();
@@ -110,36 +110,36 @@ test.describe('Components', () => {
     ).toBeVisible();
   });
 
-  test('says on the Component screens what they cannot do yet, and offers no slug field or uniqueness', async ({
+  test('offers no slug field inside a Component, and locks uniqueness there', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     await navigateToComponentCreate(mainWindow, project.id);
 
-    // An editor has to learn before building a Component what a field takes
-    // after it was added, so it stands on the screen rather than being found by
-    // trying. See contributing/not-yet-implemented.md.
+    // Core forbids a slug field and uniqueness inside a Component, so neither
+    // is offered and then refused on save.
+    const types = await openFieldTypes(mainWindow);
     await expect(
-      mainWindow.getByText(
-        'A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.'
-      )
+      types.getByRole('button', { name: 'slug', exact: true })
+    ).toHaveCount(0);
+    await expect(
+      types.getByRole('button', { name: 'text', exact: true })
     ).toBeVisible();
 
-    // Core forbids a slug field and uniqueness inside a Component, so neither is
-    // offered and then refused on save.
-    const sheet = await openAddFieldSheet(mainWindow, 'text', 'component');
-    await expect(sheet.getByRole('switch', { name: 'Unique' })).toBeDisabled();
+    const pane = await addFieldDefinition(mainWindow, { label: 'Headline' });
+    await expect(pane.getByRole('checkbox', { name: 'Unique' })).toBeDisabled();
     await expect(
-      sheet.getByText(
-        'Fields of a Component cannot be unique, since the same Component is used in more than one place.'
+      pane.getByText(
+        "A Component's fields can't be unique, since one Component is used in more than one place."
       )
     ).toBeVisible();
-
-    await sheet.getByRole('combobox').first().click();
+    // And the Type picker never offers it either, so a field cannot be taken
+    // there after it exists.
+    await pane.getByRole('combobox', { name: 'Type' }).click();
     await expect(
       mainWindow.getByRole('option', { name: 'slug', exact: true })
-    ).toBeDisabled();
+    ).toHaveCount(0);
   });
 
   test('says a slug another Component already uses below the Slug field', async ({
@@ -158,7 +158,6 @@ test.describe('Components', () => {
     await addFieldDefinition(mainWindow, {
       label: 'Headline',
       description: 'The headline of the teaser',
-      owner: 'component',
     });
 
     await mainWindow.getByRole('button', { name: 'Create Component' }).click();
@@ -340,16 +339,16 @@ test.describe('Components', () => {
       mainWindow.getByLabel('Component name', { exact: true })
     ).toHaveValue('Teaser');
 
-    // The allowed Components picker carries each Component's name as its
-    // accessible name, so toggling "Teaser" on the Teaser Component's own
-    // dynamic field stores its real id and makes the reference circular.
-    const sheet = await openAddFieldSheet(mainWindow, 'dynamic', 'component');
-    await sheet.getByLabel('Label', { exact: true }).fill('Sections');
-    const allowed = sheet.getByRole('switch', { name: 'Teaser', exact: true });
-    await allowed.click();
-    await expect(allowed).toBeChecked();
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    await expect(sheet).toBeHidden();
+    // The list of allowed Components names each Component, so allowing
+    // "Teaser" on the Teaser Component's own dynamic field stores its real id
+    // and makes the reference circular.
+    const pane = await addFieldDefinition(mainWindow, {
+      label: 'Sections',
+      fieldType: 'dynamic',
+    });
+    await pane.getByRole('button', { name: 'Add Component' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
+    await expect(pane.getByText('Teaser')).toBeVisible();
 
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
 
@@ -638,7 +637,7 @@ test.describe('Components', () => {
     await expect(addSection).toHaveAttribute('aria-invalid', 'false');
   });
 
-  test('authors a dynamic Field on a Collection through the Add Field sheet', async ({
+  test('adds a dynamic field to a Collection and bounds its sections', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -659,23 +658,23 @@ test.describe('Components', () => {
       collectionId: collection.id,
     });
 
-    // The dynamic type is offered on a Collection, and its allowed Components
-    // picker names each Component rather than showing an id.
-    const sheet = await openAddFieldSheet(mainWindow, 'dynamic');
-    await sheet.getByLabel('Label', { exact: true }).fill('Sections');
-    const allowed = sheet.getByRole('switch', { name: 'Teaser', exact: true });
-    await allowed.click();
-    await expect(allowed).toBeChecked();
-    await sheet.getByLabel('Maximum').fill('2');
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    await expect(sheet).toBeHidden();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    // The dynamic type is offered on a Collection, and the Components it
+    // allows are rows that name each Component rather than showing an id.
+    const pane = await addFieldDefinition(mainWindow, {
+      label: 'Sections',
+      fieldType: 'dynamic',
+      max: 2,
+    });
+    await pane.getByRole('button', { name: 'Add Component' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Teaser' }).click();
+    await expect(pane.getByText('Teaser')).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
 
-    // What the picker and the count rows stored is read back off Core, so a
-    // broken definition cannot pass as a working one.
+    // What the rows and the count stored is read back off Core, so a broken
+    // definition cannot pass as a working one.
     const stored = await readCollectionViaIpc(mainWindow, {
       projectId: project.id,
       id: collection.id,
@@ -710,7 +709,7 @@ test.describe('Components', () => {
     ).toBeVisible();
   });
 
-  test('reorders a Component Field from the keyboard and stores the new order', async ({
+  test('reorders a Component field from the keyboard and stores the new order', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -728,14 +727,15 @@ test.describe('Components', () => {
       componentId: component.id,
     });
 
-    // Move down on the first Field, from the keyboard, as WCAG 2.1.1 asks of a
+    // Move down, from the keyboard alone, as WCAG 2.1.1 and 2.5.7 ask of a
     // reorder that is also possible by dragging.
-    const down = mainWindow.getByRole('button', {
-      name: 'Move the Alpha field down',
-    });
-    await expect(down).toBeEnabled();
-    await down.focus();
+    await mainWindow
+      .getByRole('button', { name: 'Settings of the Alpha field' })
+      .focus();
     await mainWindow.keyboard.press('Enter');
+    await mainWindow.getByRole('button', { name: 'More for Alpha' }).focus();
+    await mainWindow.keyboard.press('Enter');
+    await mainWindow.getByRole('menuitem', { name: 'Move down' }).click();
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
     expect(
@@ -747,18 +747,15 @@ test.describe('Components', () => {
       ).fieldDefinitions.map((definition) => definition.slug)
     ).toEqual(['beta', 'alpha']);
 
-    // Move up takes it back, so both buttons are driven and neither is a
-    // one-way street.
+    // Move up takes it back, so both ways are driven and neither is a one-way
+    // street.
     await navigateToComponent(mainWindow, {
       projectId: project.id,
       componentId: component.id,
     });
-    const up = mainWindow.getByRole('button', {
-      name: 'Move the Alpha field up',
-    });
-    await expect(up).toBeEnabled();
-    await up.focus();
-    await mainWindow.keyboard.press('Enter');
+    await chooseFieldDefinition(mainWindow, 'Alpha');
+    await mainWindow.getByRole('button', { name: 'More for Alpha' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Move up' }).click();
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
     expect(
@@ -870,7 +867,6 @@ test.describe('Components', () => {
       label: 'Subline',
       description: 'The subline of the teaser',
       isRequired: false,
-      owner: 'component',
     });
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/components$/);
@@ -1288,73 +1284,25 @@ test.describe('Components', () => {
       mainWindow.getByLabel('Collection name (Plural)', { exact: true })
     ).toHaveValue('Articles');
 
-    // What can be changed about a Field and what cannot stands on the screen,
-    // rather than being found by pressing things.
+    // The field's own settings open from its row, and the Components it allows
+    // are rows that name each of them.
+    const pane = await chooseFieldDefinition(mainWindow, 'Sections');
+    await expect(pane.getByText('Quote')).toBeVisible();
+
+    // Add offers what the field does not allow yet, and nothing else.
+    await pane.getByRole('button', { name: 'Add Component' }).click();
     await expect(
-      mainWindow.getByText(
-        'A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.'
-      )
-    ).toBeVisible();
-
-    // The edit control is offered for the dynamic Field only, so the text Field
-    // beside it carries none.
-    const editSections = mainWindow.getByRole('button', {
-      name: 'Allow more Components on the Sections field',
-    });
-    await expect(editSections).toBeVisible();
-    await expect(
-      mainWindow.getByRole('button', {
-        name: 'Allow more Components on the Title field',
-      })
-    ).toHaveCount(0);
-
-    // It sits in the Field's own chrome, so a keyboard reaches it in the order
-    // the screen reads, and opens it without a mouse. Move down is disabled on
-    // the last Field, which is why the tab from Move up lands here.
-    await mainWindow
-      .getByRole('button', { name: 'Move the Sections field up' })
-      .focus();
-    await mainWindow.keyboard.press('Tab');
-    await expect(editSections).toBeFocused();
-    await mainWindow.keyboard.press('Enter');
-
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Allow more Components on Sections',
-    });
-    await expect(sheet).toBeVisible();
-
-    // The Component the Field allows already is listed as allowed in words. A
-    // switched off control would say nothing and no keyboard would reach it.
-    await expect(sheet.getByText('Allowed already:')).toBeVisible();
-    await expect(
-      sheet.getByRole('listitem').filter({ hasText: 'Quote' })
+      mainWindow.getByRole('menuitem', { name: 'Hero' })
     ).toBeVisible();
     await expect(
-      sheet.getByRole('switch', { name: 'Quote', exact: true })
+      mainWindow.getByRole('menuitem', { name: 'Quote' })
     ).toHaveCount(0);
+    await mainWindow.getByRole('menuitem', { name: 'Hero' }).click();
+    await expect(pane.getByText('Hero')).toBeVisible();
 
-    // Nothing else about the definition is editable here.
-    await expect(sheet.getByLabel('Label', { exact: true })).toHaveCount(0);
-    await expect(sheet.getByLabel('Slug', { exact: true })).toHaveCount(0);
-    await expect(sheet.getByLabel('Minimum')).toHaveCount(0);
-    await expect(sheet.getByLabel('Maximum')).toHaveCount(0);
-
-    // Only what can be added is offered, and there is nothing to allow until
-    // one is selected.
-    const heroSwitch = sheet.getByRole('switch', { name: 'Hero', exact: true });
-    await expect(heroSwitch).toBeVisible();
-    const allow = mainWindow.getByRole('button', {
-      name: 'Allow these Components',
-    });
-    await expect(allow).toBeDisabled();
-    await heroSwitch.click();
-    await expect(allow).toBeEnabled();
-    await allow.click();
-    await expect(sheet).toBeHidden();
-
-    // The edit dirties the Collection form, and the save is Core's own update.
-    const save = mainWindow.getByRole('button', { name: 'Save changes' });
-    await expect(save).toBeEnabled();
+    // The edit dirties the page, and the save is Core's own update.
+    const save = mainWindow.getByRole('button', { name: 'Save' });
+    await expect(save).not.toHaveAttribute('aria-disabled', 'true');
     await save.click();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
@@ -1519,22 +1467,11 @@ test.describe('Components', () => {
     ).toBeVisible();
     await expect(mainWindow.getByText('Articles, 1 Entry')).toBeVisible();
 
-    await mainWindow
-      .getByRole('button', {
-        name: 'Allow more Components on the Blocks field',
-      })
-      .click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Allow more Components on Blocks',
-    });
-    await expect(
-      sheet.getByRole('listitem').filter({ hasText: 'Quote' })
-    ).toBeVisible();
-    await sheet.getByRole('switch', { name: 'Hero', exact: true }).click();
-    await mainWindow
-      .getByRole('button', { name: 'Allow these Components' })
-      .click();
-    await expect(sheet).toBeHidden();
+    const pane = await chooseFieldDefinition(mainWindow, 'Blocks');
+    await expect(pane.getByText('Quote')).toBeVisible();
+    await pane.getByRole('button', { name: 'Add Component' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Hero' }).click();
+    await expect(pane.getByText('Hero')).toBeVisible();
 
     await mainWindow.getByRole('button', { name: 'Save changes' }).click();
     await expect(mainWindow).toHaveURL(
@@ -1569,7 +1506,7 @@ test.describe('Components', () => {
   // one on would narrow the Field to that one, which Core refuses as a loss and
   // no screen can answer yet. Such a Field therefore offers nothing to add, and
   // neither does one that names every Component there is.
-  test('offers nothing to add on a Field that allows every Component', async ({
+  test('says that a field naming no Component allows every one of them', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -1595,53 +1532,32 @@ test.describe('Components', () => {
       collectionId: collection.id,
     });
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+      mainWindow.getByRole('main').getByLabel('Collection name', {
+        exact: true,
+      })
     ).toHaveValue('Articles');
 
-    // The Field that names no Component allows every one of them, the ones
-    // added later included, so it offers nothing and nothing to press.
-    await mainWindow
-      .getByRole('button', {
-        name: 'Allow more Components on the Sections field',
-      })
-      .click();
-    const sections = mainWindow.getByRole('dialog', {
-      name: 'Allow more Components on Sections',
-    });
+    // The field that names no Component allows every one of them, the ones
+    // added later included, which is Core's own rule, so its list says that
+    // rather than standing empty.
+    const sections = await chooseFieldDefinition(mainWindow, 'Sections');
     await expect(
-      sections.getByText(
-        'This Field allows every Component of this Project, the ones added later included, so there is nothing to add.'
-      )
+      sections.getByText('Every Component is allowed.')
     ).toBeVisible();
-    await expect(
-      sections.getByRole('switch', { name: 'Teaser', exact: true })
-    ).toHaveCount(0);
-    await expect(
-      mainWindow.getByRole('button', { name: 'Allow these Components' })
-    ).toHaveCount(0);
-    await sections.getByRole('button', { name: 'Close' }).click();
-    await expect(sections).toBeHidden();
 
-    // The Field that names the only Component there is says so, and there is
-    // nothing to allow until another Component exists.
-    await mainWindow
-      .getByRole('button', {
-        name: 'Allow more Components on the Blocks field',
+    // The field that names the only Component there is holds it as a row, and
+    // has nothing left to add.
+    const blocks = await chooseFieldDefinition(mainWindow, 'Blocks');
+    await expect(blocks.getByText('Teaser')).toBeVisible();
+    await expect(
+      blocks.getByRole('button', { name: 'Add Component' })
+    ).toHaveCount(0);
+    // Taking it away is offered, since Core is the one that decides whether
+    // the sections built from it may go, see contributing/not-yet-implemented.md.
+    await expect(
+      blocks.getByRole('button', {
+        name: 'Remove Teaser from Allowed Components',
       })
-      .click();
-    const blocks = mainWindow.getByRole('dialog', {
-      name: 'Allow more Components on Blocks',
-    });
-    await expect(
-      blocks.getByRole('listitem').filter({ hasText: 'Teaser' })
     ).toBeVisible();
-    await expect(
-      blocks.getByText(
-        'Every Component of this Project is allowed already, so there is nothing to add.'
-      )
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('button', { name: 'Allow these Components' })
-    ).toBeDisabled();
   });
 });

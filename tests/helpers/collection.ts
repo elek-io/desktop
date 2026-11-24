@@ -642,7 +642,13 @@ export async function navigateToCollectionSettings(
   );
 }
 
-/** Fill the visible base fields of the Collection form (single language). */
+/**
+ * Fill the visible base fields of the Collection form, in the language the
+ * switch above the page shows.
+ *
+ * Scoped to the main area, so the pane of the chosen field, whose Label, Slug
+ * and Description carry names of their own, cannot make a locator ambiguous.
+ */
 export async function fillCollectionForm(
   page: Page,
   props: {
@@ -653,164 +659,144 @@ export async function fillCollectionForm(
     slugSingular: string;
   }
 ): Promise<void> {
-  await page
-    .getByLabel('Collection name (Plural)', { exact: true })
+  const settings = page.getByRole('main');
+
+  await settings
+    .getByLabel('Collection name', { exact: true })
     .fill(props.namePlural);
-  await page
-    .getByLabel('Entry name (Singular)', { exact: true })
+  await settings
+    .getByLabel('Entry name', { exact: true })
     .fill(props.nameSingular);
-  await page.getByLabel('Description', { exact: true }).fill(props.description);
-  await page
-    .getByLabel('Collection-Slug', { exact: true })
+  await settings
+    .getByLabel('Description', { exact: true })
+    .fill(props.description);
+  await settings
+    .getByLabel('Collection slug', { exact: true })
     .fill(props.slugPlural);
-  await page.getByLabel('Entry-Slug', { exact: true }).fill(props.slugSingular);
+  await settings
+    .getByLabel('Entry slug', { exact: true })
+    .fill(props.slugSingular);
 }
 
 /**
- * Fill languages other than the default on the Collection form's translatable
- * fields, keyed by the field's visible label.
- *
- * The visible input holds the default language, so a second language is edited
- * through the field's translations dialog. Its trigger carries the accessible
- * name "Edit translations for <label>" and the dialog itself is named by the
- * same label (see forms.md), which is what makes both addressable.
+ * Switch the whole settings page to another language, which is what the names,
+ * the labels and the descriptions are then edited in.
  */
-export async function fillCollectionFormTranslations(
+export async function switchSettingsLanguage(
   page: Page,
-  fields: Record<string, Partial<Record<SupportedLanguage, string>>>
+  language: SupportedLanguage
 ): Promise<void> {
-  for (const [label, languages] of Object.entries(fields)) {
-    await page
-      .getByRole('button', { name: `Edit translations for ${label}` })
-      .click();
-    const dialog = page.getByRole('dialog', { name: label });
-    await expect(dialog).toBeVisible();
-
-    for (const [language, text] of Object.entries(languages)) {
-      // A dialog's per-language label is the language code, with an
-      // " - optional" suffix on a field that is not required (the Description is
-      // not), so anchor on the code rather than matching exactly.
-      await dialog
-        .getByLabel(new RegExp(`^${language}( - optional)?$`))
-        .fill(text);
-    }
-
-    await dialog.getByRole('button', { name: 'Done' }).click();
-    await expect(dialog).toBeHidden();
-  }
+  await page
+    .getByRole('group', { name: 'Language' })
+    .getByRole('button', { name: new RegExp(`^${language.toUpperCase()}`) })
+    .click();
 }
 
 /**
- * Open the "Add Field" sheet and select `fieldType` in its "Input type" picker,
- * returning the sheet so a caller can scope its locators to it.
- *
- * Use this directly when a spec inspects the sheet without adding anything (the
- * per-type locked switches), and through `addFieldDefinition` when it does add.
- *
- * `owner` names the sheet, since one editor authors both a Collection's and a
- * Component's fields and the sheet says which it is adding to.
+ * Open the pane of field types, which is what Add field does, and return it so
+ * a caller can scope its locators to it.
  */
-export async function openAddFieldSheet(
+export async function openFieldTypes(page: Page): Promise<Locator> {
+  // The page's own Add field, which the settings of a chosen field never
+  // carry: a list inside them says what it adds.
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: 'Add field', exact: true })
+    .click();
+  const pane = page.getByRole('complementary', { name: 'Add field' });
+  await expect(pane).toBeVisible();
+
+  return pane;
+}
+
+/**
+ * Open the settings of the field with this label, and return the pane so a
+ * caller can scope its locators to it.
+ *
+ * The whole row of a field is the control that opens it, named after what it
+ * opens, since the field below it is a preview rather than something to fill
+ * in there.
+ */
+export async function chooseFieldDefinition(
   page: Page,
-  fieldType: FieldType = 'text',
-  owner: 'collection' | 'component' = 'collection'
+  label: string
 ): Promise<Locator> {
-  await page.getByRole('button', { name: 'Add Field' }).click();
-  const sheet = page.getByRole('dialog', {
-    name:
-      owner === 'collection'
-        ? 'Add a Field to this Collection'
-        : 'Add a Field to this Component',
+  await page
+    .getByRole('button', { name: `Settings of the ${label} field` })
+    .click();
+  const pane = page.getByRole('complementary', {
+    name: `Settings of the ${label} field`,
   });
-  await expect(sheet).toBeVisible();
+  await expect(pane).toBeVisible();
 
-  if (fieldType !== 'text') {
-    // The picker is the first combobox in the sheet (its header). Its options
-    // render in a portal, so locate them on the page, not in the dialog.
-    await sheet.getByRole('combobox').first().click();
-    await page.getByRole('option', { name: fieldType, exact: true }).click();
-  }
-
-  return sheet;
+  return pane;
 }
 
 export interface AddFieldDefinitionOptions {
   label: string;
-  description: string;
-  /** The "Input type" to pick. Defaults to the sheet's own default, `text`. */
+  description?: string;
+  /** The type to choose in the pane. Defaults to `text`. */
   fieldType?: FieldType;
-  /** Which object the field is added to. Defaults to a Collection. */
-  owner?: 'collection' | 'component';
   /** Fills the field's "Minimum" control. */
   min?: number;
   /** Fills the field's "Maximum" control. */
   max?: number;
-  /** Fills the shared "Default value" control. */
+  /** Fills the "Default Value" control. */
   defaultValue?: string;
-  /** Turns the "Unique" switch on. Only the string types allow it. */
+  /** Ticks the "Unique" checkbox. Only the string types allow it. */
   isUnique?: boolean;
-  /**
-   * Turns the "Required" switch off. A field defaults to required, and adding a
-   * required field with no default to a Collection or Component that already
-   * holds content is what Core refuses until each Entry is answered.
-   */
+  /** Unticks the "Required" checkbox, which a new field starts with ticked. */
   isRequired?: boolean;
-  /**
-   * Assert the add is REJECTED rather than accepted. `submitDefinition` only
-   * closes the sheet after it appends the definition, so a still-open sheet
-   * proves the definition was not appended (a failed per-type schema, or a
-   * duplicate slug). When omitted, assert the happy path: the sheet closes
-   * because the definition was appended.
-   */
-  expectRejected?: boolean;
 }
 
 /**
- * Drive the "Add Field" sheet to add one field definition. Opens the sheet on
- * the requested input type, fills the translatable label and description (the
- * slug auto-derives from the label) plus any of the shared per-type controls,
- * then confirms with "Add definition".
+ * Add one field through the pane of field types and fill in its settings.
  *
- * For a valid, unique definition the sheet closes (asserted). Pass
- * `expectRejected` to instead assert the sheet stays open, which the negative
- * validation specs (duplicate slug, min>max, unique with a default) use to prove
- * the definition was not appended.
+ * Choosing a type adds the field and opens its settings, so the pane that
+ * comes back is the field's own, and the field is already part of what the
+ * page saves.
  */
 export async function addFieldDefinition(
   page: Page,
   options: AddFieldDefinitionOptions
-): Promise<void> {
-  const sheet = await openAddFieldSheet(page, options.fieldType, options.owner);
+): Promise<Locator> {
+  const types = await openFieldTypes(page);
+  await types
+    .getByRole('button', { name: options.fieldType ?? 'text', exact: true })
+    .click();
 
-  await sheet.getByLabel('Label', { exact: true }).fill(options.label);
-  // A Field's Description is optional, so its label carries an "- optional"
-  // suffix. Match by prefix. Filling an optional Field is still valid.
-  await sheet.getByLabel('Description').fill(options.description);
+  // The new field has no label yet, so its pane is the one named after a field
+  // with none.
+  const pane = page.getByRole('complementary', {
+    name: /^Settings of the/,
+  });
+  await expect(pane).toBeVisible();
 
-  // The optional bounds labels carry an "- optional" suffix, so match by prefix
-  // rather than exactly. Range's mandatory ones match either way.
+  await pane.getByLabel('Label', { exact: true }).fill(options.label);
+  if (options.description !== undefined) {
+    await pane
+      .getByLabel('Description', { exact: true })
+      .fill(options.description);
+  }
   if (options.min !== undefined) {
-    await sheet.getByLabel('Minimum').fill(String(options.min));
+    await pane.getByLabel('Minimum', { exact: true }).fill(String(options.min));
   }
   if (options.max !== undefined) {
-    await sheet.getByLabel('Maximum').fill(String(options.max));
+    await pane.getByLabel('Maximum', { exact: true }).fill(String(options.max));
   }
   if (options.defaultValue !== undefined) {
-    await sheet.getByLabel('Default value').fill(options.defaultValue);
+    await pane
+      .getByLabel('Default Value', { exact: true })
+      .fill(options.defaultValue);
   }
   if (options.isUnique === true) {
-    await sheet.getByRole('switch', { name: 'Unique' }).click();
+    await pane.getByRole('checkbox', { name: 'Unique' }).click();
   }
   if (options.isRequired === false) {
-    await sheet.getByRole('switch', { name: 'Required' }).click();
+    await pane.getByRole('checkbox', { name: 'Required' }).click();
   }
 
-  await page.getByRole('button', { name: 'Add definition' }).click();
-  if (options.expectRejected === true) {
-    await expect(sheet).toBeVisible();
-  } else {
-    await expect(sheet).toBeHidden();
-  }
+  return pane;
 }
 
 /**
@@ -832,7 +818,10 @@ export async function createCollection(
   await fillCollectionForm(page, props);
   await addFieldDefinition(page, props.field);
 
-  await page.getByRole('button', { name: 'Create Collection' }).click();
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: 'Create Collection' })
+    .click();
   // Match the new Collection's detail route by its uuid segment, never the
   // 'create' segment. A plain `[^/]+` also matches `/collections/create`, so a
   // form that never submits would still satisfy this and hide the failure a

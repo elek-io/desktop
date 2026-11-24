@@ -196,10 +196,8 @@ export function ComponentForm<
           />
         </div>
         {hasPane ? (
-          <aside
-            aria-label={t`the settings of the chosen field`}
-            className="w-74 flex-none border-l [--pane-edge:16px]"
-          >
+          // The pane names itself, so this is the column it stands in.
+          <div className="flex w-74 flex-none border-l [--pane-edge:16px]">
             <FieldDefinitionsPane
               form={componentForm}
               definitions={definitions}
@@ -207,7 +205,7 @@ export function ComponentForm<
               supportedLanguages={supportedLanguages}
               language={language}
             />
-          </aside>
+          </div>
         ) : null}
       </div>
       {children}

@@ -42,6 +42,7 @@ export function AssetDefinitionEditor<
             allowed while this is empty.
           </Trans>
         }
+        addLabel={t`Add file type`}
         chosen={fieldDefinition.ofAssetMimeTypes}
         onChange={(mimeTypes) => set('ofAssetMimeTypes', mimeTypes)}
       />

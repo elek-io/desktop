@@ -198,7 +198,6 @@ test.describe('The app in one language', () => {
     await addFieldDefinition(mainWindow, {
       label: 'Headline',
       description: 'The headline of the teaser',
-      owner: 'component',
     });
     await mainWindow.getByRole('button', { name: 'Create Component' }).click();
     await expect(

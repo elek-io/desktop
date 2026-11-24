@@ -8,6 +8,8 @@ import type {
   UseFormReturn,
 } from 'react-hook-form';
 
+import type { z } from 'zod';
+
 import type { FieldControlProps } from '@renderer/components/ui/field-controls';
 import type { FieldRules } from '@renderer/lib/fieldRules';
 
@@ -243,7 +245,7 @@ export interface FieldTypeModule<T extends FieldType> {
    * Core backs one field type with more than one schema where its Value can be
    * of more than one type, as a select's options can.
    */
-  definitionSchema: (fieldDefinition: DefinitionOf<T>) => unknown;
+  definitionSchema: (fieldDefinition: DefinitionOf<T>) => z.ZodType;
   /**
    * A new definition of this type, as choosing the type in the pane adds it.
    *

@@ -205,7 +205,7 @@ export function MarkdownDefinitionEditor<
         description={<Trans>What editors can mark inside a line.</Trans>}
         chosen={featureRows(inlineFeatures)}
         offered={offeredRows(inlineFeatures)}
-        addLabel={t`Add`}
+        addLabel={t`Add a mark`}
         emptyNote={<Trans>Editors write plain text only.</Trans>}
         nothingToAddNote={<Trans>Everything is allowed.</Trans>}
         onAdd={(key) => setFeature(key, true)}
@@ -276,6 +276,7 @@ export function MarkdownDefinitionEditor<
               allowed while this is empty.
             </Trans>
           }
+          addLabel={t`Add file type`}
           chosen={fieldDefinition.ofAssetMimeTypes}
           onChange={(mimeTypes) => set('ofAssetMimeTypes', mimeTypes)}
         />

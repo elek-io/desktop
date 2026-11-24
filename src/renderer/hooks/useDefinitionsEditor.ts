@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   useController,
   type FieldPath,
@@ -89,7 +89,29 @@ export function useDefinitionsEditor<
   // once here, see contributing/renderer/forms.md#form-typing.
   const name = 'fieldDefinitions' as FieldPath<TFieldValues>;
   const { field: bound } = useController({ control: form.control, name });
-  const list: FieldDefinitionOrGroup[] = bound.value;
+  // Kept as state and read again on every change at or below the array, rather
+  // than off the bound field: a `Controller` is told about its own path, so a
+  // write inside the array, which is what a field's settings do, would leave
+  // the previews drawing what the array held before. A new array is set each
+  // time, since the definitions inside it are written in place.
+  const [list, setList] = useState<FieldDefinitionOrGroup[]>(() => [
+    ...(form.getValues(name) ?? []),
+  ]);
+
+  useEffect(() => {
+    const keep = (): void => {
+      setList([...(form.getValues(name) ?? [])]);
+    };
+
+    // Read here as well as on every change, because the stored definitions
+    // land from a read of their own, which no change follows.
+    keep();
+    return form.subscribe({
+      name,
+      formState: { values: true },
+      callback: keep,
+    });
+  }, [form, name]);
   const write = (next: FieldDefinitionOrGroup[]): void => {
     bound.onChange(next);
   };

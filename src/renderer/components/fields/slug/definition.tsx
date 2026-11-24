@@ -104,7 +104,7 @@ export function SlugDefinitionEditor<
               record: definition.label,
             }),
           }))}
-        addLabel={t`Add field`}
+        addLabel={t`Add a field`}
         emptyNote={
           <Trans>Editors write the slug themselves while this is empty.</Trans>
         }
