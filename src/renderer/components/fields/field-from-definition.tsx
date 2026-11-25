@@ -37,23 +37,35 @@ import type { FieldDefinition } from '@elek-io/core';
 // See contributing/renderer/dynamic-form-field-generation.md.
 
 /**
- * The control-association props the shell minted, with `aria-required` kept
- * only where the control's role allows it.
+ * The control-association props the shell minted, with the name a caller gave
+ * the field and with `aria-required` kept only where the control's role allows
+ * it.
  *
- * The shell offers it to every required field, since required is one fact
- * about a field. Which roles accept it is the field type's own answer, so its
- * folder says so, and the attribute is dropped rather than set to false, so it
- * never lands on a role that does not allow it at all.
+ * The name is carried on the control rather than left to the label, because a
+ * label of more than one line is flattened into the name without the
+ * punctuation between its lines, and a row of a refused change is named by the
+ * Entry and the section its Value belongs to.
+ *
+ * `aria-required` the shell offers to every required field, since required is
+ * one fact about a field. Which roles accept it is the field type's own answer,
+ * so its folder says so, and the attribute is dropped rather than set to false,
+ * so it never lands on a role that does not allow it at all.
  */
 function controlPropsFor(
   fieldDefinition: FieldDefinition,
-  controlProps: FieldControlProps
+  controlProps: FieldControlProps,
+  named: string | undefined
 ): FieldControlProps {
+  const withName =
+    named === undefined
+      ? controlProps
+      : { ...controlProps, 'aria-label': named };
+
   if (fieldModule(fieldDefinition).acceptsAriaRequired) {
-    return controlProps;
+    return withName;
   }
 
-  const { 'aria-required': _dropped, ...allowed } = controlProps;
+  const { 'aria-required': _dropped, ...allowed } = withName;
   return allowed;
 }
 
@@ -98,8 +110,10 @@ export interface FieldFromDefinitionProps<
   /**
    * What names this field instead of its definition's own label, where one
    * field stands for one Entry: the rows of a refused change name the Entry
-   * each Value belongs to beside the field. `text` is what names the control,
-   * so the buttons of a picker say which Entry they are about too.
+   * each Value belongs to beside the field, and the section it sits in below
+   * them. `text` is the whole of it as one line, which names the control
+   * itself, so what a screen reader reads is the row's own words rather than
+   * the label's lines run together.
    */
   label?: { node: ReactNode; text: string };
   /**
@@ -205,7 +219,11 @@ export function FieldFromDefinition<
           fieldDefinition.isDisabled ||
           field.disabled === true ||
           mode === 'view',
-        controlProps: controlPropsFor(fieldDefinition, controlProps),
+        controlProps: controlPropsFor(
+          fieldDefinition,
+          controlProps,
+          naming?.text
+        ),
         label: controlLabel,
       })}
     </>
@@ -364,7 +382,13 @@ export function FieldDefinitionPreview({
             field: previewField,
             fieldDefinition,
             disabled: true,
-            controlProps: controlPropsFor(fieldDefinition, controlProps),
+            // The preview is named by the field's own label, which stands
+            // above it, so the control takes no name of its own.
+            controlProps: controlPropsFor(
+              fieldDefinition,
+              controlProps,
+              undefined
+            ),
             label,
           })
         }

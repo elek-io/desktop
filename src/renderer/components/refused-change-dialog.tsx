@@ -15,7 +15,7 @@ import { type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 
 import { fieldModule } from '@renderer/components/fields';
-import { sectionPlaceOf } from '@renderer/components/fields/dynamic/sections';
+import { sectionPathOf } from '@renderer/components/fields/dynamic/sections';
 import { entryTitle } from '@renderer/components/fields/entry-title';
 import { FieldFromDefinition } from '@renderer/components/fields/field-from-definition';
 import { defaultEntryValue } from '@renderer/components/fields/value-defaults';
@@ -59,6 +59,7 @@ import {
   getValueSchemaFromFieldDefinition,
   valueSchema,
   type Collection,
+  type Component,
   type Entry,
   type FieldDefinition,
   type SupportedLanguage,
@@ -74,8 +75,13 @@ import {
 // and contributing/renderer/dynamic-form-field-generation.md.
 
 /**
- * The Values written here, by Entry, then by the field's new slug, then the
- * Value's own keys, which is the shape Core takes a resolution back in.
+ * The Values written here, by what holds each one, then by the field's new
+ * slug, then the Value's own keys.
+ *
+ * What holds it is the Component item where the Value sits in one, and the
+ * Entry itself where it does not, so two items of one Entry never write into
+ * the same key. Core takes each of those back under a key of its own, see
+ * `RefusedChangeAnswer`.
  *
  * Read one level at a time rather than as Core's `Value`, because the form
  * holds what somebody is typing: a Value a field has not filled in yet is
@@ -83,6 +89,15 @@ import {
  * is sent, see `resolutionsSchemaFor`.
  */
 type Resolutions = Record<string, Record<string, Record<string, unknown>>>;
+
+/**
+ * What holds one issue's Value, which is what the form writes it under: the
+ * Component item the field sits in where the issue names one, and the Entry
+ * itself where it does not.
+ */
+function holderOf(issue: SchemaChangeIssue): string {
+  return issue.componentItemId ?? issue.entryId;
+}
 
 /** The form the dialog is applied from. */
 interface RefusedChangeFormValues {
@@ -94,10 +109,18 @@ export interface RefusedChangeAnswer {
   /** The field definitions whose content may go. */
   acceptedContentLoss: string[];
   /**
-   * The Values the change needs, by Entry and then by the field's new slug, or
-   * `undefined` where they are not written here, which a Component's are not.
+   * The Values the change needs that belong to an Entry itself, by Entry and
+   * then by the field's new slug, which is what `collections.update` takes
+   * back. Empty where the change named none, as a Component's change does.
    */
-  resolutions?: Record<string, Record<string, Value>>;
+  resolutions: Record<string, Record<string, Value>>;
+  /**
+   * The Values that belong to a Component item, by Entry, then the item, then
+   * the field's new slug, which is what `components.update` takes back, so
+   * each Value lands in the item that raised its issue. Empty where the change
+   * named none, as a Collection's change does.
+   */
+  itemResolutions: Record<string, Record<string, Record<string, Value>>>;
 }
 
 /** The Core schema one Value is checked against, by the field it belongs to. */
@@ -123,13 +146,12 @@ export interface RefusedChangeDialogProps {
    */
   newFieldDefinitions: FieldDefinition[];
   /**
-   * Whether the Values the change needs are written in this dialog. A
-   * Collection's are. A Component's are written nowhere yet, here or in the
-   * Entry, since a resolution of one is keyed by the Component item it answers
-   * for, which nothing here writes yet, so those rows say what there is to do
-   * instead, see contributing/not-yet-implemented.md.
+   * The Component being saved, by its name, where the change is a Component's.
+   * Core raises an item issue only for an item of the Component it is given, so
+   * a row names that Component even before the Entry the item sits in has been
+   * read, which is what stands in for the item's place then.
    */
-  resolvable: boolean;
+  componentName?: string;
   /** The language the settings behind the dialog are read in. */
   language: SupportedLanguage;
   /**
@@ -157,10 +179,10 @@ type RefusedChangeProps = Omit<
  * The dialog of a refused field definition change.
  *
  * It stays mounted for its own animation, and what it holds is keyed by the
- * issues the refusal names, so a refusal that names other Entries or fields
- * opens on their own empty Values rather than on what an earlier one was
- * answered with. A refusal that names the same ones again keeps what was typed,
- * which is the same change being pressed again.
+ * issues the refusal names, so a refusal that names other Entries, Component
+ * items or fields opens on their own empty Values rather than on what an
+ * earlier one was answered with. A refusal that names the same ones again keeps
+ * what was typed, which is the same change being pressed again.
  */
 export function RefusedChangeDialog({
   open,
@@ -197,7 +219,8 @@ export function RefusedChangeDialog({
           <RefusedChange
             key={shown.issues
               .map(
-                (issue) => `${issue.entryId}.${issue.fieldSlug}.${issue.issue}`
+                (issue) =>
+                  `${holderOf(issue)}.${issue.fieldSlug}.${issue.issue}`
               )
               .join('|')}
             {...shown}
@@ -218,8 +241,9 @@ function neededValuesWithFields(
       (candidate) => candidate.id === issue.fieldDefinitionId
     );
 
-    // A field the save does not declare has no Value to write: Core names it
-    // for a Component's items, whose Values nothing writes yet.
+    // A field the save does not declare has no Value to write. Core names one
+    // for the loss of a removed field alone, which is accepted rather than
+    // answered, so no row is dropped here.
     return fieldDefinition === undefined ? [] : [{ issue, fieldDefinition }];
   });
 }
@@ -247,7 +271,8 @@ function resolutionsSchemaFor(
     })
     .check((ctx) => {
       for (const { issue, fieldDefinition } of needed) {
-        const written = ctx.value.resolutions[issue.entryId]?.[issue.fieldSlug];
+        const written =
+          ctx.value.resolutions[holderOf(issue)]?.[issue.fieldSlug];
         const checked = valueSchemaOf(fieldDefinition).safeParse(written);
 
         if (checked.success) {
@@ -264,7 +289,7 @@ function resolutionsSchemaFor(
             message: refusal.message,
             path: [
               'resolutions',
-              issue.entryId,
+              holderOf(issue),
               issue.fieldSlug,
               ...refusal.path,
             ],
@@ -279,7 +304,7 @@ function RefusedChange({
   issues,
   storedFieldDefinitions,
   newFieldDefinitions,
-  resolvable,
+  componentName,
   language,
   onCancel,
   onApply,
@@ -294,16 +319,10 @@ function RefusedChange({
   } = useProject();
   const lost = lostValuesOf(issues);
   const needed = neededValuesOf(issues);
-  // The Values this dialog writes, which is a Collection's alone, and the
-  // Entries it only lists instead, which is a Component's.
+  // The Values this dialog writes, each under the field the change leaves.
   const written = useMemo(
-    () =>
-      resolvable ? neededValuesWithFields(needed, newFieldDefinitions) : [],
-    [resolvable, needed, newFieldDefinitions]
-  );
-  const listed = needed.filter(
-    (issue) =>
-      written.some(({ issue: answered }) => answered === issue) === false
+    () => neededValuesWithFields(needed, newFieldDefinitions),
+    [needed, newFieldDefinitions]
   );
   // The language the Values are written in, which starts at the one the
   // settings behind the dialog are read in. It is this dialog's own, because
@@ -320,6 +339,16 @@ function RefusedChange({
   // Components it embeds, so Core's resolver is needed for it.
   const { componentResolver, isReadingComponents } =
     useComponentResolver(projectId);
+  // The Project's Components, which name each section an item sits in and hold
+  // the fields those sections are built under. The resolver above reads the
+  // same list, so this is the one query either way.
+  const { data: componentList, isPending: isReadingComponentList } =
+    useQueryNoError(queryOptions.components.list({ projectId, limit: 0 }));
+  const componentsById = new Map<string, Component>(
+    isReadingComponentList
+      ? []
+      : componentList.list.map((component) => [component.id, component])
+  );
 
   // The Entries the refusal names, read through their Collections' lists, which
   // is what the list beside an Entry's editor reads too. Each is named by its
@@ -396,6 +425,17 @@ function RefusedChange({
         });
   }
 
+  /** The way to the Component item one issue is about, or nothing. */
+  function sectionPath(
+    issue: SchemaChangeIssue
+  ): ReturnType<typeof sectionPathOf> {
+    const entry = entriesById.get(issue.entryId);
+
+    return issue.componentItemId === undefined || entry === undefined
+      ? null
+      : sectionPathOf(entry.values, issue.componentItemId);
+  }
+
   /**
    * Which section of an Entry one issue is about, where it is about a
    * Component's item, so two rows of the same Entry and field never read the
@@ -403,21 +443,84 @@ function RefusedChange({
    * section's own head says it.
    */
   function sectionName(issue: SchemaChangeIssue): string | null {
-    const entry = entriesById.get(issue.entryId);
+    const path = sectionPath(issue);
 
-    if (issue.componentItemId === undefined || entry === undefined) {
+    if (path === null) {
       return null;
     }
 
-    const place = sectionPlaceOf(entry.values, issue.componentItemId);
-
-    if (place === null) {
-      return null;
-    }
-
-    const { position, total } = place;
+    const [{ position, total }] = path;
 
     return t`Section ${position} of ${total}`;
+  }
+
+  /**
+   * Where one Component item sits, as the way to it from the item outward,
+   * such as "Teaser, section 1 of 3 in Page sections of Blog posts".
+   *
+   * Each step names what the editor reads on that section's head and the field
+   * it sits in, which is the way they walk when they follow the row's link.
+   * One message per step and one that joins two of them, so a language can
+   * reorder inside a step as well as between them.
+   *
+   * Nothing where a step cannot be named, which is an Entry that changed under
+   * the dialog or a read that has not arrived yet.
+   */
+  function sectionPlace(issue: SchemaChangeIssue): string | null {
+    const path = sectionPath(issue);
+    const collection = collectionOf(issue);
+    const plural = collectionName(issue);
+
+    if (path === null || collection === undefined || plural === null) {
+      return null;
+    }
+
+    const steps = path.flatMap(
+      ({ componentId, position, total, fieldSlug }, index) => {
+        // The field is the one the section stands in: a field of the item that
+        // holds it where there is one, and of the Collection at the top.
+        const outward = path[index + 1];
+        const holding = flattenFieldDefinitions(
+          outward === undefined
+            ? collection.fieldDefinitions
+            : (componentsById.get(outward.componentId)?.fieldDefinitions ?? [])
+        ).find((candidate) => candidate.slug === fieldSlug);
+        const component = componentsById.get(componentId);
+
+        if (holding === undefined || component === undefined) {
+          return [];
+        }
+
+        const section = translateContent({
+          key: 'component.name',
+          record: component.name,
+        });
+        const field = translateContent({
+          key: 'fieldDefinition.label',
+          record: holding.label,
+        });
+
+        return [t`${section}, section ${position} of ${total} in ${field}`];
+      }
+    );
+
+    return steps.length === path.length
+      ? steps.reduceRight((outward, step) => t`${step} of ${outward}`, plural)
+      : null;
+  }
+
+  /**
+   * What the row of a Value a Component item needs says about that item, below
+   * the field and the Entry it names.
+   *
+   * The place where it can be read, and the Component the item is built from
+   * alone where it cannot: the Value still lands in the right item either way,
+   * since Core takes it keyed by the item's id rather than by its place.
+   */
+  function itemPlace(issue: SchemaChangeIssue): string | null {
+    return issue.componentItemId === undefined
+      ? null
+      : (sectionPlace(issue) ?? componentName ?? null);
   }
 
   /**
@@ -471,12 +574,12 @@ function RefusedChange({
     // takes back.
     defaultValues: {
       resolutions: Object.fromEntries(
-        [...new Set(written.map(({ issue }) => issue.entryId))].map(
-          (entryId) => [
-            entryId,
+        [...new Set(written.map(({ issue }) => holderOf(issue)))].map(
+          (holderId) => [
+            holderId,
             Object.fromEntries(
               written
-                .filter(({ issue }) => issue.entryId === entryId)
+                .filter(({ issue }) => holderOf(issue) === holderId)
                 .map(({ issue, fieldDefinition }) => [
                   issue.fieldSlug,
                   defaultEntryValue(fieldDefinition, supportedLanguages),
@@ -497,7 +600,7 @@ function RefusedChange({
     needed: useMemo(
       () =>
         written.map(({ issue, fieldDefinition }) => ({
-          entryId: issue.entryId,
+          holderId: holderOf(issue),
           fieldSlug: issue.fieldSlug,
           fieldDefinition,
         })),
@@ -508,19 +611,18 @@ function RefusedChange({
   const [missingLanguage, missingValues] = [
     ...missingByLanguage.entries(),
   ].find(([, count]) => count > 0) ?? [undefined, 0];
-  // The Entries nothing here can answer for, which are a Component's: until
-  // every one of them holds the Value, Core refuses the same change again.
   const missing =
     missingLanguage === undefined ? undefined : languageName(missingLanguage);
   const blockedBy =
-    missing !== undefined
-      ? t`${missing} is missing ${plural(missingValues, { one: '# Value', other: '# Values' })}`
-      : listed.length > 0
-        ? t`Each Entry below needs a Value first`
-        : undefined;
+    missing === undefined
+      ? undefined
+      : t`${missing} is missing ${plural(missingValues, { one: '# Value', other: '# Values' })}`;
 
   /**
-   * The Values written here as Core takes them back.
+   * The Values written here as Core takes them back, each under the key of the
+   * call that takes it: a Value of an Entry's own field by the Entry and the
+   * slug, and one of a Component item by the Entry, the item and the slug. So
+   * neither map ever carries a Value the other call is keyed for.
    *
    * Whether each one holds what its field allows was answered by that field's
    * own Core schema when the form was submitted, so this only reads the shape
@@ -528,26 +630,40 @@ function RefusedChange({
    * at all is left out, which this form cannot produce, and leaves Core
    * refusing the change again rather than writing something it did not take.
    */
-  function answeredValues(
-    typed: Resolutions
-  ): Record<string, Record<string, Value>> {
-    const answered: Record<string, Record<string, Value>> = {};
+  function answeredValues(typed: Resolutions): {
+    resolutions: RefusedChangeAnswer['resolutions'];
+    itemResolutions: RefusedChangeAnswer['itemResolutions'];
+  } {
+    const resolutions: RefusedChangeAnswer['resolutions'] = {};
+    const itemResolutions: RefusedChangeAnswer['itemResolutions'] = {};
 
     for (const { issue } of written) {
       const read = valueSchema.safeParse(
-        typed[issue.entryId]?.[issue.fieldSlug]
+        typed[holderOf(issue)]?.[issue.fieldSlug]
       );
 
       if (read.success === false) {
         continue;
       }
-      answered[issue.entryId] = {
-        ...answered[issue.entryId],
-        [issue.fieldSlug]: read.data,
+      const { entryId, fieldSlug, componentItemId } = issue;
+
+      if (componentItemId === undefined) {
+        resolutions[entryId] = {
+          ...resolutions[entryId],
+          [fieldSlug]: read.data,
+        };
+        continue;
+      }
+      itemResolutions[entryId] = {
+        ...itemResolutions[entryId],
+        [componentItemId]: {
+          ...itemResolutions[entryId]?.[componentItemId],
+          [fieldSlug]: read.data,
+        },
       };
     }
 
-    return answered;
+    return { resolutions, itemResolutions };
   }
 
   const onSubmit: SubmitHandler<RefusedChangeFormValues> = async ({
@@ -555,10 +671,7 @@ function RefusedChange({
   }) => {
     await onApply({
       acceptedContentLoss: acceptedContentLossOf(issues),
-      // A Component's Values are not written here, so none is sent: a
-      // resolution of one is keyed by the Component item it answers for, and
-      // the key this form writes names the Entry and the field alone.
-      ...(resolvable ? { resolutions: answeredValues(resolutions) } : {}),
+      ...answeredValues(resolutions),
     });
   };
 
@@ -688,33 +801,58 @@ function RefusedChange({
                   />
                 ) : null}
                 {/* The field as editors see it under its new rules, to fill in
-              right here, which is what ci draws for a Collection's change. */}
+              right here, which is what ci draws. */}
                 {written.length === 0 ? null : (
                   <div className="flex flex-col gap-4">
                     {written.map(({ issue, fieldDefinition }) => {
                       const field = fieldName(issue, newFieldDefinitions);
                       const entry = entryName(issue);
+                      const place = itemPlace(issue);
+                      // The field and the Entry it belongs to, with the Entry
+                      // leading there, as ci names the row. Both kinds of row
+                      // read the same here, so the Entry keeps the whole line.
+                      const named = (
+                        <Trans>
+                          {field} in{' '}
+                          <EntryLink
+                            issue={issue}
+                            name={entry}
+                            onFollowLink={onFollowLink}
+                          />
+                        </Trans>
+                      );
 
                       return (
                         <FieldFromDefinition
-                          key={`${issue.entryId}.${issue.fieldSlug}`}
+                          key={`${holderOf(issue)}.${issue.fieldSlug}`}
                           form={refusedChangeForm}
                           fieldDefinition={fieldDefinition}
-                          name={`resolutions.${issue.entryId}.${issue.fieldSlug}.content`}
+                          name={`resolutions.${holderOf(issue)}.${issue.fieldSlug}.content`}
                           label={{
-                            // The field and the Entry it belongs to, with the
-                            // Entry leading there, as ci names the row.
-                            node: (
-                              <Trans>
-                                {field} in{' '}
-                                <EntryLink
-                                  issue={issue}
-                                  name={entry}
-                                  onFollowLink={onFollowLink}
-                                />
-                              </Trans>
-                            ),
-                            text: t`${field} in ${entry}`,
+                            node:
+                              place === null ? (
+                                named
+                              ) : (
+                                <span className="flex min-w-0 flex-col gap-0.5">
+                                  <span className="flex min-w-0 items-center gap-2">
+                                    {named}
+                                  </span>
+                                  {/* Where the item sits, which is what tells
+                                  two items of one Entry apart. It wraps rather
+                                  than truncating, since the way to the item is
+                                  the whole point of it. */}
+                                  <span
+                                    data-slot="field-label-place"
+                                    className="text-small text-muted-foreground"
+                                  >
+                                    {place}
+                                  </span>
+                                </span>
+                              ),
+                            text:
+                              place === null
+                                ? t`${field} in ${entry}`
+                                : t`${field} in ${entry}, ${place}`,
                           }}
                           missingWarning={
                             <Trans>
@@ -725,61 +863,6 @@ function RefusedChange({
                       );
                     })}
                   </div>
-                )}
-                {/* A Value nothing here can write, which is a Component's:
-              Core takes a resolution for a Component's item nowhere yet, so
-              one line says what there is to do instead and each row names
-              where the Value is missing, see
-              contributing/not-yet-implemented.md. */}
-                {listed.length === 0 ? null : (
-                  <>
-                    <p className="text-small text-muted-foreground">
-                      <Trans>
-                        A Value for a section can&apos;t be filled in yet, here
-                        or in the Entry. To save this change, change the field
-                        so the sections below are allowed as they are, or open
-                        an Entry and remove the section, which deletes what it
-                        holds.
-                      </Trans>
-                    </p>
-                    <ul className="flex flex-col border-t">
-                      {listed.map((issue) => {
-                        const section = sectionName(issue);
-                        const collection = collectionName(issue);
-
-                        return (
-                          <li
-                            key={`${issue.entryId}.${issue.componentItemId ?? ''}.${issue.fieldDefinitionId}`}
-                            className="flex h-9 shrink-0 items-center gap-3 border-b"
-                          >
-                            <EntryLink
-                              issue={issue}
-                              name={entryName(issue)}
-                              onFollowLink={onFollowLink}
-                            />
-                            <span className="truncate text-muted-foreground">
-                              {fieldName(issue, newFieldDefinitions)}
-                            </span>
-                            {section === null ? null : (
-                              <span className="shrink-0 text-muted-foreground">
-                                {section}
-                              </span>
-                            )}
-                            {/* Which Collection the Entry is in, as the row of
-                          a loss spends its last column on the Value that
-                          would go: a Component reaches Entries of several
-                          Collections, and two Entries of one title are told
-                          apart by it. */}
-                            {collection === null ? null : (
-                              <span className="ml-auto shrink-0 text-muted-foreground">
-                                {collection}
-                              </span>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </>
                 )}
               </>
             )}

@@ -27,6 +27,14 @@ export interface FieldControlProps {
   'aria-invalid'?: boolean;
   'aria-required'?: boolean;
   /**
+   * The control's own name, where what names the field is more than its label
+   * shows, such as a row of a refused change naming the Entry and the section
+   * its Value belongs to. Set only where a caller named the field itself, so
+   * every other control is named by its label as before, see
+   * `FieldFromDefinition`.
+   */
+  'aria-label'?: string;
+  /**
    * Set while the form's own save is running, so an input refuses a keystroke
    * instead of taking an edit the state the save brings back would drop. It
    * keeps its focus and its look, which `disabled` would both take away, see

@@ -325,16 +325,22 @@ function ProjectComponentUpdate(): ReactElement {
   };
 
   /**
-   * Applies the refused change with what Core takes back. A Component's
-   * resolutions are not sent, see the dialog.
+   * Applies the refused change with what Core takes back: the loss that was
+   * accepted and the Values the dialog wrote, keyed by the Component item each
+   * one belongs to, which is how `components.update` takes them.
    */
   const onApplyRefusedChange = async ({
     acceptedContentLoss,
+    itemResolutions,
   }: RefusedChangeAnswer): Promise<void> => {
     if (refused === null) {
       return;
     }
-    await save({ ...refused.props, acceptedContentLoss });
+    await save({
+      ...refused.props,
+      acceptedContentLoss,
+      resolutions: itemResolutions,
+    });
   };
 
   const onDelete = async (): Promise<void> => {
@@ -496,9 +502,8 @@ function ProjectComponentUpdate(): ReactElement {
       </Dialog>
 
       {/* The one dialog a field change Core refuses opens: what the save would
-      delete, and the Entries that need a Value, each by its title and leading
-      to the Entry. A Component's Values are written nowhere yet, so those rows
-      say what there is to do instead. */}
+      delete, and the Values it needs, each named by its Entry and by which
+      item of it the Value belongs to, to fill in right there. */}
       <RefusedChangeDialog
         open={refused !== null}
         question={t`Save the changes to the ${name} Component?`}
@@ -513,7 +518,7 @@ function ProjectComponentUpdate(): ReactElement {
             ? []
             : flattenFieldDefinitions(refused.props.fieldDefinitions)
         }
-        resolvable={false}
+        componentName={name}
         language={shownLanguage}
         returnFocusTo={saveRef}
         onCancel={() => setRefused(null)}

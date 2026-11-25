@@ -481,7 +481,6 @@ function ProjectCollectionUpdate(): ReactElement {
             ? []
             : flattenFieldDefinitions(refused.props.fieldDefinitions)
         }
-        resolvable
         language={shownLanguage}
         returnFocusTo={saveRef}
         onCancel={() => setRefused(null)}

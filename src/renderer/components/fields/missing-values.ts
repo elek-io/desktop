@@ -186,8 +186,11 @@ export function isMissingValue({
 
 /** One Value a field definition change needs before Core applies it. */
 export interface NeededValue {
-  /** The Entry the Value belongs to. */
-  entryId: string;
+  /**
+   * What holds the Value, which is what the dialog of a refused change keys it
+   * by: the Entry, or the Component item where the Value sits in one.
+   */
+  holderId: string;
   /** The field, by its new slug, which is what Core takes the Value back at. */
   fieldSlug: string;
   /** The field as the change leaves it, which the Value is written under. */
@@ -199,9 +202,10 @@ export interface NeededValue {
  * missing, per language of the Project.
  *
  * The same question as above, asked of the Values written in the dialog of a
- * refused change rather than of one Entry's: those sit per Entry, keyed by the
- * Entry and then by the field's slug, because one change can leave several
- * Entries without a Value. Each is asked through `isMissingValue`, so a row of
+ * refused change rather than of one Entry's: those sit per holder, keyed by
+ * the Entry or the Component item each Value belongs to and then by the field's
+ * slug, because one change can leave several Entries, and several items of one
+ * Entry, without a Value. Each is asked through `isMissingValue`, so a row of
  * that dialog marks itself exactly when it counts here.
  */
 export function missingResolutionValues({
@@ -210,19 +214,19 @@ export function missingResolutionValues({
   supportedLanguages,
   defaultLanguage,
 }: {
-  /** The Values as the dialog's form holds them, by Entry and then by slug. */
+  /** The Values as the dialog's form holds them, by holder and then by slug. */
   values: unknown;
   needed: NeededValue[];
   supportedLanguages: SupportedLanguage[];
   defaultLanguage: SupportedLanguage;
 }): Map<SupportedLanguage, number> {
-  const byEntry = valuesOf(heldValues);
+  const byHolder = valuesOf(heldValues);
   const missing = new Map<SupportedLanguage, number>(
     supportedLanguages.map((language) => [language, 0])
   );
 
-  for (const { entryId, fieldSlug, fieldDefinition } of needed) {
-    const content = contentOf(valuesOf(byEntry[entryId])[fieldSlug]);
+  for (const { holderId, fieldSlug, fieldDefinition } of needed) {
+    const content = contentOf(valuesOf(byHolder[holderId])[fieldSlug]);
 
     for (const language of supportedLanguages) {
       if (

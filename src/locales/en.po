@@ -88,6 +88,10 @@ msgid "{field} in {entry}"
 msgstr "{field} in {entry}"
 
 #: src/renderer/components/refused-change-dialog.tsx
+msgid "{field} in {entry}, {place}"
+msgstr "{field} in {entry}, {place}"
+
+#: src/renderer/components/refused-change-dialog.tsx
 msgid "{field} in <0/>"
 msgstr "{field} in <0/>"
 
@@ -185,9 +189,17 @@ msgstr "{published}, {author}"
 msgid "{published}, by {author}"
 msgstr "{published}, by {author}"
 
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "{section}, section {position} of {total} in {field}"
+msgstr "{section}, section {position} of {total} in {field}"
+
 #: src/renderer/lib/refusedValueText.ts
 msgid "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
 msgstr "{smallest, plural, one {Use at least # character.} other {Use at least # characters.}}"
+
+#: src/renderer/components/refused-change-dialog.tsx
+msgid "{step} of {outward}"
+msgstr "{step} of {outward}"
 
 #: src/renderer/components/asset-pane.tsx
 msgid "{type} file"
@@ -363,10 +375,6 @@ msgstr "A unique field takes no Default Value, since every Entry would start wit
 #: src/renderer/lib/changeSentence.ts
 msgid "a Value"
 msgstr "a Value"
-
-#: src/renderer/components/refused-change-dialog.tsx
-msgid "A Value for a section can't be filled in yet, here or in the Entry. To save this change, change the field so the sections below are allowed as they are, or open an Entry and remove the section, which deletes what it holds."
-msgstr "A Value for a section can't be filled in yet, here or in the Entry. To save this change, change the field so the sections below are allowed as they are, or open an Entry and remove the section, which deletes what it holds."
 
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Add a field"
@@ -1304,10 +1312,6 @@ msgstr "Download from another Git host"
 #: src/renderer/components/drag-and-drop.tsx
 msgid "Drag to reorder"
 msgstr "Drag to reorder"
-
-#: src/renderer/components/refused-change-dialog.tsx
-msgid "Each Entry below needs a Value first"
-msgstr "Each Entry below needs a Value first"
 
 #: src/renderer/lib/sync.ts
 msgid "Each field below points at an Entry or an Asset that no longer exists, because it was deleted here or on another computer. Open each Entry, choose something else or empty the field, then sync again."

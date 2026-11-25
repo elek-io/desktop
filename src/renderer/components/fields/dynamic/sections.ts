@@ -72,41 +72,66 @@ export function holdsSectionOf(
   );
 }
 
+/** One step of the way to a Component item: a section of one field. */
+export interface SectionStep {
+  /** The Component the section is built from. */
+  componentId: string;
+  /** Which section of that field it is, counted from one. */
+  position: number;
+  /** How many sections the field holds. */
+  total: number;
+  /** The field that holds it, by its slug. */
+  fieldSlug: string;
+}
+
 /**
- * Where one Component item sits inside an Entry: which section it is of the
- * field that holds it, and which Component it is built from.
+ * The way to one Component item inside an Entry, innermost step first: the item
+ * itself, then each section it sits inside, up to the field of the Collection.
  *
  * Core names a Component item by its id, and ci gives an item no name of its
- * own, so a row that says which item it is about says it by its place, the way
- * the section's own head does. An item of a section inside another section is
- * found there too, counted among the items of the field it sits in.
+ * own, so a row that says which item it is about says it by this way through
+ * the Entry, each step naming what stands on that section's own head. A
+ * position alone would not say it: the count is per field, so an item of a
+ * nested section and a top-level one can both be the first of their field.
  *
  * `null` where these Values hold no item of that id, which is an Entry that
  * changed since it was read.
  */
-export function sectionPlaceOf(
+export function sectionPathOf(
   values: Record<string, unknown>,
   componentItemId: string
-): { componentId: string; position: number; total: number } | null {
-  for (const value of Object.values(values)) {
+): [SectionStep, ...SectionStep[]] | null {
+  for (const [fieldSlug, value] of Object.entries(values)) {
     if (isSectionsValue(value) === false) {
       continue;
     }
+    const total = value.content.length;
     const index = value.content.findIndex(
       (item) => item.id === componentItemId
     );
     const found = value.content[index];
     if (found !== undefined) {
-      return {
-        componentId: found.componentId,
-        position: index + 1,
-        total: value.content.length,
-      };
+      return [
+        {
+          componentId: found.componentId,
+          position: index + 1,
+          total,
+          fieldSlug,
+        },
+      ];
     }
-    for (const item of value.content) {
-      const nested = sectionPlaceOf(item.values, componentItemId);
+    for (const [itemIndex, item] of value.content.entries()) {
+      const nested = sectionPathOf(item.values, componentItemId);
       if (nested !== null) {
-        return nested;
+        return [
+          ...nested,
+          {
+            componentId: item.componentId,
+            position: itemIndex + 1,
+            total,
+            fieldSlug,
+          },
+        ];
       }
     }
   }

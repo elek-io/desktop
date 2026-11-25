@@ -1,10 +1,14 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import {
+  flattenFieldDefinitions,
   uuid,
+  type Collection,
   type DynamicFieldDefinition,
+  type Entry,
   type FieldDefinition,
   type FieldDefinitionGroup,
+  type Project,
 } from '@elek-io/core';
 
 import { test } from '../fixtures/electronApp.js';
@@ -18,6 +22,7 @@ import {
   readCollectionViaIpc,
   textFieldDefinition,
 } from '../helpers/collection.js';
+import { contrastRatio, parseColor } from '../helpers/color.js';
 import {
   chooseComponent,
   componentListPane,
@@ -41,6 +46,7 @@ import {
   listEntriesViaIpc,
   navigateToEntryCreate,
   navigateToEntryUpdate,
+  readEntryViaIpc,
   stringValue,
 } from '../helpers/entry.js';
 import { errorScreenTitle } from '../helpers/error.js';
@@ -84,6 +90,120 @@ function dynamicFieldOf(
     throw new Error('Expected a dynamic Field definition to be stored');
   }
   return found;
+}
+
+/**
+ * The content of one field of each section an Entry holds at its top level, in
+ * the order it holds them, and `undefined` for a section whose Component has no
+ * such field.
+ */
+function sectionValues(entry: Entry | undefined, slug: string): unknown[] {
+  const sections = entry?.values['sections']?.content;
+
+  return Array.isArray(sections)
+    ? sections.map((item) => item.values[slug]?.content)
+    : [];
+}
+
+/** The same of each section inside the Grid section of such an Entry. */
+function nestedSectionValues(
+  entry: Entry | undefined,
+  slug: string
+): unknown[] {
+  const sections = entry?.values['sections']?.content;
+  const grid = Array.isArray(sections)
+    ? sections.find((item) => 'cards' in item.values)
+    : undefined;
+  const cards = grid?.values['cards']?.content;
+
+  return Array.isArray(cards)
+    ? cards.map((item) => item.values[slug]?.content)
+    : [];
+}
+
+/**
+ * A Project whose one Entry holds sections built from the Teaser Component,
+ * two beside each other and one inside a Grid section, with the Teaser's
+ * settings open and its Headline given a minimum length no stored Headline
+ * reaches, which is the state Core refuses the save in.
+ *
+ * `trailingSections` adds further Teaser sections behind the Grid, for a
+ * refusal with more rows than the dialog has room for.
+ */
+async function tightenTheTeaserHeadlineOf(
+  mainWindow: Page,
+  options: { trailingSections: number }
+): Promise<{ project: Project; collection: Collection }> {
+  await setUserViaIpc(mainWindow);
+  const project = await createProjectViaIpc(mainWindow);
+  const teaser = await createComponentViaIpc(mainWindow, {
+    projectId: project.id,
+    fieldDefinitions: [
+      textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+    ],
+  });
+  const grid = await createComponentViaIpc(mainWindow, {
+    projectId: project.id,
+    name: { en: 'Grid' },
+    slug: 'grid',
+    fieldDefinitions: [
+      dynamicFieldDefinition({
+        slug: 'cards',
+        label: { en: 'Cards' },
+        ofComponents: [teaser.id],
+      }),
+    ],
+  });
+  const collection = await createCollectionViaIpc(mainWindow, {
+    projectId: project.id,
+    fieldDefinitions: [
+      textFieldDefinition(),
+      dynamicFieldDefinition({ ofComponents: [teaser.id, grid.id] }),
+    ],
+  });
+  const teaserSection = (
+    headline: string
+  ): {
+    componentId: string;
+    values: Record<string, ReturnType<typeof stringValue>>;
+  } => ({
+    componentId: teaser.id,
+    values: { headline: stringValue({ en: headline }) },
+  });
+  await createEntryViaIpc(mainWindow, {
+    projectId: project.id,
+    collectionId: collection.id,
+    values: {
+      title: stringValue({ en: 'Home' }),
+      sections: componentValue([
+        teaserSection('Welcome'),
+        teaserSection('Also'),
+        {
+          componentId: grid.id,
+          values: { cards: componentValue([teaserSection('Inside')]) },
+        },
+        ...Array.from({ length: options.trailingSections }, (_unused, index) =>
+          teaserSection(`And ${String(index + 1)}`)
+        ),
+      ]),
+    },
+  });
+
+  // A minimum no stored Headline reaches leaves every section built from the
+  // Teaser holding a Value it can no longer follow, wherever in the Entry it
+  // sits.
+  await navigateToComponent(mainWindow, {
+    projectId: project.id,
+    componentId: teaser.id,
+  });
+  await expect(
+    mainWindow.getByLabel('Component name', { exact: true })
+  ).toHaveValue('Teaser');
+  const pane = await chooseFieldDefinition(mainWindow, 'Headline');
+  await pane.getByLabel('Minimum', { exact: true }).fill('10');
+  await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+  return { project, collection };
 }
 
 test.describe('Components', () => {
@@ -1614,7 +1734,253 @@ test.describe('Components', () => {
     ).toEqual([['headline'], ['headline']]);
   });
 
-  test("leads to each Entry a Component's change leaves without a Value, and waits for it", async ({
+  test("fills in the Value a Component's type change needs, in the section it belongs to", async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+        textFieldDefinition({
+          slug: 'note',
+          label: { en: 'Note' },
+          isRequired: false,
+        }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: {
+              headline: stringValue({ en: 'Welcome' }),
+              note: stringValue({ en: 'Keep me' }),
+            },
+          },
+        ]),
+      },
+    });
+
+    // Text to a number, which the stored "Welcome" cannot follow, so Core asks
+    // for a corrected Value per section rather than carrying the change out.
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Headline');
+    await pane.getByRole('combobox', { name: 'Type' }).click();
+    await mainWindow
+      .getByRole('option', { name: 'number', exact: true })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Headline needs a Value in 1 Entry.'
+    );
+    // The field as editors see it under its new rules, named by its Entry and
+    // by where in that Entry the section sits, with the Entry leading there.
+    const field = dialog.getByLabel(
+      'Headline in Home, Teaser, section 1 of 1 in Sections of Articles',
+      { exact: true }
+    );
+    await expect(dialog.getByRole('link', { name: 'Home' })).toBeVisible();
+    await expect(dialog).not.toContainText(entry.id);
+    // Nothing sends the person off to fix the Entry by hand any more.
+    await expect(dialog).not.toContainText("can't be filled in yet");
+
+    const save = dialog.getByRole('button', { name: 'Save' });
+    await expect(save).toBeDisabled();
+    await expect(
+      dialog.getByText("Missing, so the changes can't be saved yet")
+    ).toBeVisible();
+    await field.fill('42');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    // The change went in, the Value landed in the section, and everything else
+    // the Entry holds stands as it was.
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    await expect(mainWindow).toHaveURL(componentRoute);
+    const saved = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: component.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map(
+        (found) => found.fieldType
+      )
+    ).toEqual(['number', 'text']);
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(sectionValues(storedEntries[0], 'headline')).toEqual([{ en: 42 }]);
+    expect(sectionValues(storedEntries[0], 'note')).toEqual([
+      { en: 'Keep me' },
+    ]);
+    expect(storedEntries[0]?.values['title']?.content).toEqual({ en: 'Home' });
+  });
+
+  test("takes a Value for every section a Component's rule change reaches, a nested one included", async ({
+    mainWindow,
+  }) => {
+    const { project, collection } = await tightenTheTeaserHeadlineOf(
+      mainWindow,
+      { trailingSections: 0 }
+    );
+
+    // Each row says which section of the Entry it is about, so two sections of
+    // one Entry read apart, and a section inside another one names the way to
+    // it rather than its position alone, which both of these share.
+    const dialog = mainWindow.getByRole('dialog');
+    const first = dialog.getByLabel(
+      'Headline in Home, Teaser, section 1 of 3 in Sections of Articles',
+      { exact: true }
+    );
+    const second = dialog.getByLabel(
+      'Headline in Home, Teaser, section 2 of 3 in Sections of Articles',
+      { exact: true }
+    );
+    const nested = dialog.getByLabel(
+      'Headline in Home, Teaser, section 1 of 1 in Cards of Grid, section 3 of 3 in Sections of Articles',
+      { exact: true }
+    );
+    await expect(dialog.getByText('English is missing 3 Values')).toBeVisible();
+
+    await first.fill('Beside the first');
+    await second.fill('Beside the second');
+    await expect(dialog.getByText('English is missing 1 Value')).toBeVisible();
+    await nested.fill('Inside the Grid');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+
+    // Each Value landed in the section whose row it was written in, the one
+    // inside the Grid included, and the Entry's own Values stand as they were.
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const stored = storedEntries[0];
+    expect(sectionValues(stored, 'headline')).toEqual([
+      { en: 'Beside the first' },
+      { en: 'Beside the second' },
+      undefined,
+    ]);
+    expect(nestedSectionValues(stored, 'headline')).toEqual([
+      { en: 'Inside the Grid' },
+    ]);
+    expect(stored?.values['title']?.content).toEqual({ en: 'Home' });
+  });
+
+  test('asks for a Value in every language of the Project, above the rows of a Component', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Teaser', de: 'Teaser' },
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline', de: 'Schlagzeile' },
+        }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'The articles', de: 'Die Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+        dynamicFieldDefinition({
+          label: { en: 'Sections', de: 'Abschnitte' },
+          ofComponents: [component.id],
+        }),
+      ],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home', de: 'Startseite' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: {
+              headline: stringValue({ en: 'Welcome', de: 'Willkommen' }),
+            },
+          },
+        ]),
+      },
+    });
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const pane = await addFieldDefinition(mainWindow, { label: 'Subline' });
+    // A label in every language of the Project, so what blocks the save is
+    // the Value the section needs rather than a label it is missing.
+    await chooseLanguage(mainWindow, 'de');
+    await pane.getByLabel('Label', { exact: true }).fill('Unterzeile');
+    await chooseLanguage(mainWindow, 'en');
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+    // Core takes the change only once every language of the Project holds the
+    // Value, so one language filled in is not enough, and the switch above
+    // the rows is what the other is filled in through.
+    const dialog = mainWindow.getByRole('dialog');
+    const save = dialog.getByRole('button', { name: 'Save' });
+    const field = dialog.getByLabel(
+      'Subline in Home, Teaser, section 1 of 1 in Sections of Articles',
+      { exact: true }
+    );
+    await field.fill('What ships today');
+    await expect(dialog.getByText('German is missing 1 Value')).toBeVisible();
+    await expect(save).toBeDisabled();
+
+    // The settings behind the dialog carry a switch of their own, so this one
+    // is addressed inside the dialog.
+    await dialog
+      .locator('[data-slot="language-switch"]')
+      .getByRole('button', { name: /^DE\b/ })
+      .click();
+    await expect(field).toHaveValue('');
+    await field.fill('Was heute erscheint');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(sectionValues(storedEntries[0], 'subline')).toEqual([
+      { en: 'What ships today', de: 'Was heute erscheint' },
+    ]);
+  });
+
+  test('names the Component alone where the Entry changed under the dialog, and takes the Value all the same', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -1646,50 +2012,339 @@ test.describe('Components', () => {
       },
     });
 
-    // A Field that is required and has no default leaves every section of
-    // every Entry without a Value, and Core takes a Value for a Component's
-    // item nowhere but in the Entry itself, so the dialog leads there.
+    // The Entry as the dialog reads it holds no section at all, which is what
+    // an Entry somebody emptied while the settings were open leaves behind.
+    // Core still refuses for the section the Entry holds on disk.
+    await stubCoreResolve(electronApp, 'core:entries:list', {
+      total: 1,
+      limit: 0,
+      offset: 0,
+      list: [
+        {
+          ...entry,
+          values: {
+            ...entry.values,
+            sections: {
+              objectType: 'value',
+              valueType: 'component',
+              content: [],
+            },
+          },
+        },
+      ],
+    });
+
     await navigateToComponent(mainWindow, {
       projectId: project.id,
       componentId: component.id,
     });
-    await expect(
-      mainWindow.getByLabel('Component name', { exact: true })
-    ).toHaveValue('Teaser');
+    await addFieldDefinition(mainWindow, { label: 'Subline' });
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+    // The way to the section cannot be read, so the row names the Component
+    // the section is built from and nothing more.
+    const dialog = mainWindow.getByRole('dialog');
+    const field = dialog.getByLabel('Subline in Home, Teaser', {
+      exact: true,
+    });
+    await field.fill('Written anyway');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+
+    // And the Value still landed in that section, which Core takes keyed by
+    // the item's id rather than by where it sits. Read one Entry rather than
+    // the list, which is the read this spec stubbed.
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    const stored = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(sectionValues(stored, 'subline')).toEqual([
+      { en: 'Written anyway' },
+    ]);
+  });
+
+  test("changes nothing when a Component's refused change is cancelled, and saves one Core takes on its own", async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: { headline: stringValue({ en: 'Welcome' }) },
+          },
+        ]),
+      },
+    });
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
     await addFieldDefinition(mainWindow, { label: 'Subline' });
     await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     const dialog = mainWindow.getByRole('dialog');
-    const row = dialog.getByRole('listitem').first();
-    await expect(row.getByRole('link', { name: 'Home' })).toBeVisible();
-    await expect(dialog).not.toContainText(entry.id);
-    // The row says where the Value is missing, and the line above the rows
-    // what there is to do, since such a Value is written nowhere yet: the
-    // Entry draws the fields the stored Component holds, and this change is
-    // the one that would add the field asking for it.
-    await expect(row).toContainText('Subline');
-    await expect(row).toContainText('Articles');
     await expect(
-      dialog.getByText(
-        "A Value for a section can't be filled in yet, here or in the Entry. To save this change, change the field so the sections below are allowed as they are, or open an Entry and remove the section, which deletes what it holds."
+      dialog.getByLabel(
+        'Subline in Home, Teaser, section 1 of 1 in Sections of Articles',
+        { exact: true }
       )
     ).toBeVisible();
-    // Nothing here can answer it, so the button says so and takes no press.
-    const save = dialog.getByRole('button', { name: 'Save' });
-    await expect(save).toBeDisabled();
-    await expect(
-      dialog.getByText('Each Entry below needs a Value first')
-    ).toBeVisible();
-    // The control still takes a click, since it is not `disabled`, and the
-    // dialog stays where it is.
-    await save.click({ force: true });
-    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toHaveCount(0);
 
-    // The Project got no commit for the refused update.
-    await navigateToHistory(mainWindow, project.id);
-    await expect(
-      mainWindow.getByRole('link', { name: /update component/i })
-    ).toHaveCount(0);
+    // Nothing was written: the Component holds the one Field it was stored
+    // with, and the section holds what it held.
+    const afterCancel = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: component.id,
+    });
+    expect(afterCancel.fieldDefinitions.map((found) => found.slug)).toEqual([
+      'headline',
+    ]);
+    const cancelled = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(sectionValues(cancelled[0], 'subline')).toEqual([undefined]);
+
+    // The same Field made optional is a change Core carries out on its own, so
+    // it saves with no dialog in the way.
+    const pane = await chooseFieldDefinition(mainWindow, 'Subline');
+    await pane.getByRole('checkbox', { name: 'Required' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    const saved = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: component.id,
+    });
+    expect(saved.fieldDefinitions.map((found) => found.slug)).toEqual([
+      'headline',
+      'subline',
+    ]);
+  });
+
+  test("holds the rows of a Component's refused change at the smallest window, in light and in dark mode", async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    for (const theme of ['light', 'dark'] as const) {
+      // The theme is put on first, since it is applied through the app's own
+      // provider and reloads the renderer, which closes the dialog again.
+      await setTheme(mainWindow, theme);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      // One row more than the dialog has room for, so its body is what
+      // scrolls, with the way to a nested section as the longest row.
+      await tightenTheTeaserHeadlineOf(mainWindow, { trailingSections: 1 });
+
+      const dialog = mainWindow.getByRole('dialog');
+      await expect(
+        dialog.getByLabel(
+          'Headline in Home, Teaser, section 1 of 1 in Cards of Grid, section 3 of 4 in Sections of Articles',
+          { exact: true }
+        )
+      ).toBeVisible();
+      await waitForLayout(mainWindow);
+
+      const bounds = await mainWindow.evaluate(() => {
+        const one = (selector: string): ProbedElement => {
+          const found = document.querySelector(selector);
+          if (found === null) {
+            throw new Error(`Nothing matches ${selector}`);
+          }
+          return found;
+        };
+        const all = (
+          selector: string,
+          within?: ProbedElement
+        ): ProbedElement[] =>
+          Array.from((within ?? document).querySelectorAll(selector));
+        const content = one('[data-slot="dialog-content"]');
+        const viewport = one(
+          '[data-slot="dialog-body"] [data-slot="scroll-area-viewport"]'
+        );
+        const contentBox = content.getBoundingClientRect();
+        const padded = getComputedStyle(content);
+        const inside = {
+          left: contentBox.left + parseFloat(padded.paddingLeft),
+          right: contentBox.right - parseFloat(padded.paddingRight),
+        };
+        const fields = all('[role="dialog"] [data-slot="field"]');
+        const clipped = (element: ProbedElement): boolean =>
+          element.scrollWidth > element.clientWidth;
+        const named = (element: ProbedElement): string =>
+          element.getAttribute('data-slot') ?? element.tagName;
+        // Every part of one field stands on a line of its own or beside the
+        // next, never over it: the label with the rules at its right, then the
+        // control, the warning and the error below them.
+        const overlaps = fields.flatMap((field) => {
+          const parts = [
+            field.querySelector('[data-slot="field-label"]'),
+            field.querySelector('[data-slot="field-rules"]'),
+            ...all(':scope > *', field).filter(
+              (child) => child.matches('[data-slot="field-header"]') === false
+            ),
+          ].filter((part): part is ProbedElement => part !== null);
+
+          return parts.flatMap((part, index) =>
+            parts.slice(index + 1).flatMap((other) => {
+              const first = part.getBoundingClientRect();
+              const second = other.getBoundingClientRect();
+
+              return first.left < second.right - 0.5 &&
+                second.left < first.right - 0.5 &&
+                first.top < second.bottom - 0.5 &&
+                second.top < first.bottom - 0.5
+                ? [`${named(part)} over ${named(other)}`]
+                : [];
+            })
+          );
+        });
+        const places = all('[data-slot="field-label-place"]');
+        const place = places[places.length - 1];
+        if (place === undefined) {
+          throw new Error('No row said where its section sits');
+        }
+
+        return {
+          window: { width: window.innerWidth, height: window.innerHeight },
+          content: {
+            top: contentBox.top,
+            bottom: contentBox.bottom,
+            left: contentBox.left,
+            right: contentBox.right,
+            height: contentBox.height,
+          },
+          headerTop: one('[data-slot="dialog-header"]').getBoundingClientRect()
+            .top,
+          footerBottom: one(
+            '[data-slot="dialog-footer"]'
+          ).getBoundingClientRect().bottom,
+          scrolls: viewport.scrollHeight > viewport.clientHeight,
+          scrollsSideways: viewport.scrollWidth > viewport.clientWidth,
+          // Nothing of a row runs past the dialog's own padding.
+          outsideThePadding: fields.flatMap((field) =>
+            all('*', field).flatMap((part) => {
+              const box = part.getBoundingClientRect();
+
+              return box.width > 0 &&
+                (box.left < inside.left - 0.5 || box.right > inside.right + 0.5)
+                ? [named(part)]
+                : [];
+            })
+          ),
+          clippedLinks: all('[data-slot="field-label"] a')
+            .filter(clipped)
+            .map((link) => link.textContent),
+          clippedPlaces: places.filter(clipped).map((line) => line.textContent),
+          overlaps,
+          place: {
+            color: getComputedStyle(place).color,
+            background: getComputedStyle(content).backgroundColor,
+          },
+        };
+      });
+
+      // The dialog stands inside the window with ci's gap to each edge, and
+      // nothing pushes the question or the buttons out of it.
+      expect(bounds.content.height, theme).toBeLessThanOrEqual(528);
+      expect(bounds.content.top, theme).toBeGreaterThanOrEqual(16);
+      expect(bounds.content.left, theme).toBeGreaterThanOrEqual(16);
+      expect(bounds.content.bottom, theme).toBeLessThanOrEqual(
+        bounds.window.height - 16
+      );
+      expect(bounds.content.right, theme).toBeLessThanOrEqual(
+        bounds.window.width - 16
+      );
+      expect(bounds.headerTop, theme).toBeGreaterThanOrEqual(
+        bounds.content.top
+      );
+      expect(bounds.footerBottom, theme).toBeLessThanOrEqual(
+        bounds.content.bottom
+      );
+
+      // The body is the one thing that scrolls, and it never scrolls sideways.
+      expect(bounds.scrolls, theme).toBe(true);
+      expect(bounds.scrollsSideways, theme).toBe(false);
+
+      // No part of a row runs past the dialog's padding, nothing of a field
+      // stands over another part of it, and neither the Entry's link nor the
+      // way to the section is cut off.
+      expect(bounds.outsideThePadding, theme).toStrictEqual([]);
+      expect(bounds.overlaps, theme).toStrictEqual([]);
+      expect(bounds.clippedLinks, theme).toStrictEqual([]);
+      expect(bounds.clippedPlaces, theme).toStrictEqual([]);
+
+      // The way to the section is read in the muted role on the dialog's own
+      // surface, which WCAG 1.4.3 asks 4.5:1 of.
+      expect(
+        contrastRatio(
+          parseColor(bounds.place.color),
+          parseColor(bounds.place.background)
+        ),
+        theme
+      ).toBeGreaterThanOrEqual(4.5);
+
+      // Tabbing on brings the next row into the scrolling area rather than
+      // leaving the focus under its edge, with room for its focus ring.
+      await dialog
+        .getByLabel(
+          'Headline in Home, Teaser, section 1 of 4 in Sections of Articles',
+          { exact: true }
+        )
+        .focus();
+      for (let step = 0; step < 8; step++) {
+        await mainWindow.keyboard.press('Tab');
+        const focused = await mainWindow.evaluate(() => {
+          const viewport = document.querySelector(
+            '[data-slot="dialog-body"] [data-slot="scroll-area-viewport"]'
+          );
+          const active = document.activeElement;
+          if (viewport === null || active === null) {
+            throw new Error('The dialog did not draw its body');
+          }
+          // Only what scrolls with the rows has to be inside the area. The
+          // buttons below it are tabbed to next and stand outside it.
+          if (active.closest('[data-slot="scroll-area-viewport"]') === null) {
+            return { inside: true };
+          }
+          const box = active.getBoundingClientRect();
+          const area = viewport.getBoundingClientRect();
+
+          return {
+            inside:
+              box.top - 2 >= area.top - 0.5 &&
+              box.bottom + 2 <= area.bottom + 0.5,
+          };
+        });
+        expect(focused.inside, `${theme}, after ${String(step + 1)} tabs`).toBe(
+          true
+        );
+      }
+
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+    }
   });
 
   test('keeps the unsaved Component settings while an Entry the dialog names is opened', async ({
@@ -1739,9 +2394,8 @@ test.describe('Components', () => {
     await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
     // Following the dialog's link leads straight to the Entry, without asking
-    // about the changes: they are kept rather than lost. It matters more here
-    // than for a Collection, because nothing in the dialog can answer a
-    // Component's rows, so coming back to the settings is the way through.
+    // about the changes: they are kept rather than lost, so looking at the
+    // Entry before answering its row leaves the settings to come back to.
     const dialog = mainWindow.getByRole('dialog');
     await dialog.getByRole('link', { name: 'Home' }).click();
     await expect(mainWindow).toHaveURL(
