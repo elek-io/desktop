@@ -47,6 +47,19 @@ ci gives the mark one movement: its cyan period slides in from the right along t
 
 [`BrandMark`](../../src/renderer/components/brand-mark.tsx) inlines the brand package's own SVG with `?raw` rather than loading it as an image, because only an inline SVG has a period to move, and nothing of the mark's geometry is written out in this app. The movement itself is one rule in `index.css` on the file's last path, which is that period. Under `prefers-reduced-motion` the period is simply in place, which is the end state the movement arrives at, so nothing is lost by holding it there.
 
+### A Collection's icon
+
+Every icon in the app is a named import from `lucide-react`, written at the place it is drawn, and a brand's logo comes from Simple Icons instead, see ci's `docs/icons.md`. A Collection's icon is the one that is neither: Core stores the Lucide name a Collection was given, so the drawing comes from a string somebody chose.
+
+[`lib/collectionIcons.ts`](../../src/renderer/lib/collectionIcons.ts) is the one place a name becomes a drawing:
+
+- **The set is 63 icons in 9 groups of 7**, each name canonical in `lucide-react` and each word a message of the catalog, so an icon's word and its group's are translated like every other string. `collectionIconGroups()` is what the picker offers, and its filter matches both.
+- **`collectionIcon(name)` answers what draws a stored name**: the set, plus `home` and `plus`, the two names Core used to allow, and the `layers` mark for anything else. It is a `Map` rather than an object, so a name such as `constructor` reaches the fallback instead of something on `Object.prototype`.
+- **`CollectionIcon`** ([`components/collection-icon.tsx`](../../src/renderer/components/collection-icon.tsx)) draws it where it stands beside a Collection's name, with `aria-hidden`: the mark on the Collections screen of a Project that holds none, an Entry field's rows, and the rows of the dialog that asks for a Value. The sidebar hands the resolved component to its row instead, the way every other row of the navigation takes one, and the icon is hidden there too, since `lucide-react` hides an icon that was given no `aria-*`, `role` or `title` of its own.
+- **A name outside the set is kept rather than replaced.** The picker shows the stored name as its own text and saves it again untouched, so a name set through Core survives a trip through a Collection's settings.
+
+`lucide-react/dynamic` would resolve every name Lucide ships, and is not used: it turns each of Lucide's icons into a chunk of its own. Measured on 2026-11-25 with `electron-vite build`, it took the renderer's assets from 128 chunks and 6.2 MB to 1962 chunks and 8.3 MB, source maps left out of both. See [not-yet-implemented.md](../not-yet-implemented.md).
+
 ### Type
 
 The package's `text-*` classes carry size, line height, letter spacing and weight in one class, named after ci's roles: `text-display`, `text-h1` to `text-h4`, `text-body-lg`, `text-body`, `text-ui`, `text-label`, `text-small`, `text-tag`, `text-code` and `text-code-sm`. The body is set to `font-sans text-ui`, which is the app's 14 px on a 20 px line.

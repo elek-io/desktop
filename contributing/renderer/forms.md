@@ -1035,6 +1035,7 @@ subtly wrong and Core validates tightly:
   would read as off, announce itself off, and take a first click that changes
   nothing.
 - **`OptionChoice`** ([`fields/select/control.tsx`](../../src/renderer/components/fields/select/control.tsx)) is the choice between named options: a list of radio buttons up to seven of them and a combobox with a filter beyond that, with None leading wherever the Value may stay empty. The select field's control and the Default Value of a select's own settings are both it, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#the-select-fields-options). It lives in the select folder rather than here, because the select field is what it is about.
+- **`CollectionIconControl`** ([`components/collection-icon.tsx`](../../src/renderer/components/collection-icon.tsx)) is the icon a Collection is drawn by: the set of 63 of them in its groups, as the same combobox with a filter, since the set is longer than what reads as a list of radio buttons. A stored name the set does not hold stays the Value and shows as the name itself. It lives beside what draws a Collection's icon rather than here, for the reason `OptionChoice` lives in the select's folder, see [theming-and-styling.md](./theming-and-styling.md#a-collections-icon).
 - The transforms themselves are in
   [`lib/fieldValues.ts`](../../src/renderer/lib/fieldValues.ts), so a form that
   needs one does not reach into a control.
