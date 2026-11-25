@@ -9,7 +9,7 @@ Changing the fields of a Collection or a Component can delete Values your Entrie
 Saving now opens one dialog that says what the change would do and lets you answer it:
 
 - **Lost when you save** names each Value that would go, by the Entry's own title and the field, with the Value struck through and "Would be lost" read out beside it. Every title is a link to that Entry, so you can look before you decide.
-- **Needs a Value** shows the field as editors see it under its new rules, one per Entry that needs one, to fill in without leaving the dialog. A field still without a Value says "Missing, so the changes can't be saved yet", and the button waits for it, as Save does. Where your Project has more than one language, a switch above those fields takes them into another one, because a Value is needed in each.
+- **Needs a Value** shows the field as editors see it under its new rules, one per Value the change needs, to fill in without leaving the dialog. A field still without a Value says "Missing, so the changes can't be saved yet", and the button waits for it, as Save does. Where your Project has more than one language, a switch above those fields takes them into another one, because a Value is needed in each.
 - **The red button names the loss**, such as "Remove Published on from 3 Entries", and nothing at all is written until you press it. **Cancel changes nothing**, and a change elek.io Core carries out on its own, such as a renamed label or a looser rule, still saves with no dialog in the way. Without a loss, the button is the usual Save.
 
 Opening an Entry from the dialog keeps the settings you had not saved, so you come back to them as you left them and can press Save again. Leaving the page any other way still asks first.
