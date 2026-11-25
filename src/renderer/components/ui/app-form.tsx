@@ -115,6 +115,14 @@ export interface FieldShellProps {
   describedBy?: string | undefined;
   /** A field whose label, description and control sit side by side. */
   orientation?: 'vertical' | 'horizontal';
+  /**
+   * Whether the shell holds a control at all, which it does everywhere but in
+   * the History: a Value that is read rather than edited is text, and a
+   * `<label>` cannot be for text. The label then stands above the Value
+   * without pointing at anything, since what it names follows it in reading
+   * order anyway. Defaults to true.
+   */
+  hasControl?: boolean;
   className?: string;
   /** Renders the control, given the props that tie it to the parts above. */
   children: (controlProps: FieldControlProps) => ReactNode;
@@ -142,6 +150,7 @@ export function FieldShell({
   error,
   describedBy: sharedDescribedBy,
   orientation = 'vertical',
+  hasControl = true,
   className,
   children,
 }: FieldShellProps): ReactNode {
@@ -202,7 +211,9 @@ export function FieldShell({
   });
   const headerPart = (
     <FieldHeader {...(rulesLine === null ? {} : { rules: rulesLine, rulesId })}>
-      <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+      <FieldLabel {...(hasControl ? { htmlFor: controlId } : {})}>
+        {label}
+      </FieldLabel>
     </FieldHeader>
   );
   const descriptionPart =

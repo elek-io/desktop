@@ -105,3 +105,52 @@ export function changeSentence(commit: GitCommit, byYou: boolean): string {
     }
   }
 }
+
+/**
+ * Who made the change and when, as the line below its name reads.
+ *
+ * What changed is named above that line already, so the sentence says "it".
+ * One message per shape, as the sentence of a row has them: a verb carries
+ * grammar that cannot be translated on its own, and a language words what
+ * somebody else did differently from what you did.
+ *
+ * Call it during a render, so the words come out of the catalog in use.
+ */
+export function changeAuthorSentence(
+  commit: GitCommit,
+  byYou: boolean,
+  when: string
+): string {
+  const author = commit.author.name;
+
+  switch (commit.message.method) {
+    case 'create':
+      // Nobody adds a Project to itself, so a Project's own first change is
+      // the one that created it.
+      if (commit.message.reference.objectType === 'project') {
+        return byYou
+          ? t`You created it on ${when}`
+          : t`${author} created it on ${when}`;
+      }
+
+      return byYou
+        ? t`You added it on ${when}`
+        : t`${author} added it on ${when}`;
+    case 'update':
+      return byYou
+        ? t`You changed it on ${when}`
+        : t`${author} changed it on ${when}`;
+    case 'delete':
+      return byYou
+        ? t`You deleted it on ${when}`
+        : t`${author} deleted it on ${when}`;
+    case 'upgrade':
+      return byYou
+        ? t`You upgraded it on ${when}`
+        : t`${author} upgraded it on ${when}`;
+    case 'release':
+      return byYou
+        ? t`You released it on ${when}`
+        : t`${author} released it on ${when}`;
+  }
+}

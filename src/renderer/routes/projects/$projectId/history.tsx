@@ -14,6 +14,12 @@ export const Route = createFileRoute('/projects/$projectId/history')({
   component: ProjectHistoryLayout,
 });
 
+/**
+ * The changes of a Project beside the chosen one.
+ *
+ * It is a layout route, so the list stays as it is while one change opens after
+ * another, which keeps the place somebody had scrolled to.
+ */
 function ProjectHistoryLayout(): ReactElement {
   const { t } = useLingui();
 
@@ -31,9 +37,7 @@ function ProjectHistoryLayout(): ReactElement {
           <HistorySidebar project={project} />
         )}
       </Pane>
-      <Pane name={t`this change`}>
-        <Outlet />
-      </Pane>
+      <Outlet />
     </Panes>
   );
 }

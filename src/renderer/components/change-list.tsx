@@ -8,6 +8,7 @@ import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { changeContext, changeSentence } from '@renderer/lib/changeSentence';
+import { type ChangeSyncState } from '@renderer/lib/changeSyncState';
 import { queryOptions } from '@renderer/queries';
 
 import { flattenFieldDefinitions, type GitCommit } from '@elek-io/core';
@@ -18,17 +19,6 @@ import { flattenFieldDefinitions, type GitCommit } from '@elek-io/core';
 // One module, because two screens draw the same rows: the Dashboard shows the
 // five latest ones and the History every one of them. A row says what happened
 // in words, so nothing about it is told by its marker or its color alone.
-
-/**
- * Whether a change has reached the Git repository.
- *
- * `unknown` is the answer wherever that cannot be told: a Project without a
- * Git repository has nothing to sync with, and a check that failed or has not
- * answered yet counts nothing. Such a row claims neither state rather than
- * claiming the wrong one, and what stopped the check stands in the Project
- * card beside it, see contributing/error-handling.md.
- */
-export type ChangeSyncState = 'not-synced' | 'synced' | 'unknown';
 
 /**
  * What the change was about, as the app names it, and when it happened.
@@ -291,7 +281,20 @@ export function ChangeRow({
         markers.
       */}
       <span className="relative mt-[7px] flex rounded-[1.5px] shadow-[0_0_0_3px_var(--color-card)] in-data-active:shadow-[0_0_0_3px_var(--color-muted)]">
-        <StateMarker variant={syncState === 'unknown' ? 'none' : syncState} />
+        {/*
+          A Release takes the brand marker, the one highlight of the list, as
+          ci marks it. What it is stands in the row's own words, so the color
+          carries nothing of its own, see ci's docs/color.md.
+        */}
+        <StateMarker
+          variant={
+            commit.message.method === 'release'
+              ? 'release'
+              : syncState === 'unknown'
+                ? 'none'
+                : syncState
+          }
+        />
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="truncate">{changeSentence(commit, byYou)}</span>
@@ -307,24 +310,53 @@ export function ChangeRow({
   );
 }
 
+/** One group of the changes, with the heading ci puts above it. */
+export interface ChangeGroup {
+  /**
+   * What the group is called, such as "Not synced". Left out where the rows
+   * are not grouped at all, which is what the Dashboard shows and what the
+   * History falls back to while it cannot tell what is synced.
+   */
+  label?: string | undefined;
+  commits: GitCommit[];
+}
+
+/** The heading above a group of rows, ruled below like the rows themselves. */
+function ChangeGroupLabel({ label }: { label: string }): ReactElement {
+  return (
+    <div
+      data-slot="change-group"
+      className="border-b pt-3 pb-1.5 pl-[calc(var(--pane-edge)+19px)] text-small text-muted-foreground"
+    >
+      {label}
+    </div>
+  );
+}
+
 /**
- * The changes of a Project, each in its own ruled row.
+ * The changes of a Project, each in its own ruled row, in the groups ci puts
+ * them in.
  *
  * The rows span the pane rather than the page body's text edge, so a row's
  * rule ends on the pane's divider the way ci draws it, which is what the
  * negative margin takes back. Each row carries the text edge itself.
+ *
+ * A group with nothing in it is left out, so a Project with everything synced
+ * shows one group rather than an empty heading.
  */
 export function ChangeList({
   projectId,
-  commits,
+  groups,
   syncStateOf,
 }: {
   projectId: string;
-  commits: GitCommit[];
+  groups: ChangeGroup[];
   /** Whether each change is synced, which only a reader of the check knows. */
   syncStateOf?: (commit: GitCommit) => ChangeSyncState;
 }): ReactElement {
-  if (commits.length === 0) {
+  const filled = groups.filter((group) => group.commits.length > 0);
+
+  if (filled.length === 0) {
     return (
       <p className="py-4 text-muted-foreground">
         <Trans>Nothing has changed in this Project yet.</Trans>
@@ -334,15 +366,22 @@ export function ChangeList({
 
   return (
     <div data-slot="change-list" className="-mx-(--pane-edge) border-t">
-      {commits.map((commit) => (
-        <ChangeRow
-          key={commit.hash}
-          projectId={projectId}
-          commit={commit}
-          syncState={
-            syncStateOf === undefined ? 'unknown' : syncStateOf(commit)
-          }
-        />
+      {filled.map((group) => (
+        <div key={group.label ?? ''}>
+          {group.label === undefined ? null : (
+            <ChangeGroupLabel label={group.label} />
+          )}
+          {group.commits.map((commit) => (
+            <ChangeRow
+              key={commit.hash}
+              projectId={projectId}
+              commit={commit}
+              syncState={
+                syncStateOf === undefined ? 'unknown' : syncStateOf(commit)
+              }
+            />
+          ))}
+        </div>
       ))}
     </div>
   );

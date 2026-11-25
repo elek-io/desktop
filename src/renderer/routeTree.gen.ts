@@ -35,6 +35,7 @@ import { Route as ProjectsProjectIdCollectionsCreateRouteImport } from './routes
 import { Route as ProjectsProjectIdComponentsIndexRouteImport } from './routes/projects/$projectId/components/index'
 import { Route as ProjectsProjectIdComponentsComponentIdRouteImport } from './routes/projects/$projectId/components/$componentId'
 import { Route as ProjectsProjectIdComponentsCreateRouteImport } from './routes/projects/$projectId/components/create'
+import { Route as ProjectsProjectIdHistoryIndexRouteImport } from './routes/projects/$projectId/history/index'
 import { Route as ProjectsProjectIdHistoryCommitHashRouteImport } from './routes/projects/$projectId/history/$commitHash'
 import { Route as ProjectsProjectIdReleasesIndexRouteImport } from './routes/projects/$projectId/releases/index'
 import { Route as ProjectsProjectIdReleasesTagIdRouteImport } from './routes/projects/$projectId/releases/$tagId'
@@ -193,6 +194,12 @@ const ProjectsProjectIdComponentsCreateRoute =
     path: '/create',
     getParentRoute: () => ProjectsProjectIdComponentsRoute,
   } as any)
+const ProjectsProjectIdHistoryIndexRoute =
+  ProjectsProjectIdHistoryIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectsProjectIdHistoryRoute,
+  } as any)
 const ProjectsProjectIdHistoryCommitHashRoute =
   ProjectsProjectIdHistoryCommitHashRouteImport.update({
     id: '/$commitHash',
@@ -297,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/projects/$projectId/assets/': typeof ProjectsProjectIdAssetsIndexRoute
   '/projects/$projectId/collections/': typeof ProjectsProjectIdCollectionsIndexRoute
   '/projects/$projectId/components/': typeof ProjectsProjectIdComponentsIndexRoute
+  '/projects/$projectId/history/': typeof ProjectsProjectIdHistoryIndexRoute
   '/projects/$projectId/releases/': typeof ProjectsProjectIdReleasesIndexRoute
   '/projects/$projectId/settings/': typeof ProjectsProjectIdSettingsIndexRoute
   '/projects/$projectId/collections/$collectionId/$entryId': typeof ProjectsProjectIdCollectionsCollectionIdEntryIdRouteWithChildren
@@ -314,7 +322,6 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsIndexRoute
   '/user': typeof UserIndexRoute
   '/projects/$projectId/dashboard': typeof ProjectsProjectIdDashboardRoute
-  '/projects/$projectId/history': typeof ProjectsProjectIdHistoryRouteWithChildren
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
   '/projects/$projectId/assets/$assetId': typeof ProjectsProjectIdAssetsAssetIdRoute
   '/projects/$projectId/assets/new': typeof ProjectsProjectIdAssetsNewRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/projects/$projectId/assets': typeof ProjectsProjectIdAssetsIndexRoute
   '/projects/$projectId/collections': typeof ProjectsProjectIdCollectionsIndexRoute
   '/projects/$projectId/components': typeof ProjectsProjectIdComponentsIndexRoute
+  '/projects/$projectId/history': typeof ProjectsProjectIdHistoryIndexRoute
   '/projects/$projectId/releases': typeof ProjectsProjectIdReleasesIndexRoute
   '/projects/$projectId/settings': typeof ProjectsProjectIdSettingsIndexRoute
   '/projects/$projectId/collections/$collectionId/create': typeof ProjectsProjectIdCollectionsCollectionIdCreateRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/projects/$projectId/assets/': typeof ProjectsProjectIdAssetsIndexRoute
   '/projects/$projectId/collections/': typeof ProjectsProjectIdCollectionsIndexRoute
   '/projects/$projectId/components/': typeof ProjectsProjectIdComponentsIndexRoute
+  '/projects/$projectId/history/': typeof ProjectsProjectIdHistoryIndexRoute
   '/projects/$projectId/releases/': typeof ProjectsProjectIdReleasesIndexRoute
   '/projects/$projectId/settings/': typeof ProjectsProjectIdSettingsIndexRoute
   '/projects/$projectId/collections/$collectionId/$entryId': typeof ProjectsProjectIdCollectionsCollectionIdEntryIdRouteWithChildren
@@ -410,6 +419,7 @@ export interface FileRouteTypes {
     | '/projects/$projectId/assets/'
     | '/projects/$projectId/collections/'
     | '/projects/$projectId/components/'
+    | '/projects/$projectId/history/'
     | '/projects/$projectId/releases/'
     | '/projects/$projectId/settings/'
     | '/projects/$projectId/collections/$collectionId/$entryId'
@@ -427,7 +437,6 @@ export interface FileRouteTypes {
     | '/projects'
     | '/user'
     | '/projects/$projectId/dashboard'
-    | '/projects/$projectId/history'
     | '/projects/$projectId'
     | '/projects/$projectId/assets/$assetId'
     | '/projects/$projectId/assets/new'
@@ -441,6 +450,7 @@ export interface FileRouteTypes {
     | '/projects/$projectId/assets'
     | '/projects/$projectId/collections'
     | '/projects/$projectId/components'
+    | '/projects/$projectId/history'
     | '/projects/$projectId/releases'
     | '/projects/$projectId/settings'
     | '/projects/$projectId/collections/$collectionId/create'
@@ -480,6 +490,7 @@ export interface FileRouteTypes {
     | '/projects/$projectId/assets/'
     | '/projects/$projectId/collections/'
     | '/projects/$projectId/components/'
+    | '/projects/$projectId/history/'
     | '/projects/$projectId/releases/'
     | '/projects/$projectId/settings/'
     | '/projects/$projectId/collections/$collectionId/$entryId'
@@ -681,6 +692,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdComponentsCreateRouteImport
       parentRoute: typeof ProjectsProjectIdComponentsRoute
     }
+    '/projects/$projectId/history/': {
+      id: '/projects/$projectId/history/'
+      path: '/'
+      fullPath: '/projects/$projectId/history/'
+      preLoaderRoute: typeof ProjectsProjectIdHistoryIndexRouteImport
+      parentRoute: typeof ProjectsProjectIdHistoryRoute
+    }
     '/projects/$projectId/history/$commitHash': {
       id: '/projects/$projectId/history/$commitHash'
       path: '/$commitHash'
@@ -872,12 +890,14 @@ const ProjectsProjectIdComponentsRouteWithChildren =
 
 interface ProjectsProjectIdHistoryRouteChildren {
   ProjectsProjectIdHistoryCommitHashRoute: typeof ProjectsProjectIdHistoryCommitHashRoute
+  ProjectsProjectIdHistoryIndexRoute: typeof ProjectsProjectIdHistoryIndexRoute
 }
 
 const ProjectsProjectIdHistoryRouteChildren: ProjectsProjectIdHistoryRouteChildren =
   {
     ProjectsProjectIdHistoryCommitHashRoute:
       ProjectsProjectIdHistoryCommitHashRoute,
+    ProjectsProjectIdHistoryIndexRoute: ProjectsProjectIdHistoryIndexRoute,
   }
 
 const ProjectsProjectIdHistoryRouteWithChildren =

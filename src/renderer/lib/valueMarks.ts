@@ -1,3 +1,4 @@
+import { replaceEqualDeep } from '@tanstack/react-query';
 import { diffWords } from 'diff';
 
 // What changed inside one Value, as the History marks it: removed words struck
@@ -5,6 +6,21 @@ import { diffWords } from 'diff';
 // Value reads as comes from its field type's `renderValue`.
 //
 // See contributing/renderer/forms.md#a-value-that-is-read-rather-than-edited.
+
+/**
+ * Whether two states of one Value hold the same content.
+ *
+ * It is what decides whether a field is marked, rather than the two readings:
+ * a Value replaced by another that reads the same, such as one Asset for
+ * another, still changed. Both states come out of a JSON file, so comparing
+ * them structurally is what says they are the same, and TanStack Query's own
+ * `replaceEqualDeep` answers that: it hands back the state it was given first
+ * where nothing below it differs, which is how the query cache tells that a
+ * refetch changed nothing.
+ */
+export function holdsSameContent(before: unknown, after: unknown): boolean {
+  return replaceEqualDeep(before, after) === before;
+}
 
 /** One run of a Value's text, and what happened to it. */
 export interface ValueMark {

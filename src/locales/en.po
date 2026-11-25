@@ -21,8 +21,20 @@ msgid "{author} added {thing}"
 msgstr "{author} added {thing}"
 
 #: src/renderer/lib/changeSentence.ts
+msgid "{author} added it on {when}"
+msgstr "{author} added it on {when}"
+
+#: src/renderer/lib/changeSentence.ts
 msgid "{author} changed {thing}"
 msgstr "{author} changed {thing}"
+
+#: src/renderer/lib/changeSentence.ts
+msgid "{author} changed it on {when}"
+msgstr "{author} changed it on {when}"
+
+#: src/renderer/lib/changeSentence.ts
+msgid "{author} created it on {when}"
+msgstr "{author} created it on {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} created this Project"
@@ -33,16 +45,32 @@ msgid "{author} deleted {thing}"
 msgstr "{author} deleted {thing}"
 
 #: src/renderer/lib/changeSentence.ts
+msgid "{author} deleted it on {when}"
+msgstr "{author} deleted it on {when}"
+
+#: src/renderer/lib/changeSentence.ts
 msgid "{author} released {version}"
 msgstr "{author} released {version}"
+
+#: src/renderer/lib/changeSentence.ts
+msgid "{author} released it on {when}"
+msgstr "{author} released it on {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} released this Project"
 msgstr "{author} released this Project"
 
 #: src/renderer/lib/changeSentence.ts
+msgid "{author} upgraded it on {when}"
+msgstr "{author} upgraded it on {when}"
+
+#: src/renderer/lib/changeSentence.ts
 msgid "{author} upgraded this Project"
 msgstr "{author} upgraded this Project"
+
+#: src/renderer/components/history/entry-change.tsx
+msgid "{changedHere, plural, one {# Value changed} other {# Values changed}} in {shownLanguage}"
+msgstr "{changedHere, plural, one {# Value changed} other {# Values changed}} in {shownLanguage}"
 
 #: src/renderer/components/pickers/asset-picker-dialog.tsx
 #: src/renderer/components/pickers/entry-picker-dialog.tsx
@@ -208,6 +236,7 @@ msgstr "{type} file"
 #: src/renderer/components/asset-card.tsx
 #: src/renderer/components/asset-pane.tsx
 #: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/history/asset-change.tsx
 msgid "{type}, {size}"
 msgstr "{type}, {size}"
 
@@ -222,6 +251,10 @@ msgstr "1/3"
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "1/4"
 msgstr "1/4"
+
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "A change of this Project"
+msgstr "A change of this Project"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "a Collection"
@@ -461,6 +494,10 @@ msgstr "Also send my logs"
 msgid "an Asset"
 msgstr "an Asset"
 
+#: src/renderer/components/history/asset-change.tsx
+msgid "An Asset"
+msgstr "An Asset"
+
 #: src/renderer/routes/projects/$projectId/assets.tsx
 msgid "An Asset is a file an Entry can point at, such as an image or a PDF. Add the first one to use it in a Collection's fields."
 msgstr "An Asset is a file an Entry can point at, such as an image or a PDF. Add the first one to use it in a Collection's fields."
@@ -496,6 +533,10 @@ msgstr "An empty repository that supports Git LFS. Once it is saved, Sync upload
 #: src/renderer/lib/changeSentence.ts
 msgid "an Entry"
 msgstr "an Entry"
+
+#: src/renderer/components/history/entry-change.tsx
+msgid "An Entry in the {collectionName} Collection"
+msgstr "An Entry in the {collectionName} Collection"
 
 #: src/renderer/routes/projects/$projectId/components/$componentId.tsx
 msgid "An Entry this change needs a Value for has changed in the meantime, so nothing was saved. Save again to see what the change needs now."
@@ -739,6 +780,10 @@ msgstr "certain file types only"
 msgid "Certain file types only."
 msgstr "Certain file types only."
 
+#: src/renderer/components/history/read-field.tsx
+msgid "Changed"
+msgstr "Changed"
+
 #: src/renderer/components/history-sidebar.tsx
 msgid "Changes"
 msgstr "Changes"
@@ -969,10 +1014,6 @@ msgstr "Continue"
 msgid "Copy details"
 msgstr "Copy details"
 
-#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
-msgid "Core {coreVersion}"
-msgstr "Core {coreVersion}"
-
 #: src/renderer/queries/options/assetOptions.ts
 msgid "Could not add the Asset"
 msgstr "Could not add the Asset"
@@ -1168,6 +1209,7 @@ msgid "Decamelize"
 msgstr "Decamelize"
 
 #: src/renderer/components/forms/project-form.tsx
+#: src/renderer/components/history/project-change.tsx
 msgid "Default language"
 msgstr "Default language"
 
@@ -1245,6 +1287,8 @@ msgstr "Deleting the default language"
 #: src/renderer/components/forms/component-form.tsx
 #: src/renderer/components/forms/field-definition-editor.tsx
 #: src/renderer/components/forms/project-form.tsx
+#: src/renderer/components/history/asset-change.tsx
+#: src/renderer/components/history/project-change.tsx
 msgid "Description"
 msgstr "Description"
 
@@ -1259,6 +1303,10 @@ msgstr "Desktop can't save this text. Please report it, so we can fix it."
 #: src/renderer/components/markdown/markdown-editor.tsx
 msgid "Desktop can't show this text. It stays saved as it is, and this Entry can't be saved until it is fixed."
 msgstr "Desktop can't show this text. It stays saved as it is, and this Entry can't be saved until it is fixed."
+
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "Desktop can't show what this change holds."
+msgstr "Desktop can't show what this change holds."
 
 #: src/renderer/routes/projects/$projectId/settings/version-control.tsx
 msgid "Desktop checks it for incoming changes every 3 minutes."
@@ -1556,6 +1604,10 @@ msgstr "Everything you entered is on this computer. Nothing was synced with the 
 msgid "Feedback sent"
 msgstr "Feedback sent"
 
+#: src/renderer/components/history/asset-change.tsx
+msgid "File"
+msgstr "File"
+
 #: src/renderer/components/fields/asset/definition.tsx
 msgid "File types"
 msgstr "File types"
@@ -1712,6 +1764,7 @@ msgid "Help"
 msgstr "Help"
 
 #: src/renderer/components/entry-history.tsx
+#: src/renderer/components/history-sidebar.tsx
 #: src/renderer/components/project-sidebar.tsx
 #: src/renderer/routes/projects/$projectId/history.tsx
 msgid "History"
@@ -1812,6 +1865,7 @@ msgid "Language"
 msgstr "Language"
 
 #: src/renderer/components/forms/project-form.tsx
+#: src/renderer/components/history/project-change.tsx
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Languages"
 msgstr "Languages"
@@ -2012,6 +2066,8 @@ msgstr "Move up"
 #: src/renderer/components/forms/asset-form.tsx
 #: src/renderer/components/forms/project-form.tsx
 #: src/renderer/components/forms/user-form.tsx
+#: src/renderer/components/history/asset-change.tsx
+#: src/renderer/components/history/project-change.tsx
 #: src/renderer/components/report-dialog.tsx
 msgid "Name"
 msgstr "Name"
@@ -2065,9 +2121,9 @@ msgstr "No Assets yet"
 msgid "No Assets yet. Add one on the Assets screen first."
 msgstr "No Assets yet. Add one on the Assets screen first."
 
-#: src/renderer/components/history-sidebar.tsx
-msgid "No Changes found"
-msgstr "No Changes found"
+#: src/renderer/routes/projects/$projectId/history/index.tsx
+msgid "No change chosen"
+msgstr "No change chosen"
 
 #: src/renderer/routes/projects/$projectId/collections/index.tsx
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
@@ -2144,6 +2200,14 @@ msgstr "None"
 msgid "None yet"
 msgstr "None yet"
 
+#: src/renderer/components/history-sidebar.tsx
+msgid "Not synced"
+msgstr "Not synced"
+
+#: src/renderer/components/history/change-page.tsx
+msgid "not synced yet"
+msgstr "not synced yet"
+
 #: src/renderer/components/component-list.tsx
 msgid "Not used yet, {fields, plural, one {# field} other {# fields}}"
 msgstr "Not used yet, {fields, plural, one {# field} other {# fields}}"
@@ -2208,13 +2272,13 @@ msgstr "Number"
 msgid "Numbers"
 msgstr "Numbers"
 
-#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
-msgid "Object changes"
-msgstr "Object changes"
-
 #: src/renderer/components/entry-history.tsx
 msgid "of this Entry"
 msgstr "of this Entry"
+
+#: src/renderer/components/history-sidebar.tsx
+msgid "of this Project"
+msgstr "of this Project"
 
 #: src/renderer/components/fields/toggle/index.tsx
 msgid "Off"
@@ -2268,9 +2332,25 @@ msgstr "Open"
 msgid "Open an issue on GitHub"
 msgstr "Open an issue on GitHub"
 
+#: src/renderer/components/history/asset-change.tsx
+msgid "Open Asset"
+msgstr "Open Asset"
+
+#: src/renderer/components/history/entry-change.tsx
+msgid "Open Entry"
+msgstr "Open Entry"
+
 #: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
 msgid "Open in History"
 msgstr "Open in History"
+
+#: src/renderer/components/history/release-change.tsx
+msgid "Open Release"
+msgstr "Open Release"
+
+#: src/renderer/components/history/project-change.tsx
+msgid "Open settings"
+msgstr "Open settings"
 
 #: src/renderer/routes/projects/create.tsx
 msgid "Open the Project"
@@ -2380,7 +2460,7 @@ msgstr "Prefer to report this in the open?"
 msgid "Preview"
 msgstr "Preview"
 
-#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+#: src/renderer/components/history/release-change.tsx
 #: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
 msgid "Preview {version}"
 msgstr "Preview {version}"
@@ -2445,6 +2525,10 @@ msgstr "Quotes"
 msgid "Raw HTML"
 msgstr "Raw HTML"
 
+#: src/renderer/components/history-sidebar.tsx
+msgid "Reading the changes"
+msgstr "Reading the changes"
+
 #: src/renderer/routes/projects/$projectId/dashboard.tsx
 msgid "Reading the latest changes"
 msgstr "Reading the latest changes"
@@ -2452,6 +2536,13 @@ msgstr "Reading the latest changes"
 #: src/renderer/routes/projects/$projectId/settings.tsx
 msgid "Reading these Settings"
 msgstr "Reading these Settings"
+
+#: src/renderer/components/history/asset-change.tsx
+#: src/renderer/components/history/entry-change.tsx
+#: src/renderer/components/history/project-change.tsx
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "Reading this change"
+msgstr "Reading this change"
 
 #: src/renderer/components/sync-dialog.tsx
 msgid "Reading this Entry"
@@ -2475,8 +2566,8 @@ msgstr "Reference an Entry"
 msgid "Release"
 msgstr "Release"
 
+#: src/renderer/components/history/release-change.tsx
 #: src/renderer/components/project-state.tsx
-#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
 #: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
 msgid "Release {version}"
 msgstr "Release {version}"
@@ -2833,6 +2924,14 @@ msgstr "Sync"
 msgid "Sync failed"
 msgstr "Sync failed"
 
+#: src/renderer/components/history/change-page.tsx
+msgid "synced"
+msgstr "synced"
+
+#: src/renderer/components/history-sidebar.tsx
+msgid "Synced"
+msgstr "Synced"
+
 #: src/renderer/components/project-sidebar.tsx
 msgid "Syncing"
 msgstr "Syncing"
@@ -3139,6 +3238,11 @@ msgstr "The slug is written from these fields, in this order, while an Entry is 
 msgid "The two ends of the slider."
 msgstr "The two ends of the slider."
 
+#: src/renderer/components/history/project-change.tsx
+#: src/renderer/components/history/release-change.tsx
+msgid "The whole Project"
+msgstr "The whole Project"
+
 #: src/renderer/routes/projects/$projectId/releases/$tagId.tsx
 msgid "The whole Project. {author} released it on {when}"
 msgstr "The whole Project. {author} released it on {when}"
@@ -3176,13 +3280,22 @@ msgstr "This Asset is used by one or more Entries and can’t be deleted. Remove
 msgid "This Asset no longer exists"
 msgstr "This Asset no longer exists"
 
-#: src/renderer/routes/projects/$projectId/history.tsx
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+#: src/renderer/routes/projects/$projectId/history/index.tsx
 msgid "this change"
 msgstr "this change"
+
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "This change"
+msgstr "This change"
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "This change conflicts with the current state. Please review and try again."
 msgstr "This change conflicts with the current state. Please review and try again."
+
+#: src/renderer/routes/projects/$projectId/history/$commitHash.tsx
+msgid "This change isn't in the History of this Project"
+msgstr "This change isn't in the History of this Project"
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
 msgid "this Collection"
@@ -3630,6 +3743,10 @@ msgstr "Writes the slug in small letters."
 msgid "You added {thing}"
 msgstr "You added {thing}"
 
+#: src/renderer/lib/changeSentence.ts
+msgid "You added it on {when}"
+msgstr "You added it on {when}"
+
 #: src/renderer/routes/projects/create.tsx
 msgid "You can set the address again in the Project's Sync settings, and sync from the sidebar."
 msgstr "You can set the address again in the Project's Sync settings, and sync from the sidebar."
@@ -3639,12 +3756,24 @@ msgid "You changed {thing}"
 msgstr "You changed {thing}"
 
 #: src/renderer/lib/changeSentence.ts
+msgid "You changed it on {when}"
+msgstr "You changed it on {when}"
+
+#: src/renderer/lib/changeSentence.ts
+msgid "You created it on {when}"
+msgstr "You created it on {when}"
+
+#: src/renderer/lib/changeSentence.ts
 msgid "You created this Project"
 msgstr "You created this Project"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "You deleted {thing}"
 msgstr "You deleted {thing}"
+
+#: src/renderer/lib/changeSentence.ts
+msgid "You deleted it on {when}"
+msgstr "You deleted it on {when}"
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "You need to set up a user before doing this."
@@ -3655,8 +3784,16 @@ msgid "You released {version}"
 msgstr "You released {version}"
 
 #: src/renderer/lib/changeSentence.ts
+msgid "You released it on {when}"
+msgstr "You released it on {when}"
+
+#: src/renderer/lib/changeSentence.ts
 msgid "You released this Project"
 msgstr "You released this Project"
+
+#: src/renderer/lib/changeSentence.ts
+msgid "You upgraded it on {when}"
+msgstr "You upgraded it on {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "You upgraded this Project"

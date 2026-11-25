@@ -8,7 +8,6 @@ import { type ReactElement, type ReactNode } from 'react';
 import {
   ChangeList,
   ChangeListSkeleton,
-  type ChangeSyncState,
 } from '@renderer/components/change-list';
 import { Page } from '@renderer/components/page';
 import { Button } from '@renderer/components/ui/button';
@@ -18,6 +17,7 @@ import { useProject } from '@renderer/hooks/useProject';
 import { useProjectState } from '@renderer/hooks/useProjectState';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { changeSyncState } from '@renderer/lib/changeSyncState';
 import { languageName } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
@@ -267,16 +267,7 @@ function LatestChanges({ project }: { project: Project }): ReactElement {
     queryOptions.projects.history({ id: projectId })
   );
   const state = useProjectState(project);
-  const notSynced = new Set(
-    (state.check.data?.ahead ?? []).map((commit) => commit.hash)
-  );
-  const syncStateOf = (commitHash: string): ChangeSyncState => {
-    if (state.hasGitRepository === false || state.check.data === undefined) {
-      return 'unknown';
-    }
-
-    return notSynced.has(commitHash) ? 'not-synced' : 'synced';
-  };
+  const syncStateOf = changeSyncState({ state, whenUntold: 'unknown' });
 
   return (
     <section className="mt-8">
@@ -301,8 +292,11 @@ function LatestChanges({ project }: { project: Project }): ReactElement {
       ) : (
         <ChangeList
           projectId={projectId}
-          commits={history.fullHistory.slice(0, LATEST_CHANGES)}
-          syncStateOf={(commit) => syncStateOf(commit.hash)}
+          // One group with no heading: the Dashboard says what is not synced
+          // in the Project card beside it rather than grouping its rows, which
+          // the History does.
+          groups={[{ commits: history.fullHistory.slice(0, LATEST_CHANGES) }]}
+          syncStateOf={syncStateOf}
         />
       )}
     </section>
