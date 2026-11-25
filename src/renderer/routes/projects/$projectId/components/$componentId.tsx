@@ -102,7 +102,8 @@ const deleteErrorFallback = msg`This Component could not be deleted. Please revi
 // Copy for a blocked save, keyed by CoreError type. A slug another Component
 // holds is said below the Slug field, and a Field change that reaches Entries
 // that already exist is answered in the dialog of a refused change, so what is
-// left here is the circular reference BadRequest.
+// left here is `BadRequest`: the circular reference on a save of its own, and
+// the pair below on the save that answers the dialog.
 const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
   {
     BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
