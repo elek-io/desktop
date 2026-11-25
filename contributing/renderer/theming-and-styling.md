@@ -88,6 +88,8 @@ It sits in the base layer, so a utility can still move it:
 | A row or a cell that fills its pane, which would clip a ring drawn outside it          | `focus-visible:-outline-offset-2`, which draws the same ring 2 px inside its own edge                                               |
 | A control whose wrapper draws the ring for it, such as an input inside an `InputGroup` | `focus-visible:outline-hidden` on the control, and `has-[...:focus-visible]:outline-2 outline-ring outline-offset-2` on the wrapper |
 
+A scrolling area keeps room for that ring. The same base layer gives every `[data-slot="scroll-area-viewport"]` a `scroll-padding` of 6 px, which is the 4 px the ring reaches beyond a control plus a little, so tabbing to a row below the fold does not leave its ring cut off by the area's edge. It is the area's own rule rather than a `scroll-margin` per control, because what is scrolled into view is whatever holds the focus.
+
 shadcn's own focus affordance, a 50% opacity `ring` plus a `border-ring`, is not used anywhere, and `outline-none` is gone from the components, because under ci the outline _is_ the ring. `tests/specs/branding.spec.ts` reads the window's pixels around a focused control, so a ring that goes back to half opacity fails a test.
 
 ## UI components (shadcn/ui on Base UI)

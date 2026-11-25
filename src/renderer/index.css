@@ -46,6 +46,15 @@
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
   }
+
+  /*
+    The room a scrolling area keeps when the keyboard brings something into it,
+    which is the 4 px the ring above reaches beyond a control plus a little, so
+    the area's edge does not cut the ring of the row that was just tabbed to.
+  */
+  [data-slot='scroll-area-viewport'] {
+    scroll-padding: 6px;
+  }
 }
 
 /*
