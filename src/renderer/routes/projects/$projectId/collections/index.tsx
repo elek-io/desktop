@@ -1,8 +1,9 @@
 import { Trans } from '@lingui/react/macro';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Layers, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { type ReactElement } from 'react';
 
+import { CollectionIcon } from '@renderer/components/collection-icon';
 import { Button } from '@renderer/components/ui/button';
 import {
   Empty,
@@ -13,6 +14,7 @@ import {
 } from '@renderer/components/ui/empty';
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { DEFAULT_COLLECTION_ICON } from '@renderer/lib/collectionIcons';
 import { queryOptions } from '@renderer/queries';
 
 export const Route = createFileRoute('/projects/$projectId/collections/')({
@@ -44,7 +46,9 @@ function ProjectCollectionsIndexPage(): ReactElement {
     return (
       <Empty>
         <EmptyMedia>
-          <Layers />
+          {/* The mark a Collection is drawn by, which is the icon a new one
+          starts with, since there is no Collection here to take one from. */}
+          <CollectionIcon name={DEFAULT_COLLECTION_ICON} />
         </EmptyMedia>
         <EmptyTitle>
           <Trans>No Collections yet</Trans>

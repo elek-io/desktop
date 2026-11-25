@@ -745,6 +745,10 @@ test.describe('A form filled from its query', () => {
       mainWindow.getByLabel('Collection slug', { exact: true })
     ).toBeVisible();
     expect(await statedFieldsOf(mainWindow)).toEqual([
+      // A Collection always holds an icon, so Required would name a rule
+      // nobody can break and the field says nothing, while the combobox still
+      // carries the state.
+      { label: 'Icon', rules: null, ariaRequired: 'true' },
       {
         label: 'Collection name',
         rules: 'Required',

@@ -8,6 +8,7 @@ import {
   type UseFormReturn,
 } from 'react-hook-form';
 
+import { CollectionIconControl } from '@renderer/components/collection-icon';
 import {
   FieldDefinitionsList,
   FieldDefinitionsPane,
@@ -25,7 +26,7 @@ import {
 } from '@renderer/components/ui/field-controls';
 import { ScrollArea } from '@renderer/components/ui/scroll-area';
 import { type DefinitionsEditorState } from '@renderer/hooks/useDefinitionsEditor';
-import { uniqueNote } from '@renderer/lib/fieldRules';
+import { alwaysFilledFieldRules, uniqueNote } from '@renderer/lib/fieldRules';
 
 import { type Project, type SupportedLanguage } from '@elek-io/core';
 
@@ -170,6 +171,33 @@ export function CollectionForm<
               editor has rather than by the width of the window, which is the
               measure ci draws them against. */}
               <div className="@container grid grid-cols-12 gap-x-6 gap-y-4 px-(--pane-edge) pb-6">
+                {/* The icon leads the row the two names share, so what an
+                editor finds a Collection by stands with what it is called.
+                Each of the three takes four columns, which keeps them above
+                ci's floor of 160 px even with the pane of a chosen field
+                open. */}
+                <AppField
+                  form={collectionForm}
+                  name={path('icon')}
+                  label={<Trans>Icon</Trans>}
+                  // A Collection always holds an icon, so Required would name
+                  // a rule nobody can break, see `lib/fieldRules.ts`.
+                  rules={alwaysFilledFieldRules()}
+                  description={
+                    <Trans>Shown wherever this Collection appears.</Trans>
+                  }
+                  className="col-span-12 @min-[528px]:col-span-4"
+                >
+                  {({ field, controlProps, disabled, readOnly }) => (
+                    <CollectionIconControl
+                      field={field}
+                      label={t`Icon`}
+                      disabled={disabled || readOnly}
+                      {...controlProps}
+                    />
+                  )}
+                </AppField>
+
                 <AppField
                   form={collectionForm}
                   name={path(`name.plural.${language}`)}
@@ -177,7 +205,7 @@ export function CollectionForm<
                   description={
                     <Trans>In plural, such as &quot;Blog posts&quot;.</Trans>
                   }
-                  className="col-span-12 @min-[344px]:col-span-6"
+                  className="col-span-12 @min-[528px]:col-span-4"
                 >
                   {({ field, controlProps }) => (
                     <TextControl field={field} type="text" {...controlProps} />
@@ -193,7 +221,7 @@ export function CollectionForm<
                       In singular, for one Entry, such as &quot;Blog post&quot;.
                     </Trans>
                   }
-                  className="col-span-12 @min-[344px]:col-span-6"
+                  className="col-span-12 @min-[528px]:col-span-4"
                 >
                   {({ field, controlProps }) => (
                     <TextControl field={field} type="text" {...controlProps} />

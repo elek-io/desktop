@@ -1,6 +1,6 @@
 import { plural } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { Layers, ListIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { ListIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import * as React from 'react';
 import type {
   ControllerRenderProps,
@@ -8,6 +8,7 @@ import type {
   FieldValues,
 } from 'react-hook-form';
 
+import { CollectionIcon } from '@renderer/components/collection-icon';
 import { entryTitle } from '@renderer/components/fields/entry-title';
 import {
   EntryPickerDialog,
@@ -141,6 +142,10 @@ export function EntryControl<TFieldValues extends FieldValues>({
   const chosenEntries: PickableEntry[] = chosenRows
     .map((row) => row.pickable)
     .filter((pickable): pickable is PickableEntry => pickable !== undefined);
+  // The one Collection this field allows, where it allows exactly one, which
+  // is what the row that holds no Entry is drawn by.
+  const onlyCollection =
+    allowedCollections.length === 1 ? allowedCollections[0] : undefined;
   const maxReached =
     fieldDefinition.max !== null && chosenRefs.length >= fieldDefinition.max;
   const describedBy = controlProps['aria-describedby'];
@@ -215,7 +220,14 @@ export function EntryControl<TFieldValues extends FieldValues>({
       {chosenRows.length === 0 ? (
         <div className={rowClassName} data-slot="field-row">
           <span className="flex h-10 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
-            <ListIcon className="size-4" />
+            {/* The icon of the one Collection this field allows, which is what
+            ci draws in the row that holds no Entry yet. A field that allows
+            several has no one Collection to show, so it draws the list. */}
+            {onlyCollection === undefined ? (
+              <ListIcon className="size-4" />
+            ) : (
+              <CollectionIcon name={onlyCollection.icon} className="size-4" />
+            )}
           </span>
           <span className="flex-1 text-sm text-muted-foreground">
             <Trans>No Entry chosen</Trans>
@@ -264,12 +276,15 @@ export function EntryControl<TFieldValues extends FieldValues>({
               data-slot="field-row"
             >
               {/* The box ci draws in place of an Asset's preview, with the
-              icon a Collection is shown by. */}
+              icon the Entry's own Collection is shown by. */}
               <span
                 aria-hidden="true"
                 className="flex h-10 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground"
               >
-                <Layers className="size-4" />
+                <CollectionIcon
+                  name={pickable.collection.icon}
+                  className="size-4"
+                />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm">{title}</span>

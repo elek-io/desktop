@@ -598,6 +598,10 @@ msgstr "Assets of this Project"
 msgid "at least {min}"
 msgstr "at least {min}"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Audio"
+msgstr "Audio"
+
 #: src/renderer/components/fields/asset/kind.ts
 msgid "audio only"
 msgstr "audio only"
@@ -606,13 +610,25 @@ msgstr "audio only"
 msgid "Audio only."
 msgstr "Audio only."
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Award"
+msgstr "Award"
+
 #: src/renderer/routes/__root.tsx
 msgid "Back to Projects"
 msgstr "Back to Projects"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Bed"
+msgstr "Bed"
+
 #: src/renderer/components/diff-container.tsx
 msgid "Before"
 msgstr "Before"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Bicycle"
+msgstr "Bicycle"
 
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Blockquote"
@@ -627,17 +643,45 @@ msgstr "Blocks"
 msgid "Bold"
 msgstr "Bold"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Book"
+msgstr "Book"
+
 #: src/renderer/components/ui/breadcrumb.tsx
 msgid "breadcrumb"
 msgstr "breadcrumb"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Briefcase"
+msgstr "Briefcase"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Building"
+msgstr "Building"
 
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Bullet list"
 msgstr "Bullet list"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Bus"
+msgstr "Bus"
+
 #: src/renderer/lib/utils.ts
 msgid "Bytes"
 msgstr "Bytes"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Cake"
+msgstr "Cake"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Calendar"
+msgstr "Calendar"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Camera"
+msgstr "Camera"
 
 #: src/renderer/lib/sync.ts
 msgid "Can't reach elek.io Cloud. Check your internet connection and try again."
@@ -670,6 +714,10 @@ msgstr "Can't read the Releases"
 #: src/renderer/routes/projects/index.tsx
 msgid "Cancel"
 msgstr "Cancel"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Car"
+msgstr "Car"
 
 #: src/renderer/components/fields/asset/kind.ts
 msgid "certain file types only"
@@ -776,6 +824,10 @@ msgstr "Choose a time."
 msgid "Choose the Default Value from the options above."
 msgstr "Choose the Default Value from the options above."
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Clock"
+msgstr "Clock"
+
 #: src/renderer/components/asset-pane.tsx
 #: src/renderer/components/release-dialog.tsx
 #: src/renderer/components/sync-dialog.tsx
@@ -818,6 +870,10 @@ msgstr "Code block"
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Code blocks"
 msgstr "Code blocks"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Coffee"
+msgstr "Coffee"
 
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/update.tsx
 msgid "Collection"
@@ -1078,6 +1134,10 @@ msgstr "Created"
 msgid "Creating Release"
 msgstr "Creating Release"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Croissant"
+msgstr "Croissant"
+
 #: src/renderer/components/user-dropdown.tsx
 msgid "Dark"
 msgstr "Dark"
@@ -1232,6 +1292,7 @@ msgstr "Docs"
 msgid "Dot (.)"
 msgstr "Dot (.)"
 
+#: src/renderer/lib/collectionIcons.ts
 #: src/renderer/routes/projects/index.tsx
 msgid "Download"
 msgstr "Download"
@@ -1423,6 +1484,10 @@ msgstr "Entry saved"
 msgid "Entry slug"
 msgstr "Entry slug"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Euro"
+msgstr "Euro"
+
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Every block is allowed."
 msgstr "Every block is allowed."
@@ -1508,6 +1573,10 @@ msgstr "Filter Assets"
 msgid "Filter Entries"
 msgstr "Filter Entries"
 
+#: src/renderer/components/collection-icon.tsx
+msgid "Filter icons"
+msgstr "Filter icons"
+
 #: src/renderer/components/fields/select/control.tsx
 msgid "Filter options"
 msgstr "Filter options"
@@ -1516,6 +1585,22 @@ msgstr "Filter options"
 msgid "Filter Projects"
 msgstr "Filter Projects"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Flag"
+msgstr "Flag"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Folder"
+msgstr "Folder"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Food"
+msgstr "Food"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Food and nature"
+msgstr "Food and nature"
+
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Footnotes"
 msgstr "Footnotes"
@@ -1523,6 +1608,10 @@ msgstr "Footnotes"
 #: src/renderer/components/fields/entry/definition.tsx
 msgid "From Collections"
 msgstr "From Collections"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Fuel pump"
+msgstr "Fuel pump"
 
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "Full"
@@ -1541,6 +1630,10 @@ msgstr "General"
 msgid "Generate from the source Fields"
 msgstr "Generate from the source Fields"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Gift"
+msgstr "Gift"
+
 #: src/renderer/lib/sync.ts
 msgid "Git on this computer is missing a part it needs. Ask whoever set up this computer to install it."
 msgstr "Git on this computer is missing a part it needs. Ask whoever set up this computer to install it."
@@ -1556,6 +1649,10 @@ msgstr "Git repository saved"
 #: src/renderer/components/forms/project-form.tsx
 msgid "GitHub, GitLab or any other. Desktop syncs the Project with it."
 msgstr "GitHub, GitLab or any other. Desktop syncs the Project with it."
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Globe"
+msgstr "Globe"
 
 #: src/renderer/components/app-header.tsx
 msgid "Go back"
@@ -1573,6 +1670,22 @@ msgstr "Go to next page"
 msgid "Go to previous page"
 msgstr "Go to previous page"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Graduation cap"
+msgstr "Graduation cap"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Hammer"
+msgstr "Hammer"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Handshake"
+msgstr "Handshake"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Hard hat"
+msgstr "Hard hat"
+
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Heading"
 msgstr "Heading"
@@ -1581,6 +1694,10 @@ msgstr "Heading"
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Heading {depth}"
 msgstr "Heading {depth}"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Heart"
+msgstr "Heart"
 
 #: src/renderer/components/app-header.tsx
 msgid "Help"
@@ -1596,6 +1713,10 @@ msgstr "History"
 msgid "History of this Entry"
 msgstr "History of this Entry"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "House"
+msgstr "House"
+
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "How much of a row it takes, where the row has the room."
 msgstr "How much of a row it takes, where the row has the room."
@@ -1603,6 +1724,10 @@ msgstr "How much of a row it takes, where the row has the room."
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Hyphen (-)"
 msgstr "Hyphen (-)"
+
+#: src/renderer/components/forms/collection-form.tsx
+msgid "Icon"
+msgstr "Icon"
 
 #: src/main/index.ts
 msgid "If this keeps happening, please open an issue at {issuesUrl}"
@@ -1665,6 +1790,10 @@ msgstr "Its folder here is its only copy, since it has no Git repository."
 msgid "Keep editing"
 msgstr "Keep editing"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Key"
+msgstr "Key"
+
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "Label"
 msgstr "Label"
@@ -1687,9 +1816,21 @@ msgstr "Last Release"
 msgid "Latest changes"
 msgstr "Latest changes"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Layers"
+msgstr "Layers"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Leaf"
+msgstr "Leaf"
+
 #: src/renderer/components/user-dropdown.tsx
 msgid "Light"
 msgstr "Light"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Lightbulb"
+msgstr "Lightbulb"
 
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Line breaks"
@@ -1764,6 +1905,10 @@ msgstr "Local API started"
 msgid "Local API stopped"
 msgstr "Local API stopped"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Location"
+msgstr "Location"
+
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "Lost when you save"
 msgstr "Lost when you save"
@@ -1780,9 +1925,21 @@ msgstr "Made from"
 msgid "Major"
 msgstr "Major"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Marks and signs"
+msgstr "Marks and signs"
+
 #: src/renderer/components/forms/definition-controls.tsx
 msgid "Maximum"
 msgstr "Maximum"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Media and files"
+msgstr "Media and files"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Megaphone"
+msgstr "Megaphone"
 
 #: src/renderer/components/forms/definition-controls.tsx
 msgid "Minimum"
@@ -1871,6 +2028,10 @@ msgstr "Needs a Value"
 msgid "New file: {newFileName}"
 msgstr "New file: {newFileName}"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Newspaper"
+msgstr "Newspaper"
+
 #: src/renderer/components/ui/pagination.tsx
 msgid "Next"
 msgstr "Next"
@@ -1925,6 +2086,10 @@ msgstr "No Entry matches the filter."
 #: src/renderer/components/pickers/entry-picker-dialog.tsx
 msgid "No Entry yet in the Collections this field allows. Create one first."
 msgstr "No Entry yet in the Collections this field allows. Create one first."
+
+#: src/renderer/components/collection-icon.tsx
+msgid "No icon matches the filter."
+msgstr "No icon matches the filter."
 
 #: src/renderer/components/forms/project-form.tsx
 msgid "No languages found."
@@ -2127,9 +2292,33 @@ msgstr "Options"
 msgid "Ordered list"
 msgstr "Ordered list"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Package"
+msgstr "Package"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Page"
+msgstr "Page"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Pages and posts"
+msgstr "Pages and posts"
+
 #: src/renderer/components/ui/pagination.tsx
 msgid "pagination"
 msgstr "pagination"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Paint roller"
+msgstr "Paint roller"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Palette"
+msgstr "Palette"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Paper clip"
+msgstr "Paper clip"
 
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Paragraph"
@@ -2138,6 +2327,34 @@ msgstr "Paragraph"
 #: src/renderer/lib/release.ts
 msgid "Patch"
 msgstr "Patch"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Paw print"
+msgstr "Paw print"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "People"
+msgstr "People"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "People and organizations"
+msgstr "People and organizations"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Percent"
+msgstr "Percent"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Person"
+msgstr "Person"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Places and dates"
+msgstr "Places and dates"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Plane"
+msgstr "Plane"
 
 #: src/renderer/routes/user/profile.tsx
 msgid "Port"
@@ -2163,6 +2380,10 @@ msgstr "Preview {version}"
 #: src/renderer/components/ui/pagination.tsx
 msgid "Previous"
 msgstr "Previous"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Products and prices"
+msgstr "Products and prices"
 
 #: src/renderer/components/user-dropdown.tsx
 #: src/renderer/routes/user/profile.tsx
@@ -2200,6 +2421,14 @@ msgstr "Project deleted"
 msgid "Projects"
 msgstr "Projects"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Question mark"
+msgstr "Question mark"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Quote"
+msgstr "Quote"
+
 #: src/renderer/components/fields/markdown/definition.tsx
 msgid "Quotes"
 msgstr "Quotes"
@@ -2219,6 +2448,10 @@ msgstr "Reading these Settings"
 #: src/renderer/components/sync-dialog.tsx
 msgid "Reading this Entry"
 msgstr "Reading this Entry"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Receipt"
+msgstr "Receipt"
 
 #: src/renderer/components/markdown/asset-reference-picker.tsx
 #: src/renderer/components/markdown/markdown-toolbar.tsx
@@ -2407,6 +2640,14 @@ msgstr "Save the changes to the {name} Component?"
 msgid "Saving deletes {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}."
 msgstr "Saving deletes {0, plural, one {# Value} other {# Values}} from {1, plural, one {# Entry} other {# Entries}}."
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Scales"
+msgstr "Scales"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Scissors"
+msgstr "Scissors"
+
 #: src/renderer/components/project-sidebar.tsx
 msgid "Search comes later"
 msgstr "Search comes later"
@@ -2479,6 +2720,18 @@ msgstr "Share changes with everyone on the Project."
 msgid "Share feedback"
 msgstr "Share feedback"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Shield"
+msgstr "Shield"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Shirt"
+msgstr "Shirt"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Shopping bag"
+msgstr "Shopping bag"
+
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/$entryId/update.tsx
 msgid "Show the History of this Entry"
 msgstr "Show the History of this Entry"
@@ -2498,6 +2751,10 @@ msgstr "Shown below the input to guide editors."
 #: src/renderer/components/forms/project-form.tsx
 msgid "Shown below the name on the Projects page."
 msgstr "Shown below the name on the Projects page."
+
+#: src/renderer/components/forms/collection-form.tsx
+msgid "Shown wherever this Collection appears."
+msgstr "Shown wherever this Collection appears."
 
 #: src/renderer/components/forms/field-definition-editor.tsx
 msgid "Slug"
@@ -2527,9 +2784,21 @@ msgstr "Something went wrong. Please try again."
 msgid "Splits camelCase words, so \"myWord\" becomes \"my-word\"."
 msgstr "Splits camelCase words, so \"myWord\" becomes \"my-word\"."
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Star"
+msgstr "Star"
+
 #: src/renderer/routes/welcome.tsx
 msgid "Start with your name and email address."
 msgstr "Start with your name and email address."
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Stethoscope"
+msgstr "Stethoscope"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Store"
+msgstr "Store"
 
 #: src/renderer/components/markdown/markdown-toolbar.tsx
 msgid "Strikethrough"
@@ -3096,6 +3365,10 @@ msgstr "This was written by a newer version of elek.io. Update to open it."
 msgid "This word is kept for elek.io. Choose another slug."
 msgstr "This word is kept for elek.io. Choose another slug."
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Ticket"
+msgstr "Ticket"
+
 #: src/renderer/components/fields/slug/definition.tsx
 msgid "Tilde (~)"
 msgstr "Tilde (~)"
@@ -3111,6 +3384,14 @@ msgstr "Too many reports were sent from here recently. Your text is still here, 
 #: src/renderer/lib/coreErrorText.ts
 msgid "Too much was sent from here recently. Please try again shortly."
 msgstr "Too much was sent from here recently. Please try again shortly."
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Train"
+msgstr "Train"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Truck"
+msgstr "Truck"
 
 #: src/renderer/components/pane.tsx
 #: src/renderer/components/release-dialog.tsx
@@ -3187,6 +3468,10 @@ msgstr "Use letters or numbers, so this can be part of a web address."
 msgid "Use more than {smallest}."
 msgstr "Use more than {smallest}."
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Vehicles and travel"
+msgstr "Vehicles and travel"
+
 #: src/renderer/components/release-summary.tsx
 msgid "Version"
 msgstr "Version"
@@ -3194,6 +3479,10 @@ msgstr "Version"
 #: src/renderer/routes/projects/index.tsx
 msgid "Version the whole Project for your site."
 msgstr "Version the whole Project for your site."
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Video"
+msgstr "Video"
 
 #: src/renderer/components/fields/asset/kind.ts
 msgid "videos only"
@@ -3306,9 +3595,21 @@ msgstr "Whoever set the Project up sends you this address."
 msgid "Width"
 msgstr "Width"
 
+#: src/renderer/lib/collectionIcons.ts
+msgid "Wine"
+msgstr "Wine"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Work and tools"
+msgstr "Work and tools"
+
 #: src/renderer/components/refused-change-dialog.tsx
 msgid "Would be lost:"
 msgstr "Would be lost:"
+
+#: src/renderer/lib/collectionIcons.ts
+msgid "Wrench"
+msgstr "Wrench"
 
 #: src/renderer/components/fields/markdown/index.tsx
 msgid "Write something here, or clear the field completely."

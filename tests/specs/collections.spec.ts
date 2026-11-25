@@ -14,6 +14,8 @@ import {
   addFieldDefinition,
   assetFieldDefinition,
   chooseFieldDefinition,
+  collectionIconPicker,
+  collectionIconPopup,
   dynamicFieldDefinition,
   createCollection,
   createCollectionViaIpc,
@@ -34,6 +36,7 @@ import {
   chooseLanguage,
   componentValue,
   createEntryViaIpc,
+  entryReferencesValue,
   navigateToEntryUpdate,
   readEntryViaIpc,
   stringValue,
@@ -103,6 +106,435 @@ test.describe('Collections', () => {
         .getByRole('complementary')
         .getByRole('link', { name: /^Articles/ })
     ).toBeVisible();
+  });
+
+  test('offers the icons in groups, finds one by its word or its group, and saves it', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    await navigateToCollectionCreate(mainWindow, project.id);
+    // A new Collection starts with the mark every Collection was drawn by,
+    // named in words on the trigger and drawn beside them. The trigger is
+    // named by the field's label alone, since a combobox takes no name from
+    // its own text.
+    const icon = collectionIconPicker(mainWindow);
+    await expect(icon).toHaveText('Layers');
+    await expect(icon.locator('svg.lucide-layers')).toBeVisible();
+    // A Collection always holds an icon, so its field names no rule at all,
+    // while the control still says it is required where its role takes that.
+    await expect(icon).toHaveAttribute('aria-required', 'true');
+    await expect(
+      mainWindow
+        .locator('[data-slot="field"]', { has: icon })
+        .locator('[data-slot="field-rules"]')
+    ).toHaveCount(0);
+
+    // Opened from the keyboard, with the filter inside the popup.
+    await icon.focus();
+    await mainWindow.keyboard.press('Enter');
+    const popup = collectionIconPopup(mainWindow);
+    const filter = mainWindow.getByRole('combobox', { name: 'Filter icons' });
+    await expect(filter).toBeVisible();
+
+    // Every icon of the set, under its group's name, each in the app's own
+    // language rather than in Lucide's spelling.
+    await expect(popup.getByRole('option')).toHaveCount(63);
+    // Counted by the groups of the list, since the filter's own field is a
+    // group of inputs as well.
+    await expect(popup.locator('[data-slot="combobox-group"]')).toHaveCount(9);
+    await expect(
+      popup.getByRole('group', { name: 'Pages and posts' })
+    ).toBeVisible();
+    await expect(
+      popup.getByRole('group', { name: 'Vehicles and travel' })
+    ).toBeVisible();
+    // An option is read out as the icon's word alone, since the drawing beside
+    // it is hidden from screen readers.
+    await expect(
+      popup.getByRole('option', { name: 'Graduation cap', exact: true })
+    ).toHaveCount(1);
+    expect(
+      await popup
+        .locator('[data-slot="combobox-item"] svg')
+        .evaluateAll((icons) =>
+          icons.map((drawing) => drawing.getAttribute('aria-hidden'))
+        )
+    ).not.toContain(null);
+
+    // The filter matches a group's name too, so "vehicle" reaches the Car
+    // without anybody knowing Lucide's own word for it. A group whose icons
+    // all filter out drops its label with them.
+    await filter.fill('vehicle');
+    await expect(popup.getByRole('option')).toHaveCount(7);
+    await expect(popup.locator('[data-slot="combobox-group"]')).toHaveCount(1);
+    await expect(
+      popup.getByRole('group', { name: 'Pages and posts' })
+    ).toHaveCount(0);
+
+    // And an icon's own word, which is the everyday one for what it shows.
+    await filter.fill('graduation');
+    await expect(popup.getByRole('option')).toHaveCount(1);
+    await filter.fill('sprocket');
+    await expect(popup.getByRole('option')).toHaveCount(0);
+    await expect(popup.getByText('No icon matches the filter.')).toBeVisible();
+
+    // Arrow and Enter choose the highlighted one, and the focus comes back to
+    // the trigger with what was chosen on it.
+    await filter.fill('car');
+    await expect(popup.getByRole('option')).toHaveCount(1);
+    await mainWindow.keyboard.press('ArrowDown');
+    await mainWindow.keyboard.press('Enter');
+    await expect(popup).toBeHidden();
+    await expect(icon).toBeFocused();
+    await expect(icon).toHaveText('Car');
+    await expect(icon.locator('svg.lucide-car')).toBeVisible();
+
+    // Opened again, the chosen one says so rather than only being highlighted,
+    // and Escape leaves it as it was.
+    await mainWindow.keyboard.press('Enter');
+    const chosen = popup.getByRole('option', { name: 'Car', exact: true });
+    await expect(chosen).toHaveAttribute('aria-selected', 'true');
+    await expect(chosen.locator('svg.lucide-check')).toBeVisible();
+    await mainWindow.keyboard.press('Escape');
+    await expect(popup).toBeHidden();
+    await expect(icon).toBeFocused();
+    await expect(icon).toHaveText('Car');
+
+    const collectionId = await createCollection(mainWindow, {
+      ...settingsOf,
+      field: { label: 'Title', description: 'The title of the article' },
+    });
+
+    // Read back from Core, so this is the name that was written rather than
+    // what the form held.
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collectionId,
+    });
+    expect(saved.icon).toBe('car');
+  });
+
+  test('keeps a stored icon name it does not offer, and draws what it knows of it', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // `home` is one of the two names Core used to allow, so every Collection
+    // written before the set carries one of them. The other name is one
+    // nothing here can draw, as a developer writing through Core can set.
+    const stored = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'home',
+    });
+    const unknown = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'constructor',
+      name: { singular: { en: 'Guide' }, plural: { en: 'Guides' } },
+      slug: { singular: 'guide', plural: 'guides' },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: stored.id,
+    });
+    // The stored name is what the trigger says, since the set holds no word
+    // for it, and its own drawing is what stands beside it.
+    const icon = collectionIconPicker(mainWindow);
+    await expect(icon).toHaveText('home');
+    await expect(icon.locator('svg.lucide-home')).toBeVisible();
+
+    // The settings save without the icon being touched, and the stored name
+    // survives it rather than being swapped for the default.
+    await mainWindow
+      .getByRole('main')
+      .getByLabel('Description', { exact: true })
+      .fill('What the agency set up');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${stored.id}$`)
+    );
+    expect(
+      (
+        await readCollectionViaIpc(mainWindow, {
+          projectId: project.id,
+          id: stored.id,
+        })
+      ).icon
+    ).toBe('home');
+
+    // A name nothing here can draw falls back to the mark a Collection is
+    // drawn by, and is still the name the trigger says and the name that is
+    // saved again.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: unknown.id,
+    });
+    await expect(icon).toHaveText('constructor');
+    await expect(icon.locator('svg.lucide-layers')).toBeVisible();
+    await mainWindow
+      .getByRole('main')
+      .getByLabel('Description', { exact: true })
+      .fill('What a developer set up');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${unknown.id}$`)
+    );
+    expect(
+      (
+        await readCollectionViaIpc(mainWindow, {
+          projectId: project.id,
+          id: unknown.id,
+        })
+      ).icon
+    ).toBe('constructor');
+  });
+
+  test('draws a saved icon in the sidebar at once', async ({ mainWindow }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'home',
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const row = projectSidebar(mainWindow).getByRole('link', {
+      name: /^Articles/,
+    });
+    await expect(row.locator('svg.lucide-home')).toBeVisible();
+
+    const icon = collectionIconPicker(mainWindow);
+    await icon.click();
+    await mainWindow
+      .getByRole('combobox', { name: 'Filter icons' })
+      .fill('newspaper');
+    await collectionIconPopup(mainWindow)
+      .getByRole('option', { name: 'Newspaper', exact: true })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+
+    // The row the Collection is reached by draws the icon it was just given,
+    // with nothing reloaded, and reads as its name and its count alone.
+    await expect(row.locator('svg.lucide-newspaper')).toBeVisible();
+    await expect(row.locator('svg.lucide-home')).toHaveCount(0);
+    expect(
+      await row
+        .locator('svg')
+        .evaluateAll((icons) =>
+          icons.map((drawing) => drawing.getAttribute('aria-hidden'))
+        )
+    ).toEqual(['true']);
+  });
+
+  test("draws a referenced Entry's Collection by its icon, in its field and in the dialog that asks for a Value", async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const team = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'users',
+      name: { singular: { en: 'Member' }, plural: { en: 'Team' } },
+      slug: { singular: 'member', plural: 'team' },
+    });
+    const mara = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: team.id,
+      values: { title: stringValue({ en: 'Mara Klein' }) },
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        referenceFieldDefinition({
+          slug: 'authors',
+          label: { en: 'Authors' },
+          ofCollections: [team.id],
+          max: 2,
+        }),
+      ],
+    });
+    const written = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        authors: entryReferencesValue(team.id, [mara.id]),
+      },
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Charging at the dealership' }),
+        // Core wants a Value for every field the Collection declares, so the
+        // Entry that holds no author holds the empty list.
+        authors: entryReferencesValue(team.id, []),
+      },
+    });
+
+    // The row of a chosen Entry carries the icon of the Collection that Entry
+    // is in, which is what the line below its title names.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: written.id,
+    });
+    const chosenRow = mainWindow
+      .locator('[data-slot="field-row"]')
+      .filter({ hasText: 'Mara Klein' });
+    await expect(chosenRow.locator('svg.lucide-users')).toBeVisible();
+
+    // The icon follows the Collection: given another one, every row that
+    // names it draws it.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: team.id,
+    });
+    await collectionIconPicker(mainWindow).click();
+    await mainWindow
+      .getByRole('combobox', { name: 'Filter icons' })
+      .fill('briefcase');
+    await collectionIconPopup(mainWindow)
+      .getByRole('option', { name: 'Briefcase', exact: true })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: written.id,
+    });
+    await expect(chosenRow.locator('svg.lucide-briefcase')).toBeVisible();
+
+    // Making the field required leaves the other Entry without a Value, which
+    // Core refuses, so the dialog asks for one. Its row is the same field, so
+    // it carries the Collection's icon too.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Authors');
+    await pane.getByRole('checkbox', { name: 'Required' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(
+      dialog.getByText("Missing, so the changes can't be saved yet")
+    ).toBeVisible();
+    const askedFor = dialog
+      .locator('[data-slot="field-row"]')
+      .filter({ hasText: 'No Entry chosen' });
+    await expect(askedFor.locator('svg.lucide-briefcase')).toBeVisible();
+  });
+
+  test('keeps the icon beside the two names at the smallest window, in both themes', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'graduation-cap',
+    });
+
+    for (const theme of ['light', 'dark'] as const) {
+      // The theme reloads the renderer through the app's own provider, so it
+      // goes on before the page is opened.
+      await setTheme(mainWindow, theme);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await navigateToCollectionSettings(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+      });
+      // The pane of a chosen field open, which is the narrowest the three
+      // fields ever get.
+      await chooseFieldDefinition(mainWindow, 'Title');
+      await waitForLayout(mainWindow);
+
+      const row = await mainWindow.evaluate(() => {
+        const fields = Array.from(
+          document
+            .querySelector('main')
+            ?.querySelectorAll('[data-slot="field"]') ?? []
+        ).slice(0, 3);
+
+        return fields.map((field) => {
+          const box = field.getBoundingClientRect();
+          const label = field.querySelector(
+            '[data-slot="field-label"]'
+          )?.textContent;
+
+          return {
+            label: label?.trim() ?? '',
+            top: Math.round(box.top),
+            width: Math.round(box.width),
+          };
+        });
+      });
+
+      // The icon leads the row, and all three stand side by side rather than
+      // stacking, each above ci's floor of 160 px.
+      expect(
+        row.map((field) => field.label),
+        theme
+      ).toEqual(['Icon', 'Collection name', 'Entry name']);
+      expect(new Set(row.map((field) => field.top)).size, theme).toBe(1);
+      for (const field of row) {
+        expect(
+          field.width,
+          `${field.label} in ${theme}`
+        ).toBeGreaterThanOrEqual(160);
+      }
+
+      // The longest word of the set fits the trigger without being cut.
+      const icon = collectionIconPicker(mainWindow);
+      await expect(icon).toHaveText('Graduation cap');
+      expect(
+        await icon
+          .locator('span.truncate')
+          .evaluate((word) => word.scrollWidth <= word.clientWidth),
+        theme
+      ).toBe(true);
+
+      // The popup opens below the trigger without covering it, and shrinks
+      // into the window rather than being cut off by its edge.
+      await icon.click();
+      const popup = collectionIconPopup(mainWindow);
+      await expect(popup).toBeVisible();
+      await waitForLayout(mainWindow);
+      const measured = await mainWindow.evaluate(() => {
+        const trigger = document.querySelector(
+          '[data-slot="combobox-trigger"]'
+        );
+        const content = document.querySelector(
+          '[data-slot="combobox-content"]'
+        );
+        if (trigger === null || content === null) {
+          throw new Error('The icon picker did not draw its popup');
+        }
+
+        return {
+          window: window.innerHeight,
+          triggerBottom: trigger.getBoundingClientRect().bottom,
+          popupTop: content.getBoundingClientRect().top,
+          popupBottom: content.getBoundingClientRect().bottom,
+        };
+      });
+      expect(measured.popupTop, theme).toBeGreaterThanOrEqual(
+        measured.triggerBottom
+      );
+      expect(measured.popupBottom, theme).toBeLessThanOrEqual(measured.window);
+      await mainWindow.keyboard.press('Escape');
+    }
   });
 
   test('opens the settings from the head of the list of Entries', async ({

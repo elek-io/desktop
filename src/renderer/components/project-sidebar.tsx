@@ -3,7 +3,6 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
 import {
   Blocks,
-  Layers,
   LayoutDashboard,
   Settings,
   Images,
@@ -53,6 +52,7 @@ import { useProject } from '@renderer/hooks/useProject';
 import { useProjectState } from '@renderer/hooks/useProjectState';
 import { useQueriesNoError } from '@renderer/hooks/useQueriesNoError';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
+import { collectionIcon } from '@renderer/lib/collectionIcons';
 import { syncRefusalHandlers } from '@renderer/lib/sync';
 import { cn } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
@@ -301,7 +301,9 @@ function ProjectNavigation(): React.JSX.Element {
                           activeProps={{ 'data-active': true }}
                         />
                       }
-                      icon={Layers}
+                      // The Collection's own icon, which is what an editor
+                      // finds it by, see `lib/collectionIcons.ts`.
+                      icon={collectionIcon(collection.icon)}
                       label={translateContent({
                         key: 'collection.name.plural',
                         record: collection.name.plural,

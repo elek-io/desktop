@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import { colors } from '@elek-io/branding';
 
@@ -11,8 +11,10 @@ import {
   pngBytes,
 } from '../helpers/asset.js';
 import {
+  collectionIconPicker,
   createCollectionViaIpc,
   navigateToCollection,
+  navigateToCollectionCreate,
 } from '../helpers/collection.js';
 import { parseColor, toBytes } from '../helpers/color.js';
 import {
@@ -385,6 +387,83 @@ test.describe("A Project's sidebar", () => {
       mainWindow,
       `#/projects/${project.id}/collections/${articles.id}`
     );
+  });
+
+  test('draws every Collection by the icon it carries, and the mark where there is none', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // Nothing to take an icon from yet, so Collections draws the mark every
+    // Collection is drawn by.
+    await navigate(mainWindow, `#/projects/${project.id}/collections`);
+    await expect(mainWindow.getByText('No Collections yet')).toBeVisible();
+    await expect(
+      mainWindow.locator('[data-slot="empty-media"] svg.lucide-layers')
+    ).toBeVisible();
+    // Decoration above the words that say what is missing, so nothing reads
+    // it out.
+    await expect(
+      mainWindow.locator('[data-slot="empty-media"] svg')
+    ).toHaveAttribute('aria-hidden', 'true');
+    // It is the very icon a new Collection starts with, so the mark where
+    // there is no Collection and the first one somebody creates agree.
+    const mark = await mainWindow
+      .locator('[data-slot="empty-media"] svg')
+      .getAttribute('class');
+    await navigateToCollectionCreate(mainWindow, project.id);
+    expect(
+      // The icon the trigger shows, which stands before the chevron that
+      // says it opens.
+      await collectionIconPicker(mainWindow)
+        .locator('svg')
+        .first()
+        .getAttribute('class')
+    ).toBe(mark);
+
+    // One Collection per case: an icon of the set, one of the two names Core
+    // used to allow, and a name nothing here can draw.
+    await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'car',
+      name: { singular: { en: 'Vehicle' }, plural: { en: 'Vehicles' } },
+      slug: { singular: 'vehicle', plural: 'vehicles' },
+    });
+    await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'plus',
+      name: { singular: { en: 'Member' }, plural: { en: 'Team' } },
+      slug: { singular: 'member', plural: 'team' },
+    });
+    await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'constructor',
+      name: { singular: { en: 'Guide' }, plural: { en: 'Guides' } },
+      slug: { singular: 'guide', plural: 'guides' },
+    });
+
+    await navigateToProjectDashboard(mainWindow, project.id);
+    await waitForProjectCard(mainWindow, project.name);
+    const sidebar = projectSidebar(mainWindow);
+    const rowIcon = (name: RegExp): Locator =>
+      sidebar.getByRole('link', { name }).locator('svg');
+
+    await expect(rowIcon(/^Vehicles/)).toHaveClass(/lucide-car/);
+    await expect(rowIcon(/^Team/)).toHaveClass(/lucide-plus/);
+    // The fallback, so a name a developer wrote through Core still reads as a
+    // Collection rather than as nothing at all.
+    await expect(rowIcon(/^Guides/)).toHaveClass(/lucide-layers/);
+
+    // Every one of them is decoration beside the Collection's name, so the row
+    // reads as that name and its count alone.
+    expect(
+      await sidebar
+        .locator('[data-slot="sidebar-menu-button"] svg')
+        .evaluateAll((icons) =>
+          icons.map((drawing) => drawing.getAttribute('aria-hidden'))
+        )
+    ).not.toContain(null);
   });
 
   test('counts what each page holds, and follows a create and a delete', async ({

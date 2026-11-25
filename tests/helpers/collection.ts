@@ -603,6 +603,22 @@ export async function deleteCollectionViaIpc(
   );
 }
 
+/**
+ * The icon picker of a Collection's settings, which is the first field of the
+ * page and of Create Collection alike.
+ */
+export function collectionIconPicker(page: Page): Locator {
+  return page.getByRole('combobox', { name: 'Icon', exact: true });
+}
+
+/**
+ * The popup that picker opens, so a caller can scope its groups and its
+ * options to it rather than to the whole window.
+ */
+export function collectionIconPopup(page: Page): Locator {
+  return page.locator('[data-slot="combobox-content"]');
+}
+
 /** Read a Collection directly over IPC, to assert what was written. */
 export async function readCollectionViaIpc(
   page: Page,
