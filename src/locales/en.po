@@ -497,6 +497,10 @@ msgstr "An empty repository that supports Git LFS. Once it is saved, Sync upload
 msgid "an Entry"
 msgstr "an Entry"
 
+#: src/renderer/routes/projects/$projectId/components/$componentId.tsx
+msgid "An Entry this change needs a Value for has changed in the meantime, so nothing was saved. Save again to see what the change needs now."
+msgstr "An Entry this change needs a Value for has changed in the meantime, so nothing was saved. Save again to see what the change needs now."
+
 #: src/renderer/hooks/useEntryRefusals.ts
 msgid "An Entry this field points at no longer exists. Choose another one."
 msgstr "An Entry this field points at no longer exists. Choose another one."
@@ -2665,7 +2669,6 @@ msgid "Section"
 msgstr "Section"
 
 #: src/renderer/components/fields/dynamic/control.tsx
-#: src/renderer/components/refused-change-dialog.tsx
 msgid "Section {position} of {total}"
 msgstr "Section {position} of {total}"
 

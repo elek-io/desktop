@@ -108,6 +108,16 @@ const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
     BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
   };
 
+// Copy for the same type on the save that carries the Values the dialog of a
+// refused change wrote. Core checks each of them against the item of the Entry
+// it names before it writes anything, so what an editor meets here is an Entry
+// that changed while the dialog stood open.
+const appliedSaveErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  BadRequest: msg`An Entry this change needs a Value for has changed in the meantime, so nothing was saved. Save again to see what the change needs now.`,
+};
+
 const saveErrorFallback = msg`This Component could not be saved. Please review your changes and try again.`;
 
 function ProjectComponentUpdate(): ReactElement {
@@ -117,6 +127,12 @@ function ProjectComponentUpdate(): ReactElement {
   const { projectId, componentId } = Route.useParams();
   // Save, which the dialog of a refused change hands the focus back to.
   const saveRef = useRef<HTMLButtonElement>(null);
+  // Whether the save that is running carries Values the dialog wrote, read
+  // when it fails. Core words a circular reference and a resolution it could
+  // not place as the same `BadRequest`, with its ids in the message alone,
+  // which nothing branches on, so what went with the save is what tells them
+  // apart.
+  const sentResolutions = useRef(false);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     translateContent,
@@ -131,7 +147,13 @@ function ProjectComponentUpdate(): ReactElement {
       : translateContent({ key: 'component.name', record: component.name })
   );
   const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
-  const [saveError, setSaveError] = useState<unknown>(null);
+  // The failure the dialog above these settings says, with whether the save it
+  // came from carried the Values the dialog of a refused change wrote, which
+  // is what tells Core's two reasons for a `BadRequest` apart.
+  const [saveError, setSaveError] = useState<{
+    error: unknown;
+    withResolutions: boolean;
+  } | null>(null);
   // The change Core refused and everything it refused it for, which is what
   // the dialog over this page draws and applies.
   const [refused, setRefused] = useState<{
@@ -225,7 +247,7 @@ function ProjectComponentUpdate(): ReactElement {
         }
       },
       BadRequest: (error) => {
-        setSaveError(error);
+        setSaveError({ error, withResolutions: sentResolutions.current });
         setIsSaveErrorDialogOpen(true);
       },
     },
@@ -299,6 +321,7 @@ function ProjectComponentUpdate(): ReactElement {
    * Core's acceptance is written for.
    */
   const save = async (props: UpdateComponentProps): Promise<void> => {
+    sentResolutions.current = Object.keys(props.resolutions ?? {}).length > 0;
     try {
       await updateComponent(props);
     } catch (error) {
@@ -360,7 +383,7 @@ function ProjectComponentUpdate(): ReactElement {
     }
   };
 
-  const { type: saveErrorType } = parseIpcError(saveError);
+  const { type: saveErrorType } = parseIpcError(saveError?.error);
   const { type: deleteErrorType } = parseIpcError(deleteError);
 
   if (isReadingProject) {
@@ -478,7 +501,15 @@ function ProjectComponentUpdate(): ReactElement {
 
       <Dialog
         open={isSaveErrorDialogOpen}
-        onOpenChange={setIsSaveErrorDialogOpen}
+        onOpenChange={(next) => {
+          // The rows behind this dialog ask for the Values of an Entry that
+          // has changed, so they go with it and the next Save starts from what
+          // Core refuses now. Closing them hands the focus back to Save.
+          if (next === false && saveError?.withResolutions === true) {
+            setRefused(null);
+          }
+          setIsSaveErrorDialogOpen(next);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -488,7 +519,9 @@ function ProjectComponentUpdate(): ReactElement {
             <DialogDescription>
               {describeCoreError(
                 saveErrorType,
-                saveErrorDescriptions,
+                saveError?.withResolutions === true
+                  ? appliedSaveErrorDescriptions
+                  : saveErrorDescriptions,
                 saveErrorFallback
               )}
             </DialogDescription>

@@ -48,6 +48,7 @@ import {
   navigateToEntryUpdate,
   readEntryViaIpc,
   stringValue,
+  updateEntryViaIpc,
 } from '../helpers/entry.js';
 import { errorScreenTitle } from '../helpers/error.js';
 import {
@@ -2071,6 +2072,104 @@ test.describe('Components', () => {
     expect(sectionValues(stored, 'subline')).toEqual([
       { en: 'Written anyway' },
     ]);
+  });
+
+  test('says that an Entry changed when the section a Value was written for is gone, and saves on the next try', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: { headline: stringValue({ en: 'Welcome' }) },
+          },
+        ]),
+      },
+    });
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Headline');
+    await pane.getByLabel('Minimum', { exact: true }).fill('10');
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    const field = dialog.getByLabel(
+      'Headline in Home, Teaser, section 1 of 1 in Sections of Articles',
+      { exact: true }
+    );
+    await field.fill('A long enough headline');
+
+    // The section the Value was written for is taken out while the dialog
+    // stands open, which is another window, another computer or the Entry the
+    // dialog itself links to. Core then has no item to write it into and
+    // refuses the whole save.
+    await updateEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([]),
+      },
+    });
+    await dialog.getByRole('button', { name: 'Save' }).click();
+
+    // What the person reads is what happened, rather than the circular
+    // reference the other `BadRequest` of this call is about.
+    await expect(
+      mainWindow.getByText('Could not save this Component')
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText(
+        'An Entry this change needs a Value for has changed in the meantime, so nothing was saved. Save again to see what the change needs now.'
+      )
+    ).toBeVisible();
+    await expect(mainWindow.getByText('cannot use itself')).toBeHidden();
+
+    // Nothing was written, and closing it takes the rows of the Entry that
+    // changed with it, so the settings can be saved again. The Entry holds no
+    // section any more, so Core carries the same change out on its own.
+    const storedMinimum = async (): Promise<unknown> => {
+      const stored = await readComponentViaIpc(mainWindow, {
+        projectId: project.id,
+        id: component.id,
+      });
+      const [definition] = flattenFieldDefinitions(stored.fieldDefinitions);
+
+      return definition !== undefined && 'min' in definition
+        ? definition.min
+        : undefined;
+    };
+    expect(await storedMinimum()).toBeNull();
+    await mainWindow
+      .getByRole('button', { name: 'Close', exact: true })
+      .click();
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    expect(await storedMinimum()).toBe(10);
   });
 
   test("changes nothing when a Component's refused change is cancelled", async ({
