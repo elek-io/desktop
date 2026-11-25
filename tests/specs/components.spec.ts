@@ -144,21 +144,30 @@ async function tightenTheTeaserHeadlineOf(
   });
   const grid = await createComponentViaIpc(mainWindow, {
     projectId: project.id,
-    name: { en: 'Grid' },
+    name: { en: 'Grid of cards' },
     slug: 'grid',
     fieldDefinitions: [
       dynamicFieldDefinition({
         slug: 'cards',
-        label: { en: 'Cards' },
+        label: { en: 'Cards of the page' },
         ofComponents: [teaser.id],
       }),
     ],
   });
+  // Named at the length a Project really carries them, so the way to the
+  // nested section is longer than one line of the dialog.
   const collection = await createCollectionViaIpc(mainWindow, {
     projectId: project.id,
+    name: {
+      singular: { en: 'Newsletter article' },
+      plural: { en: 'Newsletter articles' },
+    },
     fieldDefinitions: [
       textFieldDefinition(),
-      dynamicFieldDefinition({ ofComponents: [teaser.id, grid.id] }),
+      dynamicFieldDefinition({
+        label: { en: 'Page sections' },
+        ofComponents: [teaser.id, grid.id],
+      }),
     ],
   });
   const teaserSection = (
@@ -1848,15 +1857,15 @@ test.describe('Components', () => {
     // it rather than its position alone, which both of these share.
     const dialog = mainWindow.getByRole('dialog');
     const first = dialog.getByLabel(
-      'Headline in Home, Teaser, section 1 of 3 in Sections of Articles',
+      'Headline in Home, Teaser, section 1 of 3 in Page sections of Newsletter articles',
       { exact: true }
     );
     const second = dialog.getByLabel(
-      'Headline in Home, Teaser, section 2 of 3 in Sections of Articles',
+      'Headline in Home, Teaser, section 2 of 3 in Page sections of Newsletter articles',
       { exact: true }
     );
     const nested = dialog.getByLabel(
-      'Headline in Home, Teaser, section 1 of 1 in Cards of Grid, section 3 of 3 in Sections of Articles',
+      'Headline in Home, Teaser, section 1 of 1 in Cards of the page of Grid of cards, section 3 of 3 in Page sections of Newsletter articles',
       { exact: true }
     );
     await expect(dialog.getByText('English is missing 3 Values')).toBeVisible();
@@ -2064,7 +2073,7 @@ test.describe('Components', () => {
     ]);
   });
 
-  test("changes nothing when a Component's refused change is cancelled, and saves one Core takes on its own", async ({
+  test("changes nothing when a Component's refused change is cancelled", async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -2073,6 +2082,104 @@ test.describe('Components', () => {
       projectId: project.id,
       fieldDefinitions: [
         textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+        textFieldDefinition({
+          slug: 'note',
+          label: { en: 'Note' },
+          isRequired: false,
+        }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [component.id] }),
+      ],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          {
+            componentId: component.id,
+            values: {
+              headline: stringValue({ en: 'Welcome' }),
+              note: stringValue({ en: 'Keep me' }),
+            },
+          },
+        ]),
+      },
+    });
+
+    // One save with both halves: the Note goes, and a minimum no stored
+    // Headline reaches leaves the section with a Value it cannot follow.
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: component.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Headline');
+    await pane.getByLabel('Minimum', { exact: true }).fill('10');
+    await chooseFieldDefinition(mainWindow, 'Note');
+    await mainWindow.getByRole('button', { name: 'More for Note' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(
+      dialog.getByLabel(
+        'Headline in Home, Teaser, section 1 of 1 in Sections of Articles',
+        { exact: true }
+      )
+    ).toBeVisible();
+    await expect(dialog.locator('s')).toHaveText('Keep me');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toHaveCount(0);
+
+    // Nothing was written: the Component holds both the Fields it was stored
+    // with, and the section holds the Values it held.
+    const stored = await readComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      id: component.id,
+    });
+    expect(stored.fieldDefinitions.map((found) => found.slug)).toEqual([
+      'headline',
+      'note',
+    ]);
+    const cancelled = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(sectionValues(cancelled[0], 'headline')).toEqual([
+      { en: 'Welcome' },
+    ]);
+    expect(sectionValues(cancelled[0], 'note')).toEqual([{ en: 'Keep me' }]);
+
+    // And the Project got no commit for the refused update. Leaving the
+    // settings asks about the changes nobody saved, which Discard lets go.
+    await projectSidebar(mainWindow)
+      .getByRole('link', { name: 'History' })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Discard' }).click();
+    await expect(
+      mainWindow.getByRole('link', { name: /update component/i })
+    ).toHaveCount(0);
+  });
+
+  test('saves a Component field change Core carries out on its own, with no dialog in the way', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const component = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'headline',
+          label: { en: 'Headline' },
+          min: 3,
+        }),
       ],
     });
     const collection = await createCollectionViaIpc(mainWindow, {
@@ -2096,52 +2203,26 @@ test.describe('Components', () => {
       },
     });
 
+    // A looser rule and a new label are changes every stored Value follows, so
+    // Core carries them out and nothing asks anything.
     await navigateToComponent(mainWindow, {
       projectId: project.id,
       componentId: component.id,
     });
-    await addFieldDefinition(mainWindow, { label: 'Subline' });
+    const pane = await chooseFieldDefinition(mainWindow, 'Headline');
+    await pane.getByLabel('Minimum', { exact: true }).fill('1');
+    await pane.getByLabel('Label', { exact: true }).fill('Teaser headline');
     await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
 
-    const dialog = mainWindow.getByRole('dialog');
-    await expect(
-      dialog.getByLabel(
-        'Subline in Home, Teaser, section 1 of 1 in Sections of Articles',
-        { exact: true }
-      )
-    ).toBeVisible();
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await expect(dialog).toHaveCount(0);
-
-    // Nothing was written: the Component holds the one Field it was stored
-    // with, and the section holds what it held.
-    const afterCancel = await readComponentViaIpc(mainWindow, {
-      projectId: project.id,
-      id: component.id,
-    });
-    expect(afterCancel.fieldDefinitions.map((found) => found.slug)).toEqual([
-      'headline',
-    ]);
-    const cancelled = await listEntriesViaIpc(mainWindow, {
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
+    await expect(mainWindow).toHaveURL(componentRoute);
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
-    expect(sectionValues(cancelled[0], 'subline')).toEqual([undefined]);
-
-    // The same Field made optional is a change Core carries out on its own, so
-    // it saves with no dialog in the way.
-    const pane = await chooseFieldDefinition(mainWindow, 'Subline');
-    await pane.getByRole('checkbox', { name: 'Required' }).click();
-    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
-    await expect(dialog).toHaveCount(0);
-    const saved = await readComponentViaIpc(mainWindow, {
-      projectId: project.id,
-      id: component.id,
-    });
-    expect(saved.fieldDefinitions.map((found) => found.slug)).toEqual([
-      'headline',
-      'subline',
+    expect(sectionValues(storedEntries[0], 'headline')).toEqual([
+      { en: 'Welcome' },
     ]);
   });
 
@@ -2161,7 +2242,7 @@ test.describe('Components', () => {
       const dialog = mainWindow.getByRole('dialog');
       await expect(
         dialog.getByLabel(
-          'Headline in Home, Teaser, section 1 of 1 in Cards of Grid, section 3 of 4 in Sections of Articles',
+          'Headline in Home, Teaser, section 1 of 1 in Cards of the page of Grid of cards, section 3 of 4 in Page sections of Newsletter articles',
           { exact: true }
         )
       ).toBeVisible();
@@ -2310,7 +2391,7 @@ test.describe('Components', () => {
       // leaving the focus under its edge, with room for its focus ring.
       await dialog
         .getByLabel(
-          'Headline in Home, Teaser, section 1 of 4 in Sections of Articles',
+          'Headline in Home, Teaser, section 1 of 4 in Page sections of Newsletter articles',
           { exact: true }
         )
         .focus();
@@ -2332,10 +2413,12 @@ test.describe('Components', () => {
           const box = active.getBoundingClientRect();
           const area = viewport.getBoundingClientRect();
 
+          // The ring reaches 4 px beyond the control, 2 px of outline at a
+          // 2 px offset, and the area keeps room for it.
           return {
             inside:
-              box.top - 2 >= area.top - 0.5 &&
-              box.bottom + 2 <= area.bottom + 0.5,
+              box.top - 4 >= area.top - 0.5 &&
+              box.bottom + 4 <= area.bottom + 0.5,
           };
         });
         expect(focused.inside, `${theme}, after ${String(step + 1)} tabs`).toBe(
