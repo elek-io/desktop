@@ -37,6 +37,8 @@ export const numberField: FieldTypeModule<'number'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: (fieldDefinition) => fieldDefinition.defaultValue,
   isEmpty: holdsNothing,
+  // One number, so a change in it is the old Value beside the new one.
+  readsAsWords: false,
   renderValue: storedText,
   titleText: noTitle,
   uniquenessNote: () => msg`A number field can't be unique.`,

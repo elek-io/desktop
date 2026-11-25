@@ -55,6 +55,7 @@ export const markdownField: FieldTypeModule<'markdown'> = {
     ),
   previewContent: emptyPreview,
   isEmpty: holdsNoMarkdown,
+  readsAsWords: true,
   // A tree is not read as it is stored, so it is read as its plain text.
   renderValue: ({ content, language }) => {
     const tree = contentInLanguage(content, language);

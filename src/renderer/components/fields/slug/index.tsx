@@ -43,6 +43,7 @@ export const slugField: FieldTypeModule<'slug'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
   isEmpty: holdsNothing,
+  readsAsWords: true,
   renderValue: storedText,
   titleText: textTitle,
   // Core refuses text that holds nothing a slug can be made of, and a slug

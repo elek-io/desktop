@@ -45,6 +45,9 @@ export const assetField: FieldTypeModule<'asset'> = {
     translatableContent([], supportedLanguages),
   previewContent: () => [],
   isEmpty: holdsNothing,
+  // The Value reads as how many Assets it points at, which is no text to
+  // compare, so a change in it is marked whole.
+  readsAsWords: false,
   // A reference cannot be read as it is stored, so it says how many Assets the
   // field points at, as one sentence rather than a count joined to a noun, so
   // a language that inflects the noun with the count can.

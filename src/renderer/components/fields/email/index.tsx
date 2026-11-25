@@ -36,6 +36,7 @@ export const emailField: FieldTypeModule<'email'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
   isEmpty: holdsNothing,
+  readsAsWords: true,
   renderValue: storedText,
   titleText: textTitle,
   definitionSchema: () => emailFieldDefinitionSchema,

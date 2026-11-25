@@ -207,9 +207,21 @@ export interface FieldTypeModule<T extends FieldType> {
    *
    * It is what stands below a field whose Value is missing in the language on
    * screen, as the Value to translate from, so a type that can never be
-   * missing answers `null`.
+   * missing answers `null`. It is also what the History reads a Value as,
+   * where the change inside it is marked, see `lib/valueMarks.ts`.
    */
   renderValue: (props: FieldTypeRenderValueProps<T>) => string | null;
+  /**
+   * Whether what `renderValue` answers is made of words, so a change inside
+   * the Value is marked word by word.
+   *
+   * A Value that is not text is marked whole instead, as the old Value struck
+   * through beside the new one underlined, which is what ci asks for an Asset,
+   * a toggle, a date or a choice. A reference and a list of sections read as
+   * how many they hold rather than as their content, so neither is words
+   * either. See `lib/valueMarks.ts`.
+   */
+  readsAsWords: boolean;
   /**
    * This Value's text where an Entry is named by one of its Values, or `null`
    * where the type names no Entry. See `entryTitle` in `entry-title.ts`.

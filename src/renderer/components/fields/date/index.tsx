@@ -31,6 +31,8 @@ export const dateField: FieldTypeModule<'date'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
   isEmpty: holdsNothing,
+  // One day, which ci marks whole rather than word by word.
+  readsAsWords: false,
   renderValue: ({ content, language, formatInUserLocale }) =>
     temporalText({
       content,

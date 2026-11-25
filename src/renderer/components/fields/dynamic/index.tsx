@@ -46,6 +46,8 @@ export const dynamicField: FieldTypeModule<'dynamic'> = {
   // Its Value is one flat list rather than content per language, so an empty
   // list is what Core refuses a required dynamic field for.
   isEmpty: holdsNothing,
+  // The Value reads as how many sections it holds, so it is marked whole.
+  readsAsWords: false,
   // How many sections the Value holds, which is what it reads as where it is
   // shown rather than edited: the rows of a refused change, where a narrowed
   // field strikes through the sections that would go. A section's own Values

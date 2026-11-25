@@ -37,6 +37,7 @@ export const textField: FieldTypeModule<'text'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
   isEmpty: holdsNothing,
+  readsAsWords: true,
   renderValue: storedText,
   titleText: textTitle,
   definitionSchema: () => textFieldDefinitionSchema,

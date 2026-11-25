@@ -34,6 +34,8 @@ export const toggleField: FieldTypeModule<'toggle'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: (fieldDefinition) => fieldDefinition.defaultValue,
   isEmpty: holdsNothing,
+  // On or off, which ci marks whole rather than word by word.
+  readsAsWords: false,
   // A toggle holds a Value as soon as it has one, and a language a Project
   // gained has none at all, which Core refuses like any other missing Value. So
   // the field is marked there, and what the default language is set to is read

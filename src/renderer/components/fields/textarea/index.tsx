@@ -32,6 +32,7 @@ export const textareaField: FieldTypeModule<'textarea'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
   isEmpty: holdsNothing,
+  readsAsWords: true,
   renderValue: storedText,
   titleText: textTitle,
   definitionSchema: () => textareaFieldDefinitionSchema,

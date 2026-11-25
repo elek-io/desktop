@@ -41,6 +41,8 @@ export const entryField: FieldTypeModule<'entry'> = {
     translatableContent([], supportedLanguages),
   previewContent: () => [],
   isEmpty: holdsNothing,
+  // As the Asset field: a count rather than text, so it is marked whole.
+  readsAsWords: false,
   // As the Asset field says it: how many Entries the field points at, in one
   // sentence.
   renderValue: ({ content, language }) => {

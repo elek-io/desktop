@@ -36,6 +36,7 @@ export const ipv4Field: FieldTypeModule<'ipv4'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: emptyPreview,
   isEmpty: holdsNothing,
+  readsAsWords: true,
   renderValue: storedText,
   titleText: textTitle,
   definitionSchema: () => ipv4FieldDefinitionSchema,

@@ -42,6 +42,8 @@ export const rangeField: FieldTypeModule<'range'> = {
     translatableContent(fieldDefinition.defaultValue, supportedLanguages),
   previewContent: (fieldDefinition) => fieldDefinition.defaultValue,
   isEmpty: holdsNothing,
+  // One number, so a change in it is the old Value beside the new one.
+  readsAsWords: false,
   renderValue: storedText,
   titleText: noTitle,
   requiredNote: () =>

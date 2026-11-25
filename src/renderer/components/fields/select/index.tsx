@@ -45,6 +45,8 @@ export const selectField: FieldTypeModule<'select'> = {
       ? fieldDefinition.defaultValue
       : null,
   isEmpty: holdsNothing,
+  // One option out of a list, which ci marks whole, as it marks a choice.
+  readsAsWords: false,
   renderValue: storedText,
   // A string option's words can name an Entry. A number option's cannot, which
   // textTitle answers on its own, since it only takes text.
