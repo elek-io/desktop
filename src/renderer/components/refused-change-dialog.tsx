@@ -51,7 +51,7 @@ import {
   type NeededValueIssue,
   type SchemaChangeIssue,
 } from '@renderer/lib/schemaChange';
-import { languageName } from '@renderer/lib/utils';
+import { cn, languageName } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
@@ -437,24 +437,6 @@ function RefusedChange({
   }
 
   /**
-   * Which section of an Entry one issue is about, where it is about a
-   * Component's item, so two rows of the same Entry and field never read the
-   * same. ci gives an item no name, so it is said by its place, the way the
-   * section's own head says it.
-   */
-  function sectionName(issue: SchemaChangeIssue): string | null {
-    const path = sectionPath(issue);
-
-    if (path === null) {
-      return null;
-    }
-
-    const [{ position, total }] = path;
-
-    return t`Section ${position} of ${total}`;
-  }
-
-  /**
    * Where one Component item sits, as the way to it from the item outward,
    * such as "Teaser, section 1 of 3 in Page sections of Blog posts".
    *
@@ -510,8 +492,9 @@ function RefusedChange({
   }
 
   /**
-   * What the row of a Value a Component item needs says about that item, below
-   * the field and the Entry it names.
+   * What a row says about the Component item it is about, below the field and
+   * the Entry it names. Both groups say it this way, so one item reads the
+   * same wherever the dialog names it.
    *
    * The place where it can be read, and the Component the item is built from
    * alone where it cannot: the Value still lands in the right item either way,
@@ -745,35 +728,52 @@ function RefusedChange({
                 </h3>
                 <ul className="flex flex-col border-t">
                   {lost.map((issue) => {
-                    const section = sectionName(issue);
+                    const place = itemPlace(issue);
 
                     return (
                       <li
                         key={`${issue.entryId}.${issue.componentItemId ?? ''}.${issue.fieldDefinitionId}.${issue.language ?? ''}`}
-                        className="flex h-9 shrink-0 items-center gap-3 border-b"
+                        className={cn(
+                          'flex shrink-0 flex-col justify-center border-b',
+                          // A row of an Entry's own field is ci's 36 px row,
+                          // and one of a Component item takes the line below
+                          // it for the way to that item, since the row's own
+                          // line has no room for it beside the Entry and the
+                          // Value.
+                          place === null ? 'h-9' : 'min-h-9 gap-0.5 py-2'
+                        )}
                       >
-                        <EntryLink
-                          issue={issue}
-                          name={entryName(issue)}
-                          onFollowLink={onFollowLink}
-                        />
-                        <span className="truncate text-muted-foreground">
-                          {fieldName(issue, storedFieldDefinitions)}
-                        </span>
-                        {section === null ? null : (
-                          <span className="shrink-0 text-muted-foreground">
-                            {section}
+                        <div className="flex min-w-0 items-center gap-3">
+                          <EntryLink
+                            issue={issue}
+                            name={entryName(issue)}
+                            onFollowLink={onFollowLink}
+                          />
+                          <span className="truncate text-muted-foreground">
+                            {fieldName(issue, storedFieldDefinitions)}
+                          </span>
+                          <span className="ml-auto min-w-0 truncate text-muted-foreground">
+                            {/* The line through the Value says it is going, and the
+                          words say the same, so neither the color nor the line
+                          carries it alone. */}
+                            <span className="sr-only">
+                              <Trans>Would be lost:</Trans>{' '}
+                            </span>
+                            <s>{lostText(issue)}</s>
+                          </span>
+                        </div>
+                        {place === null ? null : (
+                          // The same line as below a row that asks for a
+                          // Value, by the same words and the same slot: two
+                          // items of one Entry read apart here too, where
+                          // their position alone read the same.
+                          <span
+                            data-slot="field-label-place"
+                            className="text-small text-muted-foreground"
+                          >
+                            {place}
                           </span>
                         )}
-                        <span className="ml-auto min-w-0 truncate text-muted-foreground">
-                          {/* The line through the Value says it is going, and the
-                        words say the same, so neither the color nor the line
-                        carries it alone. */}
-                          <span className="sr-only">
-                            <Trans>Would be lost:</Trans>{' '}
-                          </span>
-                          <s>{lostText(issue)}</s>
-                        </span>
                       </li>
                     );
                   })}

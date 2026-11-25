@@ -1711,8 +1711,12 @@ test.describe('Components', () => {
       rows.first().getByRole('link', { name: 'Home' })
     ).toBeVisible();
     await expect(dialog).not.toContainText(entry.id);
-    await expect(rows.first()).toContainText('Section 1 of 2');
-    await expect(rows.last()).toContainText('Section 2 of 2');
+    await expect(rows.first()).toContainText(
+      'Teaser, section 1 of 2 in Sections of Articles'
+    );
+    await expect(rows.last()).toContainText(
+      'Teaser, section 2 of 2 in Sections of Articles'
+    );
     await expect(rows.first().locator('s')).toHaveText('What ships today');
     await expect(rows.last().locator('s')).toHaveText('And this');
 
@@ -1742,6 +1746,161 @@ test.describe('Components', () => {
         ? sections.map((item) => Object.keys(item.values))
         : []
     ).toEqual([['headline'], ['headline']]);
+  });
+
+  test('tells a lost Value of a nested section apart from one at the top level, at the smallest window', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const teaser = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'headline', label: { en: 'Headline' } }),
+        textFieldDefinition({
+          slug: 'subline',
+          label: { en: 'Subline' },
+          isRequired: false,
+        }),
+      ],
+    });
+    const grid = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Grid of cards' },
+      slug: 'grid',
+      fieldDefinitions: [
+        dynamicFieldDefinition({
+          slug: 'cards',
+          label: { en: 'Cards of the page' },
+          ofComponents: [teaser.id],
+        }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Newsletter article' },
+        plural: { en: 'Newsletter articles' },
+      },
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({
+          label: { en: 'Page sections' },
+          ofComponents: [teaser.id, grid.id],
+        }),
+      ],
+    });
+    const teaserSection = (
+      headline: string,
+      subline: string
+    ): {
+      componentId: string;
+      values: Record<string, ReturnType<typeof stringValue>>;
+    } => ({
+      componentId: teaser.id,
+      values: {
+        headline: stringValue({ en: headline }),
+        subline: stringValue({ en: subline }),
+      },
+    });
+    // The section at the top level and the first card of the Grid sit first in
+    // the field that holds each and hold the same Values, so a position alone
+    // would read the same for both.
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Home' }),
+        sections: componentValue([
+          teaserSection('Welcome', 'What ships today'),
+          {
+            componentId: grid.id,
+            values: {
+              cards: componentValue([
+                teaserSection('Welcome', 'What ships today'),
+                teaserSection('Second', 'Another'),
+              ]),
+            },
+          },
+        ]),
+      },
+    });
+
+    await navigateToComponent(mainWindow, {
+      projectId: project.id,
+      componentId: teaser.id,
+    });
+    await chooseFieldDefinition(mainWindow, 'Subline');
+    await mainWindow.getByRole('button', { name: 'More for Subline' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+    await mainWindow.getByRole('button', { name: 'Save', exact: true }).click();
+
+    // Every row says the way to the section its Value sits in, out to the
+    // Collection, so no two rows of this Entry read the same.
+    const dialog = mainWindow.getByRole('dialog');
+    const rows = dialog.getByRole('listitem');
+    await expect(rows).toHaveCount(3);
+    for (const place of [
+      'Teaser, section 1 of 2 in Page sections of Newsletter articles',
+      'Teaser, section 1 of 2 in Cards of the page of Grid of cards, section 2 of 2 in Page sections of Newsletter articles',
+      'Teaser, section 2 of 2 in Cards of the page of Grid of cards, section 2 of 2 in Page sections of Newsletter articles',
+    ]) {
+      await expect(rows.filter({ hasText: place })).toHaveCount(1);
+    }
+    const read = await rows.allTextContents();
+    expect(new Set(read).size).toBe(read.length);
+
+    // The way to a section takes the line below the row rather than its own
+    // column, since a row has no room for it beside the Entry and the Value,
+    // and it wraps inside the dialog rather than being cut off.
+    await waitForLayout(mainWindow);
+    const bounds = await mainWindow.evaluate(() => {
+      const all = (selector: string): ProbedElement[] =>
+        Array.from(document.querySelectorAll(selector));
+      const viewport = document.querySelector(
+        '[data-slot="dialog-body"] [data-slot="scroll-area-viewport"]'
+      );
+      const content = document.querySelector('[data-slot="dialog-content"]');
+      if (viewport === null || content === null) {
+        throw new Error('The dialog did not draw its body');
+      }
+      const places = all(
+        '[role="dialog"] ul > li [data-slot="field-label-place"]'
+      );
+
+      return {
+        height: content.getBoundingClientRect().height,
+        places: places.length,
+        clippedPlaces: places
+          .filter((place) => place.scrollWidth > place.clientWidth)
+          .map((place) => place.textContent),
+        scrollsSideways: viewport.scrollWidth > viewport.clientWidth,
+      };
+    });
+    expect(bounds.places).toBe(3);
+    expect(bounds.clippedPlaces).toStrictEqual([]);
+    expect(bounds.scrollsSideways).toBe(false);
+    expect(bounds.height).toBeLessThanOrEqual(528);
+
+    // And the loss goes in for every section, the nested one included.
+    await dialog
+      .getByRole('button', { name: 'Remove Subline from 1 Entry' })
+      .click();
+    await expect(mainWindow.getByText('Component Teaser saved')).toBeVisible();
+    const storedEntries = await listEntriesViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    expect(sectionValues(storedEntries[0], 'subline')).toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(nestedSectionValues(storedEntries[0], 'subline')).toEqual([
+      undefined,
+      undefined,
+    ]);
   });
 
   test("fills in the Value a Component's type change needs, in the section it belongs to", async ({
