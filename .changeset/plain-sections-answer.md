@@ -14,6 +14,6 @@ Saving now opens one dialog that says what the change would do and lets you answ
 
 Opening an Entry from the dialog keeps the settings you had not saved, so you come back to them as you left them and can press Save again. Leaving the page any other way still asks first.
 
-A Component's field change is answered the same way for what it would delete. The Entries whose sections need a Value are listed by their title with a link each, their section and their Collection, and such a Value cannot be filled in yet, in the dialog or in the Entry, so the dialog says so and names what you can do instead: change the field until the sections are allowed as they are, or open an Entry and remove the section.
+A Component's field change is answered in the same dialog, for what it would delete and for the Values it needs.
 
 The dialog shows what elek.io Core's refusal names and sends back what elek.io Core takes, so what you see is what will happen. Of an Entry, only the Value that would be deleted ever leaves the part of the app that reads your files, and nothing else it holds does.
