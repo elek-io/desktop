@@ -338,7 +338,9 @@ test.describe('Releases', () => {
 
     // The Project's History shows the Release Core committed.
     await navigateToHistory(mainWindow, project.id);
-    await expect(mainWindow.getByText('release project').first()).toBeVisible();
+    await expect(
+      mainWindow.getByText('You released 0.1.0').first()
+    ).toBeVisible();
   });
 
   test('counts the Entries and Assets it would publish, one row per kind, and they agree with the History since the last Release', async ({

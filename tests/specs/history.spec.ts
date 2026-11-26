@@ -1,166 +1,914 @@
-import { expect } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+import { format } from 'date-fns';
+import { join } from 'node:path';
 
-import { test } from '../fixtures/electronApp.js';
+import { colors } from '@elek-io/branding';
+
+import { test, testDataDirs } from '../fixtures/electronApp.js';
+import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import {
+  assetFieldDefinition,
   createCollectionViaIpc,
+  dateFieldDefinition,
   markdownFieldDefinition,
   textFieldDefinition,
+  toggleFieldDefinition,
 } from '../helpers/collection.js';
+import { contrastRatio, parseColor, toBytes } from '../helpers/color.js';
 import {
+  assetReferenceValue,
+  booleanValue,
   createEntryViaIpc,
+  deleteEntryViaIpc,
   markdownEditorSurface,
   markdownValue,
   mdAstParagraph,
-  navigateToEntryUpdate,
   stringValue,
+  temporalValue,
+  updateEntryViaIpc,
 } from '../helpers/entry.js';
-import { mainPanel } from '../helpers/navigation.js';
-import { createProjectViaIpc, navigateToHistory } from '../helpers/project.js';
+import { errorScreenTitle } from '../helpers/error.js';
+import { stubCoreRejectWithType } from '../helpers/ipc.js';
+import { recordedLogs, recordLogsViaIpc } from '../helpers/log.js';
+import { navigate, projectCard } from '../helpers/navigation.js';
+import {
+  createProjectViaIpc,
+  navigateToHistory,
+  projectHistoryViaIpc,
+  setRemoteOriginUrlViaIpc,
+  updateProjectViaIpc,
+} from '../helpers/project.js';
+import { createReleaseViaIpc } from '../helpers/release.js';
+import { setupRemote } from '../helpers/remote.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  waitForLayout,
+} from '../helpers/window.js';
 
-test.describe('History', () => {
-  test('lists commits and renders the diff view per object type', async ({
+/**
+ * The History of a Project: every change in one column of ruled rows, and the
+ * chosen change showing the Entry, the Asset or the Project once, read rather
+ * than edited, with what changed marked in place.
+ */
+
+/** Every row of the list, newest first. */
+function changeRows(page: Page): Locator {
+  return page.locator('[data-slot="change-row"]');
+}
+
+/**
+ * One row, by what its sentence says.
+ *
+ * Scoped to the list, because the breadcrumb above it names the chosen change
+ * by the same sentence.
+ */
+function changeRow(page: Page, says: string | RegExp): Locator {
+  return page
+    .locator('[data-slot="change-list"]')
+    .getByRole('link', { name: says });
+}
+
+/** The heading above each group of rows, in the order they stand. */
+async function groupLabelsOf(page: Page): Promise<string[]> {
+  return page
+    .locator('[data-slot="change-group"]')
+    .evaluateAll((groups) =>
+      groups.map((group) => group.textContent?.trim() ?? '')
+    );
+}
+
+/** Which rows stand under one group's heading, by what their sentences say. */
+async function rowsUnder(page: Page, label: string): Promise<string[]> {
+  return page.evaluate((heading) => {
+    const group = Array.from(
+      document.querySelectorAll('[data-slot="change-group"]')
+    ).find((candidate) => candidate.textContent?.trim() === heading);
+    if (group === undefined) {
+      throw new Error(`The list has no "${heading}" group`);
+    }
+    return Array.from(
+      group.parentElement?.querySelectorAll('[data-slot="change-row"]') ?? []
+    ).map((row) => row.textContent?.trim() ?? '');
+  }, label);
+}
+
+/** The fill of one row's marker, as bytes a token compares to. */
+async function markerFillOf(row: Locator): Promise<[number, number, number]> {
+  return toBytes(
+    parseColor(
+      await row
+        .locator('span[aria-hidden="true"]')
+        .first()
+        .evaluate((node) => getComputedStyle(node).backgroundColor)
+    )
+  );
+}
+
+/** Whether one row's marker is hollow, which is a border around the surface. */
+async function markerIsHollow(row: Locator): Promise<boolean> {
+  return row
+    .locator('span[aria-hidden="true"]')
+    .first()
+    .evaluate((node) => getComputedStyle(node).borderTopWidth !== '0px');
+}
+
+/**
+ * One of ci's colors, read from the brand package rather than copied here, so
+ * the assertion follows the token.
+ */
+function brandColor(
+  mode: 'light' | 'dark',
+  token: 'border' | 'card' | 'muted' | 'muted-foreground' | 'brand'
+): [number, number, number] {
+  return toBytes(parseColor(colors[mode][token].oklch));
+}
+
+/** Waits for the chosen change to have drawn its fields before they are read. */
+async function waitForFields(page: Page): Promise<void> {
+  await expect(page.locator('[data-slot="read-field"]').first()).toBeVisible();
+}
+
+/**
+ * Each field of the chosen change, as its label, its Value and its mark read.
+ *
+ * A Value's text is its runs run together, so a word that changed reads as the
+ * old one and the new one side by side, which is how they stand on screen.
+ * Which of them is struck through and which underlined is read by
+ * `removedWords` and `addedWords`.
+ */
+async function fieldsOf(
+  page: Page
+): Promise<{ label: string; value: string; isChanged: boolean }[]> {
+  return page.locator('[data-slot="read-field"]').evaluateAll((fields) =>
+    fields.map((field) => {
+      const label =
+        field.querySelector('[data-slot="field-label"]')?.textContent?.trim() ??
+        '';
+      const tag =
+        field
+          .querySelector('[data-slot="field-changed"]')
+          ?.textContent?.trim() ?? '';
+      return {
+        // The label without the "Changed" that stands right after it inside
+        // it, which `isChanged` says instead.
+        label:
+          tag === '' ? label : label.slice(0, label.length - tag.length).trim(),
+        value:
+          field
+            .querySelector('[data-slot="read-value"]')
+            ?.textContent?.trim() ?? '',
+        isChanged: field.getAttribute('data-changed') === 'true',
+      };
+    })
+  );
+}
+
+/** The words this change took out of the Values on screen. */
+async function removedWords(page: Page): Promise<string[]> {
+  return page.locator('[data-slot="value-removed"]').allInnerTexts();
+}
+
+/** The words it added to them. */
+async function addedWords(page: Page): Promise<string[]> {
+  return page.locator('[data-slot="value-added"]').allInnerTexts();
+}
+
+/** The change the address names, opened fresh so every read runs. */
+async function navigateToChange(
+  page: Page,
+  projectId: string,
+  commitHash: string
+): Promise<void> {
+  await navigate(page, `#/projects/${projectId}/history/${commitHash}`);
+}
+
+/** The newest change of the Project, which is the one a test just made. */
+async function newestChange(page: Page, projectId: string): Promise<string> {
+  const { fullHistory } = await projectHistoryViaIpc(page, { id: projectId });
+  const newest = fullHistory[0]?.hash;
+  if (newest === undefined) {
+    throw new Error('The Project has no change to open');
+  }
+  return newest;
+}
+
+test.describe('The History of a Project', () => {
+  test('lists each change once in ruled rows, and marks the chosen one', async ({
     mainWindow,
   }) => {
-    // Arrange a Project, Collection and Entry over IPC, one commit each.
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
+    await setTheme(mainWindow, 'light');
+    await setUserViaIpc(mainWindow, { name: 'Mara Klein' });
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
+      name: { singular: { en: 'Article' }, plural: { en: 'Articles' } },
+      fieldDefinitions: [textFieldDefinition()],
     });
     await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
-      values: { title: stringValue({ en: 'First article' }) },
+      values: { title: stringValue({ en: 'Spring opening hours' }) },
     });
 
     await navigateToHistory(mainWindow, project.id);
 
-    // The History lists a commit per object type. Each commit renders as a Link
-    // whose label starts with "<method> <objectType>", so it is addressable by
-    // that text. Newest-first ordering is Core's, so this only asserts presence.
-    // Each one is looked for inside the main panel, because the Project's
-    // sidebar beside it carries a Create Collection link of its own.
-    await expect(
-      mainWindow.getByRole('link', { name: /create project/i })
-    ).toBeVisible();
-    await expect(
-      mainPanel(mainWindow).getByRole('link', {
-        name: /create collection/i,
-      })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('link', { name: /create entry/i })
-    ).toBeVisible();
+    // Three changes, each listed once: the Project, the Collection and the
+    // Entry, newest first as Core reads them.
+    await expect(changeRows(mainWindow)).toHaveCount(3);
 
-    // The collection commit renders with the CollectionDiff. Its page title is
-    // "<method> <objectType>" and a line only a Collection carries proves the
-    // CollectionDiff (not another diff) rendered.
-    await mainPanel(mainWindow)
-      .getByRole('link', { name: /create collection/i })
-      .click();
-    await expect(
-      mainWindow.getByRole('heading', { name: 'create collection' })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByText('Collection slug', { exact: true })
-    ).toBeVisible();
+    // A row says who made the change, what they did, the title of the Entry or
+    // the Collection, and when.
+    const entryRow = changeRow(mainWindow, /added an Entry/i);
+    await expect(entryRow).toContainText('You added an Entry');
+    await expect(entryRow).toContainText('Spring opening hours');
+    await expect(entryRow).toContainText('less than a minute ago');
+    await expect(changeRow(mainWindow, /added a Collection/i)).toContainText(
+      'Articles'
+    );
 
-    // The entry commit renders with the EntryDiff. The "Title" field is unique
-    // to the entry form on this page.
-    await mainWindow.getByRole('link', { name: /create entry/i }).click();
-    await expect(
-      mainWindow.getByRole('heading', { name: 'create entry' })
-    ).toBeVisible();
-    await expect(mainWindow.getByLabel('Title', { exact: true })).toBeVisible();
+    // Every row is ruled below, as ci rules every list.
+    expect(
+      await entryRow.evaluate((row) => getComputedStyle(row).borderBottomWidth)
+    ).toBe('1px');
 
-    // The project-create commit renders with the ProjectDiff.
-    await mainWindow.getByRole('link', { name: /create project/i }).click();
-    await expect(
-      mainWindow.getByRole('heading', { name: 'create project' })
-    ).toBeVisible();
-    await expect(mainWindow.getByLabel('Name', { exact: true })).toBeVisible();
+    // The chosen row takes the muted surface and the bar, which is how ci
+    // marks where you are.
+    await entryRow.click();
+    const chosen = await entryRow.evaluate((row) => ({
+      surface: getComputedStyle(row).backgroundColor,
+      shadow: getComputedStyle(row).boxShadow,
+    }));
+    expect(toBytes(parseColor(chosen.surface))).toEqual(
+      brandColor('light', 'muted')
+    );
+    expect(chosen.shadow).toContain('inset');
+    expect(chosen.shadow).toContain('2px');
   });
 
-  // The CollectionDiff reads the Collection at the commit and draws each field
-  // it defines as the one preview the settings show, so a distinctively
-  // labelled field proves they were read rather than dropped.
-  test('renders a Collection’s field definitions in the history diff', async ({
+  test('groups the rows into Not synced and Synced, and counts the same as the Project card', async ({
     mainWindow,
-  }) => {
+  }, testInfo) => {
+    await setTheme(mainWindow, 'light');
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    await createCollectionViaIpc(mainWindow, {
-      projectId: project.id,
-      fieldDefinitions: [
-        textFieldDefinition({ label: { en: 'Headline' }, slug: 'headline' }),
-      ],
+    const remote = setupRemote(testInfo, {
+      mirror: join(testDataDirs(testInfo).dataDir, 'projects', project.id),
     });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: remote.url,
+    });
+    // One change the mirror does not hold, so the check has something to count
+    // as not synced.
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
 
     await navigateToHistory(mainWindow, project.id);
 
-    // Open the collection-create commit's diff.
-    await mainPanel(mainWindow)
-      .getByRole('link', { name: /create collection/i })
-      .click();
+    // The card above the pane counts what is not synced, and the groups follow
+    // the same check, so the two cannot disagree.
     await expect(
-      mainWindow.getByRole('heading', { name: 'create collection' })
-    ).toBeVisible();
+      projectCard(mainWindow).getByText('1 change not synced')
+    ).toBeVisible({ timeout: 15000 });
+    expect(await groupLabelsOf(mainWindow)).toEqual(['Not synced', 'Synced']);
+    expect(await rowsUnder(mainWindow, 'Not synced')).toHaveLength(1);
 
-    // The field definition renders in the diff, labelled by its definition.
-    await expect(
-      mainWindow.getByText('Headline', { exact: true })
-    ).toBeVisible();
+    // What is not synced carries the hollow marker, the pane's own surface
+    // inside a border in the text color, and what is synced the filled one.
+    const notSynced = changeRow(mainWindow, /added a Collection/i);
+    const synced = changeRow(mainWindow, /created this Project/i);
+    expect(await markerIsHollow(notSynced)).toBe(true);
+    expect(await markerFillOf(notSynced)).toEqual(brandColor('light', 'card'));
+    expect(await markerIsHollow(synced)).toBe(false);
+    expect(await markerFillOf(synced)).toEqual(
+      brandColor('light', 'muted-foreground')
+    );
   });
 
-  // A diff renders the same EntryForm in view mode, which turns the form
-  // read-only through a disabled fieldset. A fieldset only disables native form
-  // controls, so the markdown field (a Milkdown contenteditable) stayed typable
-  // in history until AppForm's mode reached the render registry. See
-  // contributing/renderer/forms.md#view-only-forms-and-diffs.
-  test('renders a markdown field read-only in the history diff', async ({
+  test('drops the groups where Desktop cannot check the Git repository, and never fails for it', async ({
+    electronApp,
+    mainWindow,
+  }, testInfo) => {
+    await setTheme(mainWindow, 'light');
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+
+    // Without a Git repository there is nothing to sync with, so there are no
+    // groups and every marker is filled.
+    await navigateToHistory(mainWindow, project.id);
+    await expect(changeRows(mainWindow).first()).toBeVisible();
+    expect(await groupLabelsOf(mainWindow)).toEqual([]);
+    expect(await markerFillOf(changeRows(mainWindow).first())).toEqual(
+      brandColor('light', 'muted-foreground')
+    );
+
+    // With a Git repository the check runs, and one that cannot be made leaves
+    // the History listing its changes without the groups: they are on this
+    // computer either way.
+    const remote = setupRemote(testInfo, {
+      mirror: join(testDataDirs(testInfo).dataDir, 'projects', project.id),
+    });
+    await setRemoteOriginUrlViaIpc(mainWindow, {
+      id: project.id,
+      url: remote.url,
+    });
+    await recordLogsViaIpc(electronApp);
+    // Core raises Internal when the git command fails at all, which is what a
+    // repository nothing can reach leaves behind.
+    await stubCoreRejectWithType(
+      electronApp,
+      'core:projects:getChanges',
+      'Internal'
+    );
+    await navigateToHistory(mainWindow, project.id);
+
+    await expect(
+      projectCard(mainWindow).getByText("Can't reach the Git repository")
+    ).toBeVisible({ timeout: 15000 });
+    expect(await groupLabelsOf(mainWindow)).toEqual([]);
+    expect(await markerFillOf(changeRows(mainWindow).first())).toEqual(
+      brandColor('light', 'muted-foreground')
+    );
+
+    // The failed check never takes the screen: the rows are there and the
+    // error screen is not.
+    await expect(changeRows(mainWindow).first()).toBeVisible();
+    await expect(errorScreenTitle(mainWindow)).toBeHidden();
+
+    // It is logged with its type and its stack, the way a pane's boundary
+    // writes one, and nothing of Core's own answer reaches the screen.
+    const logged = (await recordedLogs(electronApp)).filter(
+      (record) =>
+        record.level === 'error' && record.message.startsWith('Project card')
+    );
+    expect(logged.length).toBeGreaterThan(0);
+    expect(logged[0]?.source).toBe('desktop');
+    expect(logged[0]?.meta['error.type']).toBe('Internal');
+    expect(Object.keys(logged[0]?.meta ?? {})).toContain(
+      'exception.stacktrace'
+    );
+    await expect(mainWindow.getByText(/E2E injected/)).toHaveCount(0);
+  });
+
+  test('marks a Release with the brand marker and shows what it changed', async ({
     mainWindow,
   }) => {
+    await setTheme(mainWindow, 'light');
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
-      fieldDefinitions: [textFieldDefinition(), markdownFieldDefinition()],
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Spring opening hours' }) },
+    });
+    const release = await createReleaseViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+
+    await navigateToHistory(mainWindow, project.id);
+
+    // The Release is the list's one highlight, in the brand color, and its row
+    // says in words what it is.
+    const row = changeRow(
+      mainWindow,
+      new RegExp(`released ${release.version}`)
+    );
+    await expect(row).toBeVisible();
+    expect(await markerFillOf(row)).toEqual(brandColor('light', 'brand'));
+
+    // Chosen, it shows its version, its bump and what it changed, the way the
+    // Releases screen shows a Release.
+    await row.click();
+    const main = mainWindow.getByRole('main');
+    await expect(
+      main.getByRole('heading', { name: `Release ${release.version}` })
+    ).toBeVisible();
+    await expect(main.getByText('Entries added')).toBeVisible();
+    await expect(main.getByText('Minor', { exact: true })).toBeVisible();
+    await expect(
+      main.getByRole('link', { name: 'Open Release' })
+    ).toBeVisible();
+  });
+
+  test('shows a changed Entry once, with removed words struck through and added words underlined', async ({
+    mainWindow,
+  }) => {
+    await setTheme(mainWindow, 'light');
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Article' }, plural: { en: 'Articles' } },
+      fieldDefinitions: [
+        textFieldDefinition(),
+        markdownFieldDefinition(),
+        toggleFieldDefinition(),
+      ],
     });
     const entry = await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
       values: {
-        title: stringValue({ en: 'First article' }),
-        body: markdownValue({ en: mdAstParagraph('Written once') }),
+        title: stringValue({ en: 'Spring opening hours' }),
+        body: markdownValue({
+          en: mdAstParagraph('Open until 6 pm on weekdays.'),
+        }),
+        featured: booleanValue({ en: false }),
+      },
+    });
+    await updateEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours' }),
+        body: markdownValue({
+          en: mdAstParagraph('Open until 7 pm on weekdays.'),
+        }),
+        featured: booleanValue({ en: true }),
       },
     });
 
-    // The editable baseline: on the Entry update form the same field is typable,
-    // so the assertion below is about view mode and not about the editor failing
-    // to mount.
-    await navigateToEntryUpdate(mainWindow, {
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
+    );
+
+    // The Entry is shown once, laid out like its editor, and named by its
+    // title. There is no second form beside it to compare against.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Spring opening hours' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByText('An Entry in the Articles Collection', {
+        exact: false,
+      })
+    ).toBeVisible();
+    await expect(mainWindow.getByText('Before', { exact: true })).toHaveCount(
+      0
+    );
+    await expect(mainWindow.getByText('After', { exact: true })).toHaveCount(0);
+
+    // Read rather than edited: no control holds a Value, so the markdown
+    // editor with its toolbar is not there at all.
+    await expect(markdownEditorSurface(mainWindow)).toHaveCount(0);
+    await expect(mainWindow.getByRole('textbox')).toHaveCount(0);
+
+    // The field that changed carries "Changed" after its label, and the
+    // unchanged one carries nothing.
+    await waitForFields(mainWindow);
+    const fields = await fieldsOf(mainWindow);
+    expect(fields).toEqual([
+      { label: 'Title', value: 'Spring opening hours', isChanged: false },
+      {
+        label: 'Body',
+        value: 'Open until 67 pm on weekdays.',
+        isChanged: true,
+      },
+      { label: 'Featured', value: 'OffOn', isChanged: true },
+    ]);
+    await expect(mainWindow.locator('[data-slot="field-changed"]')).toHaveCount(
+      2
+    );
+
+    // Inside the text, the words that went are struck through and the words
+    // that came are underlined. A toggle is not text, so the old Value stands
+    // struck beside the new one underlined.
+    expect(await removedWords(mainWindow)).toEqual(['6', 'Off']);
+    expect(await addedWords(mainWindow)).toEqual(['7', 'On']);
+
+    // Neither mark is told by its color: the one is struck through and the
+    // other underlined.
+    const marks = await mainWindow.evaluate(() => {
+      const read = (slot: string): string => {
+        const node = document.querySelector(`[data-slot="${slot}"]`);
+        if (node === null) {
+          throw new Error(`The change draws no ${slot}`);
+        }
+        return getComputedStyle(node).textDecorationLine;
+      };
+      return { removed: read('value-removed'), added: read('value-added') };
+    });
+    expect(marks.removed).toBe('line-through');
+    expect(marks.added).toBe('underline');
+
+    // The changed field carries the bar on its left, in ink, since the marks
+    // inside the Value already carry the colors.
+    const bar = await mainWindow
+      .locator('[data-slot="read-field"][data-changed="true"]')
+      .first()
+      .evaluate((field) => {
+        const drawn = getComputedStyle(field, '::before');
+        return { width: drawn.width, color: drawn.backgroundColor };
+      });
+    expect(bar.width).toBe('2px');
+    expect(toBytes(parseColor(bar.color))).toEqual(
+      toBytes(parseColor(colors.light['foreground'].oklch))
+    );
+  });
+
+  test('reads every Value the way its own field type reads one', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const asset = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      name: 'showroom',
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dateFieldDefinition({ label: { en: 'Published on' } }),
+        assetFieldDefinition({ label: { en: 'Cover' } }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
-      entryId: entry.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours' }),
+        published: temporalValue({ en: '2026-03-01' }),
+        logo: assetReferenceValue(asset.id),
+      },
     });
-    await expect(markdownEditorSurface(mainWindow)).toHaveAttribute(
-      'contenteditable',
-      'true'
+    await updateEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours' }),
+        published: temporalValue({ en: '2026-03-08' }),
+        logo: assetReferenceValue(asset.id),
+      },
+    });
+
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
     );
+    await waitForFields(mainWindow);
+
+    // Each Value is read by the field type it belongs to rather than printed
+    // as it is stored: a day reads in the User's own locale, with its own
+    // anchor so it cannot shift by one, and a reference reads as how many
+    // Assets it points at.
+    const before = format(new Date('2026-03-01T00:00:00'), 'P');
+    const after = format(new Date('2026-03-08T00:00:00'), 'P');
+    expect(await fieldsOf(mainWindow)).toEqual([
+      { label: 'Title', value: 'Spring opening hours', isChanged: false },
+      {
+        label: 'Published on',
+        value: `${before}${after}`,
+        isChanged: true,
+      },
+      { label: 'Cover', value: '1 Asset', isChanged: false },
+    ]);
+    expect(await removedWords(mainWindow)).toEqual([before]);
+    expect(await addedWords(mainWindow)).toEqual([after]);
+    // A day is one Value rather than words, so nothing inside it is compared.
+    await expect(mainWindow.getByText('2026-03-08')).toHaveCount(0);
+  });
+
+  test('opens on the language that changed, says how many Values changed in it, and opens the Entry there', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      settings: { language: { default: 'en', supported: ['en', 'de'] } },
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'Articles', de: 'Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Spring opening hours', de: 'Frühling' }),
+      },
+    });
+    // Only the German Value changes, so the change opens on German.
+    await updateEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+      values: {
+        title: stringValue({
+          en: 'Spring opening hours',
+          de: 'Frühjahr',
+        }),
+      },
+    });
+
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
+    );
+
+    // The switch above the fields stands on German, and the line beside it
+    // says how many Values changed in it.
+    await expect(
+      mainWindow.getByText('1 Value changed in German')
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: /German/, pressed: true })
+    ).toBeVisible();
+    expect(await removedWords(mainWindow)).toEqual(['Frühling']);
+    expect(await addedWords(mainWindow)).toEqual(['Frühjahr']);
+
+    // Open Entry opens the Entry in the language the change is read in.
+    await mainWindow.getByRole('link', { name: 'Open Entry' }).click();
+    await expect(mainWindow).toHaveURL((url) =>
+      url.hash.endsWith(`/${entry.id}/update?language=de`)
+    );
+
+    // Switching the change to English says what changed there instead.
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
+    );
+    await mainWindow.getByRole('button', { name: /English/ }).click();
+    await expect(
+      mainWindow.getByText('0 Values changed in English')
+    ).toBeVisible();
+    expect(await removedWords(mainWindow)).toEqual([]);
+  });
+
+  test('shows a created Entry without marks and a deleted one as it last stood', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Spring opening hours' }) },
+    });
+    const created = await newestChange(mainWindow, project.id);
+
+    // Everything in a created Entry is new, so nothing in it is marked.
+    await navigateToChange(mainWindow, project.id, created);
+    await waitForFields(mainWindow);
+    expect(await fieldsOf(mainWindow)).toEqual([
+      { label: 'Title', value: 'Spring opening hours', isChanged: false },
+    ]);
+    expect(await removedWords(mainWindow)).toEqual([]);
+    expect(await addedWords(mainWindow)).toEqual([]);
+
+    // A deleted Entry shows its last state, and the head says it was deleted
+    // and offers no way into it.
+    await deleteEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
+    );
+    await expect(mainWindow.getByText(/You deleted it on/)).toBeVisible();
+    await waitForFields(mainWindow);
+    expect(await fieldsOf(mainWindow)).toEqual([
+      { label: 'Title', value: 'Spring opening hours', isChanged: false },
+    ]);
+    await expect(
+      mainWindow.getByRole('link', { name: 'Open Entry' })
+    ).toHaveCount(0);
+  });
+
+  test("shows an Asset's and the Project's change the same way", async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow, {
+      name: 'Autohaus Ebersfelde',
+      description: 'The showroom in Kassel',
+    });
+    await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      name: 'showroom',
+      description: 'The showroom from the street',
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+    });
+    const added = await newestChange(mainWindow, project.id);
+
+    // An Asset that was added shows the file it is, its name and its
+    // description, without marks.
+    await navigateToChange(mainWindow, project.id, added);
+    await expect(
+      mainWindow.getByRole('heading', { name: 'showroom.png' })
+    ).toBeVisible();
+    await expect(mainWindow.getByText('An Asset.')).toBeVisible();
+    await waitForFields(mainWindow);
+    expect(await fieldsOf(mainWindow)).toEqual([
+      { label: 'File', value: 'PNG, 70 Bytes', isChanged: false },
+      { label: 'Name', value: 'showroom.png', isChanged: false },
+      {
+        label: 'Description',
+        value: 'The showroom from the street',
+        isChanged: false,
+      },
+    ]);
+
+    // The Project's own change shows its Settings in the same shape, with the
+    // words that changed marked.
+    await updateProjectViaIpc(mainWindow, {
+      id: project.id,
+      name: 'Autohaus Ebersfelde',
+      description: 'The showroom in Göttingen',
+      settings: project.settings,
+    });
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
+    );
+    await expect(mainWindow.getByText('The whole Project.')).toBeVisible();
+    await waitForFields(mainWindow);
+    const fields = await fieldsOf(mainWindow);
+    expect(fields.map((field) => [field.label, field.isChanged])).toEqual([
+      ['Name', false],
+      ['Description', true],
+      ['Languages', false],
+      ['Default language', false],
+    ]);
+    expect(await removedWords(mainWindow)).toEqual(['Kassel']);
+    expect(await addedWords(mainWindow)).toEqual(['Göttingen']);
+    await expect(
+      mainWindow.getByRole('link', { name: 'Open settings' })
+    ).toBeVisible();
+  });
+
+  for (const mode of ['light', 'dark'] as const) {
+    test(`keeps the chosen change inside the smallest window in ${mode} mode, with its marks at contrast`, async ({
+      electronApp,
+      mainWindow,
+    }) => {
+      await setTheme(mainWindow, mode);
+      await setUserViaIpc(mainWindow);
+      const project = await createProjectViaIpc(mainWindow);
+      const collection = await createCollectionViaIpc(mainWindow, {
+        projectId: project.id,
+        fieldDefinitions: [textFieldDefinition()],
+      });
+      const entry = await createEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+        values: {
+          title: stringValue({
+            en: 'From March 1, the showroom is open until 6 pm on weekdays',
+          }),
+        },
+      });
+      await updateEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+        id: entry.id,
+        values: {
+          title: stringValue({
+            en: 'From March 1, the showroom is open until 7 pm on weekdays and until 4 pm on Saturdays',
+          }),
+        },
+      });
+      await navigateToChange(
+        mainWindow,
+        project.id,
+        await newestChange(mainWindow, project.id)
+      );
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await waitForLayout(mainWindow);
+      await expect(
+        mainWindow.locator('[data-slot="value-added"]').first()
+      ).toBeVisible();
+
+      // Every pane has room of its own and none of them reaches past the panel
+      // it sits in, which is what a collision or a clip would show as, and
+      // nothing inside them is laid out wider than the box it is drawn in.
+      const measured = await mainWindow.evaluate(() => {
+        const panel = document.querySelector('[data-slot="panel"]');
+        const panes = Array.from(
+          document.querySelectorAll('[data-slot="panel"] [data-slot="pane"]')
+        );
+        if (panel === null || panes.length === 0) {
+          throw new Error('The panel draws no panes');
+        }
+        const box = panel.getBoundingClientRect();
+        return {
+          panel: { left: box.left, right: box.right },
+          panes: panes.map((pane) => {
+            const rect = pane.getBoundingClientRect();
+            return { left: rect.left, right: rect.right, width: rect.width };
+          }),
+          overflowing: Array.from(
+            document.querySelectorAll('[data-slot="panel"] *')
+          )
+            .filter(
+              (element) =>
+                element.scrollWidth - element.clientWidth > 1 &&
+                getComputedStyle(element).overflowX === 'visible'
+            )
+            .map((element) => element.getAttribute('data-slot')),
+          sideways: Array.from(
+            document.querySelectorAll(
+              '[data-slot="panel"] [data-slot="scroll-area-viewport"]'
+            )
+          )
+            .filter((element) => element.scrollWidth - element.clientWidth > 1)
+            .map((element) => element.getAttribute('data-slot')),
+        };
+      });
+      for (const pane of measured.panes) {
+        expect(pane.width, mode).toBeGreaterThan(0);
+        expect(pane.left, mode).toBeGreaterThanOrEqual(measured.panel.left);
+        expect(pane.right, mode).toBeLessThanOrEqual(measured.panel.right);
+      }
+      // The list keeps ci's 296 px beside the chosen change.
+      expect(
+        measured.panes.map((pane) => Math.round(pane.width)),
+        mode
+      ).toContain(296);
+      expect(measured.overflowing, mode).toEqual([]);
+      expect(measured.sideways, mode).toEqual([]);
+
+      // Each mark is read on the surface it carries, so the words that went
+      // and the words that came both meet WCAG 2.2 AA for text.
+      const read = await mainWindow.evaluate(() => {
+        const of = (slot: string): { color: string; surface: string } => {
+          const node = document.querySelector(`[data-slot="${slot}"]`);
+          if (node === null) {
+            throw new Error(`The change draws no ${slot}`);
+          }
+          const style = getComputedStyle(node);
+          return { color: style.color, surface: style.backgroundColor };
+        };
+        return { removed: of('value-removed'), added: of('value-added') };
+      });
+      for (const mark of [read.removed, read.added]) {
+        expect(
+          contrastRatio(parseColor(mark.color), parseColor(mark.surface)),
+          mode
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+
+  test('holds the Release marker still under reduced motion', async ({
+    mainWindow,
+  }) => {
+    await mainWindow.emulateMedia({ reducedMotion: 'reduce' });
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+    const release = await createReleaseViaIpc(mainWindow, {
+      projectId: project.id,
+    });
 
     await navigateToHistory(mainWindow, project.id);
-    await mainWindow.getByRole('link', { name: /create entry/i }).click();
-    await expect(
-      mainWindow.getByRole('heading', { name: 'create entry' })
-    ).toBeVisible();
-
-    // Same component, view mode: the editor holds the stored content but cannot
-    // be typed into.
-    await expect(markdownEditorSurface(mainWindow)).toHaveAttribute(
-      'contenteditable',
-      'false'
+    const row = changeRow(
+      mainWindow,
+      new RegExp(`released ${release.version}`)
     );
-    await expect(mainWindow.getByText('Written once')).toBeVisible();
+    await expect(row).toBeVisible();
+
+    // The marker arrives in place rather than moving into it, which is the end
+    // state the movement would arrive at.
+    expect(
+      await row
+        .locator('span[aria-hidden="true"]')
+        .first()
+        .evaluate((marker) => ({
+          animation: getComputedStyle(marker).animationName,
+          duration: getComputedStyle(marker).transitionDuration,
+        }))
+    ).toEqual({ animation: 'none', duration: '0s' });
   });
 });

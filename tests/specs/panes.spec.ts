@@ -275,7 +275,9 @@ test.describe('A pane whose read fails', () => {
     });
     await mainWindow.getByRole('button', { name: 'Try again' }).click();
 
-    await expect(mainWindow.getByText('No Changes found')).toBeVisible();
+    await expect(
+      mainWindow.getByText('Nothing has changed in this Project yet.')
+    ).toBeVisible();
     await expect(mainWindow.getByRole('alert')).toBeHidden();
   });
 });

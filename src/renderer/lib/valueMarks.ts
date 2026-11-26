@@ -1,4 +1,3 @@
-import { replaceEqualDeep } from '@tanstack/react-query';
 import { diffWords } from 'diff';
 
 // What changed inside one Value, as the History marks it: removed words struck
@@ -7,19 +6,53 @@ import { diffWords } from 'diff';
 //
 // See contributing/renderer/forms.md#a-value-that-is-read-rather-than-edited.
 
+/** A list, narrowed without a cast so what is inside it stays unknown. */
+function isList(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+/** An object of keys, the same way. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /**
  * Whether two states of one Value hold the same content.
  *
  * It is what decides whether a field is marked, rather than the two readings:
  * a Value replaced by another that reads the same, such as one Asset for
- * another, still changed. Both states come out of a JSON file, so comparing
- * them structurally is what says they are the same, and TanStack Query's own
- * `replaceEqualDeep` answers that: it hands back the state it was given first
- * where nothing below it differs, which is how the query cache tells that a
- * refetch changed nothing.
+ * another, still changed. Both states are JSON Core read off disk, so comparing
+ * them structurally is what says they are the same, however deep they nest,
+ * and the order two keys happen to be written in is not part of it.
+ *
+ * Written out rather than taken from a library, because the ones within reach
+ * come with React, which has no business in a module about Values, and which
+ * pulls the browser's own types into the test suite's Node programs with it.
  */
 export function holdsSameContent(before: unknown, after: unknown): boolean {
-  return replaceEqualDeep(before, after) === before;
+  if (before === after) {
+    return true;
+  }
+
+  if (isList(before) || isList(after)) {
+    return (
+      isList(before) &&
+      isList(after) &&
+      before.length === after.length &&
+      before.every((item, index) => holdsSameContent(item, after[index]))
+    );
+  }
+
+  if (isRecord(before) === false || isRecord(after) === false) {
+    return false;
+  }
+
+  const keys = Object.keys(before);
+
+  return (
+    keys.length === Object.keys(after).length &&
+    keys.every((key) => holdsSameContent(before[key], after[key]))
+  );
 }
 
 /** One run of a Value's text, and what happened to it. */

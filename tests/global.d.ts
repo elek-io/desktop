@@ -127,6 +127,10 @@ interface ProbedStyle {
   readonly fontWeight: string;
   readonly gridTemplateColumns: string;
   readonly lineHeight: string;
+  /** Whether a mark is struck through or underlined, rather than only colored. */
+  readonly textDecorationLine: string;
+  /** How long the element takes to move, which a still marker takes none of. */
+  readonly transitionDuration: string;
   readonly padding: string;
   readonly outlineColor: string;
   readonly outlineOffset: string;

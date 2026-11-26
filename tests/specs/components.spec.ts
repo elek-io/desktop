@@ -2421,7 +2421,7 @@ test.describe('Components', () => {
       .click();
     await mainWindow.getByRole('button', { name: 'Discard' }).click();
     await expect(
-      mainWindow.getByRole('link', { name: /update component/i })
+      mainWindow.getByRole('link', { name: /changed a Component/i })
     ).toHaveCount(0);
   });
 
@@ -2790,7 +2790,7 @@ test.describe('Components', () => {
 
     await navigateToHistory(mainWindow, project.id);
     await mainWindow
-      .getByRole('link', { name: /create component/i })
+      .getByRole('link', { name: /added a Component/i })
       .first()
       .click();
 
@@ -3094,7 +3094,7 @@ test.describe('Components', () => {
     // One commit, as every other change to a Collection lands.
     await navigateToHistory(mainWindow, project.id);
     await expect(
-      mainWindow.getByRole('link', { name: /update collection/i })
+      mainWindow.getByRole('link', { name: /changed a Collection/i })
     ).toHaveCount(1);
 
     // The Field kept its id, which is what Core matches on, and its allowed
@@ -3264,7 +3264,7 @@ test.describe('Components', () => {
     // One commit again, and the Field grew without losing its id.
     await navigateToHistory(mainWindow, project.id);
     await expect(
-      mainWindow.getByRole('link', { name: /update component/i })
+      mainWindow.getByRole('link', { name: /changed a Component/i })
     ).toHaveCount(1);
 
     const stored = await readComponentViaIpc(mainWindow, {

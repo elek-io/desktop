@@ -1271,10 +1271,10 @@ test.describe('Collections', () => {
     // link of its own.
     await navigateToHistory(mainWindow, project.id);
     await expect(
-      mainPanel(mainWindow).getByRole('link', { name: /create collection/i })
+      mainPanel(mainWindow).getByRole('link', { name: /added a Collection/i })
     ).toBeVisible();
     await expect(
-      mainPanel(mainWindow).getByRole('link', { name: /update collection/i })
+      mainPanel(mainWindow).getByRole('link', { name: /changed a Collection/i })
     ).toHaveCount(0);
 
     // Routing there reloaded the renderer, so the Entry form re-reads from
