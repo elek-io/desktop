@@ -66,6 +66,35 @@ export interface FieldTypeRenderValueProps<T extends FieldType> {
   formatInUserLocale: (date: Date, pattern: string) => string;
 }
 
+/** One state of a Value, and the commit it stood at. */
+export interface ValueStateAt {
+  /** The Value's content, or `undefined` where the object held none. */
+  content: unknown;
+  /**
+   * The commit the object is read at, or `undefined` where there is none to
+   * read, which is what a change that created the object leaves for the state
+   * before it.
+   */
+  commitHash: string | undefined;
+}
+
+/**
+ * The two states of one Value, as a type draws them where it shows more than
+ * text.
+ *
+ * Each state carries the commit it stood at, so what it points at is read as
+ * it stood then rather than as it stands now.
+ */
+export interface FieldTypeReadRowsProps<T extends FieldType> {
+  fieldDefinition: DefinitionOf<T>;
+  /** The language the change is read in. */
+  language: SupportedLanguage;
+  before: ValueStateAt;
+  after: ValueStateAt;
+  /** Whether this change marks what it touched, which a create and a delete do not. */
+  isMarked: boolean;
+}
+
 /**
  * Which object holds the field definitions being edited. A Collection and a
  * Component share the whole editor, and the owner decides the two restrictions
@@ -211,6 +240,24 @@ export interface FieldTypeModule<T extends FieldType> {
    * where the change inside it is marked, see `lib/valueMarks.ts`.
    */
   renderValue: (props: FieldTypeRenderValueProps<T>) => string | null;
+  /**
+   * This Value as the History draws it, where the type shows more than text.
+   *
+   * A reference reads as how many it holds, which names neither the Asset nor
+   * the Entry it points at, so those two types draw the rows their own control
+   * draws instead, with what came and what went marked. Every other type
+   * leaves this off, and its `renderValue` is drawn as text.
+   *
+   * Drawn as a component rather than called as a function, so the reads a
+   * type's rows need belong to it.
+   */
+  ReadRows?: (props: FieldTypeReadRowsProps<T>) => ReactNode;
+  /**
+   * Whether the Value reads as a key rather than as prose, which is drawn in
+   * the mono font, as that type's own control draws it. A slug is the one,
+   * see ci's `.val.mono`.
+   */
+  readsAsKey?: boolean;
   /**
    * Whether what `renderValue` answers is made of words, so a change inside
    * the Value is marked word by word.

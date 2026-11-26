@@ -185,6 +185,8 @@ A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fiel
 | `isEmpty`              | Whether one language's content of this Value holds nothing           |
 | `renderValue`          | This Value in one language as text, where it is shown not edited     |
 | `readsAsWords`         | Whether that text is words, so a change in it is marked word by word |
+| `readsAsKey`           | Whether it reads as a key rather than prose, so it is drawn in mono  |
+| `ReadRows`             | This Value as rows, where the type shows more than text              |
 | `titleText`            | This Value's text where an Entry is named by one of its Values       |
 | `coreRefusalText`      | This type's words for a refusal Core wrote its own English for       |
 | `requiredNote`         | Why Required is fixed for this field, where Core pins it             |
@@ -193,7 +195,7 @@ A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fiel
 | `allowedComponentIds`  | Which Components a definition allows as a section                    |
 | `withoutDefinition`    | How a definition forgets another one the editor removed              |
 
-The last three are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components. `coreRefusalText` is optional too, and three types carry one: `slug`, `entry` and `markdown` are where the refusals Core words itself land, see [Where a refusal's words come from](#where-a-refusals-words-come-from). The two notes are optional for the same reason: a type Core leaves both switches free answers neither.
+The last three are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components. `readsAsKey` is optional for the same reason, with `slug` the one key there is, and `ReadRows` because only the two reference types show more than text, see [a Value that is read rather than edited](./forms.md#a-value-that-is-read-rather-than-edited). `coreRefusalText` is optional too, and three types carry one: `slug`, `entry` and `markdown` are where the refusals Core words itself land, see [Where a refusal's words come from](#where-a-refusals-words-come-from). The two notes are optional for the same reason: a type Core leaves both switches free answers neither.
 
 **The registry** ([`fields/index.ts`](../../src/renderer/components/fields/index.ts)) is a mapped type over Core's `FieldType`, so a field type Core adds **fails to compile until it has a folder**, and the message names the types whose folder is missing. That mapped type is exported as `FieldTypeRegistry`, so the type test can name it rather than write it out again, see [forms.md](./forms.md#guardrails). Reach a module through `fieldModule(fieldDefinition)`, which is generic over the field type so the module and the definition stay correlated: every member of what comes back takes exactly the definition that was passed in. Always read the module from the definition it is about, never pair one definition's module with another definition.
 

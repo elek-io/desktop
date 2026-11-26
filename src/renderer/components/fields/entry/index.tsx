@@ -16,6 +16,7 @@ import { entryFieldDefinitionSchema } from '@elek-io/core';
 import { type FieldTypeModule } from '../module';
 import { EntryControl } from './control';
 import { EntryDefinitionEditor } from './definition';
+import { EntryReadRows } from './read-rows';
 
 /** One or more Entries of the Collections the field allows, held as references. */
 export const entryField: FieldTypeModule<'entry'> = {
@@ -43,6 +44,9 @@ export const entryField: FieldTypeModule<'entry'> = {
   isEmpty: holdsNothing,
   // As the Asset field: a count rather than text, so it is marked whole.
   readsAsWords: false,
+  // And as the Asset field, the History draws the Entries themselves, since a
+  // count names none of them.
+  ReadRows: EntryReadRows,
   // As the Asset field says it: how many Entries the field points at, in one
   // sentence.
   renderValue: ({ content, language }) => {

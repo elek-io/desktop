@@ -416,9 +416,9 @@ drives it on both pages that stay open after they saved.
 ## A Value that is read rather than edited
 
 The History shows the change it opens as the Entry, the Asset or the Project
-once, read rather than edited. Nothing there is a form: a Value that is read is
-text, so there is no control to hold it, which is what ci asks for, with the
-border in the divider color, no toolbar and no buttons.
+once, read rather than edited. Nothing there is a form: a Value that is read
+needs no control to hold it, which is what ci asks for, with the border in the
+divider color, no toolbar and no buttons.
 
 It still goes through the one field shell.
 [`components/history/read-field.tsx`](../../src/renderer/components/history/read-field.tsx)
@@ -439,9 +439,29 @@ word by word with jsdiff where the type reads as words and as the old Value
 beside the new one where it does not, which is that type's own
 `readsAsWords`.
 
-- **The stored content decides whether a field is marked, not the two
-  readings.** A Value replaced by another that reads the same, such as one
-  Asset for another, still changed.
+- **A type that shows more than text draws its own rows**, which is `ReadRows`
+  in its folder. A reference reads as how many it points at, which names
+  neither the Asset nor the Entry, so the `asset` and the `entry` folder draw
+  the rows their own control draws: the preview or the Collection's icon, what
+  it is called, and what the file is or which Collection it is in. Each row is
+  read at the commit its own state stood at, so a file replaced since still
+  reads as it did then, and a read that fails belongs to the pane the change is
+  drawn in, as every other read of it does. Which rows a change shows is
+  `markedReferences` in
+  [`fields/value-contracts.ts`](../../src/renderer/components/fields/value-contracts.ts),
+  one contract for every kind of reference: what went stands struck through
+  before what the field holds, with what came underlined.
+- **A Value that reads as a key is drawn in the mono font**, which is
+  `readsAsKey`. A slug is the one type that answers it, as its own control
+  draws it and as ci's `.val.mono` draws it.
+- **The stored content decides whether a Value of a field type is marked, not
+  the two readings.** A Value replaced by another that reads the same, such as
+  one Asset for another, still changed.
+- **An Asset's File field is marked by its type and its size**, which is all
+  Desktop can read of the file itself: an Asset's sidecar carries no
+  fingerprint of its content, so a file replaced by another of the same type
+  and byte count leaves the field unmarked. The name and the description beside
+  it are compared as the text they are.
 - **A create and a delete mark nothing.** Everything in a created Entry is new,
   and a deleted one is shown as it last stood, which is what ci asks.
 - **The language a change is read in lives in the address**, as it does in the

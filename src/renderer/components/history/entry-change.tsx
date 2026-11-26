@@ -3,6 +3,7 @@ import { Trans, useLingui } from '@lingui/react/macro';
 import { Link } from '@tanstack/react-router';
 import { type ReactElement } from 'react';
 
+import { fieldModule } from '@renderer/components/fields';
 import { entryTitle } from '@renderer/components/fields/entry-title';
 import { changeBefore } from '@renderer/components/history/change-before';
 import { ChangePage } from '@renderer/components/history/change-page';
@@ -86,6 +87,11 @@ function changedValues({
  * It is a component of its own so each field reads its own Value as its type
  * reads one, and so a field keeps the width its definition gives it in the
  * editor.
+ *
+ * What the Value's body is, is the type's own answer too: a type that shows
+ * more than text draws its own rows, as a reference does, and every other one
+ * is read as text. Whether the field is marked at all comes from the stored
+ * content either way, see `value-reading.ts`.
  */
 function EntryField({
   fieldDefinition,
@@ -93,14 +99,19 @@ function EntryField({
   after,
   isMarked,
   language,
+  at,
 }: {
   fieldDefinition: FieldDefinition;
   before: Entry | undefined;
   after: Entry | undefined;
   isMarked: boolean;
   language: SupportedLanguage;
+  /** The commit each state of the Entry was read at. */
+  at: { before: string | undefined; after: string | undefined };
 }): ReactElement {
   const { translateContent, formatInUserLocale } = useProject();
+  const module = fieldModule(fieldDefinition);
+  const ReadRowsOfType = module.ReadRows;
   const reading = valueReading({
     fieldDefinition,
     before: valueContent(before, fieldDefinition),
@@ -119,7 +130,26 @@ function EntryField({
       isChanged={reading.isChanged}
       className={cn('col-span-12', fieldWidth(fieldDefinition.inputWidth))}
     >
-      <ReadValue marks={reading.marks} />
+      {ReadRowsOfType === undefined ? (
+        <ReadValue
+          marks={reading.marks}
+          className={cn(module.readsAsKey === true && 'font-mono')}
+        />
+      ) : (
+        <ReadRowsOfType
+          fieldDefinition={fieldDefinition}
+          language={language}
+          before={{
+            content: valueContent(before, fieldDefinition),
+            commitHash: at.before,
+          }}
+          after={{
+            content: valueContent(after, fieldDefinition),
+            commitHash: at.after,
+          }}
+          isMarked={isMarked}
+        />
+      )}
     </ReadField>
   );
 }
@@ -131,12 +161,15 @@ function EntryFields({
   after,
   isMarked,
   language,
+  at,
 }: {
   fieldDefinitions: FieldDefinitionOrGroup[];
   before: Entry | undefined;
   after: Entry | undefined;
   isMarked: boolean;
   language: SupportedLanguage;
+  /** The commit each state of the Entry was read at. */
+  at: { before: string | undefined; after: string | undefined };
 }): ReactElement {
   const { translateContent } = useProject();
 
@@ -161,6 +194,7 @@ function EntryFields({
                     after={after}
                     isMarked={isMarked}
                     language={language}
+                    at={at}
                   />
                 ))}
               </FieldGroup>
@@ -176,6 +210,7 @@ function EntryFields({
             after={after}
             isMarked={isMarked}
             language={language}
+            at={at}
           />
         );
       })}
@@ -384,6 +419,7 @@ export function EntryChange({
             after={after}
             isMarked={isMarked}
             language={language}
+            at={{ before: previous?.hash, after: commit.hash }}
           />
         </>
       )}

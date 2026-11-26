@@ -44,6 +44,9 @@ export const slugField: FieldTypeModule<'slug'> = {
   previewContent: emptyPreview,
   isEmpty: holdsNothing,
   readsAsWords: true,
+  // It is part of a web address rather than prose, which is why its own
+  // control draws it in the mono font and why a Value that is read is too.
+  readsAsKey: true,
   renderValue: storedText,
   titleText: textTitle,
   // Core refuses text that holds nothing a slug can be made of, and a slug

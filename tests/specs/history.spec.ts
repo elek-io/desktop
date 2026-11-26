@@ -19,6 +19,7 @@ import {
   dateFieldDefinition,
   deleteCollectionViaIpc,
   markdownFieldDefinition,
+  referenceFieldDefinition,
   selectFieldDefinition,
   textFieldDefinition,
   toggleFieldDefinition,
@@ -32,6 +33,7 @@ import {
   markdownEditorSurface,
   markdownValue,
   mdAstParagraph,
+  referenceValue,
   stringValue,
   temporalValue,
   updateEntryViaIpc,
@@ -172,6 +174,25 @@ async function fieldsOf(
         isChanged: field.getAttribute('data-changed') === 'true',
       };
     })
+  );
+}
+
+/**
+ * Each row of a Value that points at something, as its name and the line below
+ * it read, in the order they stand.
+ */
+async function rowsOf(page: Page): Promise<{ name: string; line: string }[]> {
+  return page.locator('[data-slot="read-row"]').evaluateAll((rows) =>
+    rows.map((row) => ({
+      name:
+        row
+          .querySelector(':scope > span:last-child > span:first-child')
+          ?.textContent?.trim() ?? '',
+      line:
+        row
+          .querySelector(':scope > span:last-child > span:nth-child(2)')
+          ?.textContent?.trim() ?? '',
+    }))
   );
 }
 
@@ -639,6 +660,23 @@ test.describe('The History of a Project', () => {
       name: 'showroom-evening',
       filePath: makeTempFile(testInfo, 'showroom-evening.png', pngBytes),
     });
+    // A Collection to point at, so an Entry reference is read as well.
+    const team = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Team member' }, plural: { en: 'Team' } },
+      slug: { singular: 'team-member', plural: 'team' },
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const mara = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: team.id,
+      values: { title: stringValue({ en: 'Mara Klein' }) },
+    });
+    const jonas = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: team.id,
+      values: { title: stringValue({ en: 'Jonas Brandt' }) },
+    });
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       fieldDefinitions: [
@@ -646,6 +684,11 @@ test.describe('The History of a Project', () => {
         dateFieldDefinition({ label: { en: 'Published on' } }),
         selectFieldDefinition({ label: { en: 'Style' } }),
         assetFieldDefinition({ label: { en: 'Cover' } }),
+        referenceFieldDefinition({
+          slug: 'authors',
+          label: { en: 'Authors' },
+          ofCollections: [team.id],
+        }),
       ],
     });
     const entry = await createEntryViaIpc(mainWindow, {
@@ -656,10 +699,12 @@ test.describe('The History of a Project', () => {
         published: temporalValue({ en: '2026-03-01' }),
         style: stringValue({ en: 'primary' }),
         logo: assetReferenceValue(asset.id),
+        authors: referenceValue(mara.id, team.id),
       },
     });
     // The Cover points at another Asset of the same count, which reads the
-    // same either way, and the choice moves to its other option.
+    // same either way, the Authors at another Entry, and the choice moves to
+    // its other option.
     await updateEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -669,6 +714,7 @@ test.describe('The History of a Project', () => {
         published: temporalValue({ en: '2026-03-08' }),
         style: stringValue({ en: 'outline' }),
         logo: assetReferenceValue(other.id),
+        authors: referenceValue(jonas.id, team.id),
       },
     });
 
@@ -693,17 +739,34 @@ test.describe('The History of a Project', () => {
         isChanged: true,
       },
       { label: 'Style', value: 'primaryoutline', isChanged: true },
-      // A reference reads as how many Assets it points at, which is the same
-      // either way, and the field is still marked, because what decides that
-      // is the stored Value rather than what it reads as.
-      { label: 'Cover', value: '1 Asset1 Asset', isChanged: true },
+      // A reference points at something rather than reading as text, so it
+      // draws the rows below instead of a text Value, and the field is marked
+      // because what decides that is the stored Value either way.
+      { label: 'Cover', value: '', isChanged: true },
+      { label: 'Authors', value: '', isChanged: true },
+    ]);
+
+    // A reference names what it points at, as its own control does: the Asset
+    // with what the file is, and the Entry with the Collection it is in. The
+    // one that went stands struck through above the one that came.
+    expect(await rowsOf(mainWindow)).toEqual([
+      { name: 'showroom.png', line: 'PNG, 70 Bytes' },
+      { name: 'showroom-evening.png', line: 'PNG, 70 Bytes' },
+      { name: 'Mara Klein', line: 'Team' },
+      { name: 'Jonas Brandt', line: 'Team' },
     ]);
     expect(await removedWords(mainWindow)).toEqual([
       before,
       'primary',
-      '1 Asset',
+      'showroom.png',
+      'Mara Klein',
     ]);
-    expect(await addedWords(mainWindow)).toEqual([after, 'outline', '1 Asset']);
+    expect(await addedWords(mainWindow)).toEqual([
+      after,
+      'outline',
+      'showroom-evening.png',
+      'Jonas Brandt',
+    ]);
     // A day is one Value rather than words, so nothing inside it is compared.
     await expect(mainWindow.getByText('2026-03-08')).toHaveCount(0);
   });

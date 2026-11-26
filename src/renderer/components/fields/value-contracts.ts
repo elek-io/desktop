@@ -1,6 +1,9 @@
 import { translatableDefault } from '@renderer/lib/utils';
+import type { ValueMark } from '@renderer/lib/valueMarks';
 
 import type { SupportedLanguage } from '@elek-io/core';
+
+import type { ValueStateAt } from './module';
 
 // The Value contracts more than one field type shares, as plain functions a
 // type's own module opts into. Nothing here branches on a field type or a value
@@ -134,4 +137,117 @@ export function temporalText({
   }
   const date = new Date(anchor(value));
   return isNaN(date.getTime()) ? value : formatInUserLocale(date, pattern);
+}
+
+/** One reference as Core stores it: what it points at, and where that lives. */
+export interface StoredReference {
+  id: string;
+  /**
+   * The Collection of the Entry it points at. Core keeps it beside the id for
+   * an Entry reference, which is what lets one be read without every
+   * Collection being searched for it, and no other kind of reference has one.
+   */
+  collectionId?: string | undefined;
+}
+
+/**
+ * What a reference Value points at in one language, in the order it is stored.
+ *
+ * One contract for every kind of reference, since each of them carries an id,
+ * and what an id points at is read by the type's own folder. A reference
+ * without one is left out rather than read, so a Value a sync left half
+ * written draws the references it can.
+ */
+export function storedReferences({
+  content,
+  language,
+}: {
+  content: unknown;
+  language: SupportedLanguage;
+}): StoredReference[] {
+  const references = contentInLanguage(content, language);
+
+  if (Array.isArray(references) === false) {
+    return [];
+  }
+
+  return references.flatMap((reference: unknown) => {
+    if (typeof reference !== 'object' || reference === null) {
+      return [];
+    }
+    if ('id' in reference === false || typeof reference.id !== 'string') {
+      return [];
+    }
+    const id: string = reference.id;
+
+    if (
+      'collectionId' in reference &&
+      typeof reference.collectionId === 'string'
+    ) {
+      return [{ id, collectionId: reference.collectionId }];
+    }
+
+    return [{ id }];
+  });
+}
+
+/** One reference a change shows, read at its own state of the Value. */
+export interface MarkedReference extends StoredReference {
+  /** The commit the object it points at is read at. */
+  commitHash: string | undefined;
+  /** Whether it came with this change, went with it, or stands in both. */
+  mark: ValueMark['mark'];
+}
+
+/**
+ * Which references a change shows of one Value, in the order they are read.
+ *
+ * A change that marks nothing shows the state it left, which is the one after
+ * it or the last there was where it deleted the object. One that marks what it
+ * touched shows what went first, struck through, then what the field holds,
+ * with what came underlined, so a replaced reference reads as the old one
+ * beside the new one, which is what ci asks for a Value that is not text.
+ *
+ * One contract for every kind of reference, as `storedReferences` is.
+ */
+export function markedReferences({
+  before,
+  after,
+  isMarked,
+  language,
+}: {
+  before: ValueStateAt;
+  after: ValueStateAt;
+  isMarked: boolean;
+  language: SupportedLanguage;
+}): MarkedReference[] {
+  const referencesOf = (state: ValueStateAt): StoredReference[] =>
+    storedReferences({ content: state.content, language });
+
+  if (isMarked === false) {
+    const left = after.content === undefined ? before : after;
+    return referencesOf(left).map((reference) => ({
+      ...reference,
+      commitHash: left.commitHash,
+      mark: null,
+    }));
+  }
+
+  const held = new Set(referencesOf(after).map((reference) => reference.id));
+  const stood = new Set(referencesOf(before).map((reference) => reference.id));
+
+  return [
+    ...referencesOf(before)
+      .filter((reference) => held.has(reference.id) === false)
+      .map((reference) => ({
+        ...reference,
+        commitHash: before.commitHash,
+        mark: 'removed' as const,
+      })),
+    ...referencesOf(after).map((reference) => ({
+      ...reference,
+      commitHash: after.commitHash,
+      mark: stood.has(reference.id) ? null : ('added' as const),
+    })),
+  ];
 }

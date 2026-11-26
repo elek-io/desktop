@@ -106,7 +106,10 @@ export function AssetChange({
   });
   // The file itself, which a replace swaps for another. Its type and size say
   // what it is, so they are what a replaced file is marked by, and neither is
-  // text to compare word by word.
+  // text to compare word by word. They are also all Desktop can read of the
+  // file, since an Asset's sidecar carries no fingerprint of its content, so a
+  // file replaced by another of the same type and byte count leaves the field
+  // unmarked, see contributing/renderer/forms.md.
   const file = textReading({
     before: typeAndSize(before, sizeWords),
     after: typeAndSize(after, sizeWords),

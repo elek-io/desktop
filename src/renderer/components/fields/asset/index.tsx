@@ -16,6 +16,7 @@ import { type FieldTypeModule } from '../module';
 import { AssetControl } from './control';
 import { AssetDefinitionEditor } from './definition';
 import { assetKindNote } from './kind';
+import { AssetReadRows } from './read-rows';
 
 /** One or more of the Project's Assets, held as references. */
 export const assetField: FieldTypeModule<'asset'> = {
@@ -48,6 +49,9 @@ export const assetField: FieldTypeModule<'asset'> = {
   // The Value reads as how many Assets it points at, which is no text to
   // compare, so a change in it is marked whole.
   readsAsWords: false,
+  // A count names no file, so the History draws the Assets themselves, as the
+  // control above does.
+  ReadRows: AssetReadRows,
   // A reference cannot be read as it is stored, so it says how many Assets the
   // field points at, as one sentence rather than a count joined to a noun, so
   // a language that inflects the noun with the count can.

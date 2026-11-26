@@ -236,6 +236,7 @@ msgstr "{type} file"
 #: src/renderer/components/asset-card.tsx
 #: src/renderer/components/asset-pane.tsx
 #: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/fields/asset/read-rows.tsx
 #: src/renderer/components/history/asset-change.tsx
 msgid "{type}, {size}"
 msgstr "{type}, {size}"
@@ -2105,6 +2106,7 @@ msgid "Next"
 msgstr "Next"
 
 #: src/renderer/components/fields/asset/control.tsx
+#: src/renderer/components/fields/asset/read-rows.tsx
 msgid "No Asset chosen"
 msgstr "No Asset chosen"
 
@@ -2143,6 +2145,7 @@ msgid "No Components yet"
 msgstr "No Components yet"
 
 #: src/renderer/components/fields/entry/control.tsx
+#: src/renderer/components/fields/entry/read-rows.tsx
 #: src/renderer/routes/projects/$projectId/collections/$collectionId/index.tsx
 msgid "No Entry chosen"
 msgstr "No Entry chosen"
