@@ -49,7 +49,7 @@ The one caller today is the sidebar's Project card, whose line that says when it
 
 `formatInUserLocale` is provided by the same `UserProvider` and read through `useUser()` or `useProject()`. It takes a `Date` and a date-fns pattern and answers with the formatted string in the current user's locale. Like `formatDatetime`, it falls back to date-fns's en-US default until the user's locale chunk loads. Unlike `formatDatetime` it shows no `-` placeholder, because a stored field value always exists and should be displayed rather than hidden while the user data loads.
 
-Which pattern a Value takes, and how its stored string becomes a date at all, is the field type's own answer and lives in that type's folder, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md). A date Value is stored as `YYYY-MM-DD` with no time or zone, so the `date` folder anchors it to local midnight before formatting, otherwise the shown day could shift by one in a negative UTC offset. A time Value is anchored to an arbitrary day for the same reason, and a datetime carries its own zone. A field hands each type's `renderValue` this formatter, so a stored `2026-07-09` reads as a localized date rather than as the raw ISO string wherever a Value is shown rather than edited.
+Which pattern a Value takes, and how its stored string becomes a date at all, is the field type's own answer and lives in that type's folder, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md). A date Value is stored as `YYYY-MM-DD` with no time or zone, so the `date` folder anchors it to local midnight before formatting, otherwise the shown day could shift by one in a negative UTC offset. A time Value is anchored to an arbitrary day for the same reason, and a datetime carries its own zone. A field hands each type's `renderValue` this formatter, so a stored `2026-07-09` reads as a localized date rather than as the raw ISO string wherever a Value is shown rather than edited: below a field whose Value is missing in the language on screen, in the rows of a refused field change, and in the History, where the two readings of a Value are what the change inside it is marked from, see [forms.md](./forms.md#a-value-that-is-read-rather-than-edited).
 
 ```tsx
 // In a field type's folder, where the pattern belongs
@@ -115,6 +115,10 @@ form rather than each field opening a dialog of its own.
   back to its default language rather than failing the route, and the switch
   replaces the address rather than pushing it, so the way back leads out of the
   Entry rather than through every language that was looked at.
+- **A change of an Entry in the History takes the same switch and the same
+  address.** It falls back to the language that changed rather than to the
+  Project's default, which is what opens a change where the work was done, and
+  Open Entry carries the language on screen into the editor.
 - **Every field reads it from one context**, `useFormLanguage()`
   ([`hooks/useFormLanguage.ts`](../../src/renderer/hooks/useFormLanguage.ts)),
   which `EntryForm` provides. A translatable field binds `<path>.<language>`,

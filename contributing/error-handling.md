@@ -102,14 +102,15 @@ Two rules follow for a screen:
 
 ### The reads a screen catches: a Project card's own
 
-A Project's card answers its own failed reads itself, rather than leaving them to a boundary. What it reads is a state of the Project it has to show, whether the Git repository can be reached at all and which Release it is at, and the sidebar's card stands above every pane anyway. Four places draw such a state and all of them read through [`useProjectState`](/src/renderer/hooks/useProjectState.ts), so none of them writes an `isError` branch of its own:
+A Project's card answers its own failed reads itself, rather than leaving them to a boundary. What it reads is a state of the Project it has to show, whether the Git repository can be reached at all and which Release it is at, and the sidebar's card stands above every pane anyway. Every place that draws such a state reads it through [`useProjectState`](/src/renderer/hooks/useProjectState.ts), so none of them writes an `isError` branch of its own:
 
 | Whose state        | Where                                                                                                                          | Shows                                                                                                                                      |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | The open Project's | The sidebar, in [`project-sidebar.tsx`](/src/renderer/components/project-sidebar.tsx)                                          | Every state line, plus when it last checked and a sync of its own that failed                                                              |
 | One per Project    | Each cell of the Projects page, in [`project-card.tsx`](/src/renderer/components/project-card.tsx)                             | The same state lines, without the check's own line and without a failed sync, which only the open Project has                              |
 | The open Project's | The Remove confirm of its Settings, in [`settings/general.tsx`](/src/renderer/routes/projects/$projectId/settings/general.tsx) | What removing cannot bring back: how many changes are not synced, or, where the check failed or has not answered, that changes may be lost |
-| The open Project's | The change rows of its Dashboard, in [`dashboard.tsx`](/src/renderer/routes/projects/$projectId/dashboard.tsx)                 | Whether each change has reached the Git repository, and neither state where the check failed or has not answered, see `syncStateOf`        |
+| The open Project's | The change rows of its Dashboard, in [`dashboard.tsx`](/src/renderer/routes/projects/$projectId/dashboard.tsx)                 | Whether each change has reached the Git repository, and neither state where the check failed or has not answered, see `changeSyncState`    |
+| The open Project's | The History, in [`history-sidebar.tsx`](/src/renderer/components/history-sidebar.tsx) and the head of the chosen change        | The rows grouped into Not synced and Synced, and one ungrouped list with plain markers where the check failed or has not answered          |
 
 Each card runs its own two reads, which is what lets a slow or failing one hold up nothing but its own lines: the Projects page is on screen with every card on it while each one's state line is still a placeholder. It matters most on that page, which draws one card per Project, so a read left to the boundary would empty the page of every Project because one of them could not be read.
 
@@ -119,6 +120,7 @@ Each card runs its own two reads, which is what lets a slow or failing one hold 
 - **It logs what it caught the way a pane's boundary does**, through `errorLogAttributes`, with the message `Project card check error: ...` or `Project card Releases error: ...`, from an effect so a re-render does not write the same record again. So a repository that stopped answering is in the log file with its type, message and stack either way.
 - Which line the check shows comes from `checkRefusal` in [`lib/sync.ts`](/src/renderer/lib/sync.ts): `Unauthorized` is a repository that answered and refused, which gets its own line, and everything else is one that could not be reached. Sync and Check now are the retry, so nothing else has to offer one. A failed Releases read says so where the last Release stands.
 
+- **The History lists its changes whatever the check says.** They are on this computer either way, so a check that failed drops the groups rather than the screen: `tellsWhatIsSynced` in [`lib/changeSyncState.ts`](/src/renderer/lib/changeSyncState.ts) answers whether there is anything to group by, and `changeSyncState` answers what each row claims then, which is nothing. The list and the head of the chosen change read the one check through `useProjectState`, so the count in the card and the rows cannot disagree, and neither of them reaches the error screen for it.
 - **The Remove confirm never says there is nothing to lose when it cannot tell.** A Project whose Git repository cannot be reached is exactly the one whose changes have not left this computer, so a failed check reads as "Changes that aren't synced may be lost", never as a count of zero. The count itself is the check's `ahead`.
 - **One failure is one record.** Each effect keeps the errors it has written in a `WeakSet`, so neither a re-render nor a second screen reading the same error writes it again. A read that runs again and fails again is its own failure and its own record, which is what a second reader of a stale query brings about.
 
@@ -433,18 +435,18 @@ The E2E fixture asserts zero console errors or warnings on a passing test (see [
 
 ## Quick reference
 
-| Scenario                                  | UI surface                                                  | Local log                                                             |
-| ----------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
-| A read fails inside a pane                | One sentence and Try again, in the pane                     | Pane error log plus the `onCaughtError` log                           |
-| A read fails above every pane             | Root error boundary                                         | Boundary error log plus the `onCaughtError` log                       |
-| A Project card's check of the remote      | A state line in the card, Sync as the retry                 | `Project card check error` log                                        |
-| A Project card's read of the Releases     | A state line where the last Release stands                  | `Project card Releases error` log                                     |
-| The Components list's count of Entries    | The row says it cannot tell, the list stands                | `Component usage error` log                                           |
-| Unexpected mutation error                 | Root error boundary                                         | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
-| Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page               | None by default                                                       |
-| Handled `type` whose cause names no field | Root error boundary                                         | Boundary error log plus the `onCaughtError` log                       |
-| Unhandled `type` on an in-place mutation  | Root error boundary                                         | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
-| Report send fails (unreachable, rejected) | Alert inside the dialog                                     | One error log from `useSendReport`, without what the user wrote       |
-| Route not found                           | `NotFoundComponent`                                         | None                                                                  |
-| Main process security block               | Denied, no window                                           | Core logger error                                                     |
-| App init failure                          | Native error box with none of the error, then the app exits | console.error, plus a Core logger error when Core exists              |
+| Scenario                                  | UI surface                                                                               | Local log                                                             |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| A read fails inside a pane                | One sentence and Try again, in the pane                                                  | Pane error log plus the `onCaughtError` log                           |
+| A read fails above every pane             | Root error boundary                                                                      | Boundary error log plus the `onCaughtError` log                       |
+| A Project card's check of the remote      | A state line in the card, Sync as the retry, and the History's rows without their groups | `Project card check error` log                                        |
+| A Project card's read of the Releases     | A state line where the last Release stands                                               | `Project card Releases error` log                                     |
+| The Components list's count of Entries    | The row says it cannot tell, the list stands                                             | `Component usage error` log                                           |
+| Unexpected mutation error                 | Root error boundary                                                                      | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
+| Handled `CoreError` `type` (in place)     | Dialog, field error or toast on the same page                                            | None by default                                                       |
+| Handled `type` whose cause names no field | Root error boundary                                                                      | Boundary error log plus the `onCaughtError` log                       |
+| Unhandled `type` on an in-place mutation  | Root error boundary                                                                      | Wrapper error log, boundary error log, `onCaughtError` log, one toast |
+| Report send fails (unreachable, rejected) | Alert inside the dialog                                                                  | One error log from `useSendReport`, without what the user wrote       |
+| Route not found                           | `NotFoundComponent`                                                                      | None                                                                  |
+| Main process security block               | Denied, no window                                                                        | Core logger error                                                     |
+| App init failure                          | Native error box with none of the error, then the app exits                              | console.error, plus a Core logger error when Core exists              |

@@ -190,6 +190,8 @@ which owns the policies that used to be pasted at each call site:
 - **`mode="view"`** renders the form read-only through a disabled `<fieldset>` and
   makes submit a no-op. It also reaches the generated fields through the
   `AppFormContext`, see [View-only forms and diffs](#view-only-forms-and-diffs).
+  A Value the History shows is not a form at all, see [a Value that is read
+  rather than edited](#a-value-that-is-read-rather-than-edited).
   A form that is only still loading is not this: it carries `disabled` instead,
   see [loading-and-updating-data.md](./loading-and-updating-data.md#filling-a-form-from-its-query).
 - **`fieldsetClassName`** styles that inner `<fieldset>`. It exists because the
@@ -411,35 +413,72 @@ while its own save runs.
 [`tests/specs/unsaved-changes.spec.ts`](../../tests/specs/unsaved-changes.spec.ts)
 drives it on both pages that stay open after they saved.
 
+## A Value that is read rather than edited
+
+The History shows the change it opens as the Entry, the Asset or the Project
+once, read rather than edited. Nothing there is a form: a Value that is read is
+text, so there is no control to hold it, which is what ci asks for, with the
+border in the divider color, no toolbar and no buttons.
+
+It still goes through the one field shell.
+[`components/history/read-field.tsx`](../../src/renderer/components/history/read-field.tsx)
+draws `FieldShell` with `hasControl={false}`, which leaves the label without a
+`htmlFor`, because a `<label>` cannot be for text and what it names follows it
+in reading order anyway. So the label, its rules and the field's geometry are
+the ones every other field has, and a field type Core adds needs nothing here.
+
+What a Value reads as is its own field type's answer, `renderValue` from that
+type's folder, see
+[dynamic-form-field-generation.md](./dynamic-form-field-generation.md). The
+History asks for it twice, once per state of the object, and marks the
+difference:
+[`components/history/value-reading.ts`](../../src/renderer/components/history/value-reading.ts)
+compares the two states and
+[`lib/valueMarks.ts`](../../src/renderer/lib/valueMarks.ts) builds the runs,
+word by word with jsdiff where the type reads as words and as the old Value
+beside the new one where it does not, which is that type's own
+`readsAsWords`.
+
+- **The stored content decides whether a field is marked, not the two
+  readings.** A Value replaced by another that reads the same, such as one
+  Asset for another, still changed.
+- **A create and a delete mark nothing.** Everything in a created Entry is new,
+  and a deleted one is shown as it last stood, which is what ci asks.
+- **The language a change is read in lives in the address**, as it does in the
+  Entry's own editor, and it opens on the language that changed, see
+  [internationalization.md](./internationalization.md#one-language-at-a-time).
+
+[`tests/specs/history.spec.ts`](../../tests/specs/history.spec.ts) drives it on
+screen and [`tests/specs/value-marks.spec.ts`](../../tests/specs/value-marks.spec.ts)
+drives the runs without a window.
+
 ## View-only forms and diffs
 
-The history and diff views reuse the same form components rather than a second
-read-only rendering path. Pass `isViewOnly` (which the shared components map to
-`AppForm`'s `mode="view"`), and the whole form renders inside a disabled
-`<fieldset>` with submit turned off.
+A form renders read-only through `isViewOnly`, which the shared components map
+to `AppForm`'s `mode="view"`: the whole form sits inside a disabled
+`<fieldset>` with submit turned off. A page hands it its own pending save, so
+nothing is edited while that save is in flight, see
+[a form is read-only while it saves](#a-form-is-read-only-while-it-saves).
 
 A disabled `<fieldset>` only turns off native form controls, so it does nothing
 for a control that is not one. The markdown field is the case: it is a Milkdown
-`contenteditable`, which stayed typable in a diff. `AppForm` therefore publishes
-its `mode` on the `AppFormContext`
+`contenteditable`, which stayed typable. `AppForm` therefore publishes its
+`mode` on the `AppFormContext`
 ([`hooks/useAppFormContext.ts`](../../src/renderer/hooks/useAppFormContext.ts)),
 and `FieldFromDefinition` reads it with `useAppFormMode()` and ORs it into the
 `disabled` it hands the type's control. Every control already takes `disabled`,
 so this is one fold rather than a per-type opt-in, and a field type Core adds
-inherits it. [`tests/specs/history.spec.ts`](../../tests/specs/history.spec.ts)
-drives it on the markdown field.
+inherits it.
 
-An Entry's diff does this: one view-mode form for a create or a delete, and a
-before/after pair for an update.
-
-A Collection's and a Component's settings do not.
+A changed Collection and a changed Component are the one thing the History
+still shows as the two states side by side.
 [`components/collection-diff.tsx`](../../src/renderer/components/collection-diff.tsx)
 and
 [`components/component-diff.tsx`](../../src/renderer/components/component-diff.tsx)
 read the object at each commit and draw it through the one field shell with no
 form behind it, because those settings are a whole screen of three panes rather
-than a form body a dialog can hold, and because nothing in a diff is edited. The
-fields it defines are drawn by `FieldDefinitionPreview`, which is the same
+than a form body a dialog can hold, and because nothing in them is edited. The
+fields they define are drawn by `FieldDefinitionPreview`, which is the same
 preview the settings show, so a field type Core adds shows up there with no
 extra work.
 
@@ -931,7 +970,11 @@ draws a label, a rule, a warning, a description or an error.
 **`FieldShell`** is the same shell without a form, for a field that has no form
 state behind it. The Collection editor's previews are the case: the control
 holds a static Value from its type's folder, so there are no phantom form paths
-and the label still names a real, disabled control.
+and the label still names a real, disabled control. `hasControl={false}` is for
+a field with no control at all, which the History's read Values are, and it
+leaves the label without a `htmlFor` rather than pointing it at text, see [a
+Value that is read rather than
+edited](#a-value-that-is-read-rather-than-edited).
 
 **`FieldSubtreeError`** renders every message at or below one path, for a value
 bound as a single `Controller` but drawn as something other than a field (the

@@ -145,7 +145,7 @@ A save that would delete stored Values, or leave an Entry without a Value it now
 | Needs a Value      | The field as editors see it under its new rules, to fill in right there: one `FieldFromDefinition` per Value the change needs, bound at `resolutions.<holderId>.<fieldSlug>.content`, where the holder is the Component item the Value belongs to and otherwise the Entry itself. So two items of one Entry each hold their own Value, and what goes back to Core is keyed as its call takes it, see [error-handling.md](../error-handling.md#example-a-field-change-core-cannot-carry-out) |
 
 - **It shows what Core's refusal names and sends back what Core takes.** Nothing in it works out a loss or a resolution of its own: the ids and the Value that would go come from the refusal (`entryIssuesOf` in [`lib/schemaChange.ts`](../../src/renderer/lib/schemaChange.ts)), and what goes back is `acceptedContentLoss` and `resolutions`, see [error-handling.md](../error-handling.md#example-a-field-change-core-cannot-carry-out).
-- **The Value that would go is read by its field type**, through `renderValue` of the field definition the object still holds, since a removed field is gone from the save. A narrowed `dynamic` or `entry` field reads as how many sections or Entries would go, which is what that type says of a Value.
+- **The Value that would go is read by its field type**, through `renderValue` of the field definition the object still holds, since a removed field is gone from the save. A narrowed `dynamic` or `entry` field reads as how many sections or Entries would go, which is what that type says of a Value. The History reads a Value the same way, twice, and marks the difference between the two readings, see [forms.md](./forms.md#a-value-that-is-read-rather-than-edited).
 - **It is a form of its own**, with the Values it needs as its fields and the red button as its `SubmitButton`, so the button waits while one of them is missing exactly as Save does, see [forms.md](./forms.md#saves-block). Its reason stands at the field as ci draws it, "Missing, so the changes can't be saved yet", and below the button as every other form says it.
 - **One switch above its rows** takes them into another language where the Project has more than one, because Core takes a resolution only once every language holds the Value, the same rule an Entry is saved under. It is the dialog's own switch, since the one above the settings takes names and labels into another language rather than Values.
 - **Each Entry it names is read through its Collection's list of Entries**, which is the query the list beside an Entry's editor fills, and named by `entryTitle`, the one way the app names an Entry. A Component's issue also names the item its field sits in, and ci gives an item no name, so the row says where that item sits.
@@ -168,29 +168,30 @@ Everything the app knows about one field type lives in that type's own folder un
 
 A folder holds a module ([`fields/module.ts`](../../src/renderer/components/fields/module.ts) is the contract), and `FieldTypeModule<T>` is generic over the field type, so **every member sees only its own narrowed field definition and no member checks its type again**:
 
-| Member                 | Answers                                                          |
-| ---------------------- | ---------------------------------------------------------------- |
-| `Control`              | The control, with this type's Value contract                     |
-| `translatable`         | Whether the Value is per-language                                |
-| `acceptsAriaRequired`  | Whether the control's role takes `aria-required`                 |
-| `label`                | Not a member: the field's label, handed to `Control` as a prop   |
-| `rules`                | What a field of this type says it needs, beside its label        |
-| `defaultContent`       | The Value's content for a new Entry                              |
-| `previewContent`       | The static content a field's preview shows                       |
-| `Icon`                 | The icon ci draws for the type                                   |
-| `group`                | Which of ci's groups the type is offered in                      |
-| `definitionSchema`     | The Core schema one definition of this type is checked against   |
-| `newDefinition`        | The definition choosing the type adds                            |
-| `DefinitionEditor`     | The type's own settings, below the shared ones                   |
-| `isEmpty`              | Whether one language's content of this Value holds nothing       |
-| `renderValue`          | This Value in one language as text, where it is shown not edited |
-| `titleText`            | This Value's text where an Entry is named by one of its Values   |
-| `coreRefusalText`      | This type's words for a refusal Core wrote its own English for   |
-| `requiredNote`         | Why Required is fixed for this field, where Core pins it         |
-| `uniquenessNote`       | Why Unique is fixed for this field, the same way                 |
-| `forbiddenInComponent` | That Core refuses this type inside a Component                   |
-| `allowedComponentIds`  | Which Components a definition allows as a section                |
-| `withoutDefinition`    | How a definition forgets another one the editor removed          |
+| Member                 | Answers                                                              |
+| ---------------------- | -------------------------------------------------------------------- |
+| `Control`              | The control, with this type's Value contract                         |
+| `translatable`         | Whether the Value is per-language                                    |
+| `acceptsAriaRequired`  | Whether the control's role takes `aria-required`                     |
+| `label`                | Not a member: the field's label, handed to `Control` as a prop       |
+| `rules`                | What a field of this type says it needs, beside its label            |
+| `defaultContent`       | The Value's content for a new Entry                                  |
+| `previewContent`       | The static content a field's preview shows                           |
+| `Icon`                 | The icon ci draws for the type                                       |
+| `group`                | Which of ci's groups the type is offered in                          |
+| `definitionSchema`     | The Core schema one definition of this type is checked against       |
+| `newDefinition`        | The definition choosing the type adds                                |
+| `DefinitionEditor`     | The type's own settings, below the shared ones                       |
+| `isEmpty`              | Whether one language's content of this Value holds nothing           |
+| `renderValue`          | This Value in one language as text, where it is shown not edited     |
+| `readsAsWords`         | Whether that text is words, so a change in it is marked word by word |
+| `titleText`            | This Value's text where an Entry is named by one of its Values       |
+| `coreRefusalText`      | This type's words for a refusal Core wrote its own English for       |
+| `requiredNote`         | Why Required is fixed for this field, where Core pins it             |
+| `uniquenessNote`       | Why Unique is fixed for this field, the same way                     |
+| `forbiddenInComponent` | That Core refuses this type inside a Component                       |
+| `allowedComponentIds`  | Which Components a definition allows as a section                    |
+| `withoutDefinition`    | How a definition forgets another one the editor removed              |
 
 The last three are optional, because exactly one type answers each: `slug` is forbidden in a Component and is the one definition that points at siblings, and `dynamic` is the one that embeds Components. `coreRefusalText` is optional too, and three types carry one: `slug`, `entry` and `markdown` are where the refusals Core words itself land, see [Where a refusal's words come from](#where-a-refusals-words-come-from). The two notes are optional for the same reason: a type Core leaves both switches free answers neither.
 
