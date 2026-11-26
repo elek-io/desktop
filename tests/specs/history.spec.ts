@@ -5,7 +5,14 @@ import { join } from 'node:path';
 import { colors } from '@elek-io/branding';
 
 import { test, testDataDirs } from '../fixtures/electronApp.js';
-import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
+import {
+  createAssetViaIpc,
+  deleteAssetViaIpc,
+  jpegBytes,
+  makeTempFile,
+  pngBytes,
+  updateAssetViaIpc,
+} from '../helpers/asset.js';
 import {
   assetFieldDefinition,
   createCollectionViaIpc,
@@ -416,6 +423,11 @@ test.describe('The History of a Project', () => {
     await expect(
       main.getByRole('link', { name: 'Open Release' })
     ).toBeVisible();
+    // The head takes the brand marker as well, as the Releases screen's own
+    // line does, rather than the marker of a sync state.
+    expect(
+      await markerFillOf(mainWindow.locator('[data-slot="change-who"]'))
+    ).toEqual(brandColor('light', 'brand'));
   });
 
   test('shows a changed Entry once, with removed words struck through and added words underlined', async ({
@@ -760,7 +772,7 @@ test.describe('The History of a Project', () => {
       name: 'Autohaus Ebersfelde',
       description: 'The showroom in Kassel',
     });
-    await createAssetViaIpc(mainWindow, {
+    const asset = await createAssetViaIpc(mainWindow, {
       projectId: project.id,
       name: 'showroom',
       description: 'The showroom from the street',
@@ -785,6 +797,73 @@ test.describe('The History of a Project', () => {
         isChanged: false,
       },
     ]);
+
+    // An Asset somebody renamed and whose file was replaced marks both: the
+    // name word by word, and the file by the type and size that say what it
+    // is, since there is nothing inside a file to compare. Core writes the
+    // name it is given as a file name, which is where the dash comes from.
+    await updateAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      id: asset.id,
+      name: 'showroom evening',
+      description: 'The showroom from the street',
+      newFilePath: makeTempFile(testInfo, 'evening.jpg', jpegBytes),
+    });
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
+    );
+    await waitForFields(mainWindow);
+    expect(await fieldsOf(mainWindow)).toEqual([
+      // The file is one Value, so the old reading stands struck beside the
+      // new one, while the name is words and only what changed in it is
+      // marked.
+      {
+        label: 'File',
+        value: 'PNG, 70 BytesJPG, 630 Bytes',
+        isChanged: true,
+      },
+      { label: 'Name', value: 'showroom-evening.pngjpg', isChanged: true },
+      {
+        label: 'Description',
+        value: 'The showroom from the street',
+        isChanged: false,
+      },
+    ]);
+    expect(await removedWords(mainWindow)).toEqual(['PNG, 70 Bytes', 'png']);
+    expect(await addedWords(mainWindow)).toEqual([
+      'JPG, 630 Bytes',
+      '-evening',
+      'jpg',
+    ]);
+
+    // One that deleted the Asset shows the state it was last in, and offers no
+    // way into it.
+    await deleteAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      id: asset.id,
+      extension: 'jpg',
+    });
+    await navigateToChange(
+      mainWindow,
+      project.id,
+      await newestChange(mainWindow, project.id)
+    );
+    await expect(mainWindow.getByText(/You deleted it on/)).toBeVisible();
+    await waitForFields(mainWindow);
+    expect(await fieldsOf(mainWindow)).toEqual([
+      { label: 'File', value: 'JPG, 630 Bytes', isChanged: false },
+      { label: 'Name', value: 'showroom-evening.jpg', isChanged: false },
+      {
+        label: 'Description',
+        value: 'The showroom from the street',
+        isChanged: false,
+      },
+    ]);
+    await expect(
+      mainWindow.getByRole('link', { name: 'Open Asset' })
+    ).toHaveCount(0);
 
     // The Project's own change shows its Settings in the same shape, with the
     // words that changed marked.

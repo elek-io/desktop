@@ -100,18 +100,28 @@ export async function createAssetViaIpc(
 /**
  * Save an Asset's name and description directly over IPC, bypassing the UI.
  *
- * Use it to arrange an Asset that changed without its file being replaced,
- * which is one of the two changes Core reports for an Asset.
+ * Without `newFilePath` it arranges an Asset that changed while its file
+ * stayed, and with one an Asset whose file was replaced, which are the two
+ * changes Core reports for an Asset.
  */
 export async function updateAssetViaIpc(
   page: Page,
-  props: { projectId: string; id: string; name: string; description: string }
+  props: {
+    projectId: string;
+    id: string;
+    name: string;
+    description: string;
+    newFilePath?: string;
+  }
 ): Promise<Asset> {
   const updateProps: UpdateAssetProps = {
     projectId: props.projectId,
     id: props.id,
     name: props.name,
     description: props.description,
+    ...(props.newFilePath === undefined
+      ? {}
+      : { newFilePath: props.newFilePath }),
   };
 
   return page.evaluate(
