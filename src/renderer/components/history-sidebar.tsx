@@ -13,6 +13,7 @@ import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import {
   changeSyncState,
   tellsWhatIsSynced,
+  type ChangeSyncState,
 } from '@renderer/lib/changeSyncState';
 import { queryOptions } from '@renderer/queries';
 
@@ -33,15 +34,18 @@ import type { GitCommit, Project } from '@elek-io/core';
  * the check has not answered, and where it failed. The rows then take the
  * marker that claims no state, and what stopped the check stands in the
  * Project card beside this pane, see contributing/error-handling.md.
+ *
+ * Which group a change falls into is the same answer its own marker is drawn
+ * from, so a row can never stand under a heading its marker disagrees with.
  */
 function changeGroups({
   commits,
-  notSynced,
+  syncStateOf,
   isGrouped,
   words,
 }: {
   commits: GitCommit[];
-  notSynced: ReadonlySet<string>;
+  syncStateOf: (commit: GitCommit) => ChangeSyncState;
   isGrouped: boolean;
   words: { notSynced: string; synced: string };
 }): ChangeGroup[] {
@@ -52,11 +56,11 @@ function changeGroups({
   return [
     {
       label: words.notSynced,
-      commits: commits.filter((commit) => notSynced.has(commit.hash)),
+      commits: commits.filter((commit) => syncStateOf(commit) === 'not-synced'),
     },
     {
       label: words.synced,
-      commits: commits.filter((commit) => notSynced.has(commit.hash) === false),
+      commits: commits.filter((commit) => syncStateOf(commit) === 'synced'),
     },
   ];
 }
@@ -76,9 +80,6 @@ export function HistorySidebar({
   // failure off the error screen and logs it the way a pane's boundary logs
   // one, see contributing/error-handling.md.
   const isGrouped = tellsWhatIsSynced(state);
-  const notSynced = new Set(
-    (state.check.data?.ahead ?? []).map((commit) => commit.hash)
-  );
   const syncStateOf = changeSyncState({ state, whenUntold: 'plain' });
 
   return (
@@ -109,7 +110,7 @@ export function HistorySidebar({
               projectId={project.id}
               groups={changeGroups({
                 commits: history.fullHistory,
-                notSynced,
+                syncStateOf,
                 isGrouped,
                 words: { notSynced: t`Not synced`, synced: t`Synced` },
               })}
