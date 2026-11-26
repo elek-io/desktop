@@ -20,7 +20,7 @@ The list beside it is the ruled rows every other list of the app has.
 - **Each change is listed once**, saying who made it, what they did, the Entry or the Collection it was about, and when. The one you have open is marked.
 - **With a Git repository the rows are grouped into Not synced and Synced**, a hollow marker for a change that has not reached the repository yet and a filled one for a change that has. Not synced holds as many changes as the Project card beside it counts as not synced.
 - **Without a Git repository, and while the app cannot reach one**, the changes are listed without the groups. They are on this computer either way, so the History never stops showing them because a repository stopped answering.
-- **A Release is marked in the brand color**, the only color the list uses, here and among the latest changes on the Dashboard. Opening it shows its version, its bump and what it published, the way the Releases screen shows a Release.
+- **A Release is marked in the brand color**, the only color the list uses. Opening it shows its version, its bump and what it published, the way the Releases screen shows a Release.
 
 A changed Collection and a changed Component still show as the two states side by side.
 

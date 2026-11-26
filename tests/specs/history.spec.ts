@@ -11,6 +11,7 @@ import {
   createCollectionViaIpc,
   dateFieldDefinition,
   markdownFieldDefinition,
+  selectFieldDefinition,
   textFieldDefinition,
   toggleFieldDefinition,
 } from '../helpers/collection.js';
@@ -237,15 +238,18 @@ test.describe('The History of a Project', () => {
     ).toBe('1px');
 
     // The chosen row takes the muted surface and the bar, which is how ci
-    // marks where you are.
+    // marks where you are. The pointer is taken off the row first, since a row
+    // under it takes the same surface at half the opacity, which is what a row
+    // measured where it was clicked would be reading instead.
     await entryRow.click();
+    await mainWindow.mouse.move(0, 0);
     const chosen = await entryRow.evaluate((row) => ({
       surface: getComputedStyle(row).backgroundColor,
       shadow: getComputedStyle(row).boxShadow,
     }));
-    expect(toBytes(parseColor(chosen.surface))).toEqual(
-      brandColor('light', 'muted')
-    );
+    const surface = parseColor(chosen.surface);
+    expect(surface.a).toBe(1);
+    expect(toBytes(surface)).toEqual(brandColor('light', 'muted'));
     expect(chosen.shadow).toContain('inset');
     expect(chosen.shadow).toContain('2px');
   });
@@ -256,6 +260,12 @@ test.describe('The History of a Project', () => {
     await setTheme(mainWindow, 'light');
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    // The mirror holds the Project and its Collection, so the one change it
+    // does not hold is the Entry below, which is what the check counts.
     const remote = setupRemote(testInfo, {
       mirror: join(testDataDirs(testInfo).dataDir, 'projects', project.id),
     });
@@ -263,9 +273,11 @@ test.describe('The History of a Project', () => {
       id: project.id,
       url: remote.url,
     });
-    // One change the mirror does not hold, so the check has something to count
-    // as not synced.
-    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Spring opening hours' }) },
+    });
 
     await navigateToHistory(mainWindow, project.id);
 
@@ -279,7 +291,7 @@ test.describe('The History of a Project', () => {
 
     // What is not synced carries the hollow marker, the pane's own surface
     // inside a border in the text color, and what is synced the filled one.
-    const notSynced = changeRow(mainWindow, /added a Collection/i);
+    const notSynced = changeRow(mainWindow, /added an Entry/i);
     const synced = changeRow(mainWindow, /created this Project/i);
     expect(await markerIsHollow(notSynced)).toBe(true);
     expect(await markerFillOf(notSynced)).toEqual(brandColor('light', 'card'));
@@ -287,6 +299,14 @@ test.describe('The History of a Project', () => {
     expect(await markerFillOf(synced)).toEqual(
       brandColor('light', 'muted-foreground')
     );
+
+    // The head of the change says it in words as well, which is what the
+    // marker beside it never carries alone.
+    const head = mainWindow.locator('[data-slot="change-who"]');
+    await notSynced.click();
+    await expect(head).toContainText(/, not synced yet$/);
+    await synced.click();
+    await expect(head).toContainText(/, synced$/);
   });
 
   test('drops the groups where Desktop cannot check the Git repository, and never fails for it', async ({
@@ -516,6 +536,15 @@ test.describe('The History of a Project', () => {
     expect(toBytes(parseColor(bar.color))).toEqual(
       toBytes(parseColor(colors.light['foreground'].oklch))
     );
+
+    // A label cannot be for text, so it points at no element here, while the
+    // same shell's label names the control of every field that has one.
+    expect(
+      await mainWindow
+        .locator('[data-slot="read-field"] [data-slot="field-label"]')
+        .first()
+        .evaluate((label) => label.getAttribute('for'))
+    ).toBeNull();
   });
 
   test('reads every Value the way its own field type reads one', async ({
@@ -528,11 +557,17 @@ test.describe('The History of a Project', () => {
       name: 'showroom',
       filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
     });
+    const other = await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      name: 'showroom-evening',
+      filePath: makeTempFile(testInfo, 'showroom-evening.png', pngBytes),
+    });
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
       fieldDefinitions: [
         textFieldDefinition(),
         dateFieldDefinition({ label: { en: 'Published on' } }),
+        selectFieldDefinition({ label: { en: 'Style' } }),
         assetFieldDefinition({ label: { en: 'Cover' } }),
       ],
     });
@@ -542,9 +577,12 @@ test.describe('The History of a Project', () => {
       values: {
         title: stringValue({ en: 'Spring opening hours' }),
         published: temporalValue({ en: '2026-03-01' }),
+        style: stringValue({ en: 'primary' }),
         logo: assetReferenceValue(asset.id),
       },
     });
+    // The Cover points at another Asset of the same count, which reads the
+    // same either way, and the choice moves to its other option.
     await updateEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -552,7 +590,8 @@ test.describe('The History of a Project', () => {
       values: {
         title: stringValue({ en: 'Spring opening hours' }),
         published: temporalValue({ en: '2026-03-08' }),
-        logo: assetReferenceValue(asset.id),
+        style: stringValue({ en: 'outline' }),
+        logo: assetReferenceValue(other.id),
       },
     });
 
@@ -576,10 +615,18 @@ test.describe('The History of a Project', () => {
         value: `${before}${after}`,
         isChanged: true,
       },
-      { label: 'Cover', value: '1 Asset', isChanged: false },
+      { label: 'Style', value: 'primaryoutline', isChanged: true },
+      // A reference reads as how many Assets it points at, which is the same
+      // either way, and the field is still marked, because what decides that
+      // is the stored Value rather than what it reads as.
+      { label: 'Cover', value: '1 Asset1 Asset', isChanged: true },
     ]);
-    expect(await removedWords(mainWindow)).toEqual([before]);
-    expect(await addedWords(mainWindow)).toEqual([after]);
+    expect(await removedWords(mainWindow)).toEqual([
+      before,
+      'primary',
+      '1 Asset',
+    ]);
+    expect(await addedWords(mainWindow)).toEqual([after, 'outline', '1 Asset']);
     // A day is one Value rather than words, so nothing inside it is compared.
     await expect(mainWindow.getByText('2026-03-08')).toHaveCount(0);
   });
