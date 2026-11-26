@@ -388,7 +388,13 @@ export function EntryChange({
           one language has nothing to switch between, so it shows the count
           alone. */}
           {isMarked || supportedLanguages.length > 1 ? (
-            <div className="flex items-center gap-3 pb-2">
+            /* The row takes the room it needs rather than the pane's width, so
+            the sentence beside the switch stands 12 px after it the way ci
+            draws it, rather than at the pane's right edge. The switch measures
+            the room it is given to decide between ci's segments and one
+            dropdown, which is why it is the row that is sized and not the
+            switch. */
+            <div className="flex w-fit items-center gap-3 pb-2">
               {supportedLanguages.length > 1 ? (
                 <LanguageSwitch
                   languages={supportedLanguages.map((candidate) => ({
@@ -401,13 +407,13 @@ export function EntryChange({
                 />
               ) : null}
               {isMarked ? (
-                /* The sentence takes the room beside the switch rather than
-                standing at the pane's right edge, and gives way where the
-                switch needs it for ci's segments, which is how a Collection's
-                settings answers the same row. */
+                /* It gives way where the switch needs the room for ci's
+                segments, so it wraps instead of the switch collapsing to a
+                dropdown, which is how a Collection's settings answers the same
+                row. */
                 <span
                   data-slot="changed-values"
-                  className="min-w-0 flex-1 text-small text-muted-foreground"
+                  className="min-w-0 text-small text-muted-foreground"
                 >
                   {t`${plural(changedHere, {
                     one: '# Value changed',

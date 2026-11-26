@@ -1096,7 +1096,9 @@ test.describe('The History of a Project', () => {
        * A line that is cut off counts as laid out too wide whatever its own
        * overflow says, because a line of a row is cut off rather than
        * overflowing: it carries `overflow: hidden` and would otherwise be
-       * measured as fitting while the time at its end is not on screen.
+       * measured as fitting while the time at its end is not on screen. An
+       * element of a pixel or less is left out, since that is how text meant
+       * for a screen reader alone is taken off screen.
        */
       const measure = async (): Promise<{
         panel: { left: number; right: number };
@@ -1125,7 +1127,9 @@ test.describe('The History of a Project', () => {
               document.querySelectorAll('[data-slot="panel"] *')
             )
               .filter(
-                (element) => element.scrollWidth - element.clientWidth > 1
+                (element) =>
+                  element.scrollWidth - element.clientWidth > 1 &&
+                  element.clientWidth > 1
               )
               .map(named),
             sideways: Array.from(
@@ -1134,7 +1138,9 @@ test.describe('The History of a Project', () => {
               )
             )
               .filter(
-                (element) => element.scrollWidth - element.clientWidth > 1
+                (element) =>
+                  element.scrollWidth - element.clientWidth > 1 &&
+                  element.clientWidth > 1
               )
               .map(named),
           };
