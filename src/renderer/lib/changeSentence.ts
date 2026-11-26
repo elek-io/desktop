@@ -13,9 +13,9 @@ import { type GitCommit, type ObjectType } from '@elek-io/core';
  * What a change was about and when it happened, as the row's second line reads.
  *
  * ci's row names its Entry or Collection, and the name stands before the time.
- * A commit carries that object as an id only, so a row whose object can no
- * longer be read, which is what a delete leaves behind, says the time alone.
- * The name is a placeholder, because it is what somebody wrote.
+ * A commit carries that object as an id only, so a row whose object cannot be
+ * read at all says the time alone. The name is a placeholder, because it is
+ * what somebody wrote.
  *
  * Call it during a render, so the words come out of the catalog in use.
  */
@@ -110,9 +110,10 @@ export function changeSentence(commit: GitCommit, byYou: boolean): string {
  * Who made the change and when, as the line below its name reads.
  *
  * What changed is named above that line already, so the sentence says "it".
- * One message per shape, as the sentence of a row has them: a verb carries
- * grammar that cannot be translated on its own, and a language words what
- * somebody else did differently from what you did.
+ * How long ago it was comes in as a phrase, "2 min. ago" or "just now", which
+ * is how ci words this line. One message per shape, as the sentence of a row
+ * has them: a verb carries grammar that cannot be translated on its own, and a
+ * language words what somebody else did differently from what you did.
  *
  * Call it during a render, so the words come out of the catalog in use.
  */
@@ -129,28 +130,26 @@ export function changeAuthorSentence(
       // the one that created it.
       if (commit.message.reference.objectType === 'project') {
         return byYou
-          ? t`You created it on ${when}`
-          : t`${author} created it on ${when}`;
+          ? t`You created it ${when}`
+          : t`${author} created it ${when}`;
       }
 
-      return byYou
-        ? t`You added it on ${when}`
-        : t`${author} added it on ${when}`;
+      return byYou ? t`You added it ${when}` : t`${author} added it ${when}`;
     case 'update':
       return byYou
-        ? t`You changed it on ${when}`
-        : t`${author} changed it on ${when}`;
+        ? t`You changed it ${when}`
+        : t`${author} changed it ${when}`;
     case 'delete':
       return byYou
-        ? t`You deleted it on ${when}`
-        : t`${author} deleted it on ${when}`;
+        ? t`You deleted it ${when}`
+        : t`${author} deleted it ${when}`;
     case 'upgrade':
       return byYou
-        ? t`You upgraded it on ${when}`
-        : t`${author} upgraded it on ${when}`;
+        ? t`You upgraded it ${when}`
+        : t`${author} upgraded it ${when}`;
     case 'release':
       return byYou
-        ? t`You released it on ${when}`
-        : t`${author} released it on ${when}`;
+        ? t`You released it ${when}`
+        : t`${author} released it ${when}`;
   }
 }

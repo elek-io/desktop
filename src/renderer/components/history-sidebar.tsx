@@ -108,6 +108,7 @@ export function HistorySidebar({
           ) : (
             <ChangeList
               projectId={project.id}
+              history={history.fullHistory}
               groups={changeGroups({
                 commits: history.fullHistory,
                 syncStateOf,

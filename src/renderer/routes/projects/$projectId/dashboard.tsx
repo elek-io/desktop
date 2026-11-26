@@ -292,6 +292,7 @@ function LatestChanges({ project }: { project: Project }): ReactElement {
       ) : (
         <ChangeList
           projectId={projectId}
+          history={history.fullHistory}
           // One group with no heading: the Dashboard says what is not synced
           // in the Project card beside it rather than grouping its rows, which
           // the History does.

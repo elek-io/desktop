@@ -132,6 +132,24 @@ html.dark .on-plate {
 }
 
 /*
+  The marker of a Release arrives like that period: one gap, 8 px, from the
+  right, fading in on the way, in the same 500 ms after the same 200 ms delay,
+  see ci's docs/logo.md. The utility that plays it carries `motion-reduce`, so
+  under reduced motion the marker is simply in place, which is the end state
+  the movement arrives at.
+*/
+@keyframes marker-arrival {
+  from {
+    opacity: 0;
+    translate: 8px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/*
   A Project's navigation scrolls with its scrollbar hidden, so a 1 px rule marks
   each edge it continues past: one at the top while rows sit above the list, one
   at the bottom while rows sit below it. Both are sticky inside the list and

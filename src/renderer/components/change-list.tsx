@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ReactElement } from 'react';
 
 import { entryTitle } from '@renderer/components/fields/entry-title';
+import { changeBefore } from '@renderer/components/history/change-before';
 import { StateMarker } from '@renderer/components/project-state';
 import { Skeleton } from '@renderer/components/ui/skeleton';
 import { useProject } from '@renderer/hooks/useProject';
@@ -21,14 +22,27 @@ import { flattenFieldDefinitions, type GitCommit } from '@elek-io/core';
 // in words, so nothing about it is told by its marker or its color alone.
 
 /**
+ * Which commit a row reads its object at.
+ *
+ * Its own, which is what names the object as it stood at the change and keeps
+ * the read from failing for one that has since been deleted, or whose
+ * Collection has. A delete took the object out of the Project, so that row
+ * reads it at the change before it, where it still stands, which is the same
+ * state the change page beside the list names it by. There is none for a copy
+ * of the repository whose history does not reach that far, which is what
+ * leaves a row with the time alone.
+ */
+function readAtOf(history: GitCommit[], commit: GitCommit): string | undefined {
+  return commit.message.method === 'delete'
+    ? changeBefore(history, commit)?.hash
+    : commit.hash;
+}
+
+/**
  * What the change was about, as the app names it, and when it happened.
  *
  * ci's row names its Entry or Collection, which a commit carries as an id
- * only, so the object is read per row. It is read as it stood at the change,
- * which is what keeps the read from failing for an object that has since been
- * deleted, or whose Collection has. A delete took the object out of the Project
- * altogether, so that row is left with the kind of thing the sentence above it
- * already names.
+ * only, so the object is read per row, at the commit `readAtOf` names.
  *
  * One component per kind of object rather than one with a read per kind, so a
  * row runs the one or two reads naming it needs.
@@ -36,15 +50,18 @@ import { flattenFieldDefinitions, type GitCommit } from '@elek-io/core';
 function ChangeContext({
   projectId,
   commit,
+  readAt,
   when,
 }: {
   projectId: string;
   commit: GitCommit;
+  /** The commit the object is read at, or nothing where there is none. */
+  readAt: string | undefined;
   when: string;
 }): ReactElement {
-  const { method, reference } = commit.message;
+  const { reference } = commit.message;
 
-  if (method === 'delete') {
+  if (readAt === undefined) {
     return <>{when}</>;
   }
 
@@ -59,7 +76,7 @@ function ChangeContext({
           projectId={projectId}
           collectionId={reference.collectionId}
           id={reference.id}
-          commitHash={commit.hash}
+          commitHash={readAt}
           when={when}
         />
       );
@@ -68,7 +85,7 @@ function ChangeContext({
         <ChangedCollection
           projectId={projectId}
           id={reference.id}
-          commitHash={commit.hash}
+          commitHash={readAt}
           when={when}
         />
       );
@@ -77,7 +94,7 @@ function ChangeContext({
         <ChangedComponent
           projectId={projectId}
           id={reference.id}
-          commitHash={commit.hash}
+          commitHash={readAt}
           when={when}
         />
       );
@@ -86,7 +103,7 @@ function ChangeContext({
         <ChangedAsset
           projectId={projectId}
           id={reference.id}
-          commitHash={commit.hash}
+          commitHash={readAt}
           when={when}
         />
       );
@@ -258,10 +275,13 @@ function ChangedAsset({
 export function ChangeRow({
   projectId,
   commit,
+  readAt,
   syncState,
 }: {
   projectId: string;
   commit: GitCommit;
+  /** The commit this row reads its object at, see `readAtOf`. */
+  readAt: string | undefined;
   syncState: ChangeSyncState;
 }): ReactElement {
   const { formatDatetime, userQuery } = useProject();
@@ -283,8 +303,9 @@ export function ChangeRow({
       <span className="relative mt-[7px] flex rounded-[1.5px] shadow-[0_0_0_3px_var(--color-card)] in-data-active:shadow-[0_0_0_3px_var(--color-muted)]">
         {/*
           A Release takes the brand marker, the one highlight of the list, as
-          ci marks it. What it is stands in the row's own words, so the color
-          carries nothing of its own, see ci's docs/color.md.
+          ci marks it, and it arrives the way the mark's period does. What it
+          is stands in the row's own words, so the color carries nothing of its
+          own, see ci's docs/color.md.
         */}
         <StateMarker
           variant={
@@ -294,14 +315,22 @@ export function ChangeRow({
                 ? 'none'
                 : syncState
           }
+          arrives={commit.message.method === 'release'}
         />
       </span>
+      {/*
+        Both lines wrap rather than being cut off, as ci's own row does: the
+        title of an Entry is as long as somebody wrote it, and the list has
+        296 px, so a line that was cut would take the time at the end of it
+        with it.
+      */}
       <span className="flex min-w-0 flex-col">
-        <span className="truncate">{changeSentence(commit, byYou)}</span>
-        <span className="truncate text-small text-muted-foreground">
+        <span className="wrap-anywhere">{changeSentence(commit, byYou)}</span>
+        <span className="text-small wrap-anywhere text-muted-foreground">
           <ChangeContext
             projectId={projectId}
             commit={commit}
+            readAt={readAt}
             when={formatDatetime({ datetime: commit.datetime }).relative}
           />
         </span>
@@ -347,10 +376,17 @@ function ChangeGroupLabel({ label }: { label: string }): ReactElement {
 export function ChangeList({
   projectId,
   groups,
+  history,
   syncStateOf,
 }: {
   projectId: string;
   groups: ChangeGroup[];
+  /**
+   * Every change of the Project, newest first, which is what a row that
+   * deleted something reads the change before it from. The Dashboard shows
+   * five rows of it and the History all of them.
+   */
+  history: GitCommit[];
   /** Whether each change is synced, which only a reader of the check knows. */
   syncStateOf?: (commit: GitCommit) => ChangeSyncState;
 }): ReactElement {
@@ -376,6 +412,7 @@ export function ChangeList({
               key={commit.hash}
               projectId={projectId}
               commit={commit}
+              readAt={readAtOf(history, commit)}
               syncState={
                 syncStateOf === undefined ? 'unknown' : syncStateOf(commit)
               }

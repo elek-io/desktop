@@ -36,10 +36,15 @@ function WhoChangedIt({
 }): ReactElement {
   const { t } = useLingui();
   const {
-    formatDatetime,
+    formatRelativeShort,
     userQuery: { data: user },
   } = useProject();
-  const when = formatDatetime({ datetime: commit.datetime }).absolute;
+  // How long ago it was rather than the moment it happened, which is how ci
+  // words this line, in the shortest words the language has for it so the
+  // sentence keeps one line. Under a minute every language words it as
+  // something other than a count, which is what the sentence of its own is
+  // for, see `formatRelativeShort`.
+  const when = formatRelativeShort(commit.datetime) ?? t`just now`;
   const byYou = user?.email === commit.author.email;
   // Whether it is synced is only said where the check answered, since a
   // Project without a Git repository has nothing to sync with and a check that
@@ -61,6 +66,7 @@ function WhoChangedIt({
               ? 'none'
               : syncState
         }
+        arrives={commit.message.method === 'release'}
       />
       <span>
         {whatItIs}. {changeAuthorSentence(commit, byYou, when)}

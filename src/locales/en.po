@@ -21,20 +21,20 @@ msgid "{author} added {thing}"
 msgstr "{author} added {thing}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "{author} added it on {when}"
-msgstr "{author} added it on {when}"
+msgid "{author} added it {when}"
+msgstr "{author} added it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} changed {thing}"
 msgstr "{author} changed {thing}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "{author} changed it on {when}"
-msgstr "{author} changed it on {when}"
+msgid "{author} changed it {when}"
+msgstr "{author} changed it {when}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "{author} created it on {when}"
-msgstr "{author} created it on {when}"
+msgid "{author} created it {when}"
+msgstr "{author} created it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} created this Project"
@@ -45,24 +45,24 @@ msgid "{author} deleted {thing}"
 msgstr "{author} deleted {thing}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "{author} deleted it on {when}"
-msgstr "{author} deleted it on {when}"
+msgid "{author} deleted it {when}"
+msgstr "{author} deleted it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} released {version}"
 msgstr "{author} released {version}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "{author} released it on {when}"
-msgstr "{author} released it on {when}"
+msgid "{author} released it {when}"
+msgstr "{author} released it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} released this Project"
 msgstr "{author} released this Project"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "{author} upgraded it on {when}"
-msgstr "{author} upgraded it on {when}"
+msgid "{author} upgraded it {when}"
+msgstr "{author} upgraded it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "{author} upgraded this Project"
@@ -1846,6 +1846,10 @@ msgstr "Its folder here goes. Its Git repository and the copies on other compute
 #: src/renderer/routes/projects/$projectId/settings/general.tsx
 msgid "Its folder here is its only copy, since it has no Git repository."
 msgstr "Its folder here is its only copy, since it has no Git repository."
+
+#: src/renderer/components/history/change-page.tsx
+msgid "just now"
+msgstr "just now"
 
 #: src/renderer/components/discard-changes-dialog.tsx
 msgid "Keep editing"
@@ -3744,8 +3748,8 @@ msgid "You added {thing}"
 msgstr "You added {thing}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "You added it on {when}"
-msgstr "You added it on {when}"
+msgid "You added it {when}"
+msgstr "You added it {when}"
 
 #: src/renderer/routes/projects/create.tsx
 msgid "You can set the address again in the Project's Sync settings, and sync from the sidebar."
@@ -3756,12 +3760,12 @@ msgid "You changed {thing}"
 msgstr "You changed {thing}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "You changed it on {when}"
-msgstr "You changed it on {when}"
+msgid "You changed it {when}"
+msgstr "You changed it {when}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "You created it on {when}"
-msgstr "You created it on {when}"
+msgid "You created it {when}"
+msgstr "You created it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "You created this Project"
@@ -3772,8 +3776,8 @@ msgid "You deleted {thing}"
 msgstr "You deleted {thing}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "You deleted it on {when}"
-msgstr "You deleted it on {when}"
+msgid "You deleted it {when}"
+msgstr "You deleted it {when}"
 
 #: src/renderer/lib/coreErrorText.ts
 msgid "You need to set up a user before doing this."
@@ -3784,16 +3788,16 @@ msgid "You released {version}"
 msgstr "You released {version}"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "You released it on {when}"
-msgstr "You released it on {when}"
+msgid "You released it {when}"
+msgstr "You released it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "You released this Project"
 msgstr "You released this Project"
 
 #: src/renderer/lib/changeSentence.ts
-msgid "You upgraded it on {when}"
-msgstr "You upgraded it on {when}"
+msgid "You upgraded it {when}"
+msgstr "You upgraded it {when}"
 
 #: src/renderer/lib/changeSentence.ts
 msgid "You upgraded this Project"

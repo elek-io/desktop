@@ -100,28 +100,44 @@ export function StateIcon({
  * Release, and `release-muted` the gray marker the Projects page gives it,
  * because a list has one highlight at most, see ci's docs/color.md.
  *
+ * A hollow marker is filled with the surface it stands on rather than with the
+ * card's, so it still reads as hollow on the muted surface of a chosen row,
+ * which is how ci fills it.
+ *
  * It is hidden from a screen reader, because the words of its line already say
  * which state it marks.
  */
 export function StateMarker({
   variant,
+  arrives = false,
 }: {
   variant:
     'not-synced' | 'synced' | 'release' | 'release-muted' | 'plain' | 'none';
+  /**
+   * Whether the marker arrives rather than being there, which ci asks for the
+   * marker of a Release: it slides in one gap from the right and fades in on
+   * the way, the one movement the mark itself has, see ci's docs/logo.md. Its
+   * end state is the marker standing still, so under reduced motion it is
+   * simply in place.
+   */
+  arrives?: boolean;
 }): React.JSX.Element {
   return (
     <span
       aria-hidden="true"
       className={cn(
         'size-[7px] flex-none rounded-[1.5px]',
-        variant === 'not-synced' && 'border-[1.5px] border-foreground bg-card',
+        variant === 'not-synced' &&
+          'border-[1.5px] border-foreground bg-card in-data-active:bg-muted',
         variant === 'synced' && 'bg-muted-foreground',
         // ci's plain marker, for a row that says what it is in words and
         // claims nothing by its marker, such as one change of an Entry.
         variant === 'plain' && 'bg-muted-foreground',
         variant === 'release' && 'bg-brand',
         variant === 'release-muted' && 'bg-muted-foreground',
-        variant === 'none' && 'bg-border'
+        variant === 'none' && 'bg-border',
+        arrives &&
+          'animate-[marker-arrival_500ms_cubic-bezier(0,0,0.2,1)_200ms_both] motion-reduce:animate-none'
       )}
     />
   );

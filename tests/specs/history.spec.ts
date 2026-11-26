@@ -17,6 +17,7 @@ import {
   assetFieldDefinition,
   createCollectionViaIpc,
   dateFieldDefinition,
+  deleteCollectionViaIpc,
   markdownFieldDefinition,
   selectFieldDefinition,
   textFieldDefinition,
@@ -217,7 +218,7 @@ test.describe('The History of a Project', () => {
       name: { singular: { en: 'Article' }, plural: { en: 'Articles' } },
       fieldDefinitions: [textFieldDefinition()],
     });
-    await createEntryViaIpc(mainWindow, {
+    const entry = await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
       values: { title: stringValue({ en: 'Spring opening hours' }) },
@@ -259,6 +260,49 @@ test.describe('The History of a Project', () => {
     expect(toBytes(surface)).toEqual(brandColor('light', 'muted'));
     expect(chosen.shadow).toContain('inset');
     expect(chosen.shadow).toContain('2px');
+
+    // A change somebody else made says their name, in the row and in the head
+    // of the change, which is what a Project shared through a Git repository
+    // carries after a sync brought a colleague's changes in.
+    await setUserViaIpc(mainWindow, {
+      name: 'Jonas Brandt',
+      email: 'jonas@elek.io',
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'New showroom in Kassel' }) },
+    });
+    await setUserViaIpc(mainWindow, { name: 'Mara Klein' });
+    await navigateToHistory(mainWindow, project.id);
+    const byJonas = changeRow(mainWindow, /Jonas Brandt added an Entry/);
+    await expect(byJonas).toContainText('New showroom in Kassel');
+    await byJonas.click();
+    await expect(mainWindow.locator('[data-slot="change-who"]')).toContainText(
+      'Jonas Brandt added it'
+    );
+
+    // A change that deleted something names it too, read at the change before
+    // it, since the delete took it out of the Project.
+    await deleteEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    await navigateToHistory(mainWindow, project.id);
+    await expect(changeRow(mainWindow, /You deleted an Entry/)).toContainText(
+      'Spring opening hours'
+    );
+
+    // A deleted Collection the same way, by the name it was last known under.
+    await deleteCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    await navigateToHistory(mainWindow, project.id);
+    await expect(
+      changeRow(mainWindow, /You deleted a Collection/)
+    ).toContainText('Articles');
   });
 
   test('groups the rows into Not synced and Synced, and counts the same as the Project card', async ({
@@ -342,6 +386,12 @@ test.describe('The History of a Project', () => {
       brandColor('light', 'muted-foreground')
     );
 
+    // The head of the chosen change says what it is and who changed it, and
+    // nothing about syncing, since there is nothing to sync with.
+    const head = mainWindow.locator('[data-slot="change-who"]');
+    await expect(head).toContainText('You created it');
+    await expect(head).not.toContainText('synced');
+
     // With a Git repository the check runs, and one that cannot be made leaves
     // the History listing its changes without the groups: they are on this
     // computer either way.
@@ -374,6 +424,12 @@ test.describe('The History of a Project', () => {
     // error screen is not.
     await expect(changeRows(mainWindow).first()).toBeVisible();
     await expect(errorScreenTitle(mainWindow)).toBeHidden();
+
+    // A check that counts nothing leaves the head quiet about syncing as well,
+    // rather than claiming the change is or is not synced.
+    await changeRows(mainWindow).first().click();
+    await expect(head).toContainText('You created it');
+    await expect(head).not.toContainText('synced');
 
     // It is logged with its type and its stack, the way a pane's boundary
     // writes one, and nothing of Core's own answer reaches the screen.
@@ -763,7 +819,7 @@ test.describe('The History of a Project', () => {
       project.id,
       await newestChange(mainWindow, project.id)
     );
-    await expect(mainWindow.getByText(/You deleted it on/)).toBeVisible();
+    await expect(mainWindow.getByText(/You deleted it/)).toBeVisible();
     await waitForFields(mainWindow);
     expect(await fieldsOf(mainWindow)).toEqual([
       { label: 'Title', value: 'Spring opening hours', isChanged: false },
@@ -859,7 +915,7 @@ test.describe('The History of a Project', () => {
       project.id,
       await newestChange(mainWindow, project.id)
     );
-    await expect(mainWindow.getByText(/You deleted it on/)).toBeVisible();
+    await expect(mainWindow.getByText(/You deleted it/)).toBeVisible();
     await waitForFields(mainWindow);
     expect(await fieldsOf(mainWindow)).toEqual([
       { label: 'File', value: 'JPG, 630 Bytes', isChanged: false },
@@ -907,10 +963,13 @@ test.describe('The History of a Project', () => {
     test(`keeps the chosen change inside the smallest window in ${mode} mode, with its marks at contrast`, async ({
       electronApp,
       mainWindow,
-    }) => {
+    }, testInfo) => {
       await setTheme(mainWindow, mode);
       await setUserViaIpc(mainWindow);
-      const project = await createProjectViaIpc(mainWindow);
+      const project = await createProjectViaIpc(mainWindow, {
+        name: 'Autohaus Ebersfelde',
+        description: 'The showroom in Kassel',
+      });
       const collection = await createCollectionViaIpc(mainWindow, {
         projectId: project.id,
         fieldDefinitions: [textFieldDefinition()],
@@ -934,65 +993,117 @@ test.describe('The History of a Project', () => {
           }),
         },
       });
-      await navigateToChange(
-        mainWindow,
-        project.id,
-        await newestChange(mainWindow, project.id)
-      );
-      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
-      await waitForLayout(mainWindow);
+      const entryChange = await newestChange(mainWindow, project.id);
+      // An Asset whose name and file both changed, and the Project's own
+      // change, so every kind of change the screen draws is measured at the
+      // smallest window rather than an Entry's alone.
+      const asset = await createAssetViaIpc(mainWindow, {
+        projectId: project.id,
+        name: 'showroom',
+        description: 'The showroom from the street',
+        filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+      });
+      await updateAssetViaIpc(mainWindow, {
+        projectId: project.id,
+        id: asset.id,
+        name: 'showroom evening',
+        description: 'The showroom from the street at dusk',
+        newFilePath: makeTempFile(testInfo, 'evening.jpg', jpegBytes),
+      });
+      const assetChange = await newestChange(mainWindow, project.id);
+      await updateProjectViaIpc(mainWindow, {
+        id: project.id,
+        name: 'Autohaus Ebersfelde',
+        description:
+          'The showroom in Göttingen rather than in Kassel, written long enough to wrap',
+        settings: project.settings,
+      });
+      const projectChange = await newestChange(mainWindow, project.id);
+
+      /**
+       * What the panel holds at the smallest window.
+       *
+       * A line that is cut off counts as laid out too wide whatever its own
+       * overflow says, because a line of a row is cut off rather than
+       * overflowing: it carries `overflow: hidden` and would otherwise be
+       * measured as fitting while the time at its end is not on screen.
+       */
+      const measure = async (): Promise<{
+        panel: { left: number; right: number };
+        panes: { left: number; right: number; width: number }[];
+        overflowing: (string | null)[];
+        sideways: (string | null)[];
+      }> =>
+        mainWindow.evaluate(() => {
+          const panel = document.querySelector('[data-slot="panel"]');
+          const panes = Array.from(
+            document.querySelectorAll('[data-slot="panel"] [data-slot="pane"]')
+          );
+          if (panel === null || panes.length === 0) {
+            throw new Error('The panel draws no panes');
+          }
+          const box = panel.getBoundingClientRect();
+          const named = (element: ProbedElement): string | null =>
+            element.getAttribute('data-slot') ?? element.tagName;
+          return {
+            panel: { left: box.left, right: box.right },
+            panes: panes.map((pane) => {
+              const rect = pane.getBoundingClientRect();
+              return { left: rect.left, right: rect.right, width: rect.width };
+            }),
+            overflowing: Array.from(
+              document.querySelectorAll('[data-slot="panel"] *')
+            )
+              .filter(
+                (element) => element.scrollWidth - element.clientWidth > 1
+              )
+              .map(named),
+            sideways: Array.from(
+              document.querySelectorAll(
+                '[data-slot="panel"] [data-slot="scroll-area-viewport"]'
+              )
+            )
+              .filter(
+                (element) => element.scrollWidth - element.clientWidth > 1
+              )
+              .map(named),
+          };
+        });
+
+      // The Entry's change comes last, so the marks read below are its own.
+      for (const [what, commitHash] of [
+        ['an Asset', assetChange],
+        ['the Project', projectChange],
+        ['an Entry', entryChange],
+      ] as const) {
+        await navigateToChange(mainWindow, project.id, commitHash);
+        await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+        await waitForLayout(mainWindow);
+        await waitForFields(mainWindow);
+        const where = `${mode}, ${what}`;
+        const measured = await measure();
+
+        // Every pane has room of its own and none of them reaches past the
+        // panel it sits in, which is what a collision or a clip would show as,
+        // and nothing inside them is laid out wider than the box it is drawn
+        // in.
+        for (const pane of measured.panes) {
+          expect(pane.width, where).toBeGreaterThan(0);
+          expect(pane.left, where).toBeGreaterThanOrEqual(measured.panel.left);
+          expect(pane.right, where).toBeLessThanOrEqual(measured.panel.right);
+        }
+        // The list keeps ci's 296 px beside the chosen change.
+        expect(
+          measured.panes.map((pane) => Math.round(pane.width)),
+          where
+        ).toContain(296);
+        expect(measured.overflowing, where).toEqual([]);
+        expect(measured.sideways, where).toEqual([]);
+      }
+
       await expect(
         mainWindow.locator('[data-slot="value-added"]').first()
       ).toBeVisible();
-
-      // Every pane has room of its own and none of them reaches past the panel
-      // it sits in, which is what a collision or a clip would show as, and
-      // nothing inside them is laid out wider than the box it is drawn in.
-      const measured = await mainWindow.evaluate(() => {
-        const panel = document.querySelector('[data-slot="panel"]');
-        const panes = Array.from(
-          document.querySelectorAll('[data-slot="panel"] [data-slot="pane"]')
-        );
-        if (panel === null || panes.length === 0) {
-          throw new Error('The panel draws no panes');
-        }
-        const box = panel.getBoundingClientRect();
-        return {
-          panel: { left: box.left, right: box.right },
-          panes: panes.map((pane) => {
-            const rect = pane.getBoundingClientRect();
-            return { left: rect.left, right: rect.right, width: rect.width };
-          }),
-          overflowing: Array.from(
-            document.querySelectorAll('[data-slot="panel"] *')
-          )
-            .filter(
-              (element) =>
-                element.scrollWidth - element.clientWidth > 1 &&
-                getComputedStyle(element).overflowX === 'visible'
-            )
-            .map((element) => element.getAttribute('data-slot')),
-          sideways: Array.from(
-            document.querySelectorAll(
-              '[data-slot="panel"] [data-slot="scroll-area-viewport"]'
-            )
-          )
-            .filter((element) => element.scrollWidth - element.clientWidth > 1)
-            .map((element) => element.getAttribute('data-slot')),
-        };
-      });
-      for (const pane of measured.panes) {
-        expect(pane.width, mode).toBeGreaterThan(0);
-        expect(pane.left, mode).toBeGreaterThanOrEqual(measured.panel.left);
-        expect(pane.right, mode).toBeLessThanOrEqual(measured.panel.right);
-      }
-      // The list keeps ci's 296 px beside the chosen change.
-      expect(
-        measured.panes.map((pane) => Math.round(pane.width)),
-        mode
-      ).toContain(296);
-      expect(measured.overflowing, mode).toEqual([]);
-      expect(measured.sideways, mode).toEqual([]);
 
       // Each mark is read on the surface it carries, so the words that went
       // and the words that came both meet WCAG 2.2 AA for text.
@@ -1016,10 +1127,10 @@ test.describe('The History of a Project', () => {
     });
   }
 
-  test('holds the Release marker still under reduced motion', async ({
+  test('lets the Release marker arrive, and holds it still under reduced motion', async ({
     mainWindow,
   }) => {
-    await mainWindow.emulateMedia({ reducedMotion: 'reduce' });
+    await mainWindow.emulateMedia({ reducedMotion: 'no-preference' });
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     await createCollectionViaIpc(mainWindow, { projectId: project.id });
@@ -1033,17 +1144,43 @@ test.describe('The History of a Project', () => {
       new RegExp(`released ${release.version}`)
     );
     await expect(row).toBeVisible();
+    const marker = row.locator('span[aria-hidden="true"]').first();
+    const motionOf = async (): Promise<{
+      animation: string;
+      duration: string;
+      delay: string;
+      easing: string;
+      transition: string;
+    }> =>
+      marker.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          animation: style.animationName,
+          duration: style.animationDuration,
+          delay: style.animationDelay,
+          easing: style.animationTimingFunction,
+          transition: style.transitionDuration,
+        };
+      });
 
-    // The marker arrives in place rather than moving into it, which is the end
-    // state the movement would arrive at.
-    expect(
-      await row
-        .locator('span[aria-hidden="true"]')
-        .first()
-        .evaluate((marker) => ({
-          animation: getComputedStyle(marker).animationName,
-          duration: getComputedStyle(marker).transitionDuration,
-        }))
-    ).toEqual({ animation: 'none', duration: '0s' });
+    // It arrives the way the mark's own period does: one movement, over the
+    // 500 ms after the 200 ms delay that ci sets, in Tailwind's ease-out.
+    expect(await motionOf()).toEqual({
+      animation: 'marker-arrival',
+      duration: '0.5s',
+      delay: '0.2s',
+      easing: 'cubic-bezier(0, 0, 0.2, 1)',
+      transition: '0s',
+    });
+
+    // Under reduced motion it is simply in place, which is the end state the
+    // movement arrives at, so nothing is lost by holding it there.
+    await mainWindow.emulateMedia({ reducedMotion: 'reduce' });
+    const held = await motionOf();
+    expect({
+      animation: held.animation,
+      duration: held.duration,
+      transition: held.transition,
+    }).toEqual({ animation: 'none', duration: '0s', transition: '0s' });
   });
 });

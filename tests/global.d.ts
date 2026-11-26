@@ -131,6 +131,10 @@ interface ProbedStyle {
   readonly textDecorationLine: string;
   /** How long the element takes to move, which a still marker takes none of. */
   readonly transitionDuration: string;
+  /** What the movement of an arriving marker is worded as, see ci's logo.md. */
+  readonly animationDuration: string;
+  readonly animationDelay: string;
+  readonly animationTimingFunction: string;
   readonly padding: string;
   readonly outlineColor: string;
   readonly outlineOffset: string;
