@@ -874,8 +874,9 @@ test.describe('The History of a Project', () => {
       mainWindow.getByText('1 Value changed in German')
     ).toBeVisible();
 
-    // That line stands in the row's own gap after the switch, as ci draws it,
-    // rather than at the pane's right edge.
+    // That line stands in the row's own gap after the segments ci draws, so
+    // the switch takes the room it needs and no more, rather than stretching
+    // and leaving the line at the pane's right edge.
     const beside = await mainWindow.evaluate(() => {
       const of = (slot: string): { left: number; right: number } => {
         const node = document.querySelector(`[data-slot="${slot}"]`);
@@ -886,11 +887,11 @@ test.describe('The History of a Project', () => {
         return { left: rect.left, right: rect.right };
       };
       return {
-        switchBox: of('language-switch'),
+        segments: of('toggle-group'),
         sentence: of('changed-values'),
       };
     });
-    expect(Math.round(beside.sentence.left - beside.switchBox.right)).toBe(12);
+    expect(Math.round(beside.sentence.left - beside.segments.right)).toBe(12);
     await expect(
       mainWindow.getByRole('button', { name: /German/, pressed: true })
     ).toBeVisible();
