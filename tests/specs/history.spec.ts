@@ -21,6 +21,7 @@ import {
   markdownFieldDefinition,
   referenceFieldDefinition,
   selectFieldDefinition,
+  slugFieldDefinition,
   textFieldDefinition,
   toggleFieldDefinition,
 } from '../helpers/collection.js';
@@ -377,6 +378,12 @@ test.describe('The History of a Project', () => {
     const head = mainWindow.locator('[data-slot="change-who"]');
     await notSynced.click();
     await expect(head).toContainText(/, not synced yet$/);
+
+    // Chosen, the hollow marker still reads as hollow: it is filled with the
+    // muted surface its row now stands on rather than with the card's.
+    await mainWindow.mouse.move(0, 0);
+    expect(await markerIsHollow(notSynced)).toBe(true);
+    expect(await markerFillOf(notSynced)).toEqual(brandColor('light', 'muted'));
     await synced.click();
     await expect(head).toContainText(/, synced$/);
   });
@@ -688,6 +695,7 @@ test.describe('The History of a Project', () => {
       projectId: project.id,
       fieldDefinitions: [
         textFieldDefinition(),
+        slugFieldDefinition({ label: { en: 'Slug' } }),
         dateFieldDefinition({ label: { en: 'Published on' } }),
         selectFieldDefinition({ label: { en: 'Style' } }),
         assetFieldDefinition({ label: { en: 'Cover' } }),
@@ -703,6 +711,7 @@ test.describe('The History of a Project', () => {
       collectionId: collection.id,
       values: {
         title: stringValue({ en: 'Spring opening hours' }),
+        handle: stringValue({ en: 'spring-opening-hours' }),
         published: temporalValue({ en: '2026-03-01' }),
         style: stringValue({ en: 'primary' }),
         logo: assetReferenceValue(asset.id),
@@ -718,6 +727,7 @@ test.describe('The History of a Project', () => {
       id: entry.id,
       values: {
         title: stringValue({ en: 'Spring opening hours' }),
+        handle: stringValue({ en: 'spring-opening-hours' }),
         published: temporalValue({ en: '2026-03-08' }),
         style: stringValue({ en: 'outline' }),
         logo: assetReferenceValue(other.id),
@@ -740,6 +750,7 @@ test.describe('The History of a Project', () => {
     const after = format(new Date('2026-03-08T00:00:00'), 'P');
     expect(await fieldsOf(mainWindow)).toEqual([
       { label: 'Title', value: 'Spring opening hours', isChanged: false },
+      { label: 'Slug', value: 'spring-opening-hours', isChanged: false },
       {
         label: 'Published on',
         value: `${before}${after}`,
@@ -755,13 +766,17 @@ test.describe('The History of a Project', () => {
 
     // A reference names what it points at, as its own control does: the Asset
     // with what the file is, and the Entry with the Collection it is in. The
-    // one that went stands struck through above the one that came.
-    expect(await rowsOf(mainWindow)).toEqual([
-      { name: 'showroom.png', line: 'PNG, 70 Bytes' },
-      { name: 'showroom-evening.png', line: 'PNG, 70 Bytes' },
-      { name: 'Mara Klein', line: 'Team' },
-      { name: 'Jonas Brandt', line: 'Team' },
-    ]);
+    // one that went stands struck through above the one that came. Each row
+    // reads what it points at at its own commit, so the rows are waited for
+    // rather than read with the fields around them.
+    await expect
+      .poll(async () => rowsOf(mainWindow))
+      .toEqual([
+        { name: 'showroom.png', line: 'PNG, 70 Bytes' },
+        { name: 'showroom-evening.png', line: 'PNG, 70 Bytes' },
+        { name: 'Mara Klein', line: 'Team' },
+        { name: 'Jonas Brandt', line: 'Team' },
+      ]);
     expect(await removedWords(mainWindow)).toEqual([
       before,
       'primary',
@@ -776,6 +791,31 @@ test.describe('The History of a Project', () => {
     ]);
     // A day is one Value rather than words, so nothing inside it is compared.
     await expect(mainWindow.getByText('2026-03-08')).toHaveCount(0);
+
+    // A slug is a key rather than prose, so it is read in the mono font its
+    // own control writes it in, where the text beside it is read in the sans.
+    const fonts = await mainWindow
+      .locator('[data-slot="read-field"]')
+      .evaluateAll((fields) =>
+        fields.map((field) => ({
+          label:
+            field
+              .querySelector('[data-slot="field-label"]')
+              ?.textContent?.trim() ?? '',
+          font: (() => {
+            const value = field.querySelector('[data-slot="read-value"]');
+            return value === null
+              ? null
+              : getComputedStyle(value).fontFamily.split(',')[0];
+          })(),
+        }))
+      );
+    expect(fonts.find((field) => field.label === 'Slug')?.font).toBe(
+      '"Geist Mono Variable"'
+    );
+    expect(fonts.find((field) => field.label === 'Title')?.font).toBe(
+      '"Geist Variable"'
+    );
   });
 
   test('opens on the language that changed, says how many Values changed in it, and opens the Entry there', async ({
@@ -827,6 +867,24 @@ test.describe('The History of a Project', () => {
     await expect(
       mainWindow.getByText('1 Value changed in German')
     ).toBeVisible();
+
+    // That line stands in the row's own gap after the switch, as ci draws it,
+    // rather than at the pane's right edge.
+    const beside = await mainWindow.evaluate(() => {
+      const of = (slot: string): { left: number; right: number } => {
+        const node = document.querySelector(`[data-slot="${slot}"]`);
+        if (node === null) {
+          throw new Error(`The change draws no ${slot}`);
+        }
+        const rect = node.getBoundingClientRect();
+        return { left: rect.left, right: rect.right };
+      };
+      return {
+        switchBox: of('language-switch'),
+        sentence: of('changed-values'),
+      };
+    });
+    expect(Math.round(beside.sentence.left - beside.switchBox.right)).toBe(12);
     await expect(
       mainWindow.getByRole('button', { name: /German/, pressed: true })
     ).toBeVisible();
