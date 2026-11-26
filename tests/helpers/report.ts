@@ -8,14 +8,30 @@ export function reportDialog(page: Page): Locator {
   return page.getByRole('dialog');
 }
 
-/** Open the report dialog from the header button that is on every route. */
+/**
+ * Open the report dialog from Help, which is on every route.
+ *
+ * Help holds the documentation, Report an issue and the versions, so the dialog
+ * is two steps away rather than one.
+ */
 export async function openReportDialogFromHeader(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Feedback' }).click();
+  await openHelpMenu(page);
+  await page.getByRole('menuitem', { name: 'Report an issue' }).click();
 
   const dialog = reportDialog(page);
   await expect(dialog).toBeVisible();
 
   return dialog;
+}
+
+/** Open the header's Help menu and wait for its items. */
+export async function openHelpMenu(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Help' }).click();
+
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+
+  return menu;
 }
 
 /**

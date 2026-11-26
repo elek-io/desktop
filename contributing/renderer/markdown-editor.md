@@ -21,7 +21,7 @@ The trade-off: the bridge depends on exported-but-not-headline APIs (`ParserStat
 
 ```
 LOAD:  MdAstRoot ──structuredClone──▶ remarkCtx.runSync(tree)   (Milkdown's remark
-       transformers: list numbering, line breaks, markers)
+       transformers: list numbering, line breaks)
        ──▶ new ParserState(schema).next(tree).toDoc() ──▶ ProseMirror document
 
 EDIT:  listener `updated` (debounced 200ms) + `blur` (immediate flush)
@@ -30,12 +30,25 @@ EDIT:  listener `updated` (debounced 200ms) + `blur` (immediate flush)
        ──▶ empty or empty-paragraph-only? null : MdAstRoot ──▶ field.onChange
 ```
 
-The normalizer exists because Core's mdast schemas are stricter than remark's: fields like `list.ordered`, `code.lang` or `image.title` are required (possibly null) in Core but optional in remark output. It constructs typed Core nodes explicitly, and the final `mdAstRootSchema.parse` guarantees only Core-valid trees leave the module (also stripping `position` data by construction). Unknown node types throw a `MdastBridgeError` that renders as an error under the editor - fail loud, never lose content silently.
+The normalizer exists because Core's mdast schemas are stricter than remark's: fields like `list.ordered`, `code.lang` or `image.title` are required (possibly null) in Core but optional in remark output. It constructs typed Core nodes explicitly, and the final `mdAstRootSchema.parse` guarantees only Core-valid trees leave the module (also stripping `position` data by construction). Unknown node types throw a `MdastBridgeError`, and the editor says so below itself rather than passing a partial tree on - fail loud, never lose content silently, see [when a stored Value cannot be read](#when-a-stored-value-cannot-be-read).
+
+Only transformers that work on a tree alone may run on the load. A remark plugin that reads the markdown text a tree was parsed from has none to read here, which is why Milkdown's `remarkMarker` is in no plugin list this module builds.
 
 Rules the bridge enforces:
 
 - **Empty is `null`.** Core rejects a root with no children and the "one empty paragraph" tree an empty ProseMirror editor naturally holds (checked with Core's `isEmptyParagraphOnly`). The editor normalizes both to `null` before they reach the form.
-- **No markdown strings.** Content never round-trips through a string, so reference nodes and marker styles survive unchanged.
+- **No markdown strings.** Content never round-trips through a string, so a reference node survives unchanged. Which marker an author typed does not: Core stores no marker, so each mark takes the default its own Milkdown schema sets, which is what text copied out of the editor carries.
+
+## When a stored Value cannot be read
+
+A tree the bridge cannot turn into a document is one the editor has no node for, which is what a Project written by another client, by hand or by a later version of elek.io can hold. The field then keeps that Value rather than replacing it:
+
+- **Nothing is emitted.** The editor only sends a tree to the form once it has taken a Value in, so the empty box a failed load leaves behind never reaches `field.onChange`. Without that, leaving the field would flush an empty document, which the bridge turns into `null`, and the next save would store nothing in place of the text.
+- **The box takes no edit.** ProseMirror is told the document is not editable and the element says `aria-readonly`, so nothing typed can look like it will be saved. It keeps a `tabindex`, which a document that is no longer editable would otherwise lose, so the sentence below can still be reached and heard.
+- **One sentence from the catalog says what it means for the text and for the Entry**, named in the editable element's `aria-describedby` and carrying `role="alert"`, since it appears after the page was presented rather than with it. What was thrown says nothing an editor asked about, so it goes to the log file instead, the way a pane's boundary writes one, but without its message: Milkdown's parser puts the whole node it could not match into what it throws, and for a markdown Value that node is the text somebody wrote. So this one record logs through `errorLogAttributesWithoutMessage`, which keeps the type, the Core type and the frames of the stack, see [error-handling.md](../error-handling.md#what-the-cause-carries-and-what-it-does-not).
+- **The save is refused rather than silent.** The form still holds the stored tree, so the generated entry schema refuses it and the field says so in its own words, see [forms.md](./forms.md#the-words-a-refused-value-is-explained-in).
+
+A document the bridge cannot serialize is answered the same way, with a sentence of its own: the form keeps the last tree that crossed, rather than a partial one. Its message is kept out of the log file too, because Milkdown's serializer stringifies its node exactly as the parser does.
 
 ## Feature gating
 
@@ -46,7 +59,6 @@ Rules the bridge enforces:
 | `lists`                                                | `remarkAddOrderInListPlugin` (ordered item numbering), `syncListOrderPlugin`                  |
 | `taskListItems`                                        | `extendListItemSchemaForTask` **replaces** `listItemSchema` (same node id), `remarkGFMPlugin` |
 | `hardLineBreaks`                                       | `remarkLineBreak` (splits text on newlines into break nodes)                                  |
-| `emphasis` / `strong`                                  | `remarkMarker` (preserves `*` vs `_` on round trip)                                           |
 | `externalLinks` / `externalImages`                     | `remarkInlineLinkPlugin` (reference-style to inline form)                                     |
 | `rawHtml`                                              | `remarkHtmlTransformer`, `remarkPreserveEmptyLinePlugin`                                      |
 | any GFM node (tables, strikethrough, footnotes, tasks) | `remarkGFMPlugin`                                                                             |
@@ -55,16 +67,33 @@ Heading depths are restricted for typed input, the toolbar and keyboard shortcut
 
 ## Reference nodes
 
-[`plugins/asset-reference.ts`](../../src/renderer/components/markdown/plugins/asset-reference.ts) and [`plugins/entry-reference.ts`](../../src/renderer/components/markdown/plugins/entry-reference.ts) define inline atom nodes for Core's custom mdast types, rendered as chips. They ride through the parser/serializer the same way stock nodes do (their `parseMarkdown`/`toMarkdown` runners match the mdast `type` directly), so no text syntax is ever invented for them. Insertion happens through single-select picker dialogs ([`asset-reference-picker.tsx`](../../src/renderer/components/markdown/asset-reference-picker.tsx), [`entry-reference-picker.tsx`](../../src/renderer/components/markdown/entry-reference-picker.tsx)) filtered by the definition's `ofAssetMimeTypes` / `ofCollections`.
+[`plugins/asset-reference.ts`](../../src/renderer/components/markdown/plugins/asset-reference.ts) and [`plugins/entry-reference.ts`](../../src/renderer/components/markdown/plugins/entry-reference.ts) define inline atom nodes for Core's custom mdast types, rendered as chips. They ride through the parser/serializer the same way stock nodes do (their `parseMarkdown`/`toMarkdown` runners match the mdast `type` directly), so no text syntax is ever invented for them. Insertion happens through [`asset-reference-picker.tsx`](../../src/renderer/components/markdown/asset-reference-picker.tsx) and [`entry-reference-picker.tsx`](../../src/renderer/components/markdown/entry-reference-picker.tsx), filtered by the definition's `ofAssetMimeTypes` / `ofCollections`. Each is the matching field's own dialog from [`components/pickers/`](../../src/renderer/components/pickers/) with one choice, so an Asset or an Entry is listed here exactly as the Asset and Entry fields list it, with a radio button each, see [dynamic-form-field-generation.md](./dynamic-form-field-generation.md#reference-fields-asset-and-entry).
 
 One v1 simplification: Core's `entryReference` carries phrasing children as its label, the editor flattens them to plain text (see [not-yet-implemented.md](../not-yet-implemented.md)).
+
+## The toolbar
+
+[`markdown-toolbar.tsx`](../../src/renderer/components/markdown/markdown-toolbar.tsx) draws only the affordances the field's features enable.
+
+- **A button for an inline format is a `Toggle`**, pressed while that format is on at the cursor or over the selection. ci gives a pressed button the muted surface and a 1 px ring in the input color, so it is never color alone, and the toggle carries `aria-pressed`. The four are strong, emphasis, inline code and strikethrough. A button that inserts something or changes a block, such as Heading or Table, is a plain button with no pressed state, because it is not a two-state thing. Both kinds are the same square, since ci gives every button of the bar one size.
+- **Which formats are on comes from ProseMirror**, through [`plugins/mark-formats.ts`](../../src/renderer/components/markdown/plugins/mark-formats.ts): a `$prose` plugin whose view reports the active marks whenever that answer changes. It compares the reading rather than the document and the selection, because turning a format on at a collapsed cursor changes neither of those, only the marks the next typed text takes. It is handed the field's features, since a format the field disallows registers no mark schema and so has no mark type to ask about. Each format's mark type comes from its own Milkdown schema export, so no mark name is written out a second time.
+- **Every button runs on click and prevents the default of the mouse press before it.** The click is what the keyboard reaches, and the prevented mouse press is what keeps the editor's own selection while the pointer goes to the toolbar.
+
+## What the field tells the editor
+
+The markdown field's control props reach the editable element through ProseMirror's `attributes` prop, which Milkdown takes in `editorViewOptionsCtx`, so nothing reaches into the `contenteditable` by hand:
+
+- `role="textbox"` with `aria-multiline`, which is what makes `aria-required` and `aria-invalid` allowed there, plus the field's `id`, its `aria-label` and its `aria-describedby`. The element that takes focus is therefore the one a screen reader reads the field's name, its rules, its description and its error from, which is why the markdown module answers `acceptsAriaRequired` with yes. A message of the editor's own is named in front of the field's parts, and a Value the editor could not read adds `aria-readonly` and a `tabindex` with it.
+- `attributes` is handed as a function over a ref, so a render never leaves a stale value behind. ProseMirror only recomputes it on a state update, so the editor also asks for one with `view.setProps({})` whenever the props change, which is what puts an error on the element that was not typed into.
 
 ## The editor component
 
 [`markdown-editor.tsx`](../../src/renderer/components/markdown/markdown-editor.tsx) is uncontrolled-with-synchronization:
 
-- Edits flow out through the debounced `updated` listener plus a `blur` flush, so the form always holds the final tree before a submit button click lands.
+- Edits flow out through the debounced `updated` listener plus a `blur` flush, so the form always holds the final tree before a submit button click lands. Both are held until the editor has taken a Value in, so a Value it could not read is never answered with the empty box in its place, see [when a stored Value cannot be read](#when-a-stored-value-cannot-be-read).
+- **The document a Value was drawn as is no edit of it.** Milkdown's schema can ask for more than a tree holds, so what the serializer gives back is not always what went in: a table of nothing but a header row is drawn with an empty body row, since the schema's content is `table_header_row table_row+`. The editor keeps the document it drew and emits nothing while the document still equals it, so reopening an Entry and saving it stores the Value it opened with, whoever wrote that Value. The first real change releases the hold, and from then on what the editor shows is what is stored.
 - An external value change (for example the update route's async `form.reset`) is detected by comparing against the last tree the editor emitted itself, and re-hydrates the document without touching the undo history (`addToHistory: false`, which also keeps the listener from echoing it back).
+- **The editor is built once, and nothing rebuilds it.** `useEditor` takes no dependencies, and everything that changes while a field is mounted reaches the editor through a ref: the control's attributes, whether the Value turned out to be unreadable, and whether the form takes edits at all. Rebuilding on the last of those raced its own teardown, because a form fills from its query disabled and frees itself the moment the Value arrives, which left two `contenteditable` boxes in the one root. The effect that calls `setProps({})` is what asks the view for `editable` and the attributes again.
 - Validation comes for free: the entry form's generated schema (`getCreateEntrySchemaFromFieldDefinitions`) validates the tree against the field's features, min/max block counts and `ofCollections`.
 
 ## Security note

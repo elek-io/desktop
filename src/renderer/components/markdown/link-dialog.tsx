@@ -1,5 +1,7 @@
+import { Trans } from '@lingui/react/macro';
 import { useState, type ReactElement } from 'react';
 
+import { FieldShell } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -12,7 +14,7 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog';
 import { Input } from '@renderer/components/ui/input';
-import { Label } from '@renderer/components/ui/label';
+import { fieldRules } from '@renderer/lib/fieldRules';
 
 export interface LinkDialogProps {
   open: boolean;
@@ -43,38 +45,50 @@ export const LinkDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Link the selected text</DialogTitle>
+          <DialogTitle>
+            <Trans>Link the selected text</Trans>
+          </DialogTitle>
           <DialogDescription>
-            The link applies to the text selected in the editor. Core accepts
-            http(s), mailto and tel URLs, plus relative and fragment links.
+            <Trans>
+              The link applies to the text selected in the editor. Core accepts
+              http(s), mailto and tel URLs, plus relative and fragment links.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
 
         <DialogBody>
-          <Label htmlFor="markdown-link-href">URL</Label>
-          <Input
-            id="markdown-link-href"
-            type="url"
-            placeholder="https://example.com"
-            value={href}
-            onChange={(event) => {
-              setHref(event.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                confirm();
-              }
-            }}
-          />
+          {/* The one field with no form behind it, so it draws the same shell
+          through FieldShell. Apply link is held until it holds something, and
+          Required is that rule said before anybody presses it. */}
+          <FieldShell
+            label={<Trans>URL</Trans>}
+            rules={fieldRules({ required: true })}
+          >
+            {(controlProps) => (
+              <Input
+                type="url"
+                value={href}
+                onChange={(event) => {
+                  setHref(event.target.value);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    confirm();
+                  }
+                }}
+                {...controlProps}
+              />
+            )}
+          </FieldShell>
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary">Cancel</Button>
+          <DialogClose render={<Button variant="secondary" />}>
+            <Trans>Cancel</Trans>
           </DialogClose>
           <Button type="button" onClick={confirm} disabled={href.trim() === ''}>
-            Apply link
+            <Trans>Apply link</Trans>
           </Button>
         </DialogFooter>
       </DialogContent>

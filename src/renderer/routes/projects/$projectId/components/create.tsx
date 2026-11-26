@@ -1,13 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg, plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Check } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { useCallback, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import { ComponentForm } from '@renderer/components/forms/component-form';
-import { Page } from '@renderer/components/page';
-import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
+import { SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -18,22 +20,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
+import { useDefinitionsEditor } from '@renderer/hooks/useDefinitionsEditor';
+import { useMissingTranslations } from '@renderer/hooks/useMissingTranslations';
 import { useProject } from '@renderer/hooks/useProject';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
-import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
-import { translatableDefault } from '@renderer/lib/utils';
+import {
+  entryLanguage,
+  entryLanguageSearchSchema,
+} from '@renderer/lib/entryLanguage';
+import { componentTranslatableTexts } from '@renderer/lib/missingTranslations';
+import {
+  withBlankDefinitionDescriptionsAsNull,
+  withEmptyDescriptionAsNull,
+} from '@renderer/lib/resolver';
+import { languageName, translatableDefault } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
   type CoreErrorType,
   type CreateComponentProps,
   getCreateComponentSchemaFromLanguages,
+  type SupportedLanguage,
 } from '@elek-io/core';
 
 export const Route = createFileRoute('/projects/$projectId/components/create')({
   component: ProjectComponentCreate,
+  validateSearch: entryLanguageSearchSchema,
 });
 
 // The slug another Component holds is said below the Slug field, so only the
@@ -41,24 +56,24 @@ export const Route = createFileRoute('/projects/$projectId/components/create')({
 // BadRequest for a Component whose dynamic field reaches back into itself,
 // which is the one an editor meets here: every other reason a BadRequest could
 // carry is already checked by the same schema this form resolves against.
-const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  BadRequest:
-    'A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.',
-};
+const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
+  };
 
-const saveErrorFallback =
-  'This Component could not be created. Please review your changes and try again.';
+const saveErrorFallback = msg`This Component could not be created. Please review your changes and try again.`;
 
 function ProjectComponentCreate(): ReactElement {
+  const { t } = useLingui();
+
   const router = useRouter();
   const { projectId } = Route.useParams();
-  useBreadcrumb(Route, 'Create');
+  useBreadcrumb(Route, t`Create`);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
   } = useProject();
   const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
-  const formId = useId();
 
   // Resolve against Core's language-aware schema, which requires a value for
   // every Project language. Falls back to an empty language set until the
@@ -72,9 +87,9 @@ function ProjectComponentCreate(): ReactElement {
         )
       : getCreateComponentSchemaFromLanguages([]);
 
-  const createComponentForm = useForm({
-    resolver: withEmptyDescriptionAsNull(
-      zodResolver(generatedCreateComponentSchema)
+  const createComponentForm = useAppForm({
+    resolver: withBlankDefinitionDescriptionsAsNull(
+      withEmptyDescriptionAsNull(zodResolver(generatedCreateComponentSchema))
     ),
     defaultValues: {
       projectId,
@@ -83,6 +98,26 @@ function ProjectComponentCreate(): ReactElement {
       description: {},
       fieldDefinitions: [],
     },
+    // A key per Project language, filled from the query rather than reset in an
+    // effect, so what is already typed survives a refetch.
+    ...(isReadingProject
+      ? {}
+      : {
+          values: {
+            projectId,
+            name: translatableDefault({
+              supportedLanguages: project.settings.language.supported,
+              defaultValue: '',
+            }),
+            slug: '',
+            description: translatableDefault({
+              supportedLanguages: project.settings.language.supported,
+              defaultValue: '',
+            }),
+            fieldDefinitions: [],
+          },
+        }),
+    disabled: isReadingProject,
   });
 
   // A slug another Component already uses lands on the Slug field, where it can
@@ -97,8 +132,7 @@ function ProjectComponentCreate(): ReactElement {
       Conflict: () => {
         createComponentForm.setError('slug', {
           type: 'conflict',
-          message:
-            'Another Component in this Project already uses this slug. Choose another one.',
+          message: t`Another Component in this Project already uses this slug. Choose another one.`,
         });
       },
       BadRequest: (error) => {
@@ -108,41 +142,48 @@ function ProjectComponentCreate(): ReactElement {
     },
   });
 
-  // Reset the form with the Project's languages when it loads
-  useEffect(() => {
-    if (project) {
-      createComponentForm.reset({
-        projectId,
-        name: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-        slug: '',
-        description: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-        fieldDefinitions: [],
-      });
-    }
-  }, [projectId, project, createComponentForm]);
+  const definitions = useDefinitionsEditor({
+    form: createComponentForm,
+    owner: 'component',
+    supportedLanguages: isReadingProject
+      ? []
+      : project.settings.language.supported,
+  });
 
-  function Description(): ReactElement {
-    return (
-      <>
-        A Component is a group of fields an Entry can hold more than once, in
-        any order. Its fields cannot be unique, and it holds no slug field.
-      </>
-    );
-  }
+  // What keeps this Component from being created, in the words below the
+  // button, as the Collection's settings say it.
+  const languages = isReadingProject ? undefined : project.settings.language;
+  const missingByLanguage = useMissingTranslations({
+    form: createComponentForm,
+    textsOf: useCallback(componentTranslatableTexts, []),
+    languages,
+  });
+  const [missingLanguage, missingTexts] = [...missingByLanguage.entries()].find(
+    ([, count]) => count > 0
+  ) ?? [undefined, 0];
+  const missing =
+    missingLanguage === undefined ? undefined : languageName(missingLanguage);
+  const blockedBy =
+    missing === undefined
+      ? undefined
+      : t`${missing} is missing ${plural(missingTexts, { one: '# translation', other: '# translations' })}`;
 
-  function Actions(): ReactElement {
-    return (
-      <FormActions form={createComponentForm} id={formId}>
-        <SubmitButton Icon={Check}>Create Component</SubmitButton>
-      </FormActions>
-    );
-  }
+  const navigate = Route.useNavigate();
+  const supportedLanguages = languages?.supported ?? [];
+  const shownLanguage = entryLanguage({
+    search: Route.useSearch(),
+    supportedLanguages,
+    defaultLanguage: isReadingProject
+      ? undefined
+      : project.settings.language.default,
+  });
+  const setLanguage = (next: SupportedLanguage): void => {
+    void navigate({
+      search: (previous) => ({ ...previous, language: next }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
 
   const onCreate: SubmitHandler<CreateComponentProps> = async (props) => {
     let component;
@@ -166,18 +207,28 @@ function ProjectComponentCreate(): ReactElement {
     return <></>;
   }
 
+  const title = t`Create Component`;
+
   return (
-    <Page
-      title="Create a new Component"
-      description={<Description />}
-      actions={<Actions />}
-    >
+    <>
       <ComponentForm
-        id={formId}
+        schema={generatedCreateComponentSchema}
         componentForm={createComponentForm}
         project={project}
+        definitions={definitions}
+        title={title}
+        language={shownLanguage}
+        onLanguageChange={setLanguage}
+        missingByLanguage={missingByLanguage}
+        blockedBy={blockedBy}
         isViewOnly={isCreatingComponent}
         onFormSubmit={onCreate}
+        unsavedChangesTitle={title}
+        submit={
+          <SubmitButton Icon={Check}>
+            <Trans>Create Component</Trans>
+          </SubmitButton>
+        }
       />
 
       <Dialog
@@ -186,7 +237,9 @@ function ProjectComponentCreate(): ReactElement {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not create this Component</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not create this Component</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
                 saveErrorType,
@@ -196,14 +249,12 @@ function ProjectComponentCreate(): ReactElement {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
-              </Button>
+            <DialogClose render={<Button type="button" variant="ghost" />}>
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Page>
+    </>
   );
 }

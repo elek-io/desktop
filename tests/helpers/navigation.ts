@@ -1,4 +1,64 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
+
+/** The Project's sidebar, which every screen inside a Project stands beside. */
+export function projectSidebar(page: Page): Locator {
+  return page.locator('[data-slot="sidebar"]');
+}
+
+/**
+ * The Project card at the top of the sidebar: the switcher, what state the
+ * Project is in, its last Release and Sync.
+ */
+export function projectCard(page: Page): Locator {
+  return page.locator('[data-slot="project-card"]');
+}
+
+/**
+ * Wait until the sidebar shows the Project, rather than the skeleton that
+ * stands in for it while the Project is still being read.
+ *
+ * The skeleton draws the card's slot, the search and the whole navigation
+ * too, under a shorter card, and React replaces all of it once the read lands.
+ * So whatever a spec scrolled or focused before that is gone, and what it
+ * measured on both sides of that moment mixes two sidebars. Only the filled
+ * card draws the switcher named after the Project. The read runs Git, so it is
+ * given the slack of a slow read on a slow machine rather than the default.
+ */
+export async function waitForProjectCard(
+  page: Page,
+  projectName: string
+): Promise<void> {
+  await expect(
+    projectCard(page).getByRole('button', { name: projectName })
+  ).toBeVisible({ timeout: 20000 });
+}
+
+/**
+ * The main panel, which is what a screen itself draws.
+ *
+ * Anything a screen shows is looked for in here rather than in the window,
+ * because the Project's sidebar beside it carries links of its own, such as
+ * Create Collection and one per Collection, which a name a screen shares with
+ * one of them would match too.
+ */
+export function mainPanel(page: Page): Locator {
+  return page.locator('[data-slot="panel"]');
+}
+
+/**
+ * What the Project's navigation lists, top to bottom, by the name each row
+ * shows.
+ *
+ * A row's name is its first span, so a count beside it, and the words a screen
+ * reader hears instead of that count, stay out of the order.
+ */
+export async function navigationRows(page: Page): Promise<string[]> {
+  return page
+    .locator('[data-slot="sidebar-content"] [data-slot="sidebar-menu-button"]')
+    .evaluateAll((rows) =>
+      rows.map((row) => row.querySelector('span')?.textContent?.trim() ?? '')
+    );
+}
 
 /**
  * Verify that the current route hash matches the expected hash

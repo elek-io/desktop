@@ -14,7 +14,7 @@ Remove an entry once the feature works end to end.
 ## Reporting a bug or feedback to Cloud
 
 The Desktop and Core halves are both done. The dialog, both forms, the header
-button, the error boundary's "Report this problem", the IPC channel
+button, the error screen's Report an issue, the IPC channel
 `core:cloud:reports:create` and `core.cloud.reports.create()` all work, and
 [`tests/specs/reports.spec.ts`](../tests/specs/reports.spec.ts) drives a real
 send end to end. What is left is on the other side of the wire.
@@ -50,8 +50,8 @@ enforces before sending.
 ## Preview Releases
 
 A full Release works end to end. The Releases page, the Release dialog, the IPC
-channels `core:releases:list`, `core:releases:prepare` and
-`core:releases:create` and
+channels `core:releases:list`, `core:releases:changes`, `core:releases:prepare`
+and `core:releases:create` and
 [`tests/specs/releases.spec.ts`](../tests/specs/releases.spec.ts) cut one
 through the UI against a local bare remote. A preview Release does not.
 
@@ -75,32 +75,18 @@ Core's `fieldTypeSchema` defines 18 field types, and all 18 work end to end:
 `datetime`, `time`, `email`, `url`, `telephone`, `ipv4`, `select`, `slug`,
 `markdown` and `dynamic`.
 
-Two things are the source of truth for "what is implemented", one per side (authoring and rendering). Keep them current when adding a type:
-
-- `FIELD_DEFINITION_REGISTRY` in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx) - the exhaustive `Record<FieldType, ...>` of authoring forms. A type that cannot be authored yet still needs an entry (a short note) plus a listing in `unauthorableFieldTypes` beside it, which is what disables it in the "Add Field" picker. That set is empty today.
-- `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx) - the exhaustive `Record<FieldType, RenderSpec>` of leaf inputs `FormComponentFromFieldDefinition` can draw. A type that cannot be rendered yet still needs an entry.
+One thing is the source of truth for "what is implemented": the registry in [`fields/index.ts`](../src/renderer/components/fields/index.ts), a mapped type over Core's `FieldType`. A field type Core adds fails to compile until it has a folder of its own, and the message names the types whose folder is missing.
 
 ### To implement a type
 
-Authoring and rendering are two independent sides; a type can gain one before the other.
-
-1. **Authoring**: add a `DefinitionSpec` for the type. A trivial scalar is pure data (resolver + `makeDefaults` + optional `Extras`) added in [`field-definition-registry.tsx`](../src/renderer/components/forms/field-definition-registry.tsx); a complex type gets its own `<type>-field-definition.tsx`. Register it in `FIELD_DEFINITION_REGISTRY` (an exhaustive `Record<FieldType, ...>`, so it will not compile until you do) and remove it from `unauthorableFieldTypes` so the picker enables it.
-2. **Rendering**: add a `RenderSpec` entry (a `renderInput` leaf plus `translatable`) to `RENDER_REGISTRY` in [`ui/form.tsx`](../src/renderer/components/ui/form.tsx). The exhaustive `Record<FieldType, RenderSpec>` will not compile until you do.
+1. Add a folder under [`components/fields/`](../src/renderer/components/fields/) and a module that implements `FieldTypeModule` for the type, see [dynamic-form-field-generation.md](./renderer/dynamic-form-field-generation.md). The contract itself is the compile error: every member has to be answered, so a type cannot be half built by accident.
+2. Register the module in `fields/index.ts`, without which nothing compiles.
 3. Confirm Core's `fieldTypeSchema` includes it.
-4. If the type brings a `valueType` Core did not have before, add a default Value for it in `defaultEntryValue` ([`lib/entry.ts`](../src/renderer/lib/entry.ts)), which the entry create and update forms seed from. Nothing fails to compile for a missing one, unlike the two registries above: the function's `default` branch throws instead, and that throw reaches the root error boundary when the form initializes. Most field types bring no new `valueType`, so this step is usually nothing.
-
-## Field definition editing
-
-- **Core support**: `CollectionService.update` accepts any valid `fieldDefinitions` array, except a change that deletes stored content. Removing a field definition Entries hold Values for, and narrowing a `dynamic` field's `ofComponents` or an `entry` field's `ofCollections`, are refused with a `Conflict` until the same update is sent again carrying `acceptedContentLoss` (see Core's [schema-changes doc](../node_modules/@elek-io/core/docs/schema-changes.md)). Everything else can be changed after creation at the data level.
-- **Client today**: one part of one definition can be edited, and the rest is add-only, for a Collection and for a Component alike.
-  - **Editable**: which Components a `dynamic` field allows, and only by allowing more. The Edit button on such a field opens [`allow-components-sheet.tsx`](../src/renderer/components/forms/allow-components-sheet.tsx), which offers the Components the field does not allow yet, lists the ones it does, and hands the definition back with its id and everything else untouched. A field whose `ofComponents` is empty already allows every Component of the Project, so it offers nothing to add: switching one on would narrow the field to that one, which is a content loss. Growing is the one change that costs nothing, since Core strips no Component item.
-  - **Add-only**: everything else. No other field type carries an Edit button at all, and the per-type definition forms have no update mode, so a label, a slug, a type, a bound or an option list is fixed once the field is added. Only adding, reordering (by dragging or with the Move up / Move down buttons) and deleting work, and a delete only while it drops no stored Value. The editor's section description says all of this on the screen, so an editor learns it before building a field with a typo in it. The client sends no `acceptedContentLoss`, so Core's refusal surfaces through the save-blocked dialog (see [`error-handling.md`](./error-handling.md)) and nothing is written. Accepting a loss needs a dialog that first shows what would go, which is not built yet.
-- **Where to start**: give the per-type definition forms an update mode, hydrated from the existing definition, and replace through the editor's `replaceDefinition` helper on submit, which the grow sheet already uses. Taking an allowed Component away waits for the dialog that shows what would go first.
-- **Notes**: `select` (options lists) and `markdown` (feature toggles) raise the priority - those are the definitions users will want to revise. Editing also raises data questions Core should answer first, like what happens to stored Values referencing a removed select option.
+4. Every type Core defines can be built and changed in a Collection's settings, since the registry is a mapped type over Core's `FieldType` and a type without a folder fails to compile.
 
 ## Markdown: v1 simplifications
 
-- **Definition `defaultValue` stays null**: Core allows a default mdast tree applied to every language of a new Entry, but the definition form does not offer an editor for it. Authoring one would couple a mounted editor to the feature toggles being edited in the same form, and a markdown definition cannot be edited afterwards anyway (see [Field definition editing](#field-definition-editing)).
+- **Definition `defaultValue` stays null**: Core allows a default mdast tree applied to every language of a new Entry, but a markdown field's settings offer no editor for it. Authoring one would couple a mounted editor to the blocks being allowed in the same pane, and the recursive tree is deeper than react-hook-form's path type walks, so it is left out of the keys those settings can bind.
 - **Entry reference labels flatten to plain text**: Core's `entryReference` node carries phrasing children, the editor stores them as a single text child. Rich formatting inside a reference label (authored via the API) is flattened to plain text when such content is edited.
 - **Deep validation errors show without detail**: min/max block counts and feature violations surface as a message under the field, but zod issues addressed at nested tree paths may only mark the field invalid without a per-node explanation.
 
@@ -110,15 +96,17 @@ See [`renderer/markdown-editor.md`](./renderer/markdown-editor.md) for the edito
 
 - **Core support**: `fieldDefinitionGroupSchema` and `FieldDefinitionOrGroup`. Groups can be created, nested members added, and reordered at the data level.
 - **Client today**: groups are display only. The entry form and collection editor render existing groups as a `FieldSet`, but there is no UI to create a group, move fields into or out of one, or reorder groups.
-- **Where to start**: the state layer is already in place. `field-definitions-editor.tsx` binds `fieldDefinitions` as a single `Controller`-bound `FieldDefinitionOrGroup[]` value, edited through typed `appendDefinition` / `removeDefinition` / `moveDefinition` helpers, which replaced the opaque `{ id }` rows that did not scale to authoring. Group authoring means adding helpers alongside those (create a group, move a definition into or out of one) and the UI to drive them. Only a Collection takes a group at all, since Core's `componentFileSchema` holds a flat `FieldDefinition[]`. Do not move the array out to a `useReducer` outside react-hook-form: it would sit outside the resolver, so the Collection schema's refinements would not run and `formState.isDirty` would not flip. See [`forms.md`](./renderer/forms.md#why-it-is-built-this-way) and [`dynamic-form-field-generation.md`](./renderer/dynamic-form-field-generation.md).
+- **Where to start**: the state layer is already in place. `useDefinitionsEditor` binds `fieldDefinitions` as a single `Controller`-bound `FieldDefinitionOrGroup[]` value, edited through typed `add` / `changeType` / `remove` / `move` helpers, which replaced the opaque `{ id }` rows that did not scale to authoring. Group authoring means adding helpers alongside those (create a group, move a definition into or out of one) and the UI to drive them. Only a Collection takes a group at all, since Core's `componentFileSchema` holds a flat `FieldDefinition[]`. Do not move the array out to a `useReducer` outside react-hook-form: it would sit outside the resolver, so the Collection schema's refinements would not run and `formState.isDirty` would not flip. See [`forms.md`](./renderer/forms.md#why-it-is-built-this-way) and [`dynamic-form-field-generation.md`](./renderer/dynamic-form-field-generation.md).
 
-## Entry table: value columns render empty
+## A Collection's icon outside the set it is offered
 
-- **Client today**: `EntryTable` ([`entry-table.tsx`](../src/renderer/components/entry-table.tsx)) computes a display value per field slug but the value columns define no `cell` renderer, so those cells render empty. Only the fixed columns show data.
-- **Where to start**: add a `cell` renderer per column that formats the value by field type (text, reference count, toggle, date).
+- **Core support**: `supportedIconSchema` takes any icon name in Lucide's spelling, at most 64 characters, and Core holds no list of Lucide's own names.
+- **Client today**: a Collection is picked from a set of 63 icons, and [`lib/collectionIcons.ts`](../src/renderer/lib/collectionIcons.ts) draws those plus `home` and `plus`, the two names Core used to allow. A name outside them, which only a developer writing through Core can set, stays the Collection's Value and is shown as the name itself, with the Collection mark drawn in its place.
+- **Where to start**: `lucide-react/dynamic` resolves any name by itself and takes a fallback component. It turns every Lucide icon into a chunk of its own: measured on 2026-11-25, importing it took the renderer's assets from 128 chunks and 6.2 MB to 1962 chunks and 8.3 MB, source maps left out of both. It also draws the fallback for a frame before the icon's own chunk arrives. Worth it with a way to keep the set out of that path, or once the icons ship as one bundle rather than per-chunk.
+- **Notes**: what somebody reads an icon as comes from the message catalog, so a name outside the set carries no word of its own and the picker shows the name instead. What the set holds and why is in [`renderer/theming-and-styling.md`](./renderer/theming-and-styling.md#a-collections-icon).
 
 ## Range field: fixed step
 
 - **Core support**: pending. The range field has `min` and `max` but no `step`.
-- **Client today**: `FormComponentFromFieldDefinition` hardcodes `step={1}` with a `@todo`.
-- **Where to start**: add `step` to Core's range field definition first, then expose it in the range definition form and pass it through.
+- **Client today**: the range control steps by one.
+- **Where to start**: add `step` to Core's range field definition first, then expose it in the range field's own settings and pass it through.

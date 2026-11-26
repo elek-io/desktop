@@ -46,19 +46,36 @@ On `app.on('ready')` the `onAppReady()` method:
 1. Creates the `ElekIoCore` instance (log level `info` when packaged, `debug` otherwise, and the elek.io Cloud URL this build talks to, see [Which elek.io Cloud a build talks to](./build-and-packaging.md#which-elekio-cloud-a-build-talks-to)).
 2. Reads the persisted user and, if `user.localApi.isEnabled` is true, **starts the local read-only API automatically** on `user.localApi.port`. The API can therefore already be serving before the renderer ever calls `core:api:start`. If it fails to start, for example because the port is in use, the failure is logged and the app launches with the API off.
 3. Registers the custom file protocol.
-4. Creates the first window (`createWindow()`), registers the IPC handlers for it (`registerIpcMain()`), then loads the renderer into it (`loadWindow()`).
+4. Registers the IPC handlers (`registerIpcMain()`), then creates the first window (`createWindow()`) and loads the renderer into it (`loadWindow()`).
 
-The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. The handlers only touch the window when invoked, so it just needs to exist (be created) at registration time, not be loaded. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
+The order in step 4 matters: the renderer issues IPC calls as soon as it mounts, so the handlers are registered **before** the renderer is loaded. Registering after the load would leave a startup gap where an early call arrives before its handler exists and rejects with "No handler registered", which `throwOnError` turns into the root error boundary on launch. This is why `createWindow()` only creates the window and `loadWindow()` loads it, kept as two steps.
 
-If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. One rejection is not a failed start: Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing, and `loadWindow()` logs a warning and carries on. See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
+The handlers are registered once for the process and hold no window of their own. A handler that drives a window asks `windowOf(event)` which window the call came from, because `activate` creates a window again after the last one was closed, and a window held from registration is destroyed by then.
 
-Other lifecycle events: `activate` (macOS dock click) recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS.
+If any of these steps throws, `onAppReadyFailed()` logs the error, shows it in a native error box and exits, instead of leaving a running app without a window. A rejected load is not always a failed start, and `loadWindow()` logs a warning and carries on where it is not:
+
+- The window was closed while its load was still running, which rejects that load. Nothing is left to load into, and the box would ask somebody who is already closing the app to acknowledge it. It is a modal native box, so where nobody answers it, such as a test run, it holds the app open for good.
+- Electron rejects a pending `loadFile`/`loadURL` with `ERR_ABORTED` as soon as another main-frame navigation starts, even one the navigation guard blocks. Only our own document can start one, so it is already showing.
+
+See [Error Handling](./error-handling.md#the-main-process-cannot-always-use-cores-logger).
+
+Other lifecycle events: `activate` (macOS dock click) waits for the start above to finish and then recreates and loads a window if none are open, and `window-all-closed` quits the app on Windows and Linux but not on macOS. The wait is what keeps the app at one window: an activation that lands while the start is still running would otherwise count the windows before the start created its own, and the second window it made would claim the same unsaved-changes state, so a clean window's answer could clear what the edited one claimed.
+
+**Closing with unsaved changes.** A window that still holds something nobody saved is held open until the question in it is answered, so a close never loses what was typed:
+
+1. The renderer tells the main process whenever that changes, over `electron:window:setUnsavedChanges`, which takes one boolean and is parsed with zod like the title bar theme.
+2. The window's own `close` event is held with `event.preventDefault()` while that is true, and the main process sends `electron:window:askBeforeClose` instead. A quit goes through the same event, since it closes every window, and `before-quit` is what tells the two apart.
+3. The renderer shows the app's own discard dialog, named by the page, and answers `discard` or `keep` over `electron:window:answerClose`. On `discard` the main process closes the window the answer came from, or quits where a quit is what was closing it.
+
+The question is drawn in the window rather than in a native box, because a box could neither name the page nor draw the app's own buttons. A close is only ever held on the renderer's own claim, so a crashed renderer holds nothing and a fresh document starts with nothing unsaved. See [forms.md](./renderer/forms.md#leaving-unsaved-changes), which also covers why the document's `beforeunload` is left alone.
 
 **Window management** (`createWindow()` / `loadWindow()`):
 
-- The window is **frameless**: `frame: false`, `titleBarStyle: 'hidden'`, `titleBarOverlay: true`. The title bar is drawn in the renderer, so the native frame is intentionally removed.
+- The window is **frameless**: `frame: false`, `titleBarStyle: 'hidden'`. The header is drawn in the renderer, so the native frame is intentionally removed.
+- `titleBarOverlay` gives the window controls a bar of their own, 32 px high on every system, which the renderer's header leaves empty. Its two colors come from the brand package, and the renderer tells the main process which theme it resolved to over `electron:window:setTheme`, which is parsed with zod and takes a theme name and nothing else. Only Windows and Linux draw an overlay this colors; on macOS `trafficLightPosition` places the traffic lights in the same bar instead. See [theming-and-styling.md](./renderer/theming-and-styling.md#theming-dark--light--system).
+- **The window has a minimum**, `minWidth` and `minHeight`, which is the smallest size every screen holds at. Electron enforces it, so no screen can be dragged into collapsing.
 - On Linux the app icon is set explicitly from `resources/icon.png`.
-- The initial size is computed in `getInitialWindowSize()` as 80% of the primary display's work area, constrained to a 16:9 ratio.
+- The initial size is computed in `getInitialWindowSize()` as 80% of the primary display's work area, constrained to a 16:9 ratio, then raised to the minimum and capped at the screen's work area.
 
 ### IPC Architecture
 
@@ -106,19 +123,23 @@ const project = await window.ipc.core.projects.create({
 });
 ```
 
-The channels are organized by namespace: `core:projects:*`, `core:releases:*`, `core:collections:*`, `core:components:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*`, `core:cloud:*` and `electron:dialog:*`.
+The channels are organized by namespace: `core:projects:*`, `core:releases:*`, `core:collections:*`, `core:components:*`, `core:entries:*`, `core:assets:*`, `core:user:*`, `core:api:*`, `core:logger:*`, `core:cloud:*`, `electron:dialog:*` and `electron:window:*`.
 
 All Core methods are asynchronous in the renderer even when they are synchronous in Core, since every call crosses the IPC boundary. The `AsyncifyMethods` utility type in [`src/index.d.ts`](/src/index.d.ts) reflects this by wrapping every Core method's return value in a `Promise`.
 
 **Adding a new IPC channel:**
 
-1. Add an entry to the `channelToHandlerMap` inside `registerIpcMain` in [`src/main/index.ts`](/src/main/index.ts) that maps the channel name to the bound Core method, for example `'core:projects:create': core.projects.create.bind(core.projects)`. A single loop registers `ipcMain.handle` for every entry, so do not add a standalone `ipcMain.handle` call.
+1. Add an entry to the `channelToHandlerMap` inside `registerIpcMain` in [`src/main/index.ts`](/src/main/index.ts) that maps the channel name to the bound Core method, for example `'core:projects:create': core.projects.create.bind(core.projects)`. A single loop registers `ipcMain.handle` for every entry, so do not add a standalone `ipcMain.handle` call for a `core:*` channel.
 2. Expose it in [`src/preload/index.ts`](/src/preload/index.ts) via `ipcRenderer.invoke`
 3. Add its type to the `ContextBridgeApi` interface in [`src/index.d.ts`](/src/index.d.ts)
 4. Add a matching `queryOptions` / `mutationOptions` entry under [`src/renderer/queries/options/`](/src/renderer/queries/options/)
 
 > [!NOTE]
 > The two `electron:dialog:*` channels are special-cased in the registration loop: the main `BrowserWindow` is injected as the first argument before the bound handler is called. Every `core:*` channel is called with the renderer's arguments unchanged.
+
+Three channels sit outside the map, registered on their own in the same method, because they drive the window rather than Core: `electron:window:setTheme`, `electron:window:setUnsavedChanges` and `electron:window:answerClose`. A channel that does that **parses what it is given**, through [`windowTheme.ts`](/src/shared/windowTheme.ts) and [`windowClose.ts`](/src/shared/windowClose.ts), so each takes one named value and no color and no `BrowserWindow` option can reach Electron from the renderer. Anything else rejects the call and is logged like the other refusals in the main process, by the one `fromRenderer` parse all three go through.
+
+`electron:window:askBeforeClose` is the one channel the main process sends on. The preload writes its name itself and hands the renderer a listener registration, so the renderer can listen to that one thing and to nothing else.
 
 **Error serialization at the handler loop:** the same single `ipcMain.handle` wrapper also try/catches the handler call. A structured clone across the IPC boundary drops the `CoreError` subclass and its custom `type`/`statusCode` fields, reducing the error to the plain `Error` shape (message and stack). To preserve the reason a Core operation failed with, the wrapper catches a thrown `CoreError` and re-throws `new Error(serializeCoreError(error.type, error.message, error.stack, error.cause))`, which packs the `type`, Core's own origin stack and the forwardable part of the cause into the message behind a sentinel. Everything that is not a `CoreError` propagates unchanged. The renderer decodes it with `parseIpcError` from the shared module [`src/shared/ipcError.ts`](/src/shared/ipcError.ts), which is bundled into both processes. The full story, including which causes cross and how the renderer maps the decoded `type` to reason-specific copy, is in [Error Handling](./error-handling.md).
 
@@ -210,7 +231,7 @@ All external requests (e.g., when a user clicks a link inside the renderer or an
 - `api.elek.io`
 - `github.com`
 
-See `allowedHostnamesToLoadExternal` in [`src/main/index.ts:41-47`](/src/main/index.ts) for the implementation.
+See `allowedHostnamesToLoadExternal` in [`src/main/index.ts`](/src/main/index.ts) for the implementation.
 
 Links to whitelisted external hostnames are opened in the default system browser, not within an elek.io Desktop renderer window.
 
@@ -256,7 +277,7 @@ For how these three builds decide what ships in the packaged app, the resulting 
 
 ### Known Considerations
 
-- DevTools are opened automatically in development via `window.webContents.openDevTools()` in [`src/main/index.ts:242`](/src/main/index.ts) (the development branch of `loadWindow`). The packaged branch keeps a commented-out call to uncomment when debugging a production build.
+- DevTools are opened automatically in development via `window.webContents.openDevTools()` in the development branch of `loadWindow` (see [`src/main/index.ts`](/src/main/index.ts)). The packaged branch keeps a commented-out call to uncomment when debugging a production build.
 - The app sends no telemetry. There is no remote error tracker, no tracing and no session replay, so an error only ever reaches Core's local log files unless the user reports it themselves. For the full logging picture see [Error Handling](./error-handling.md). Why Sentry was removed, and what is planned instead, lives in the Cloud repository's `contributing/observability.md`.
 - Auto-update is currently disabled. The `update-electron-app` call in the `Main` constructor is commented out, and the `electron-updater` dependency is not imported anywhere, so there is no active auto-update path.
 - All Core methods are async in the renderer even when synchronous in Core (the IPC boundary requires it)

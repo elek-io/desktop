@@ -1,124 +1,543 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+
+import {
+  flattenFieldDefinitions,
+  type Collection,
+  type Entry,
+  type FieldType,
+  type Project,
+} from '@elek-io/core';
 
 import { test } from '../fixtures/electronApp.js';
+import { createAssetViaIpc, makeTempFile, pngBytes } from '../helpers/asset.js';
 import {
   addFieldDefinition,
+  assetFieldDefinition,
+  chooseFieldDefinition,
+  collectionIconPicker,
+  collectionIconPopup,
+  dynamicFieldDefinition,
   createCollection,
   createCollectionViaIpc,
   fillCollectionForm,
-  fillCollectionFormTranslations,
+  navigateToCollection,
   navigateToCollectionCreate,
   navigateToCollectionSettings,
-  openAddFieldSheet,
+  openFieldTypes,
+  readCollectionViaIpc,
   referenceFieldDefinition,
+  slugFieldDefinition,
   textFieldDefinition,
+  toggleFieldDefinition,
 } from '../helpers/collection.js';
-import { confirmDialog, dismissDialog } from '../helpers/dialog.js';
+import { createComponentViaIpc } from '../helpers/component.js';
+import { dismissDialog } from '../helpers/dialog.js';
 import {
+  chooseLanguage,
+  componentValue,
   createEntryViaIpc,
+  entryReferencesValue,
   navigateToEntryUpdate,
-  referenceValue,
+  readEntryViaIpc,
   stringValue,
 } from '../helpers/entry.js';
+import { errorScreenTitle } from '../helpers/error.js';
 import { stubCoreReject } from '../helpers/ipc.js';
-import { reloadWindow } from '../helpers/navigation.js';
+import {
+  mainPanel,
+  projectSidebar,
+  reloadWindow,
+} from '../helpers/navigation.js';
 import {
   addProjectLanguageViaIpc,
   createProjectViaIpc,
   navigateToHistory,
 } from '../helpers/project.js';
+import { setTheme } from '../helpers/theme.js';
 import { setUserViaIpc } from '../helpers/user.js';
+import {
+  MINIMUM_WINDOW_SIZE,
+  resizeWindow,
+  waitForLayout,
+} from '../helpers/window.js';
+
+/** The settings of a Collection, so a test reaches its page head and its form. */
+const settingsOf = {
+  namePlural: 'Articles',
+  nameSingular: 'Article',
+  description: 'The articles of this blog',
+  slugPlural: 'articles',
+  slugSingular: 'article',
+};
 
 test.describe('Collections', () => {
-  test('creates a collection with a field definition and shows it in the sidebar', async ({
+  test('creates a Collection on the same page, empty, and lists it in the sidebar', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
 
     await navigateToCollectionCreate(mainWindow, project.id);
+    // The same page, titled by what it is about and empty of fields.
+    await expect(
+      mainWindow.getByRole('heading', { name: 'Create Collection' })
+    ).toBeVisible();
+    await expect(
+      mainWindow
+        .getByRole('main')
+        .getByLabel('Collection name', { exact: true })
+    ).toHaveValue('');
+    await expect(
+      mainWindow.getByRole('button', { name: /^Settings of the/ })
+    ).toHaveCount(0);
+
     await createCollection(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
+      ...settingsOf,
       field: { label: 'Title', description: 'The title of the article' },
     });
 
-    // Reaching the Collection detail (asserted inside createCollection) means
-    // Core accepted the create with its field definition without throwing. Core
-    // owns and separately tests file and commit correctness, so this spec
-    // verifies only the desktop app's part: the create reached Core, and the UI
-    // reflects the result by listing the new Collection in the sidebar. Scope to
-    // the sidebar (a complementary landmark) so the matching breadcrumb crumb on
-    // the detail page does not make the link locator ambiguous.
+    // Reaching the Collection's own route means Core accepted the create.
+    // Scoped to the sidebar, a complementary landmark, so the matching crumb on
+    // the detail page does not make the link ambiguous. The row carries how
+    // many Entries the Collection holds, so its name starts with the
+    // Collection's own name rather than being it.
     await expect(
       mainWindow
         .getByRole('complementary')
-        .getByRole('link', { name: 'Articles' })
+        .getByRole('link', { name: /^Articles/ })
     ).toBeVisible();
   });
 
-  test('updates a collection through the form, gated on a dirty change', async ({
+  test('offers the icons in groups, finds one by its word or its group, and saves it', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
+
+    await navigateToCollectionCreate(mainWindow, project.id);
+    // A new Collection starts with the mark every Collection was drawn by,
+    // named in words on the trigger and drawn beside them. The trigger is
+    // named by the field's label alone, since a combobox takes no name from
+    // its own text.
+    const icon = collectionIconPicker(mainWindow);
+    await expect(icon).toHaveText('Layers');
+    await expect(icon.locator('svg.lucide-layers')).toBeVisible();
+    // A Collection always holds an icon, so its field names no rule at all,
+    // while the control still says it is required where its role takes that.
+    await expect(icon).toHaveAttribute('aria-required', 'true');
+    await expect(
+      mainWindow
+        .locator('[data-slot="field"]', { has: icon })
+        .locator('[data-slot="field-rules"]')
+    ).toHaveCount(0);
+
+    // Opened from the keyboard, with the filter inside the popup.
+    await icon.focus();
+    await mainWindow.keyboard.press('Enter');
+    const popup = collectionIconPopup(mainWindow);
+    const filter = mainWindow.getByRole('combobox', { name: 'Filter icons' });
+    await expect(filter).toBeVisible();
+
+    // Every icon of the set, under its group's name, each in the app's own
+    // language rather than in Lucide's spelling.
+    await expect(popup.getByRole('option')).toHaveCount(63);
+    // Counted by the groups of the list, since the filter's own field is a
+    // group of inputs as well.
+    await expect(popup.locator('[data-slot="combobox-group"]')).toHaveCount(9);
+    await expect(
+      popup.getByRole('group', { name: 'Pages and posts' })
+    ).toBeVisible();
+    await expect(
+      popup.getByRole('group', { name: 'Vehicles and travel' })
+    ).toBeVisible();
+    // An option is read out as the icon's word alone, since the drawing beside
+    // it is hidden from screen readers.
+    await expect(
+      popup.getByRole('option', { name: 'Graduation cap', exact: true })
+    ).toHaveCount(1);
+    expect(
+      await popup
+        .locator('[data-slot="combobox-item"] svg')
+        .evaluateAll((icons) =>
+          icons.map((drawing) => drawing.getAttribute('aria-hidden'))
+        )
+    ).not.toContain(null);
+
+    // The filter matches a group's name too, so "vehicle" reaches the Car
+    // without anybody knowing Lucide's own word for it. A group whose icons
+    // all filter out drops its label with them.
+    await filter.fill('vehicle');
+    await expect(popup.getByRole('option')).toHaveCount(7);
+    await expect(popup.locator('[data-slot="combobox-group"]')).toHaveCount(1);
+    await expect(
+      popup.getByRole('group', { name: 'Pages and posts' })
+    ).toHaveCount(0);
+
+    // And an icon's own word, which is the everyday one for what it shows.
+    await filter.fill('graduation');
+    await expect(popup.getByRole('option')).toHaveCount(1);
+    await filter.fill('sprocket');
+    await expect(popup.getByRole('option')).toHaveCount(0);
+    await expect(popup.getByText('No icon matches the filter.')).toBeVisible();
+
+    // Arrow and Enter choose the highlighted one, and the focus comes back to
+    // the trigger with what was chosen on it.
+    await filter.fill('car');
+    await expect(popup.getByRole('option')).toHaveCount(1);
+    await mainWindow.keyboard.press('ArrowDown');
+    await mainWindow.keyboard.press('Enter');
+    await expect(popup).toBeHidden();
+    await expect(icon).toBeFocused();
+    await expect(icon).toHaveText('Car');
+    await expect(icon.locator('svg.lucide-car')).toBeVisible();
+
+    // Opened again, the chosen one says so rather than only being highlighted,
+    // and Escape leaves it as it was.
+    await mainWindow.keyboard.press('Enter');
+    const chosen = popup.getByRole('option', { name: 'Car', exact: true });
+    await expect(chosen).toHaveAttribute('aria-selected', 'true');
+    await expect(chosen.locator('svg.lucide-check')).toBeVisible();
+    await mainWindow.keyboard.press('Escape');
+    await expect(popup).toBeHidden();
+    await expect(icon).toBeFocused();
+    await expect(icon).toHaveText('Car');
+
+    const collectionId = await createCollection(mainWindow, {
+      ...settingsOf,
+      field: { label: 'Title', description: 'The title of the article' },
+    });
+
+    // Read back from Core, so this is the name that was written rather than
+    // what the form held.
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collectionId,
+    });
+    expect(saved.icon).toBe('car');
+  });
+
+  test('keeps a stored icon name it does not offer, and draws what it knows of it', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // `home` is one of the two names Core used to allow, so every Collection
+    // written before the set carries one of them. The other name is one
+    // nothing here can draw, as a developer writing through Core can set.
+    const stored = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'home',
+    });
+    const unknown = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'constructor',
+      name: { singular: { en: 'Guide' }, plural: { en: 'Guides' } },
+      slug: { singular: 'guide', plural: 'guides' },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: stored.id,
+    });
+    // The stored name is what the trigger says, since the set holds no word
+    // for it, and its own drawing is what stands beside it.
+    const icon = collectionIconPicker(mainWindow);
+    await expect(icon).toHaveText('home');
+    await expect(icon.locator('svg.lucide-home')).toBeVisible();
+
+    // The settings save without the icon being touched, and the stored name
+    // survives it rather than being swapped for the default.
+    await mainWindow
+      .getByRole('main')
+      .getByLabel('Description', { exact: true })
+      .fill('What the agency set up');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${stored.id}$`)
+    );
+    expect(
+      (
+        await readCollectionViaIpc(mainWindow, {
+          projectId: project.id,
+          id: stored.id,
+        })
+      ).icon
+    ).toBe('home');
+
+    // A name nothing here can draw falls back to the mark a Collection is
+    // drawn by, and is still the name the trigger says and the name that is
+    // saved again.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: unknown.id,
+    });
+    await expect(icon).toHaveText('constructor');
+    await expect(icon.locator('svg.lucide-layers')).toBeVisible();
+    await mainWindow
+      .getByRole('main')
+      .getByLabel('Description', { exact: true })
+      .fill('What a developer set up');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${unknown.id}$`)
+    );
+    expect(
+      (
+        await readCollectionViaIpc(mainWindow, {
+          projectId: project.id,
+          id: unknown.id,
+        })
+      ).icon
+    ).toBe('constructor');
+  });
+
+  test('draws a saved icon in the sidebar at once', async ({ mainWindow }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
+      icon: 'home',
     });
 
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
+    const row = projectSidebar(mainWindow).getByRole('link', {
+      name: /^Articles/,
+    });
+    await expect(row.locator('svg.lucide-home')).toBeVisible();
 
-    // Wait for the form to reset from the loaded Collection. Until it settles,
-    // the dirty gate cannot be trusted, so key off the plural name showing.
-    await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
-    ).toHaveValue('Articles');
-
-    // Nothing edited yet, so Save is gated
-    await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
-    ).toBeDisabled();
-
-    // Rename the plural name and edit the description. Leave the slugs untouched,
-    // a slug change is the schema-cascade flow and out of scope here.
+    const icon = collectionIconPicker(mainWindow);
+    await icon.click();
     await mainWindow
-      .getByLabel('Collection name (Plural)', { exact: true })
-      .fill('Guides');
-    await mainWindow
-      .getByLabel('Description', { exact: true })
-      .fill('Guides created by the E2E tests');
-
-    // The edit dirties the form, so Save enables
-    await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
-    ).toBeEnabled();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-
-    // Redirecting to the Collection detail is how Core's success surfaces (the
-    // update did not throw). Core owns file and commit correctness.
+      .getByRole('combobox', { name: 'Filter icons' })
+      .fill('newspaper');
+    await collectionIconPopup(mainWindow)
+      .getByRole('option', { name: 'Newspaper', exact: true })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
 
-    // Reload so the sidebar re-reads from Core rather than an optimistic cache
-    // entry, proving the rename persisted, then see the new plural name listed.
-    // Scope to the sidebar (a complementary landmark) so the matching breadcrumb
-    // crumb on the detail page does not make the link locator ambiguous.
-    await reloadWindow(mainWindow);
-    await expect(
-      mainWindow
-        .getByRole('complementary')
-        .getByRole('link', { name: 'Guides' })
-    ).toBeVisible();
+    // The row the Collection is reached by draws the icon it was just given,
+    // with nothing reloaded, and reads as its name and its count alone.
+    await expect(row.locator('svg.lucide-newspaper')).toBeVisible();
+    await expect(row.locator('svg.lucide-home')).toHaveCount(0);
+    expect(
+      await row
+        .locator('svg')
+        .evaluateAll((icons) =>
+          icons.map((drawing) => drawing.getAttribute('aria-hidden'))
+        )
+    ).toEqual(['true']);
   });
 
-  test('deletes a collection and removes it from the UI', async ({
+  test("draws a referenced Entry's Collection by its icon, in its field and in the dialog that asks for a Value", async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const team = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'users',
+      name: { singular: { en: 'Member' }, plural: { en: 'Team' } },
+      slug: { singular: 'member', plural: 'team' },
+    });
+    const mara = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: team.id,
+      values: { title: stringValue({ en: 'Mara Klein' }) },
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        referenceFieldDefinition({
+          slug: 'authors',
+          label: { en: 'Authors' },
+          ofCollections: [team.id],
+          max: 2,
+        }),
+      ],
+    });
+    const written = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        authors: entryReferencesValue(team.id, [mara.id]),
+      },
+    });
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Charging at the dealership' }),
+        // Core wants a Value for every field the Collection declares, so the
+        // Entry that holds no author holds the empty list.
+        authors: entryReferencesValue(team.id, []),
+      },
+    });
+
+    // The row of a chosen Entry carries the icon of the Collection that Entry
+    // is in, which is what the line below its title names.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: written.id,
+    });
+    const chosenRow = mainWindow
+      .locator('[data-slot="field-row"]')
+      .filter({ hasText: 'Mara Klein' });
+    await expect(chosenRow.locator('svg.lucide-users')).toBeVisible();
+
+    // The icon follows the Collection: given another one, every row that
+    // names it draws it.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: team.id,
+    });
+    await collectionIconPicker(mainWindow).click();
+    await mainWindow
+      .getByRole('combobox', { name: 'Filter icons' })
+      .fill('briefcase');
+    await collectionIconPopup(mainWindow)
+      .getByRole('option', { name: 'Briefcase', exact: true })
+      .click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: written.id,
+    });
+    await expect(chosenRow.locator('svg.lucide-briefcase')).toBeVisible();
+
+    // Making the field required leaves the other Entry without a Value, which
+    // Core refuses, so the dialog asks for one. Its row is the same field, so
+    // it carries the Collection's icon too.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Authors');
+    await pane.getByRole('checkbox', { name: 'Required' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(
+      dialog.getByText("Missing, so the changes can't be saved yet")
+    ).toBeVisible();
+    const askedFor = dialog
+      .locator('[data-slot="field-row"]')
+      .filter({ hasText: 'No Entry chosen' });
+    await expect(askedFor.locator('svg.lucide-briefcase')).toBeVisible();
+  });
+
+  test('keeps the icon beside the two names at the smallest window, in both themes', async ({
+    electronApp,
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      icon: 'graduation-cap',
+    });
+
+    for (const theme of ['light', 'dark'] as const) {
+      // The theme reloads the renderer through the app's own provider, so it
+      // goes on before the page is opened.
+      await setTheme(mainWindow, theme);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await navigateToCollectionSettings(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+      });
+      // The pane of a chosen field open, which is the narrowest the three
+      // fields ever get.
+      await chooseFieldDefinition(mainWindow, 'Title');
+      await waitForLayout(mainWindow);
+
+      const row = await mainWindow.evaluate(() => {
+        const fields = Array.from(
+          document
+            .querySelector('main')
+            ?.querySelectorAll('[data-slot="field"]') ?? []
+        ).slice(0, 3);
+
+        return fields.map((field) => {
+          const box = field.getBoundingClientRect();
+          const label = field.querySelector(
+            '[data-slot="field-label"]'
+          )?.textContent;
+
+          return {
+            label: label?.trim() ?? '',
+            top: Math.round(box.top),
+            width: Math.round(box.width),
+          };
+        });
+      });
+
+      // The icon leads the row, and all three stand side by side rather than
+      // stacking, each above ci's floor of 160 px.
+      expect(
+        row.map((field) => field.label),
+        theme
+      ).toEqual(['Icon', 'Collection name', 'Entry name']);
+      expect(new Set(row.map((field) => field.top)).size, theme).toBe(1);
+      for (const field of row) {
+        expect(
+          field.width,
+          `${field.label} in ${theme}`
+        ).toBeGreaterThanOrEqual(160);
+      }
+
+      // The longest word of the set fits the trigger without being cut.
+      const icon = collectionIconPicker(mainWindow);
+      await expect(icon).toHaveText('Graduation cap');
+      expect(
+        await icon
+          .locator('span.truncate')
+          .evaluate((word) => word.scrollWidth <= word.clientWidth),
+        theme
+      ).toBe(true);
+
+      // The popup opens below the trigger without covering it, and shrinks
+      // into the window rather than being cut off by its edge.
+      await icon.click();
+      const popup = collectionIconPopup(mainWindow);
+      await expect(popup).toBeVisible();
+      await waitForLayout(mainWindow);
+      const measured = await mainWindow.evaluate(() => {
+        const trigger = document.querySelector(
+          '[data-slot="combobox-trigger"]'
+        );
+        const content = document.querySelector(
+          '[data-slot="combobox-content"]'
+        );
+        if (trigger === null || content === null) {
+          throw new Error('The icon picker did not draw its popup');
+        }
+
+        return {
+          window: window.innerHeight,
+          triggerBottom: trigger.getBoundingClientRect().bottom,
+          popupTop: content.getBoundingClientRect().top,
+          popupBottom: content.getBoundingClientRect().bottom,
+        };
+      });
+      expect(measured.popupTop, theme).toBeGreaterThanOrEqual(
+        measured.triggerBottom
+      );
+      expect(measured.popupBottom, theme).toBeLessThanOrEqual(measured.window);
+      await mainWindow.keyboard.press('Escape');
+    }
+  });
+
+  test('opens the settings from the head of the list of Entries', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -126,732 +545,600 @@ test.describe('Collections', () => {
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
     });
-    await createEntryViaIpc(mainWindow, {
+
+    await navigateToCollection(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
-      values: { title: stringValue({ en: 'Doomed entry' }) },
+    });
+    await mainWindow
+      .getByRole('link', { name: 'Settings of the Articles Collection' })
+      .click();
+
+    await expect(
+      mainWindow.getByRole('heading', {
+        name: 'Settings of the Articles Collection',
+      })
+    ).toBeVisible();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
+    );
+  });
+
+  test('saves the names, the slugs and the description from one page with one Save', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
     });
 
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
-
-    await mainWindow.getByRole('button', { name: 'Delete Collection' }).click();
-
-    // The destructive confirm warns that the cascade deletes the seeded Entry
-    // too, rather than a bare "Are you sure?". Assert the copy so a regression to
-    // the weaker, warning-less dialog is caught.
+    const settings = mainWindow.getByRole('main');
     await expect(
-      mainWindow.getByText(
-        'Deleting this Collection also permanently deletes every Entry inside it. This cannot be undone.'
-      )
-    ).toBeVisible();
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Articles');
 
-    await confirmDialog(mainWindow, 'Yes, delete this Collection');
+    // One Save, and nothing edited yet, so it is blocked.
+    const save = mainWindow.getByRole('button', { name: 'Save' });
+    await expect(save).toHaveCount(1);
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
 
-    // The delete redirecting to the Collections list is how Core's success
-    // surfaces (it did not throw). The UI reflects the removal: the Collection
-    // is gone from the sidebar and the empty state shows. Its seeded Entry went
-    // with it (Core's cascade, which Core tests), so there is no Collection left
-    // to view Entries under.
-    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/collections$/);
-    await expect(
-      mainWindow.getByRole('link', { name: 'Articles' })
-    ).toBeHidden();
-    await expect(mainWindow.getByText('No Collections found')).toBeVisible();
+    await settings
+      .getByLabel('Collection name', { exact: true })
+      .fill('Guides');
+    await settings.getByLabel('Entry name', { exact: true }).fill('Guide');
+    await settings
+      .getByLabel('Description', { exact: true })
+      .fill('Guides created by the E2E tests');
+    await settings
+      .getByLabel('Collection slug', { exact: true })
+      .fill('guides');
+    await settings.getByLabel('Entry slug', { exact: true }).fill('guide');
+
+    await expect(save).not.toHaveAttribute('aria-disabled', 'true');
+    await save.click();
+
+    // Redirecting to the Collection is how Core's success surfaces.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // Read back from Core, so this is what was written rather than what the
+    // cache held.
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(saved.name.plural.en).toBe('Guides');
+    expect(saved.name.singular.en).toBe('Guide');
+    expect(saved.description.en).toBe('Guides created by the E2E tests');
+    expect(saved.slug.plural).toBe('guides');
+    expect(saved.slug.singular).toBe('guide');
   });
 
-  test('surfaces a blocked delete in place when another Collection references in', async ({
+  test('keeps the title and Save in view while the page scrolls', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
+    // Enough fields that the page has to scroll at the smallest window.
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: Array.from({ length: 12 }, (_, index) =>
+        textFieldDefinition({
+          slug: `field-${String(index)}`,
+          label: { en: `Field ${String(index)}` },
+        })
+      ),
+    });
 
-    // Collection A holds the referenced Entry. Collection B holds an Entry that
-    // references into A. Deleting A while B survives would leave B's reference
-    // dangling, so Core blocks the delete with a Conflict listing the referrer.
-    const collectionA = await createCollectionViaIpc(mainWindow, {
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+    await waitForLayout(mainWindow);
+
+    const title = mainWindow.getByRole('heading', {
+      name: 'Settings of the Articles Collection',
+    });
+    const save = mainWindow.getByRole('button', { name: 'Save' });
+    const before = await title.boundingBox();
+
+    // Scroll the fields, which is what the head has to survive.
+    await mainWindow
+      .getByLabel('Field 11', { exact: true })
+      .scrollIntoViewIfNeeded();
+    await waitForLayout(mainWindow);
+
+    await expect(title).toBeInViewport();
+    await expect(save).toBeInViewport();
+    // In the same place, so the head is not what scrolled.
+    expect(await title.boundingBox()).toEqual(before);
+  });
+
+  test('holds Delete Collection in the More menu, and asks before it deletes', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
     });
-    const target = await createEntryViaIpc(mainWindow, {
+
+    await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
-      collectionId: collectionA.id,
-      values: { title: stringValue({ en: 'Referenced target' }) },
+      collectionId: collection.id,
     });
-    // A distinct name and slug, since a Collection defaults to "Articles" and a
-    // duplicate slug is itself rejected before the reference is even set up.
-    const collectionB = await createCollectionViaIpc(mainWindow, {
+    // Nothing on the screen deletes until the More menu is opened, so Delete is
+    // never a press away from Save.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Delete Collection' })
+    ).toHaveCount(0);
+
+    await mainWindow.getByRole('button', { name: 'More for Articles' }).click();
+    await mainWindow
+      .getByRole('menuitem', { name: 'Delete Collection' })
+      .click();
+
+    // The dialog names what goes and who it reaches, and Cancel changes
+    // nothing.
+    const confirm = mainWindow.getByRole('alertdialog', {
+      name: 'Delete Articles?',
+    });
+    await expect(confirm).toBeVisible();
+    await expect(
+      confirm.getByText(
+        'Every Entry of this Collection goes with it, in every language, and for everyone on this Project once you sync.'
+      )
+    ).toBeVisible();
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toBeHidden();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
+    );
+
+    // The red button names what goes, and only then is it gone.
+    await mainWindow.getByRole('button', { name: 'More for Articles' }).click();
+    await mainWindow
+      .getByRole('menuitem', { name: 'Delete Collection' })
+      .click();
+    await mainWindow
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete Collection' })
+      .click();
+
+    await expect(mainWindow).toHaveURL(/#\/projects\/[^/]+\/collections$/);
+    await expect(
+      mainWindow
+        .getByRole('complementary')
+        .getByRole('link', { name: /^Articles/ })
+    ).toHaveCount(0);
+  });
+
+  test('says why a Collection other Entries point into cannot be deleted', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const target = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
-      name: { singular: { en: 'Reference' }, plural: { en: 'References' } },
-      slug: { singular: 'reference', plural: 'references' },
+    });
+    const other = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Link' }, plural: { en: 'Links' } },
+      slug: { singular: 'link', plural: 'links' },
       fieldDefinitions: [textFieldDefinition(), referenceFieldDefinition()],
+    });
+    const pointedAt = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: target.id,
+      values: { title: stringValue({ en: 'Launch day' }) },
     });
     await createEntryViaIpc(mainWindow, {
       projectId: project.id,
-      collectionId: collectionB.id,
+      collectionId: other.id,
       values: {
-        title: stringValue({ en: 'Points into A' }),
-        related: referenceValue(target.id, collectionA.id),
+        title: stringValue({ en: 'A link' }),
+        related: {
+          objectType: 'value',
+          valueType: 'reference',
+          content: {
+            en: [
+              {
+                id: pointedAt.id,
+                objectType: 'entry',
+                collectionId: target.id,
+              },
+            ],
+          },
+        },
       },
     });
 
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
-      collectionId: collectionA.id,
+      collectionId: target.id,
     });
+    await mainWindow.getByRole('button', { name: 'More for Articles' }).click();
+    await mainWindow
+      .getByRole('menuitem', { name: 'Delete Collection' })
+      .click();
+    await mainWindow
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete Collection' })
+      .click();
 
-    await mainWindow.getByRole('button', { name: 'Delete Collection' }).click();
-    await confirmDialog(mainWindow, 'Yes, delete this Collection');
-
-    // The Conflict is surfaced in place through the error dialog rather than the
-    // root error boundary (the fixture's console check backs this up: an error
-    // reaching the boundary would log and fail the run). The description reflects
-    // the preserved CoreError type, not Core's raw message.
+    // Answered in place rather than on the error screen, and in words that say
+    // what to do next.
     await expect(
       mainWindow.getByText('Could not delete this Collection')
     ).toBeVisible();
     await expect(
-      mainWindow.getByText('still reference Entries in this one')
+      mainWindow.getByText(
+        "Entries in other Collections still point at Entries in this one, so it can't be deleted. Take those references out first, then try again."
+      )
     ).toBeVisible();
     await dismissDialog(mainWindow);
-
-    // The Collection was not deleted: we stay on its settings page.
     await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collectionA.id}/update$`)
+      new RegExp(`#/projects/[^/]+/collections/${target.id}/update`)
     );
   });
 
-  test('flags an invalid Collection-Slug on submit and accepts a valid one', async ({
+  test('offers every field type in its group, and adding one opens its settings', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     await navigateToCollectionCreate(mainWindow, project.id);
 
-    // Fill an otherwise-valid form plus one field, so only the Collection-Slug
-    // varies. Everything else stays valid across the whole test.
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-    await addFieldDefinition(mainWindow, {
-      label: 'Title',
-      description: 'The title of the article',
-    });
-
-    const slugField = mainWindow.getByLabel('Collection-Slug', { exact: true });
-    const createButton = mainWindow.getByRole('button', {
-      name: 'Create Collection',
-    });
-
-    // Core's slug schema (reserved blocklist for 'index', the lowercase
-    // single-hyphen regex for the others) runs client-side via zodResolver. The
-    // desktop responsibility is that the form flags the field and blocks the
-    // submit, so assert that rejected state, not Core's message text. Staying on
-    // the create route proves the submit did not go through.
-    for (const invalidSlug of ['index', 'Uppercase', 'double--hyphen']) {
-      await slugField.fill(invalidSlug);
-      await createButton.click();
-      await expect(slugField).toHaveAttribute('aria-invalid', 'true');
-      await expect(mainWindow).toHaveURL(
-        /#\/projects\/[^/]+\/collections\/create$/
-      );
+    const types = await openFieldTypes(mainWindow);
+    // ci's six groups, with the 18 types Core defines between them.
+    for (const group of [
+      'Text',
+      'Numbers',
+      'Choices',
+      'Dates and times',
+      'Contact and web',
+      'Links',
+    ]) {
+      await expect(
+        types.getByRole('heading', { name: group, exact: true })
+      ).toBeVisible();
     }
-
-    // A valid slug clears the block, so the create reaches Core and redirects to
-    // the new Collection's detail route (a uuid segment, never 'create').
-    await slugField.fill('blog-posts');
-    await createButton.click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  test('rejects a duplicate field-definition slug before appending it', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    // The first "Title" appends, its slug auto-derives to "title". The appended
-    // definition renders a preview whose label associates with a real (disabled)
-    // input, so it is addressable by getByLabel.
-    await addFieldDefinition(mainWindow, {
-      label: 'Title',
-      description: 'The title of the article',
-    });
-    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveCount(
-      1
+    await expect(types.getByText('18 types')).toBeVisible();
+    await expect(types.getByRole('button')).toHaveCount(
+      // The 18 types, plus the pane's own close button.
+      19
     );
 
-    // A second "Title" derives the same "title" slug. The sheet's own duplicate
-    // check rejects it before appending, so the sheet stays open (expectRejected)
-    // and its Slug field is flagged. Assert that rejected state, not Core's
-    // message text.
-    await addFieldDefinition(mainWindow, {
-      label: 'Title',
-      description: 'A duplicate title',
-      expectRejected: true,
+    // Choosing a type adds the field and opens its settings at once, so there
+    // is nothing to confirm and no sheet left.
+    await types.getByRole('button', { name: 'textarea', exact: true }).click();
+    const pane = mainWindow.getByRole('complementary', {
+      name: /^The .*field$/,
     });
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet.getByLabel('Slug', { exact: true })).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    );
-
-    // Closing the sheet leaves exactly one "title" definition appended.
-    await mainWindow.keyboard.press('Escape');
-    await expect(sheet).toBeHidden();
-    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveCount(
-      1
-    );
-  });
-
-  // Field-definition bounds refinement (min>max)
-  test('rejects a text field whose minimum exceeds its maximum at the Add Field sheet', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    // min>max is refined inside the text field's own schema, so the add is
-    // rejected at the sheet: it stays open (expectRejected, proving the
-    // definition was not appended) and the Minimum control is flagged. This
-    // pins the desktop responsibility (the sheet surfaces the error and blocks
-    // the add); whether a given field-definition combination is valid is Core's
-    // own test, so no other refinement is re-verified here.
-    await addFieldDefinition(mainWindow, {
-      label: 'Body',
-      description: 'The body of the article',
-      min: 10,
-      max: 5,
-      expectRejected: true,
-    });
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet.getByLabel('Minimum')).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    );
-  });
-
-  // A select is one Core fieldType backed by two schemas (string / number), with
-  // an options field array. Reaching the Collection detail proves Core accepted
-  // the string-option select definition.
-  test('adds a text-option select field definition through the Add Field sheet', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    // Switch the Input type from the default 'text' to 'select'. The picker is
-    // the first combobox in the sheet (its header); the options render in a Radix
-    // portal, so locate them on the page, not inside the dialog.
-    await sheet.getByRole('combobox').first().click();
-    await mainWindow
-      .getByRole('option', { name: 'select', exact: true })
-      .click();
-
-    // The select authoring form mounts with its 'Type of options' picker
-    // (defaulting to Text), proving the registry served the select entry.
-    await expect(sheet.getByText('Type of options')).toBeVisible();
-
-    await sheet.getByLabel('Label', { exact: true }).fill('Priority');
-    await sheet.getByLabel('Description').fill('How urgent this is');
-
-    // Fill the first option's label; its value auto-derives to a slug. The
-    // sr-only per-option labels are what make this addressable by role/name; they
-    // carry an "- optional" suffix like the bounds labels, so match by prefix.
-    await sheet.getByLabel('Option 1 label').fill('High');
-
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    // The sheet closes only after the definition is appended, so a hidden sheet
-    // proves the select was added.
-    await expect(sheet).toBeHidden();
+    await expect(pane).toBeVisible();
     await expect(
-      mainWindow.getByText('Priority', { exact: true })
-    ).toBeVisible();
+      pane
+        .getByRole('combobox', { name: 'Type', exact: true })
+        .locator('[data-slot="select-value"]')
+    ).toHaveText('textarea');
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
 
-    // Creating the Collection reaches Core with the select definition. A uuid
-    // detail route (never 'create') means Core accepted it.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  // A Field's Description is optional in Core (nullable), so a Field added
-  // without one must save. The authoring form leaves every language of the
-  // Description empty by default and normalizes that to Core's null, rather than
-  // sending an empty string Core rejects. Reaching the Collection detail proves
-  // Core accepted a Field whose description is null.
-  test('adds a field definition with no description', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    // Fill only the Label (the slug auto-derives). Deliberately leave the
-    // Description empty, the case that used to block the add.
-    await sheet.getByLabel('Label', { exact: true }).fill('Title');
-
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    // The sheet closes only after the definition is appended, so a hidden sheet
-    // proves an empty-description Field was accepted.
-    await expect(sheet).toBeHidden();
-    await expect(mainWindow.getByText('Title', { exact: true })).toBeVisible();
-
-    // Creating the Collection reaches Core with a null-description Field. A uuid
-    // detail route (never 'create') means Core accepted it.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  // Range is the odd scalar: it is always required and its default, minimum and
-  // maximum are mandatory numbers, so it uses a distinct required bounds Extras
-  // rather than the optional MinMaxRow the other scalars share. Reaching the
-  // Collection detail proves Core accepted the range definition.
-  test('adds a range field definition through the Add Field sheet', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    // Switch the Input type from the default 'text' to 'range'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
-    // portal, so locate them on the page, not inside the dialog.
-    await sheet.getByRole('combobox').first().click();
-    await mainWindow
-      .getByRole('option', { name: 'range', exact: true })
-      .click();
-
-    await sheet.getByLabel('Label', { exact: true }).fill('Rating');
-    await sheet.getByLabel('Description').fill('How good the article is');
-
-    // Range's default, minimum and maximum are required numbers, so their labels
-    // carry no "- optional" suffix and match exactly, unlike the text field's
-    // optional bounds. Filling all three before submit keeps the final state
-    // valid (1 <= 5 <= 10) regardless of intermediate values.
-    await sheet.getByLabel('Default value', { exact: true }).fill('5');
-    await sheet.getByLabel('Minimum', { exact: true }).fill('1');
-    await sheet.getByLabel('Maximum', { exact: true }).fill('10');
-
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    // The sheet closes only after the definition is appended, so a hidden sheet
-    // proves the range field was added.
-    await expect(sheet).toBeHidden();
-    await expect(mainWindow.getByText('Rating', { exact: true })).toBeVisible();
-
-    // Creating the Collection reaches Core with the range definition. A uuid
-    // detail route (never 'create') means Core accepted it.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  // Date (and datetime) render their default value through a bespoke picker, not
-  // the shared DefaultValueInputField. The default is optional, so this drives
-  // the spec's wiring (fieldType, defaults, routing) without touching the date
-  // picker widget. Reaching the Collection detail proves Core accepted it.
-  test('adds a date field definition through the Add Field sheet', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    // Switch the Input type from the default 'text' to 'date'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
-    // portal, so locate them on the page, not inside the dialog.
-    await sheet.getByRole('combobox').first().click();
-    await mainWindow.getByRole('option', { name: 'date', exact: true }).click();
-
-    await sheet.getByLabel('Label', { exact: true }).fill('Published');
-    await sheet.getByLabel('Description').fill('When the article went live');
-
-    // The date default value is optional, so leave it empty and add the field.
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    // The sheet closes only after the definition is appended, so a hidden sheet
-    // proves the date field was added.
-    await expect(sheet).toBeHidden();
+    await pane.getByLabel('Label', { exact: true }).fill('Teaser');
+    // The field is already part of the page, so the preview carries its label
+    // the moment it is written.
     await expect(
-      mainWindow.getByText('Published', { exact: true })
+      mainWindow.getByRole('button', { name: 'Settings of the Teaser field' })
     ).toBeVisible();
-
-    // Creating the Collection reaches Core with the date definition. A uuid
-    // detail route (never 'create') means Core accepted it.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
   });
 
-  // A slug field derives its value from a sibling field, storing that sibling's
-  // real id in ofFieldDefinitions. Core's slugSourceReferences refinement rejects
-  // the Collection on save if that id does not resolve to a sibling definition,
-  // so reaching the detail route is what proves the real id was stored.
-  test('creates a Collection whose slug field derives from a sibling, using the real field id', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    // Add the text field the slug will derive from.
-    await addFieldDefinition(mainWindow, {
-      label: 'Title',
-      description: 'The title of the article',
-    });
-    await expect(mainWindow.getByText('Title', { exact: true })).toHaveCount(1);
-
-    // Add a slug field and pick the text field as its source. The source picker
-    // reads the sibling definitions threaded through DefinitionExtrasProps.
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    await sheet.getByRole('combobox').first().click();
-    await mainWindow.getByRole('option', { name: 'slug', exact: true }).click();
-
-    await sheet.getByLabel('Label', { exact: true }).fill('Permalink');
-    await sheet.getByLabel('Description').fill('The permalink of the article');
-
-    // The source switch carries its sibling field's label as its accessible
-    // name, so it is addressable by role/name. Toggling it stores the text
-    // field's real id in ofFieldDefinitions.
-    await sheet.getByRole('switch', { name: 'Title' }).click();
-
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    await expect(sheet).toBeHidden();
-    await expect(
-      mainWindow.getByText('Permalink', { exact: true })
-    ).toBeVisible();
-
-    // Create the Collection. A uuid detail route (never 'create') means Core
-    // accepted the slug source's real id.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  // Asset is the simplest reference type: a never-unique reference whose only
-  // controls are the
-  // min/max Asset count. It also carries ofAssetMimeTypes as a hidden empty
-  // default (no control today) that Core requires, so reaching the Collection
-  // detail proves the whole definition, including that default, validated.
-  test('adds an asset field definition through the Add Field sheet', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    // Switch the Input type from the default 'text' to 'asset'. The picker is the
-    // first combobox in the sheet (its header); the options render in a Radix
-    // portal, so locate them on the page, not inside the dialog.
-    await sheet.getByRole('combobox').first().click();
-    await mainWindow
-      .getByRole('option', { name: 'asset', exact: true })
-      .click();
-
-    await sheet.getByLabel('Label', { exact: true }).fill('Cover');
-    await sheet
-      .getByLabel('Description')
-      .fill('The cover image of the article');
-
-    // The min/max Asset counts are optional, so leave them empty and add.
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    // The sheet closes only after the definition is appended, so a hidden sheet
-    // proves the asset field was added.
-    await expect(sheet).toBeHidden();
-    await expect(mainWindow.getByText('Cover', { exact: true })).toBeVisible();
-
-    // Creating the Collection reaches Core with the asset definition. A uuid
-    // detail route (never 'create') means Core accepted it, hidden mime-type
-    // default and all.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  // The ofCollections picker is backed by a TanStack Query for the Collections
-  // list. A Collection is arranged first (via IPC)
-  // so the picker has something to restrict to, then a second Collection is
-  // authored with an entry field restricted to it. Reaching the detail route
-  // proves Core accepted the restriction's real Collection id.
-  test('adds an entry field definition restricted to a Collection through the Add Field sheet', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    // The Collection the entry field will reference. Its plural name "Articles"
-    // is the ofCollections toggle's accessible name in the sheet.
-    await createCollectionViaIpc(mainWindow, { projectId: project.id });
-
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Reviews',
-      nameSingular: 'Review',
-      description: 'Reviews of the articles',
-      slugPlural: 'reviews',
-      slugSingular: 'review',
-    });
-
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    await sheet.getByRole('combobox').first().click();
-    await mainWindow
-      .getByRole('option', { name: 'entry', exact: true })
-      .click();
-
-    await sheet.getByLabel('Label', { exact: true }).fill('Article');
-    await sheet.getByLabel('Description').fill('The reviewed article');
-
-    // The Collections query resolves into a toggle per Collection, each carrying
-    // its plural name as its accessible name. Toggling
-    // "Articles" stores its real id in ofCollections. Its checked state is bound
-    // to that stored id, so asserting it is on proves the toggle reached form
-    // state, not just the DOM.
-    const restriction = sheet.getByRole('switch', {
-      name: 'Articles',
-      exact: true,
-    });
-    await restriction.click();
-    await expect(restriction).toBeChecked();
-
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    // The sheet closes only after the definition is appended, so a hidden sheet
-    // proves the entry field was added.
-    await expect(sheet).toBeHidden();
-    await expect(
-      mainWindow.getByText('Article', { exact: true })
-    ).toBeVisible();
-
-    // Creating the Collection reaches Core with the entry definition. A uuid
-    // detail route (never 'create') means Core accepted the restriction id.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  // Markdown carries block/inline feature toggles plus the one resolver cast
-  // its input/output divergence needs. Toggling a couple of features and reaching
-  // the detail route proves the cast-backed spec validated and Core accepted it.
-  test('adds a markdown field definition through the Add Field sheet', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
-    });
-
-    await mainWindow.getByRole('button', { name: 'Add Field' }).click();
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet).toBeVisible();
-
-    await sheet.getByRole('combobox').first().click();
-    await mainWindow
-      .getByRole('option', { name: 'markdown', exact: true })
-      .click();
-
-    await sheet.getByLabel('Label', { exact: true }).fill('Body');
-    await sheet.getByLabel('Description').fill('The body of the article');
-
-    // The feature toggles carry their label as their accessible name, one block
-    // feature and one inline feature here. Task list
-    // items are gated on lists, so they start disabled; enabling "Lists" must
-    // flip that switch to enabled, which proves the toggle reached form state and
-    // the watch-driven dependency re-rendered, not just the DOM.
-    const taskListItems = sheet.getByRole('switch', {
-      name: 'Task list items',
-      exact: true,
-    });
-    await expect(taskListItems).toBeDisabled();
-    await sheet.getByRole('switch', { name: 'Lists', exact: true }).click();
-    await expect(taskListItems).toBeEnabled();
-    await sheet.getByRole('switch', { name: 'Emphasis', exact: true }).click();
-
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    // The sheet closes only after the definition is appended, so a hidden sheet
-    // proves the markdown field was added.
-    await expect(sheet).toBeHidden();
-    await expect(mainWindow.getByText('Body', { exact: true })).toBeVisible();
-
-    // Creating the Collection reaches Core with the markdown definition. A uuid
-    // detail route (never 'create') means Core accepted the feature config.
-    await mainWindow.getByRole('button', { name: 'Create Collection' }).click();
-    await expect(mainWindow).toHaveURL(
-      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
-    );
-  });
-
-  // Guards that a definition-only edit flips the form's dirty state. Adding a
-  // field definition goes through the Controller-bound value's onChange, which
-  // must mark the form dirty so the update form's "Save changes" gate opens with
-  // no other field touched.
-  test('enables Save on the update form after only adding a field definition', async ({
+  test("fills a field's settings with what is stored", async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({
+          slug: 'teaser',
+          label: { en: 'Teaser' },
+          description: { en: 'Shown in lists and search results' },
+          inputWidth: '6',
+          defaultValue: 'Read on',
+          min: 2,
+          max: 200,
+          isRequired: true,
+          isUnique: false,
+        }),
+      ],
     });
 
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
+    const pane = await chooseFieldDefinition(mainWindow, 'Teaser');
 
-    // Wait for the form to hydrate from the loaded Collection before trusting
-    // the gate, keying off the plural name showing.
+    await expect(pane.getByLabel('Label', { exact: true })).toHaveValue(
+      'Teaser'
+    );
+    await expect(pane.getByLabel('Slug', { exact: true })).toHaveValue(
+      'teaser'
+    );
+    await expect(pane.getByLabel('Description', { exact: true })).toHaveValue(
+      'Shown in lists and search results'
+    );
+    await expect(pane.getByLabel('Minimum', { exact: true })).toHaveValue('2');
+    await expect(pane.getByLabel('Maximum', { exact: true })).toHaveValue(
+      '200'
+    );
+    await expect(pane.getByLabel('Default Value', { exact: true })).toHaveValue(
+      'Read on'
+    );
+    // The type it holds, and the width it was saved at, as the one segment that
+    // reads as pressed.
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
-    ).toHaveValue('Articles');
-
-    // Nothing edited yet, so Save is gated.
+      pane
+        .getByRole('combobox', { name: 'Type', exact: true })
+        .locator('[data-slot="select-value"]')
+    ).toHaveText('text');
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
-    ).toBeDisabled();
-
-    // Add a field definition and change nothing else. The seeded Collection
-    // already has a "title" field, so "Body" is a fresh, non-duplicate slug.
-    await addFieldDefinition(mainWindow, {
-      label: 'Body',
-      description: 'The body of the article',
-    });
-
-    // The definition-only edit dirties the form through the Controller value, so
-    // Save enables.
+      pane.getByRole('button', { name: '1/2', exact: true })
+    ).toHaveAttribute('aria-pressed', 'true');
     await expect(
-      mainWindow.getByRole('button', { name: 'Save changes' })
-    ).toBeEnabled();
+      pane.getByRole('checkbox', { name: 'Required' })
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(
+      pane.getByRole('checkbox', { name: 'Unique' })
+    ).toHaveAttribute('aria-checked', 'false');
   });
 
-  // Core refuses a Collection update that would delete stored content, so
-  // removing a Field whose Values are filled in is blocked before anything is
-  // written (see Core's schema-changes docs).
-  test('refuses removing a Field an Entry holds a Value for, in place', async ({
+  test('moves a field up, moves it down and removes it, without dragging', async ({
     mainWindow,
   }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({ slug: 'teaser', label: { en: 'Teaser' } }),
+        textFieldDefinition({ slug: 'body', label: { en: 'Body' } }),
+      ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    // The settings draw nothing at all until the Project is read, which runs
+    // Git one command at a time, so the rows are read once a field the read
+    // brought stands. A one-shot read before then sees an empty page.
+    await expect(
+      mainWindow.getByRole('main').getByLabel('Collection name', {
+        exact: true,
+      })
+    ).toHaveValue('Articles');
+    const rows = async (): Promise<string[]> =>
+      mainWindow
+        .getByRole('button', { name: /^Settings of the/ })
+        .evaluateAll((found) =>
+          found.map((row) => row.getAttribute('aria-label') ?? '')
+        );
+    expect(await rows()).toEqual([
+      'Settings of the Title field',
+      'Settings of the Teaser field',
+      'Settings of the Body field',
+    ]);
+
+    const body = await chooseFieldDefinition(mainWindow, 'Body');
+    // The chosen field keeps the grip, for whoever would rather drag it, and
+    // no other row carries one.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Drag to reorder' })
+    ).toHaveCount(1);
+    await expect(body).toBeVisible();
+    await mainWindow.getByRole('button', { name: 'More for Body' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Move up' }).click();
+    expect(await rows()).toEqual([
+      'Settings of the Title field',
+      'Settings of the Body field',
+      'Settings of the Teaser field',
+    ]);
+
+    await mainWindow.getByRole('button', { name: 'More for Body' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Move down' }).click();
+    expect(await rows()).toEqual([
+      'Settings of the Title field',
+      'Settings of the Teaser field',
+      'Settings of the Body field',
+    ]);
+
+    await mainWindow.getByRole('button', { name: 'More for Body' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+    expect(await rows()).toEqual([
+      'Settings of the Title field',
+      'Settings of the Teaser field',
+    ]);
+    // The field it was open on is gone, so the pane closes with it.
+    await expect(
+      mainWindow.getByRole('complementary', { name: /^The .*field$/ })
+    ).toHaveCount(0);
+
+    // The order reaches Core, which is what the save is for.
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map((found) => found.slug)
+    ).toEqual(['title', 'teaser']);
+  });
+
+  test('follows each edit in the preview and keeps the field its id', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition({ min: null, max: 80, inputWidth: '12' }),
+      ],
+    });
+    const stored = collection.fieldDefinitions[0];
+    if (stored === undefined) {
+      throw new Error('The Collection was created without a field');
+    }
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Title');
+    // What the field says about itself before the edit, read off its preview.
+    await expect(
+      mainWindow.getByRole('main').getByText('Required, up to 80 characters')
+    ).toBeVisible();
+
+    await pane.getByLabel('Label', { exact: true }).fill('Headline');
+    await pane.getByLabel('Maximum', { exact: true }).fill('120');
+    await pane.getByRole('checkbox', { name: 'Required' }).click();
+
+    // The preview follows every one of them, without a save.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Settings of the Headline field' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('main').getByText('Up to 120 characters')
+    ).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const after = saved.fieldDefinitions[0];
+    expect(after?.id).toBe(stored.id);
+    expect(after?.label.en).toBe('Headline');
+  });
+
+  test('saves a renamed slug and a looser rule, and the Values reach every Entry', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition({ max: 80 })],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Launch day' }) },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Title');
+    await pane.getByLabel('Label', { exact: true }).fill('Headline');
+    await pane.getByLabel('Slug', { exact: true }).fill('headline');
+    await pane.getByLabel('Maximum', { exact: true }).fill('400');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    // Core carries all three out on its own, so the save goes through.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // The Value moved to the new slug rather than being dropped, which is what
+    // keeping the field's id buys.
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(mainWindow.getByLabel('Headline')).toHaveValue('Launch day');
+  });
+
+  test('changes a field to another type the stored Values pass', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const stored = collection.fieldDefinitions[0];
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Launch day' }) },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Title');
+    await pane.getByRole('combobox', { name: 'Type' }).click();
+    await mainWindow
+      .getByRole('option', { name: 'textarea', exact: true })
+      .click();
+
+    // The field keeps its label and its slug across the type change, so the
+    // pane is still about the same field.
+    await expect(pane.getByLabel('Label', { exact: true })).toHaveValue(
+      'Title'
+    );
+    await expect(pane.getByLabel('Slug', { exact: true })).toHaveValue('title');
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const changed = flattenFieldDefinitions(saved.fieldDefinitions)[0];
+    expect(changed?.fieldType).toBe('textarea');
+    // The same field, with the Value it held.
+    expect(changed?.id).toBe(stored?.id);
+    await navigateToEntryUpdate(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      entryId: entry.id,
+    });
+    await expect(mainWindow.getByLabel('Title')).toHaveValue('Launch day');
+  });
+
+  /**
+   * A Collection whose Entry holds a Value in a field that is about to go, with
+   * the settings open and that field removed from the form, which is the state
+   * Save is refused in.
+   */
+  async function removeSubtitleOf(mainWindow: Page): Promise<{
+    project: Project;
+    collection: Collection;
+    entry: Entry;
+  }> {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
@@ -878,49 +1165,120 @@ test.describe('Collections', () => {
       projectId: project.id,
       collectionId: collection.id,
     });
-    await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
-    ).toHaveValue('Articles');
+    await chooseFieldDefinition(mainWindow, 'Subtitle');
+    await mainWindow.getByRole('button', { name: 'More for Subtitle' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
 
-    await mainWindow
-      .getByRole('button', { name: 'Remove the Subtitle field' })
-      .click();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    return { project, collection, entry };
+  }
 
-    // The Conflict is surfaced in place by the save-blocked dialog rather than
-    // the root error boundary (the fixture's console check backs this up: an
-    // error reaching the boundary would log and fail the run).
+  test('names what removing a field would delete, by Entry title, and applies it once confirmed', async ({
+    mainWindow,
+  }) => {
+    const { project, collection, entry } = await removeSubtitleOf(mainWindow);
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    // One dialog, answered in place rather than on the error screen: the
+    // question names the Collection, the sentence what the change does.
+    const dialog = mainWindow.getByRole('dialog');
     await expect(
-      mainWindow.getByText('Could not save this Collection')
+      dialog.getByRole('heading', {
+        name: 'Save the changes to the Articles Collection?',
+      })
     ).toBeVisible();
-    // Asserted whole, because every sentence of it carries a claim: that
-    // nothing was saved, and that taking out a Field an Entry has written in is
-    // what was refused. Core raises the same Conflict for a taken slug and for
-    // changes needing per-Entry resolutions, so the text names those too.
-    await expect(
-      mainWindow.getByRole('dialog').locator('[data-slot="dialog-description"]')
-    ).toHaveText(
-      'Nothing was saved, and this Collection is exactly as it was. Either another Collection in this Project already uses one of these slugs, or your Field changes reach Entries that already exist. Taking out a Field an Entry has written in would delete what it holds, so that is refused. Other changes have to be resolved Entry by Entry, which elek.io Desktop cannot do yet. Change the slugs, or put the Field changes back for now.'
+    await expect(dialog.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Removing Subtitle deletes its Value from 1 Entry.'
     );
-    await dismissDialog(mainWindow);
 
-    // Nothing was saved, so the route stays on the update form.
+    // What would be lost, by the Entry's own title with a link to it, never by
+    // its id, with the Value struck through and said in words beside the line.
+    const lost = dialog.getByRole('listitem').filter({ hasText: 'Subtitle' });
+    await expect(lost.getByRole('link', { name: 'Launch day' })).toBeVisible();
+    await expect(lost).not.toContainText(entry.id);
+    // Read out with the Value, so what the line through it means is said in
+    // words too. An `sr-only` element keeps a box of its own, which is what
+    // tells it from one that is hidden from everybody.
+    await expect(lost.getByText('Would be lost:')).toBeVisible();
+    await expect(lost.locator('s')).toHaveText('What ships today');
+
+    // Nothing is written until the red button that names the loss is pressed.
+    const stillStored = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(stillStored.values['subtitle']).toBeDefined();
+
+    await dialog
+      .getByRole('button', { name: 'Remove Subtitle from 1 Entry' })
+      .click();
+
+    // The change went in, so the page leaves for the Collection, the stored
+    // Collection no longer declares the field and the Entry no longer holds it.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map((found) => found.slug)
+    ).toEqual(['title']);
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['subtitle']).toBeUndefined();
+  });
+
+  test('changes nothing when the dialog of a refused change is cancelled', async ({
+    mainWindow,
+  }) => {
+    const { project, collection, entry } = await removeSubtitleOf(mainWindow);
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+
+    // The dialog is gone and the settings are still open, so nothing was
+    // saved and nothing was lost of what was typed.
+    await expect(dialog).toHaveCount(0);
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}/update$`)
     );
-
-    // The Project got no commit for the refused update: the History lists the
-    // three creates that arranged this test and no Collection update.
-    await navigateToHistory(mainWindow, project.id);
     await expect(
-      mainWindow.getByRole('link', { name: /create collection/i })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByRole('link', { name: /update collection/i })
+      mainWindow.getByRole('button', { name: 'Settings of the Subtitle field' })
     ).toHaveCount(0);
 
-    // Routing there reloaded the renderer, so the Entry form re-reads from Core:
-    // the Field is still there and still holds its Value.
+    // Leaving any other way asks first, since the change is still unsaved.
+    await projectSidebar(mainWindow)
+      .getByRole('link', { name: 'Dashboard' })
+      .click();
+    const discard = mainWindow.locator('[data-slot="discard-changes-dialog"]');
+    await expect(
+      discard.getByRole('heading', {
+        name: 'Discard your changes to Settings of the Articles Collection?',
+      })
+    ).toBeVisible();
+    await discard.getByRole('button', { name: 'Keep editing' }).click();
+
+    // The Project got no commit for the refused update. Both are looked for in
+    // the main panel, because the Project's sidebar carries a Create Collection
+    // link of its own.
+    await navigateToHistory(mainWindow, project.id);
+    await expect(
+      mainPanel(mainWindow).getByRole('link', { name: /added a Collection/i })
+    ).toBeVisible();
+    await expect(
+      mainPanel(mainWindow).getByRole('link', { name: /changed a Collection/i })
+    ).toHaveCount(0);
+
+    // Routing there reloaded the renderer, so the Entry form re-reads from
+    // Core: the field is still there and still holds its Value.
     await navigateToEntryUpdate(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -931,10 +1289,57 @@ test.describe('Collections', () => {
     );
   });
 
-  // The mirror of the refusal above: an update that drops no stored Value is
-  // never refused, so the editor can still take a Field out of a Collection
-  // nobody has written in yet.
-  test('saves removing a Field from a Collection with no Entries', async ({
+  test('keeps the unsaved settings while an Entry the dialog names is opened', async ({
+    mainWindow,
+  }) => {
+    const { collection } = await removeSubtitleOf(mainWindow);
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    const dialog = mainWindow.getByRole('dialog');
+    await dialog.getByRole('link', { name: 'Launch day' }).click();
+
+    // The link leads straight to the Entry, without asking about the changes:
+    // they are kept rather than lost.
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/[^/]+/update`)
+    );
+    await expect(mainWindow.getByRole('alertdialog')).toHaveCount(0);
+    await expect(mainWindow.getByLabel('Subtitle')).toHaveValue(
+      'What ships today'
+    );
+
+    // Coming back through the app, which is how the person gets back: the way
+    // the suite arranges a route boots the window, and nothing of what was
+    // typed survives a boot, which is what the question before closing the
+    // window is for.
+    await mainWindow
+      .getByRole('link', { name: 'Settings of the Articles Collection' })
+      .click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
+    );
+
+    // The settings stand as they were left, with the field still removed and
+    // Save there to press.
+    await expect(
+      mainWindow.getByRole('button', { name: 'Settings of the Title field' })
+    ).toBeVisible();
+    await expect(
+      mainWindow.getByRole('button', { name: 'Settings of the Subtitle field' })
+    ).toHaveCount(0);
+    await expect(
+      mainWindow.getByRole('button', { name: 'Save' })
+    ).toBeEnabled();
+
+    // And pressing it asks again, since the same change is still refused.
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      dialog.getByRole('button', { name: 'Remove Subtitle from 1 Entry' })
+    ).toBeVisible();
+  });
+
+  test('keeps the buttons of a refused change in view at the smallest window, in light and in dark mode', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -950,43 +1355,343 @@ test.describe('Collections', () => {
         }),
       ],
     });
+    // Enough Entries for the list of what would go to be longer than the
+    // dialog at the smallest window, which is what the body has to scroll.
+    for (let number = 1; number <= 20; number++) {
+      await createEntryViaIpc(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+        values: {
+          title: stringValue({ en: `Opening hours ${String(number)}` }),
+          subtitle: stringValue({ en: 'What ships today' }),
+        },
+      });
+    }
 
+    for (const theme of ['light', 'dark'] as const) {
+      // The theme is put on first, since it is applied through the app's own
+      // provider and reloads the renderer, which closes the dialog again.
+      await setTheme(mainWindow, theme);
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await navigateToCollectionSettings(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+      });
+      await chooseFieldDefinition(mainWindow, 'Subtitle');
+      await mainWindow
+        .getByRole('button', { name: 'More for Subtitle' })
+        .click();
+      await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+      const save = mainWindow.getByRole('button', { name: 'Save' });
+      await save.click();
+
+      const dialog = mainWindow.getByRole('dialog');
+      await expect(
+        dialog.getByRole('button', { name: 'Remove Subtitle from 20 Entries' })
+      ).toBeVisible();
+      await waitForLayout(mainWindow);
+
+      const measured = await mainWindow.evaluate(() => {
+        const content = document.querySelector('[data-slot="dialog-content"]');
+        const body = document.querySelector(
+          '[data-slot="dialog-body"] [data-slot="scroll-area-viewport"]'
+        );
+        const footer = document.querySelector('[data-slot="dialog-footer"]');
+        if (content === null || body === null || footer === null) {
+          throw new Error('The dialog did not draw its body and its buttons');
+        }
+
+        return {
+          window: window.innerHeight,
+          dialog: content.getBoundingClientRect().bottom,
+          footer: footer.getBoundingClientRect().bottom,
+          scrolls: body.scrollHeight > body.clientHeight,
+        };
+      });
+
+      // The body is what scrolls, so the buttons stand inside the window
+      // rather than below its edge.
+      expect(measured.scrolls, theme).toBe(true);
+      expect(measured.footer, theme).toBeLessThanOrEqual(measured.window);
+      expect(measured.dialog, theme).toBeLessThanOrEqual(measured.window);
+
+      // Focus went into the dialog, and Cancel hands it back to the button it
+      // was opened from.
+      expect(
+        await mainWindow.evaluate(
+          () =>
+            document.activeElement?.closest('[data-slot="dialog-content"]') !==
+            null
+        ),
+        theme
+      ).toBe(true);
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(save).toBeFocused();
+    }
+  });
+
+  test('names what narrowing a field would strip, and applies it once confirmed', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const teaser = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    const quote = await createComponentViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { en: 'Quote' },
+      slug: 'quote',
+      fieldDefinitions: [
+        textFieldDefinition({ slug: 'line', label: { en: 'Line' } }),
+      ],
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        dynamicFieldDefinition({ ofComponents: [teaser.id, quote.id] }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        sections: componentValue([
+          {
+            componentId: quote.id,
+            values: { line: stringValue({ en: 'Ship it' }) },
+          },
+        ]),
+      },
+    });
+
+    // Taking the Quote out of what the field allows strips the section built
+    // from it, which only Core knows about, so the row reads what it says.
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
-    await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
-    ).toHaveValue('Articles');
-
-    await mainWindow
-      .getByRole('button', { name: 'Remove the Subtitle field' })
+    const sections = await chooseFieldDefinition(mainWindow, 'Sections');
+    await sections
+      .getByRole('button', { name: 'Remove Quote from Allowed Components' })
       .click();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
 
-    // Redirecting to the Collection detail is how Core's success surfaces, and
-    // the save-blocked dialog stays away.
+    const dialog = mainWindow.getByRole('dialog');
+    const lost = dialog.getByRole('listitem').filter({ hasText: 'Sections' });
+    await expect(lost.getByRole('link', { name: 'Launch day' })).toBeVisible();
+    await expect(lost.locator('s')).toHaveText('1 section');
+
+    await dialog
+      .getByRole('button', { name: 'Delete 1 Value from 1 Entry' })
+      .click();
+
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
-    await expect(
-      mainWindow.getByText('Could not save this Collection')
-    ).toBeHidden();
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['sections']?.content).toEqual([]);
+  });
 
-    // Reload so the form re-reads from Core, proving the removal persisted.
+  test('fills in the Value an Entry needs in the dialog, and saves once it is filled', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition()],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: { title: stringValue({ en: 'Launch day' }) },
+    });
+
+    // A field that is required and has no default cannot be filled in by Core,
+    // so it asks for a Value per Entry.
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
+    await addFieldDefinition(mainWindow, { label: 'Author' });
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Author needs a Value in 1 Entry.'
+    );
+    // Nothing would be lost, so the button is the primary Save, and it waits
+    // until the Value is there, with the field saying so.
+    const save = dialog.getByRole('button', { name: 'Save' });
+    await expect(save).toBeDisabled();
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
-    ).toHaveValue('Articles');
+      dialog.getByText("Missing, so the changes can't be saved yet")
+    ).toBeVisible();
+    // Said in words with the warning icon beside them, so neither the color
+    // nor the icon carries it alone.
     await expect(
-      mainWindow.getByRole('button', { name: 'Remove the Subtitle field' })
-    ).toHaveCount(0);
+      dialog.locator('[data-slot="field-warning"] svg').first()
+    ).toBeVisible();
+    await expect(dialog.getByText('English is missing 1 Value')).toBeVisible();
+
+    // The field stands under the Entry it belongs to, named by its title with
+    // a link to it, and is filled in right there.
+    const field = dialog.getByLabel('Author in Launch day', { exact: true });
+    await expect(
+      dialog.getByRole('link', { name: 'Launch day' })
+    ).toBeVisible();
+    await field.fill('Mara Klein');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['author']?.content).toEqual({
+      en: 'Mara Klein',
+    });
   });
 
-  test('saves removing a Field whose Value is empty in every Entry', async ({
+  test('waits for the Value a save that also deletes one needs, and applies both at once', async ({
+    mainWindow,
+  }) => {
+    const { project, collection, entry } = await removeSubtitleOf(mainWindow);
+
+    // One save with both halves at once: Subtitle goes, and an Author that is
+    // required and has no default leaves the same Entry without a Value.
+    await addFieldDefinition(mainWindow, { label: 'Author' });
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    const dialog = mainWindow.getByRole('dialog');
+    await expect(dialog.locator('[data-slot="dialog-description"]')).toHaveText(
+      'Removing Subtitle deletes its Value from 1 Entry. Author needs a Value in 1 Entry.'
+    );
+
+    // The red button names the loss and, like Save, waits until the Value the
+    // same change needs is filled in.
+    const apply = dialog.getByRole('button', {
+      name: 'Remove Subtitle from 1 Entry',
+    });
+    await expect(apply).toBeDisabled();
+    await expect(dialog.getByText('English is missing 1 Value')).toBeVisible();
+
+    // It still takes a click, since it is `aria-disabled` rather than
+    // `disabled`, and the press writes nothing.
+    await apply.click({ force: true });
+    await expect(dialog).toBeVisible();
+    const untouched = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(untouched.values['subtitle']).toBeDefined();
+
+    // Once the Value is there, one press carries the loss and the Value.
+    await dialog
+      .getByLabel('Author in Launch day', { exact: true })
+      .fill('Mara Klein');
+    await expect(apply).toBeEnabled();
+    await apply.click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const applied = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(applied.values['subtitle']).toBeUndefined();
+    expect(applied.values['author']?.content).toEqual({ en: 'Mara Klein' });
+  });
+
+  test('asks for the Value a refused change needs in every language of the Project', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'The articles', de: 'Die Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({ label: { en: 'Title', de: 'Titel' } }),
+      ],
+    });
+    const entry = await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day', de: 'Starttag' }),
+      },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await addFieldDefinition(mainWindow, { label: 'Author' });
+    // A label in every language of the Project, so what blocks the save is
+    // the Value the change needs rather than a label it is missing.
+    await chooseLanguage(mainWindow, 'de');
+    await pane.getByLabel('Label', { exact: true }).fill('Autor');
+    await chooseLanguage(mainWindow, 'en');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    // Core takes the change only once every language of the Project holds the
+    // Value, so one language filled in is not enough and the switch above the
+    // rows is what the other is filled in through.
+    const dialog = mainWindow.getByRole('dialog');
+    const save = dialog.getByRole('button', { name: 'Save' });
+    // The row is named in the language the app is read in, as every label is,
+    // and holds the Value of the language the switch below the head shows.
+    const field = dialog.getByLabel('Author in Launch day', { exact: true });
+    await field.fill('Mara Klein');
+    await expect(dialog.getByText('German is missing 1 Value')).toBeVisible();
+    await expect(save).toBeDisabled();
+
+    // The page behind the dialog carries a switch of its own, so this one is
+    // addressed inside the dialog.
+    await dialog
+      .locator('[data-slot="language-switch"]')
+      .getByRole('button', { name: /^DE\b/ })
+      .click();
+    await expect(field).toHaveValue('');
+    await field.fill('Mara Kleinowski');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    const storedEntry = await readEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      id: entry.id,
+    });
+    expect(storedEntry.values['author']?.content).toEqual({
+      en: 'Mara Klein',
+      de: 'Mara Kleinowski',
+    });
+  });
+
+  test('saves a field change Core does not refuse with no dialog', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
@@ -1002,8 +1707,99 @@ test.describe('Collections', () => {
         }),
       ],
     });
-    // The Entry holds the Field, with nothing written in it for any language,
-    // so removing the Field deletes no content.
+    await createEntryViaIpc(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+      values: {
+        title: stringValue({ en: 'Launch day' }),
+        subtitle: stringValue({ en: 'What ships today' }),
+      },
+    });
+
+    // A renamed label and a looser rule reach every Entry without deleting
+    // anything, so Core carries them out itself.
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Subtitle');
+    await pane.getByLabel('Label', { exact: true }).fill('Standfirst');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map(
+        (found) => found.label.en
+      )
+    ).toEqual(['Title', 'Standfirst']);
+  });
+
+  test('saves removing a field from a Collection with no Entries', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    await chooseFieldDefinition(mainWindow, 'Subtitle');
+    await mainWindow.getByRole('button', { name: 'More for Subtitle' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // Nothing is deleted, so Core carries the change out itself and no dialog
+    // asks about it.
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map((found) => found.slug)
+    ).toEqual(['title']);
+  });
+
+  test('saves removing a field whose Value is empty in every Entry', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'subtitle',
+          label: { en: 'Subtitle' },
+          isRequired: false,
+        }),
+      ],
+    });
+    // An Entry that holds nothing in the field, which is no loss to Core, so
+    // the same removal that is refused for a filled field goes through.
     await createEntryViaIpc(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
@@ -1017,26 +1813,625 @@ test.describe('Collections', () => {
       projectId: project.id,
       collectionId: collection.id,
     });
-    await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
-    ).toHaveValue('Articles');
-
-    await mainWindow
-      .getByRole('button', { name: 'Remove the Subtitle field' })
-      .click();
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await chooseFieldDefinition(mainWindow, 'Subtitle');
+    await mainWindow.getByRole('button', { name: 'More for Subtitle' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'Remove field' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
 
     await expect(mainWindow).toHaveURL(
       new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
     );
-    await expect(
-      mainWindow.getByText('Could not save this Collection')
-    ).toBeHidden();
+    // Nothing is deleted, so Core carries the change out itself and no dialog
+    // asks about it.
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    expect(
+      flattenFieldDefinitions(saved.fieldDefinitions).map((found) => found.slug)
+    ).toEqual(['title']);
   });
 
-  // The save-blocked dialog handles only Conflict in place, so every other
-  // failure must reach the root error boundary. Guards the throwOnError
-  // predicate against a regression to a blanket throwOnError: false.
+  test('switches every name, label and description with one switch', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: {
+        singular: { en: 'Article', de: 'Artikel' },
+        plural: { en: 'Articles', de: 'Artikel' },
+      },
+      description: { en: 'The articles', de: 'Die Artikel' },
+      fieldDefinitions: [
+        textFieldDefinition({
+          label: { en: 'Title', de: 'Titel' },
+          description: { en: 'Its title', de: 'Sein Titel' },
+        }),
+      ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const settings = mainWindow.getByRole('main');
+    await expect(
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Articles');
+    // The line below the switch says what it switches and what it does not.
+    await expect(
+      mainWindow.getByText(
+        'Switches names, labels and descriptions. Slugs and fields are the same in every language.'
+      )
+    ).toBeVisible();
+
+    const pane = await chooseFieldDefinition(mainWindow, 'Title');
+    await chooseLanguage(mainWindow, 'de');
+
+    // Every name, the description and the chosen field's own texts follow the
+    // one switch.
+    await expect(
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Artikel');
+    await expect(
+      settings.getByLabel('Description', { exact: true })
+    ).toHaveValue('Die Artikel');
+    await expect(pane.getByLabel('Label', { exact: true })).toHaveValue(
+      'Titel'
+    );
+    await expect(pane.getByLabel('Description', { exact: true })).toHaveValue(
+      'Sein Titel'
+    );
+    // A slug is the same in every language, so it does not follow.
+    await expect(
+      settings.getByLabel('Collection slug', { exact: true })
+    ).toHaveValue('articles');
+  });
+
+  test('blocks Save while a language misses a text and says which misses how many', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [textFieldDefinition({ label: { en: 'Title' } })],
+    });
+    // Adding a language touches only the Project file, so the Collection keeps
+    // its English-only texts, which is exactly the state an editor lands in.
+    await addProjectLanguageViaIpc(mainWindow, project, 'de');
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const settings = mainWindow.getByRole('main');
+    await expect(
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Articles');
+
+    // Both names, the description and the field's label are missing in German.
+    const save = mainWindow.getByRole('button', { name: 'Save' });
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      mainWindow.getByText('German is missing 4 translations')
+    ).toBeVisible();
+    // It points at the reason, so a screen reader reads it with the button,
+    // and it keeps its place in the tab order rather than being taken out of
+    // it, which a native `disabled` would do.
+    await expect(save).toHaveAttribute('aria-describedby', /.+/);
+    await expect(save).not.toHaveAttribute('disabled', /.*/);
+    await save.focus();
+    await expect(save).toBeFocused();
+
+    // The switch marks the language that is missing something.
+    await expect(
+      mainWindow.getByRole('button', { name: /DE.*missing 4 translations/ })
+    ).toBeVisible();
+
+    // Filling German settles each of them, one at a time.
+    await chooseLanguage(mainWindow, 'de');
+    await settings
+      .getByLabel('Collection name', { exact: true })
+      .fill('Artikel');
+    await expect(
+      mainWindow.getByText('German is missing 3 translations')
+    ).toBeVisible();
+    await settings.getByLabel('Entry name', { exact: true }).fill('Artikel');
+    await settings
+      .getByLabel('Description', { exact: true })
+      .fill('Die Artikel');
+    const pane = await chooseFieldDefinition(mainWindow, 'Title');
+    await expect(
+      mainWindow.getByText('German is missing 1 translation')
+    ).toBeVisible();
+    await pane.getByLabel('Label', { exact: true }).fill('Titel');
+
+    await expect(save).not.toHaveAttribute('aria-disabled', 'true');
+    await save.click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+  });
+
+  test('asks before leaving the settings with changes', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const settings = mainWindow.getByRole('main');
+    await expect(
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Articles');
+    await settings
+      .getByLabel('Collection name', { exact: true })
+      .fill('Guides');
+
+    // Leaving through the sidebar, which is one click away from the form.
+    await mainWindow
+      .getByRole('complementary')
+      .getByRole('link', { name: /^Articles/ })
+      .click();
+
+    const asked = mainWindow.getByRole('alertdialog', {
+      name: 'Discard your changes to Settings of the Articles Collection?',
+    });
+    await expect(asked).toBeVisible();
+    await asked.getByRole('button', { name: 'Keep editing' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
+    );
+    await expect(
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Guides');
+
+    await mainWindow
+      .getByRole('complementary')
+      .getByRole('link', { name: /^Articles/ })
+      .click();
+    await mainWindow
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Discard' })
+      .click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+  });
+
+  test("says Core's refusals of a field definition in an editor's words", async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, settingsOf);
+    const create = mainWindow
+      .getByRole('main')
+      .getByRole('button', { name: 'Create Collection' });
+
+    // A minimum above the maximum, which Core refines onto the minimum.
+    const pane = await addFieldDefinition(mainWindow, {
+      label: 'Teaser',
+      fieldType: 'textarea',
+      min: 10,
+      max: 5,
+    });
+    await create.click();
+    await expect(
+      pane.getByText("The minimum can't be above the maximum.")
+    ).toBeVisible();
+    // None of Core's own English reaches the field.
+    await expect(mainWindow.getByText('min must be less')).toHaveCount(0);
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/create/
+    );
+
+    // A Default Value outside those bounds, on the same field.
+    await pane.getByLabel('Minimum', { exact: true }).fill('2');
+    await pane.getByLabel('Maximum', { exact: true }).fill('5');
+    await pane
+      .getByLabel('Default Value', { exact: true })
+      .fill('Far too long');
+    await create.click();
+    await expect(
+      pane.getByText(
+        "The Default Value doesn't fit between the minimum and the maximum."
+      )
+    ).toBeVisible();
+    await expect(mainWindow.getByText('within the min and max')).toHaveCount(0);
+
+    // A slug Core keeps for itself.
+    await pane.getByLabel('Default Value', { exact: true }).fill('');
+    await pane.getByLabel('Slug', { exact: true }).fill('settings');
+    await create.click();
+    await expect(
+      pane.getByText('This word is kept for elek.io. Choose another slug.')
+    ).toBeVisible();
+    await expect(mainWindow.getByText('is reserved and cannot')).toHaveCount(0);
+
+    // A slug another field of the same Collection already holds.
+    await pane.getByLabel('Slug', { exact: true }).fill('teaser');
+    const second = await addFieldDefinition(mainWindow, {
+      label: 'Lead',
+      fieldType: 'textarea',
+    });
+    await second.getByLabel('Slug', { exact: true }).fill('teaser');
+    await create.click();
+    await expect(
+      second.getByText(
+        'Another field already uses this slug. Choose another one.'
+      )
+    ).toBeVisible();
+    await expect(mainWindow.getByText('Slug already in use')).toHaveCount(0);
+
+    // And with each of them settled, the same page saves.
+    await second.getByLabel('Slug', { exact: true }).fill('lead');
+    await create.click();
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
+    );
+  });
+
+  test('refuses a unique field that carries a Default Value, in its own words', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, settingsOf);
+
+    const pane = await addFieldDefinition(mainWindow, {
+      label: 'Title',
+      isUnique: true,
+      defaultValue: 'Untitled',
+    });
+    await mainWindow
+      .getByRole('main')
+      .getByRole('button', { name: 'Create Collection' })
+      .click();
+    await expect(
+      pane.getByText(
+        'A unique field takes no Default Value, since every Entry would start with the same one.'
+      )
+    ).toBeVisible();
+
+    // Clearing the Default Value leaves a valid unique field, so the same page
+    // saves.
+    await pane.getByLabel('Default Value', { exact: true }).fill('');
+    await mainWindow
+      .getByRole('main')
+      .getByRole('button', { name: 'Create Collection' })
+      .click();
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
+    );
+  });
+
+  test('adds a field of every type Core defines', async ({ mainWindow }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // A Component, so a dynamic field has one to allow.
+    await mainWindow.evaluate(
+      async (projectId) =>
+        window.ipc.core.components.create({
+          projectId,
+          name: { en: 'Hero' },
+          slug: 'hero',
+          description: null,
+          fieldDefinitions: [],
+        }),
+      project.id
+    );
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, settingsOf);
+
+    // Every type Core defines, each with the one setting it cannot save
+    // without. Range carries its own bounds, so they are filled where it needs
+    // them.
+    const types: FieldType[] = [
+      'text',
+      'textarea',
+      'markdown',
+      'slug',
+      'number',
+      'range',
+      'toggle',
+      'select',
+      'date',
+      'time',
+      'datetime',
+      'email',
+      'url',
+      'telephone',
+      'ipv4',
+      'entry',
+      'asset',
+      'dynamic',
+    ];
+    for (const fieldType of types) {
+      const pane = await addFieldDefinition(mainWindow, {
+        label: `A ${fieldType} field`,
+        fieldType,
+      });
+      await expect(
+        pane
+          .getByRole('combobox', { name: 'Type', exact: true })
+          .locator('[data-slot="select-value"]'),
+        `${fieldType} does not say what it is`
+      ).toHaveText(fieldType);
+      // A select starts with one option and Core takes none that holds
+      // nothing, so the option it is saved with is written here.
+      if (fieldType === 'select') {
+        await pane.getByLabel('Option 1 label', { exact: true }).fill('High');
+      }
+    }
+
+    await mainWindow
+      .getByRole('main')
+      .getByRole('button', { name: 'Create Collection' })
+      .click();
+    // Reaching the Collection's own route means Core accepted all 18.
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
+    );
+    await reloadWindow(mainWindow);
+    await expect(
+      mainWindow
+        .getByRole('complementary')
+        .getByRole('link', { name: /^Articles/ })
+    ).toBeVisible();
+  });
+
+  test("shows a select's options as rows with Add and Remove", async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, settingsOf);
+
+    const pane = await addFieldDefinition(mainWindow, {
+      label: 'Style',
+      fieldType: 'select',
+    });
+    await pane.getByLabel('Option 1 label', { exact: true }).fill('Primary');
+    // The value follows the label while nobody has written one.
+    await expect(
+      pane.getByLabel('Option 1 value', { exact: true })
+    ).toHaveValue('primary');
+
+    await pane.getByRole('button', { name: 'Add option' }).click();
+    await pane.getByLabel('Option 2 label', { exact: true }).fill('Outline');
+    await expect(
+      pane.getByLabel('Option 2 value', { exact: true })
+    ).toHaveValue('outline');
+
+    // Remove takes the row out again, so the list is what the field holds.
+    await pane.getByRole('button', { name: 'Remove option 2' }).click();
+    await expect(
+      pane.getByLabel('Option 2 label', { exact: true })
+    ).toHaveCount(0);
+
+    await mainWindow
+      .getByRole('main')
+      .getByRole('button', { name: 'Create Collection' })
+      .click();
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
+    );
+  });
+
+  test('saves the file types an Asset field takes, as rows with Add and Remove', async ({
+    mainWindow,
+  }, testInfo) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // Add offers the file types the Project holds Assets of, rather than every
+    // type there is, so the Project needs one.
+    await createAssetViaIpc(mainWindow, {
+      projectId: project.id,
+      filePath: makeTempFile(testInfo, 'showroom.png', pngBytes),
+    });
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        assetFieldDefinition({ slug: 'cover', label: { en: 'Cover' } }),
+      ],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Cover');
+    // An empty list allows every type, which is what stands in place of rows.
+    await expect(pane.getByText('Every file type is allowed.')).toBeVisible();
+
+    await pane.getByRole('button', { name: 'Add file type' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'image/png' }).click();
+    const remove = pane.getByRole('button', {
+      name: 'Remove image/png from File types',
+    });
+    await expect(remove).toBeVisible();
+
+    // Remove takes the row out again, so the rows are what the field holds.
+    await remove.click();
+    await expect(pane.getByText('Every file type is allowed.')).toBeVisible();
+    await pane.getByRole('button', { name: 'Add file type' }).click();
+    await mainWindow.getByRole('menuitem', { name: 'image/png' }).click();
+    await expect(remove).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // The row reaches Core as the file type itself, which is what a field
+    // restricted to it is saved with.
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const cover = flattenFieldDefinitions(saved.fieldDefinitions).find(
+      (found) => found.slug === 'cover'
+    );
+    expect(
+      cover !== undefined && 'ofAssetMimeTypes' in cover
+        ? cover.ofAssetMimeTypes
+        : null
+    ).toEqual(['image/png']);
+  });
+
+  test('writes a slug from a field beside it, and never from itself', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const title = textFieldDefinition();
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [title, slugFieldDefinition()],
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const pane = await chooseFieldDefinition(mainWindow, 'Handle');
+    await expect(
+      pane.getByText('Editors write the slug themselves while this is empty.')
+    ).toBeVisible();
+
+    await pane.getByRole('button', { name: 'Add a field' }).click();
+    // It offers the text field beside it. A slug written from itself is one
+    // Core refuses, so it is never offered.
+    await expect(
+      mainWindow.getByRole('menuitem', { name: 'Handle' })
+    ).toHaveCount(0);
+    await mainWindow.getByRole('menuitem', { name: 'Title' }).click();
+    await expect(
+      pane.getByRole('button', { name: 'Remove Title from Made from' })
+    ).toBeVisible();
+
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}$`)
+    );
+    // The source reaches Core as the field's own id, which is what Core
+    // matches a definition by.
+    const saved = await readCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      id: collection.id,
+    });
+    const handle = flattenFieldDefinitions(saved.fieldDefinitions).find(
+      (found) => found.slug === 'handle'
+    );
+    expect(
+      handle !== undefined && 'ofFieldDefinitions' in handle
+        ? handle.ofFieldDefinitions
+        : null
+    ).toEqual([title.id]);
+  });
+
+  test('says a slug another Collection already uses below the Collection slug', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    // The Collection that already holds the slug this one is given.
+    await createCollectionViaIpc(mainWindow, { projectId: project.id });
+
+    await navigateToCollectionCreate(mainWindow, project.id);
+    await fillCollectionForm(mainWindow, settingsOf);
+    await addFieldDefinition(mainWindow, { label: 'Title' });
+    const settings = mainWindow.getByRole('main');
+    const create = settings.getByRole('button', { name: 'Create Collection' });
+    await create.click();
+
+    // Core answers a taken slug as a Conflict, which arrives after the submit
+    // rather than from the resolver, and it belongs below the field it is
+    // about rather than on the error screen.
+    await expect(
+      mainWindow.getByText(
+        'Another Collection in this Project already uses this slug. Choose another one.'
+      )
+    ).toBeVisible();
+    await expect(
+      settings.getByLabel('Collection slug', { exact: true })
+    ).toHaveAttribute('aria-invalid', 'true');
+    await expect(errorScreenTitle(mainWindow)).toHaveCount(0);
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/create/
+    );
+
+    // Another slug leaves nothing in the way, so the same page saves.
+    await settings
+      .getByLabel('Collection slug', { exact: true })
+      .fill('guides');
+    await settings.getByLabel('Entry slug', { exact: true }).fill('guide');
+    await create.click();
+    await expect(mainWindow).toHaveURL(
+      /#\/projects\/[^/]+\/collections\/[0-9a-f-]{36}$/
+    );
+  });
+
+  test('says a slug another Collection already uses when the settings are saved', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+    });
+    await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      name: { singular: { en: 'Guide' }, plural: { en: 'Guides' } },
+      slug: { singular: 'guide', plural: 'guides' },
+    });
+
+    await navigateToCollectionSettings(mainWindow, {
+      projectId: project.id,
+      collectionId: collection.id,
+    });
+    const settings = mainWindow.getByRole('main');
+    await expect(
+      settings.getByLabel('Collection name', { exact: true })
+    ).toHaveValue('Articles');
+    await settings
+      .getByLabel('Collection slug', { exact: true })
+      .fill('guides');
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
+
+    // Core answers this save and a field change it cannot carry out alone with
+    // the same Conflict, and the cause it attaches is what tells them apart.
+    // A taken slug stands below its own field, never in the dialog the other
+    // arm opens.
+    await expect(
+      mainWindow.getByText(
+        'Another Collection in this Project already uses this slug. Choose another one.'
+      )
+    ).toBeVisible();
+    await expect(
+      settings.getByLabel('Collection slug', { exact: true })
+    ).toHaveAttribute('aria-invalid', 'true');
+    await expect(mainWindow.getByRole('dialog')).toHaveCount(0);
+    await expect(mainWindow).toHaveURL(
+      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update`)
+    );
+  });
+
   test('routes an unexpected Collection save failure to the root error boundary', async ({
     mainWindow,
     electronApp,
@@ -1051,159 +2446,260 @@ test.describe('Collections', () => {
       projectId: project.id,
       collectionId: collection.id,
     });
+    const settings = mainWindow.getByRole('main');
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
+      settings.getByLabel('Collection name', { exact: true })
     ).toHaveValue('Articles');
 
-    await mainWindow
-      .getByLabel('Collection name (Plural)', { exact: true })
+    await settings
+      .getByLabel('Collection name', { exact: true })
       .fill('Guides');
     await stubCoreReject(electronApp, 'core:collections:update');
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
+    await mainWindow.getByRole('button', { name: 'Save' }).click();
 
+    await expect(errorScreenTitle(mainWindow)).toBeVisible();
+    // The failure was not swallowed by the dialog built for the one refusal
+    // this form answers in place.
     await expect(
-      mainWindow.getByRole('heading', { name: 'Error' })
-    ).toBeVisible();
-    await expect(
-      mainWindow.getByText('Could not save this Collection')
+      mainWindow.getByText('Save the changes to the Articles Collection?')
     ).toBeHidden();
   });
-  // A Collection written when the Project had one language is missing every
-  // language added later. Core's language-aware update schema flags that on the
-  // Field definition itself (`fieldDefinitions.<i>.label.<language>`), a path the
-  // editor draws as a preview rather than as a bound field. Without a message
-  // target for the array, Save was a silent no-op: no dialog, no message, no
-  // navigation. See contributing/renderer/forms.md.
-  test('surfaces a Field-definition validation error instead of silently doing nothing', async ({
+
+  // Core pins Required or Unique for some field types, so the control shows a
+  // fixed fact instead of offering a choice that would only fail on save, and
+  // says why. Every type Core pins is listed, because a locked control with no
+  // reason leaves an editor with something to press and no answer.
+  const pinned: {
+    fieldType: FieldType;
+    control: 'Required' | 'Unique';
+    reason: string;
+  }[] = [
+    { fieldType: 'slug', control: 'Unique', reason: 'A slug is always unique' },
+    {
+      fieldType: 'toggle',
+      control: 'Unique',
+      reason: "A toggle can't be unique",
+    },
+    {
+      fieldType: 'toggle',
+      control: 'Required',
+      reason: 'A toggle is always required',
+    },
+    {
+      fieldType: 'number',
+      control: 'Unique',
+      reason: "A number field can't be unique.",
+    },
+    {
+      fieldType: 'range',
+      control: 'Unique',
+      reason: "A number field can't be unique.",
+    },
+    {
+      fieldType: 'range',
+      control: 'Required',
+      reason: 'A range is always required',
+    },
+    {
+      fieldType: 'asset',
+      control: 'Unique',
+      reason: "A reference field can't be unique.",
+    },
+    {
+      fieldType: 'entry',
+      control: 'Unique',
+      reason: "A reference field can't be unique.",
+    },
+    {
+      fieldType: 'markdown',
+      control: 'Unique',
+      reason: "A markdown field can't be unique.",
+    },
+    {
+      fieldType: 'dynamic',
+      control: 'Unique',
+      reason: "A dynamic field can't be unique.",
+    },
+  ];
+
+  test('locks Required and Unique where Core pins them, and says why', async ({
+    mainWindow,
+  }) => {
+    await setUserViaIpc(mainWindow);
+    const project = await createProjectViaIpc(mainWindow);
+    await navigateToCollectionCreate(mainWindow, project.id);
+
+    for (const { fieldType, control, reason } of pinned) {
+      const pane = await addFieldDefinition(mainWindow, {
+        label: `A ${fieldType} field`,
+        fieldType,
+      });
+      await expect(
+        pane.getByRole('checkbox', { name: control }),
+        `${fieldType} offers ${control} as a choice`
+      ).toBeDisabled();
+      await expect(
+        pane.getByText(reason),
+        `${fieldType} locks ${control} without saying why`
+      ).toBeVisible();
+    }
+
+    // The lock is not blanket: a text field's uniqueness is a real choice,
+    // offered with nothing to explain.
+    const text = await addFieldDefinition(mainWindow, {
+      label: 'A text field',
+      fieldType: 'text',
+    });
+    await expect(text.getByRole('checkbox', { name: 'Unique' })).toBeEnabled();
+    await expect(text.getByText("can't be unique")).toHaveCount(0);
+
+    // A select's options are either text or numbers, and only the numeric
+    // variant is pinned, so the one type carries both answers.
+    const select = await addFieldDefinition(mainWindow, {
+      label: 'A select field',
+      fieldType: 'select',
+    });
+    await expect(
+      select.getByRole('checkbox', { name: 'Unique' })
+    ).toBeEnabled();
+    await select.getByRole('combobox', { name: 'Type of options' }).click();
+    await mainWindow.getByRole('option', { name: 'Number' }).click();
+    await expect(
+      select.getByRole('checkbox', { name: 'Unique' })
+    ).toBeDisabled();
+    await expect(
+      select.getByText("A number field can't be unique.")
+    ).toBeVisible();
+  });
+
+  test('draws the controls of a field as they were saved', async ({
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
     const collection = await createCollectionViaIpc(mainWindow, {
       projectId: project.id,
-      fieldDefinitions: [textFieldDefinition({ label: { en: 'Title' } })],
+      fieldDefinitions: [
+        textFieldDefinition({ isRequired: false, isUnique: true }),
+        toggleFieldDefinition({
+          slug: 'featured',
+          label: { en: 'Featured' },
+          defaultValue: true,
+        }),
+      ],
     });
-    // Adding a language touches only the Project file, so the Collection above
-    // keeps its en-only labels, which is exactly the state a user lands in.
-    await addProjectLanguageViaIpc(mainWindow, project, 'de');
 
     await navigateToCollectionSettings(mainWindow, {
       projectId: project.id,
       collectionId: collection.id,
     });
+
+    const title = await chooseFieldDefinition(mainWindow, 'Title');
     await expect(
-      mainWindow.getByLabel('Collection name (Plural)', { exact: true })
-    ).toHaveValue('Articles');
-
-    // Fill the German side of everything the editor can actually edit. This both
-    // dirties the form (Save is dirty gated here) and leaves the Field
-    // definition's missing label as the only remaining problem.
-    await fillCollectionFormTranslations(mainWindow, {
-      'Collection name (Plural)': { de: 'Artikel' },
-      'Entry name (Singular)': { de: 'Artikel' },
-      Description: { de: 'Von den E2E-Tests erstellte Artikel' },
-    });
-
-    await mainWindow.getByRole('button', { name: 'Save changes' }).click();
-
-    // The Field definitions area reports the error, naming the path it sits at.
-    // Assert the path, which is the app's own copy, not Core's message text.
+      title.getByRole('checkbox', { name: 'Required' })
+    ).toHaveAttribute('aria-checked', 'false');
     await expect(
-      mainWindow.getByText('fieldDefinitions.0.label.de')
-    ).toBeVisible();
+      title.getByRole('checkbox', { name: 'Unique' })
+    ).toHaveAttribute('aria-checked', 'true');
 
-    // It reports there and not through AppForm's whole-form backstop, which
-    // proves the error found a real home rather than the catch-all.
+    const featured = await chooseFieldDefinition(mainWindow, 'Featured');
+    // A toggle's Default Value is the switch the field itself draws, and it
+    // opens on the state that was saved.
     await expect(
-      mainWindow.getByText('not shown on any of its fields')
-    ).toBeHidden();
-
-    // Nothing was saved, so the route stays on the update form with the values
-    // intact to fix.
-    await expect(mainWindow).toHaveURL(
-      new RegExp(`#/projects/[^/]+/collections/${collection.id}/update$`)
-    );
+      featured.getByRole('switch', { name: 'Default Value' })
+    ).toHaveAttribute('aria-checked', 'true');
   });
 
-  // Core pins `isUnique` to false for every number backed field, so the switch
-  // shows a fixed fact instead of offering a choice that would only fail on save.
-  test('locks the Unique switch for number and range fields', async ({
+  test('fits the smallest window the app supports, in light and in dark mode', async ({
+    electronApp,
     mainWindow,
   }) => {
     await setUserViaIpc(mainWindow);
     const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-
-    const numberSheet = await openAddFieldSheet(mainWindow, 'number');
-    await expect(
-      numberSheet.getByRole('switch', { name: 'Unique' })
-    ).toBeDisabled();
-    await expect(
-      numberSheet.getByText('Number fields cannot be unique.')
-    ).toBeVisible();
-    await mainWindow.keyboard.press('Escape');
-    await expect(numberSheet).toBeHidden();
-
-    // Range is number backed too, and additionally always required, so both
-    // switches are locked and each explains itself.
-    const rangeSheet = await openAddFieldSheet(mainWindow, 'range');
-    await expect(
-      rangeSheet.getByRole('switch', { name: 'Unique' })
-    ).toBeDisabled();
-    await expect(
-      rangeSheet.getByText('Number fields cannot be unique.')
-    ).toBeVisible();
-    await expect(
-      rangeSheet.getByRole('switch', { name: 'Required' })
-    ).toBeDisabled();
-    await expect(
-      rangeSheet.getByText('Ranges are always required')
-    ).toBeVisible();
-  });
-
-  // A unique field may not carry a default value, since one shared default could
-  // only ever be valid for a single Entry. Core refines that onto `defaultValue`,
-  // and the sheet validates the definition before appending it, so the
-  // combination is rejected where the user can still fix it.
-  test('rejects a unique field that also carries a default value', async ({
-    mainWindow,
-  }) => {
-    await setUserViaIpc(mainWindow);
-    const project = await createProjectViaIpc(mainWindow);
-    await navigateToCollectionCreate(mainWindow, project.id);
-    await fillCollectionForm(mainWindow, {
-      namePlural: 'Articles',
-      nameSingular: 'Article',
-      description: 'The articles of this blog',
-      slugPlural: 'articles',
-      slugSingular: 'article',
+    const collection = await createCollectionViaIpc(mainWindow, {
+      projectId: project.id,
+      fieldDefinitions: [
+        textFieldDefinition(),
+        textFieldDefinition({
+          slug: 'teaser',
+          label: { en: 'Teaser' },
+          inputWidth: '6',
+        }),
+      ],
     });
 
-    // The sheet stays open (expectRejected), which proves nothing was appended,
-    // and the Default value control carries the flag. Assert that rejected state
-    // rather than Core's message text.
-    await addFieldDefinition(mainWindow, {
-      label: 'Title',
-      description: 'The title of the article',
-      isUnique: true,
-      defaultValue: 'Untitled',
-      expectRejected: true,
-    });
-    const sheet = mainWindow.getByRole('dialog', {
-      name: 'Add a Field to this Collection',
-    });
-    await expect(sheet.getByLabel('Default value')).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    );
+    for (const theme of ['light', 'dark'] as const) {
+      // The theme is put on first, since it is applied through the app's own
+      // provider and reloads the renderer, which closes the pane again.
+      await setTheme(mainWindow, theme);
+      await navigateToCollectionSettings(mainWindow, {
+        projectId: project.id,
+        collectionId: collection.id,
+      });
+      // With the pane of a chosen field open, which is the widest the screen
+      // gets.
+      await chooseFieldDefinition(mainWindow, 'Teaser');
+      await resizeWindow(electronApp, mainWindow, MINIMUM_WINDOW_SIZE);
+      await waitForLayout(mainWindow);
 
-    // Clearing the default leaves a valid unique field, so the same add is
-    // accepted and the definition appears in the editor.
-    await sheet.getByLabel('Default value').fill('');
-    await mainWindow.getByRole('button', { name: 'Add definition' }).click();
-    await expect(sheet).toBeHidden();
-    await expect(mainWindow.getByLabel('Title', { exact: true })).toHaveCount(
-      1
-    );
+      const measured = await mainWindow.evaluate(() => {
+        const panel = document.querySelector('[data-slot="panel"]');
+        // The panes of this screen, not the one the Project's layout draws
+        // around whatever is open.
+        const panes = Array.from(
+          document.querySelectorAll('[data-slot="panes"] > [data-slot="pane"]')
+        );
+        if (panel === null || panes.length < 2) {
+          throw new Error('The settings did not draw their panes');
+        }
+        const [form, side] = panes.map((pane) => pane.getBoundingClientRect());
+        // ci puts the Collection slug beside the Entry slug and stacks a pair
+        // only below the room its own measure names, which is the room the
+        // editor has rather than the width of the window.
+        const slugs = Array.from(
+          panes[0]?.querySelectorAll('[data-slot="field"]') ?? []
+        )
+          .filter((field) =>
+            ['Collection slug', 'Entry slug'].includes(
+              field
+                .querySelector('[data-slot="field-label"]')
+                ?.textContent?.trim() ?? ''
+            )
+          )
+          .map((field) => field.getBoundingClientRect());
+        const [collectionSlug, entrySlug] = slugs;
+        return {
+          // Nothing reaches past the panel it sits in, in either direction.
+          clipped: panes.some((pane) => pane.scrollWidth > pane.clientWidth),
+          fitsTheWindow:
+            panel.getBoundingClientRect().right <= window.innerWidth &&
+            panel.getBoundingClientRect().bottom <= window.innerHeight,
+          // The two panes stand beside each other rather than over each other.
+          collides:
+            form === undefined || side === undefined
+              ? true
+              : form.right > side.left + 1,
+          sidePaneWidth:
+            side === undefined ? 0 : Math.round(side.right - side.left),
+          slugsSideBySide:
+            collectionSlug !== undefined &&
+            entrySlug !== undefined &&
+            Math.round(collectionSlug.y) === Math.round(entrySlug.y) &&
+            Math.round(collectionSlug.x) !== Math.round(entrySlug.x),
+        };
+      });
+
+      expect(measured.clipped, `${theme} mode clips a pane`).toBe(false);
+      expect(measured.fitsTheWindow, `${theme} mode overflows`).toBe(true);
+      expect(measured.collides, `${theme} mode makes the panes overlap`).toBe(
+        false
+      );
+      // ci's pane of 296 px, whatever the window does.
+      expect(measured.sidePaneWidth).toBe(296);
+      expect(
+        measured.slugsSideBySide,
+        `${theme} mode stacks the two slugs where ci puts them side by side`
+      ).toBe(true);
+    }
   });
 });

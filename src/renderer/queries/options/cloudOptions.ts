@@ -1,3 +1,5 @@
+import { t } from '@lingui/core/macro';
+
 import { customMutationOptions } from '../util';
 
 /**
@@ -14,6 +16,16 @@ export const cloudOptions = {
       meta: {
         method: 'create',
         objectType: 'report',
+      },
+      toasts: {
+        // The dialog holds a bug report and a suggestion, so each says which
+        // one went out rather than one sentence covering both.
+        success: (_data, report) =>
+          report.type === 'bug' ? t`Report sent` : t`Feedback sent`,
+        error: (report) =>
+          report.type === 'bug'
+            ? t`Could not send the report`
+            : t`Could not send the feedback`,
       },
       onSuccess: () => {
         // A report is write only. Nothing in the app reads one back, so there is

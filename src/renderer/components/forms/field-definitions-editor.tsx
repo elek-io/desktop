@@ -1,7 +1,15 @@
-import { arrayMove } from '@dnd-kit/sortable';
-import { useState, type ReactElement } from 'react';
+import { Trans, useLingui } from '@lingui/react/macro';
 import {
-  useController,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  EllipsisIcon,
+  PlusIcon,
+  Trash2Icon,
+  XIcon,
+} from 'lucide-react';
+import { useId, type ReactElement } from 'react';
+import {
+  useWatch,
   type FieldPath,
   type FieldValues,
   type UseFormReturn,
@@ -11,229 +19,188 @@ import {
   DraggableComponent,
   SortableFieldArray,
 } from '@renderer/components/drag-and-drop';
-import { AddFieldSheet } from '@renderer/components/forms/add-field-sheet';
-import { AllowComponentsSheet } from '@renderer/components/forms/allow-components-sheet';
-import { type FieldDefinitionsOwner } from '@renderer/components/forms/default-field-definition-form';
-import { PageSection } from '@renderer/components/page-section';
+import { fieldModule, fieldTypeGroups } from '@renderer/components/fields';
+import { FieldDefinitionPreview } from '@renderer/components/fields/field-from-definition';
+import { type FieldDefinitionsOwner } from '@renderer/components/fields/module';
+import { FieldDefinitionEditor } from '@renderer/components/forms/field-definition-editor';
+import { PaneHead } from '@renderer/components/pane';
+import { FieldSubtreeError } from '@renderer/components/ui/app-form';
+import { Button } from '@renderer/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu';
 import {
   FieldGroup,
   FieldLegend,
   FieldSet,
 } from '@renderer/components/ui/field';
-import {
-  FormFieldDefinitionPreview,
-  FormSubtreeMessage,
-} from '@renderer/components/ui/form';
+import { ScrollArea } from '@renderer/components/ui/scroll-area';
+import { type DefinitionsEditorState } from '@renderer/hooks/useDefinitionsEditor';
 import { useProject } from '@renderer/hooks/useProject';
 
-import {
-  type DynamicFieldDefinition,
-  type FieldDefinition,
-  type FieldDefinitionOrGroup,
-  type Project,
-} from '@elek-io/core';
+import { type FieldType, type SupportedLanguage } from '@elek-io/core';
 
-// TFieldValues is the schema input (the stored definitions), TTransformedValues
-// the schema output handleSubmit yields. Both are carried so a caller's form is
-// assignable as it is, and neither is constrained to a shape holding
-// `fieldDefinitions`: a generated Core schema's input type for that array is not
-// `FieldDefinitionOrGroup[]` itself, so such a constraint would reject every
-// real caller. See contributing/renderer/forms.md#form-typing.
-interface FieldDefinitionsEditorProps<
+// The fields a Collection or a Component defines: each one as editors see it,
+// and the pane of 296 px beside them, which is either the field types or the
+// settings of the chosen field.
+//
+// The two are rendered in different panes of the screen but belong to the one
+// form the page is saved from, so they take the state the form holds through
+// `useFieldDefinitions`.
+//
+// See contributing/renderer/dynamic-form-field-generation.md.
+
+export interface FieldDefinitionsListProps<
   TFieldValues extends FieldValues,
   TTransformedValues extends FieldValues = TFieldValues,
 > {
   form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
-  project: Project;
+  definitions: DefinitionsEditorState;
   owner: FieldDefinitionsOwner;
+  /**
+   * Where the form holds the name the fields are filled in for, which is the
+   * Collection's plural name or the Component's own, in the language on screen.
+   */
+  ownerNamePath: FieldPath<TFieldValues>;
   isViewOnly?: boolean;
 }
 
 /**
- * The one field definitions editor. A Collection's and a Component's fields are
- * authored here, so the Add Field sheet, the previews, the reordering and the
- * typed edit helpers exist once rather than per object type.
+ * What the fields are filled in for, which follows the name as it is typed and
+ * says it without a name while nobody has written one.
  *
- * The form it is given has to hold the definitions under `fieldDefinitions`,
- * which both Collection and Component schemas do. A Collection's are a
- * `FieldDefinitionOrGroup[]` and a Component's a flat `FieldDefinition[]`, and
- * the wider of the two covers both: nothing here ever appends a group, because
- * groups cannot be authored at all (see contributing/not-yet-implemented.md).
- *
- * The whole array is one `Controller`-bound value, not a `useFieldArray`, so
- * react-hook-form never walks the recursive union and the definitions keep
- * their real ids. See contributing/renderer/forms.md.
+ * Its own component, so a keystroke in the name draws this sentence again
+ * rather than every preview below it.
  */
-export function FieldDefinitionsEditor<
+function OwnerSentence<
   TFieldValues extends FieldValues,
   TTransformedValues extends FieldValues = TFieldValues,
 >({
   form,
-  project,
   owner,
-  isViewOnly = false,
-}: FieldDefinitionsEditorProps<
-  TFieldValues,
-  TTransformedValues
->): ReactElement {
-  const { translateContent } = useProject();
-  // Which definition's allowed Components are being grown, by its own id. The
-  // sheet is mounted for that one definition rather than one per preview, so
-  // only one is ever live.
-  const [growingDefinitionId, setGrowingDefinitionId] = useState<string | null>(
-    null
-  );
-  // Every form this serves holds the array under this key, but FieldPath cannot
-  // resolve a literal path for an unresolved generic, so the name is asserted
-  // once here. Casting the name rather than the whole form is the documented
-  // way out, as AssetForm does. See contributing/renderer/forms.md#form-typing.
-  const name = 'fieldDefinitions' as FieldPath<TFieldValues>;
-  const { field: fieldDefinitionsField } = useController({
+  ownerNamePath,
+}: {
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  owner: FieldDefinitionsOwner;
+  ownerNamePath: FieldPath<TFieldValues>;
+}): ReactElement {
+  const written: unknown = useWatch({
     control: form.control,
-    name,
+    name: ownerNamePath,
   });
-  const definitions: FieldDefinitionOrGroup[] = fieldDefinitionsField.value;
+  const name = typeof written === 'string' ? written.trim() : '';
 
-  // Typed edit helpers. Each produces a new array so RHF marks the form dirty.
-  // Group-nesting helpers do not exist yet, see
-  // contributing/not-yet-implemented.md.
-  const appendDefinition = (definition: FieldDefinition): void => {
-    fieldDefinitionsField.onChange([...definitions, definition]);
-  };
-  // Puts a definition back in place of the one with the same id, which is how
-  // the only editable part of a definition is saved. A definition inside a
-  // group is not reached: a group's members are previews with no edit control,
-  // since groups cannot be authored at all.
-  const replaceDefinition = (definition: FieldDefinition): void => {
-    fieldDefinitionsField.onChange(
-      definitions.map((candidate) =>
-        'isGroup' in candidate || candidate.id !== definition.id
-          ? candidate
-          : definition
-      )
+  if (name === '') {
+    return owner === 'collection' ? (
+      <Trans>
+        Editors fill in these fields for every Entry, in this order.
+      </Trans>
+    ) : (
+      <Trans>
+        Editors fill in these fields in every section built from this Component,
+        in this order.
+      </Trans>
     );
-  };
-  // Removing a definition also scrubs it from every slug field's
-  // ofFieldDefinitions. Core's slugSourceReferencesSuperRefinement rejects a
-  // source id that no longer exists in the Collection, and a fieldDefinitions[i]
-  // error has no control to land on here, so a stale id would silently block
-  // every later save with no visible reason. A Component holds no slug field at
-  // all (Core forbids one), so there it finds nothing to scrub.
-  const removeDefinition = (id: string): void => {
-    const withoutSource = (definition: FieldDefinition): FieldDefinition =>
-      definition.fieldType === 'slug' &&
-      definition.ofFieldDefinitions.includes(id)
-        ? {
-            ...definition,
-            ofFieldDefinitions: definition.ofFieldDefinitions.filter(
-              (sourceId) => sourceId !== id
-            ),
-          }
-        : definition;
+  }
 
-    fieldDefinitionsField.onChange(
-      definitions
-        .filter((definition) => definition.id !== id)
-        .map((definition) =>
-          'isGroup' in definition
-            ? {
-                ...definition,
-                fieldDefinitions:
-                  definition.fieldDefinitions.map(withoutSource),
-              }
-            : withoutSource(definition)
-        )
-    );
-  };
-  const moveDefinition = (activeId: string, overId: string): void => {
-    const oldIndex = definitions.findIndex((d) => d.id === activeId);
-    const newIndex = definitions.findIndex((d) => d.id === overId);
-    if (oldIndex === -1 || newIndex === -1) {
-      return;
-    }
-    fieldDefinitionsField.onChange(arrayMove(definitions, oldIndex, newIndex));
-  };
-  // Dragging is not the only way to reorder, as WCAG 2.1.1 and 2.5.7 ask. Both
-  // buttons go through the same helper, so there is one move path either way.
-  const moveDefinitionBy = (index: number, offset: number): void => {
-    const target = definitions[index + offset];
-    const current = definitions[index];
-    if (target === undefined || current === undefined) {
-      return;
-    }
-    moveDefinition(current.id, target.id);
-  };
-
-  const subject =
-    owner === 'collection'
-      ? 'every Entry of this Collection'
-      : 'every section built from this Component';
-
-  // The definition the sheet is open on. Read out of the array each render, so
-  // the sheet sees the ids and the allowed Components the array holds now.
-  const growing = definitions.find(
-    (definition): definition is DynamicFieldDefinition =>
-      'isGroup' in definition === false &&
-      definition.fieldType === 'dynamic' &&
-      definition.id === growingDefinitionId
+  return owner === 'collection' ? (
+    <Trans>Editors fill in these fields for all {name}, in this order.</Trans>
+  ) : (
+    <Trans>
+      Editors fill in these fields in every section built from {name}, in this
+      order.
+    </Trans>
   );
+}
+
+/**
+ * The fields of a Collection or a Component as editors see them, each at its
+ * own width, with the way to add one.
+ */
+export function FieldDefinitionsList<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
+  form,
+  definitions,
+  owner,
+  ownerNamePath,
+  isViewOnly = false,
+}: FieldDefinitionsListProps<TFieldValues, TTransformedValues>): ReactElement {
+  const { translateContent } = useProject();
+  const headingId = useId();
+  // Every form this serves holds the array under this key, asserted once here
+  // as the editor's own helpers do, see
+  // contributing/renderer/forms.md#form-typing.
+  const name = 'fieldDefinitions' as FieldPath<TFieldValues>;
 
   return (
-    <PageSection
-      title={
-        owner === 'collection'
-          ? "Define this Collection's Fields"
-          : "Define this Component's Fields"
-      }
-      description={`Add Fields to say what ${subject} holds. A dynamic Field can allow more Components later. Nothing else about a Field can be changed after it was added, so check its Label and Slug first.`}
-      actions={
-        isViewOnly ? (
-          <></>
-        ) : (
-          <AddFieldSheet
-            project={project}
+    <section className="flex flex-col gap-4 border-t px-(--pane-edge) py-6">
+      <div>
+        <h2 id={headingId} className="text-h4">
+          {owner === 'collection' ? (
+            <Trans>Define this Collection&apos;s fields</Trans>
+          ) : (
+            <Trans>Define this Component&apos;s fields</Trans>
+          )}
+        </h2>
+        <p className="mt-1 text-small text-muted-foreground">
+          <OwnerSentence
+            form={form}
             owner={owner}
-            fieldDefinitions={definitions}
-            onAppend={appendDefinition}
+            ownerNamePath={ownerNamePath}
           />
-        )
-      }
-    >
-      {/* The definitions render as previews, not as bound fields, so a Core
-      refinement that lands on the array or on a definition inside it (a
-      duplicate slug, a stale slug source, a language a field is missing) has no
-      FormMessage to land on. Without this, such an error would make Save a
-      silent no-op. See contributing/renderer/forms.md. */}
-      <FormSubtreeMessage form={form} name={name} className="mt-6" />
+        </p>
+      </div>
 
-      <div className="mt-6 grid grid-cols-12 gap-6">
-        <SortableFieldArray items={definitions} onReorder={moveDefinition}>
-          {definitions.map((fieldDefinition, index) => {
-            // Groups are presentational. Authoring them is not supported yet,
-            // so members are shown read-only as a preview.
+      {/* The definitions are drawn as the fields they define, not as bound
+      fields, so a Core refinement that lands on the array itself (a duplicate
+      slug, a stale slug source) has no field to land on. Without this, such an
+      error would make Save a silent no-op. See
+      contributing/renderer/forms.md#when-an-error-has-no-field-to-land-on. */}
+      <FieldSubtreeError form={form} name={name} />
+
+      <div
+        className="@container grid grid-cols-12 gap-x-6 gap-y-2"
+        ref={definitions.focus.listRef}
+        // The fields and Add field are several controls rather than one, so the
+        // list is a group named by the heading above it, and it is focusable
+        // only to be focused: it is where the focus lands once the last field
+        // was removed and nothing else can take it, see `useListFocus`.
+        role="group"
+        aria-labelledby={headingId}
+        tabIndex={-1}
+      >
+        <SortableFieldArray
+          items={definitions.list}
+          onReorder={definitions.move}
+        >
+          {definitions.list.map((fieldDefinition) => {
+            // A group is presentational. Authoring one is not supported yet,
+            // so its members are shown as fields with no settings of their own.
             if ('isGroup' in fieldDefinition) {
               return (
-                <DraggableComponent
-                  key={fieldDefinition.id}
-                  id={fieldDefinition.id}
-                >
-                  <FieldSet className="col-span-12">
-                    <FieldLegend>
-                      {translateContent({
-                        key: 'fieldDefinitionGroup.label',
-                        record: fieldDefinition.label,
-                      })}
-                    </FieldLegend>
-                    <FieldGroup className="grid grid-cols-12 gap-6">
-                      {fieldDefinition.fieldDefinitions.map((member) => (
-                        <FormFieldDefinitionPreview
-                          key={member.id}
-                          fieldDefinition={member}
-                        />
-                      ))}
-                    </FieldGroup>
-                  </FieldSet>
-                </DraggableComponent>
+                <FieldSet key={fieldDefinition.id} className="col-span-12">
+                  <FieldLegend>
+                    {translateContent({
+                      key: 'fieldDefinitionGroup.label',
+                      record: fieldDefinition.label,
+                    })}
+                  </FieldLegend>
+                  <FieldGroup className="grid grid-cols-12 gap-x-6 gap-y-2">
+                    {fieldDefinition.fieldDefinitions.map((member) => (
+                      <FieldDefinitionPreview
+                        key={member.id}
+                        fieldDefinition={member}
+                      />
+                    ))}
+                  </FieldGroup>
+                </FieldSet>
               );
             }
 
@@ -242,33 +209,16 @@ export function FieldDefinitionsEditor<
                 key={fieldDefinition.id}
                 id={fieldDefinition.id}
               >
-                <FormFieldDefinitionPreview
+                <FieldDefinitionPreview
                   fieldDefinition={fieldDefinition}
+                  isChosen={definitions.chosen?.id === fieldDefinition.id}
                   isDraggable={isViewOnly === false}
-                  // The only editable part of a definition is which Components
-                  // a dynamic Field allows, so every other type is offered no
-                  // edit control rather than a disabled one.
-                  onEdit={
-                    isViewOnly === false &&
-                    fieldDefinition.fieldType === 'dynamic'
-                      ? () => setGrowingDefinitionId(fieldDefinition.id)
-                      : undefined
-                  }
-                  onMoveUp={
-                    isViewOnly === false && index > 0
-                      ? () => moveDefinitionBy(index, -1)
-                      : undefined
-                  }
-                  onMoveDown={
-                    isViewOnly === false && index < definitions.length - 1
-                      ? () => moveDefinitionBy(index, 1)
-                      : undefined
-                  }
-                  onDelete={
-                    isViewOnly
-                      ? undefined
-                      : () => removeDefinition(fieldDefinition.id)
-                  }
+                  {...(isViewOnly
+                    ? {}
+                    : {
+                        onChoose: () => definitions.choose(fieldDefinition.id),
+                        rowRef: definitions.focus.rowRef,
+                      })}
                 />
               </DraggableComponent>
             );
@@ -276,19 +226,243 @@ export function FieldDefinitionsEditor<
         </SortableFieldArray>
       </div>
 
-      {/* Keyed by the definition, so the sheet's form is seeded from the one it
-      was opened on rather than from whichever was opened first. */}
-      {growing === undefined ? null : (
-        <AllowComponentsSheet
-          key={growing.id}
-          fieldDefinition={growing}
-          onAllow={(definition) => {
-            replaceDefinition(definition);
-            setGrowingDefinitionId(null);
-          }}
-          onClose={() => setGrowingDefinitionId(null)}
-        />
+      {isViewOnly ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          Icon={PlusIcon}
+          className="w-fit"
+          ref={definitions.focus.addRef}
+          aria-pressed={definitions.isAddingField}
+          onClick={definitions.addField}
+        >
+          <Trans>Add field</Trans>
+        </Button>
       )}
-    </PageSection>
+    </section>
+  );
+}
+
+/** The pane of field types, in ci's groups, each with its icon. */
+function FieldTypesPane({
+  owner,
+  onAdd,
+  onClose,
+}: {
+  owner: FieldDefinitionsOwner;
+  onAdd: (fieldType: FieldType) => void;
+  onClose: () => void;
+}): ReactElement {
+  const { t } = useLingui();
+  const groups = fieldTypeGroups()
+    .map((group) => ({
+      ...group,
+      // Core refuses a field type an object cannot hold, so it is never
+      // offered there rather than offered and then refused.
+      fieldTypes: group.fieldTypes.filter(
+        (fieldType) =>
+          owner === 'collection' ||
+          fieldModule({ fieldType }).forbiddenInComponent !== true
+      ),
+    }))
+    .filter((group) => group.fieldTypes.length > 0);
+  const offered = groups.reduce(
+    (count, group) => count + group.fieldTypes.length,
+    0
+  );
+
+  return (
+    <aside aria-label={t`Add field`} className="flex min-h-0 flex-1 flex-col">
+      <PaneHead>
+        <h2 className="min-w-0 flex-1 truncate text-label">
+          <Trans>Add field</Trans>
+        </h2>
+        <span className="text-small text-muted-foreground">
+          <Trans>{offered} types</Trans>
+        </span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          Icon={XIcon}
+          aria-label={t`Close the field types`}
+          onClick={onClose}
+        />
+      </PaneHead>
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-4 px-(--pane-edge) pb-6">
+          {groups.map((group) => (
+            <div key={group.group} className="flex flex-col gap-2">
+              <h3 className="text-small text-muted-foreground">
+                {group.label}
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {group.fieldTypes.map((fieldType) => {
+                  const Icon = fieldModule({ fieldType }).Icon;
+                  return (
+                    <Button
+                      key={fieldType}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      Icon={Icon}
+                      className="justify-start"
+                      onClick={() => onAdd(fieldType)}
+                    >
+                      {fieldType}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </aside>
+  );
+}
+
+export interface FieldDefinitionsPaneProps<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+> {
+  form: UseFormReturn<TFieldValues, unknown, TTransformedValues>;
+  definitions: DefinitionsEditorState;
+  owner: FieldDefinitionsOwner;
+  supportedLanguages: SupportedLanguage[];
+  /** The language the switch above the page shows. */
+  language: SupportedLanguage;
+}
+
+/**
+ * The pane of 296 px beside the fields: the field types while a field is being
+ * added, and otherwise the settings of the chosen field.
+ *
+ * It answers `null` while neither is open, so the screen draws no pane at all
+ * rather than an empty one.
+ */
+export function FieldDefinitionsPane<
+  TFieldValues extends FieldValues,
+  TTransformedValues extends FieldValues = TFieldValues,
+>({
+  form,
+  definitions,
+  owner,
+  supportedLanguages,
+  language,
+}: FieldDefinitionsPaneProps<
+  TFieldValues,
+  TTransformedValues
+>): ReactElement | null {
+  const { t } = useLingui();
+  const { translateContent } = useProject();
+  const { chosen } = definitions;
+
+  if (definitions.isAddingField) {
+    return (
+      <FieldTypesPane
+        owner={owner}
+        onAdd={definitions.add}
+        onClose={definitions.close}
+      />
+    );
+  }
+
+  if (chosen === undefined) {
+    return null;
+  }
+
+  const label = translateContent({
+    key: 'fieldDefinition.label',
+    record: chosen.label,
+  });
+  const at = definitions.list.findIndex(
+    (candidate) => candidate.id === chosen.id
+  );
+
+  return (
+    <aside
+      // Named after the field rather than after what the row button that opens
+      // it says, so a screen reader does not hear one name twice.
+      aria-label={t`The ${label} field`}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <PaneHead className="gap-2">
+        <h2 className="min-w-0 flex-1 truncate text-label">{label}</h2>
+        <span className="text-small text-muted-foreground">
+          {chosen.fieldType}
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                Icon={EllipsisIcon}
+                aria-label={t`More for ${label}`}
+              />
+            }
+          />
+          <DropdownMenuPortal>
+            <DropdownMenuContent
+              align="end"
+              // This pane goes with the field, so the focus goes where the
+              // removal left it in the list rather than to a control that is
+              // no longer there, see `useListFocus`.
+              finalFocus={definitions.focus.finalFocus}
+            >
+              {/* Moving a field needs no dragging, as WCAG 2.5.7 asks. */}
+              <DropdownMenuItem
+                disabled={at <= 0}
+                onClick={() => definitions.moveBy(chosen.id, -1)}
+              >
+                <ArrowUpIcon />
+                <Trans>Move up</Trans>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={at === -1 || at >= definitions.list.length - 1}
+                onClick={() => definitions.moveBy(chosen.id, 1)}
+              >
+                <ArrowDownIcon />
+                <Trans>Move down</Trans>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => definitions.remove(chosen.id)}
+              >
+                <Trash2Icon />
+                <Trans>Remove field</Trans>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenu>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          Icon={XIcon}
+          aria-label={t`Close ${label}`}
+          onClick={definitions.close}
+        />
+      </PaneHead>
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-5 px-(--pane-edge) pb-6">
+          <FieldDefinitionEditor
+            // Keyed by the definition, so what each field holds belongs to the
+            // field whose settings are open rather than to whichever was open
+            // first.
+            key={chosen.id}
+            form={form}
+            fieldDefinition={chosen}
+            prefix={definitions.chosenPrefix}
+            owner={owner}
+            siblings={definitions.list}
+            supportedLanguages={supportedLanguages}
+            language={language}
+            onFieldTypeChange={definitions.changeType}
+          />
+        </div>
+      </ScrollArea>
+    </aside>
   );
 }

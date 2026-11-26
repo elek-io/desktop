@@ -8,7 +8,7 @@ export interface EntryReferenceAttrs {
 }
 
 const chipClass =
-  'inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-sm dark:bg-zinc-800';
+  'inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-sm';
 
 // Core's entryReference carries phrasing children as its label. The editor
 // flattens them to plain text (an accepted v1 simplification), so the label

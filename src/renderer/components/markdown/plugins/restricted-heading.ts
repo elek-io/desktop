@@ -49,6 +49,8 @@ export function restrictedHeadingInputRule(
 export function restrictedHeadingKeymap(
   allowedDepths: readonly MarkdownHeadingDepth[]
 ): ReturnType<typeof $useKeymap> {
+  // Milkdown's own command and shortcut names, which never reach a screen.
+  /* eslint-disable lingui/no-unlocalized-strings */
   const depthShortcuts = Object.fromEntries(
     allowedDepths.map((depth) => [
       `TurnIntoH${String(depth)}`,
@@ -61,6 +63,7 @@ export function restrictedHeadingKeymap(
       },
     ])
   );
+  /* eslint-enable lingui/no-unlocalized-strings */
 
   return $useKeymap('headingKeymap', {
     ...depthShortcuts,

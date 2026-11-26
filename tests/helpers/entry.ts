@@ -26,6 +26,17 @@ export function stringValue(
 }
 
 /**
+ * Build a translatable boolean Entry Value, which is what a toggle field holds.
+ * Core takes no `null` here and no language left out, so pass each language the
+ * Project supports to write an Entry Core takes.
+ */
+export function booleanValue(
+  content: Partial<Record<SupportedLanguage, boolean>>
+): CreateEntryProps['values'][string] {
+  return { objectType: 'value', valueType: 'boolean', content };
+}
+
+/**
  * Build a translatable temporal Entry Value (date, datetime or time). Core
  * stores all three as an ISO string in a translatable string Value (see Core's
  * fields docs), so the shape matches `stringValue`. Named for temporal fields to
@@ -64,15 +75,17 @@ export function markdownValue(
 }
 
 /**
- * The markdown field's editable surface, the ProseMirror `contenteditable` the
- * Milkdown editor renders inside the wrapper `MarkdownEditor` draws.
+ * The markdown field's editable surface, the ProseMirror document the Milkdown
+ * editor renders inside the wrapper `MarkdownEditor` draws.
  *
- * Located by class rather than by role on purpose: what a spec asserts here is
- * whether it is editable at all, and a disabled editor deliberately stops
- * exposing the textbox role, so a role locator could not find it to check.
+ * Located by ProseMirror's own class rather than by role and name, so a spec
+ * reaches the document itself, and every markdown field a form draws, rather
+ * than one field by what it is called. `[contenteditable]` would match every
+ * atom node inside the document too, such as a reference chip, which draws
+ * itself as `contenteditable="false"`.
  */
 export function markdownEditorSurface(page: Page): Locator {
-  return page.locator('.markdown-editor [contenteditable]');
+  return page.locator('.markdown-editor .ProseMirror');
 }
 
 /**
@@ -112,6 +125,43 @@ export function assetReferenceValue(assetId: string): ReferencedValue {
     objectType: 'value',
     valueType: 'reference',
     content: { en: [{ id: assetId, objectType: 'asset' as const }] },
+  };
+}
+
+/**
+ * Build an asset reference Value pointing at several Assets, in the order the
+ * field holds them, which is the order its rows stand in. The singular
+ * `assetReferenceValue` is the one-Asset case of it.
+ */
+export function assetReferencesValue(assetIds: string[]): ReferencedValue {
+  return {
+    objectType: 'value',
+    valueType: 'reference',
+    content: {
+      en: assetIds.map((id) => ({ id, objectType: 'asset' as const })),
+    },
+  };
+}
+
+/**
+ * Build an entry reference Value pointing at several Entries of one
+ * Collection, in the order the field holds them. Core wants the Collection
+ * beside each id, so it is passed once for all of them.
+ */
+export function entryReferencesValue(
+  collectionId: string,
+  entryIds: string[]
+): ReferencedValue {
+  return {
+    objectType: 'value',
+    valueType: 'reference',
+    content: {
+      en: entryIds.map((id) => ({
+        id,
+        objectType: 'entry' as const,
+        collectionId,
+      })),
+    },
   };
 }
 
@@ -178,6 +228,19 @@ export async function updateEntryViaIpc(
 }
 
 /**
+ * Read an Entry directly over IPC, bypassing the UI.
+ *
+ * Use this to assert what a save wrote, such as the state a toggle was saved
+ * in, since the form shows the Values it holds rather than the stored ones.
+ */
+export async function readEntryViaIpc(
+  page: Page,
+  props: { projectId: string; collectionId: string; id: string }
+): Promise<Entry> {
+  return page.evaluate(async (p) => window.ipc.core.entries.read(p), props);
+}
+
+/**
  * Delete an Entry directly over IPC, bypassing the UI.
  *
  * There is no UI control to delete an Entry (the `EntryTable` actions column is
@@ -210,6 +273,70 @@ export async function listEntriesViaIpc(
   return list.list;
 }
 
+/**
+ * One row of the list of Entries beside the editor, by the title it shows.
+ *
+ * A row's accessible name runs its title, when it last changed and whatever
+ * badge it carries, so the row is found by the title element inside it rather
+ * than by that whole name.
+ */
+export function entryRow(page: Page, title: string): Locator {
+  return page
+    .locator('[data-slot="entry-row"]')
+    .filter({ has: page.getByText(title, { exact: true }) });
+}
+
+/**
+ * The one switch above a form of generated fields, which sets the language of
+ * the whole page: an Entry's fields, a Collection's settings and a Component's
+ * alike. It is a row of segments while they fit and one dropdown otherwise.
+ */
+export function languageSwitch(page: Page): Locator {
+  return page.locator('[data-slot="language-switch"]');
+}
+
+/**
+ * Take the whole page into another language, through the one switch above its
+ * fields.
+ *
+ * It presses the segment while the languages stand side by side, and picks
+ * from the dropdown the switch becomes when they do not fit. Which of the two
+ * is drawn depends on the room the row leaves it, so a page with a pane open
+ * can draw the other shape than the same page without one.
+ */
+export async function chooseLanguage(
+  page: Page,
+  language: SupportedLanguage
+): Promise<void> {
+  const switcher = languageSwitch(page);
+  // A segment shows the language's code and says its word for a screen
+  // reader, so it is found by the code its name opens with.
+  const segment = switcher.getByRole('button', {
+    name: new RegExp(`^${language.toUpperCase()}\\b`),
+  });
+  const picker = switcher.getByRole('combobox');
+  // Which of the two the switch is depends on how many languages the Project
+  // holds, so the wait is on whichever one it drew. Without it a form that is
+  // still reading reads as neither.
+  await expect(segment.or(picker)).toBeVisible();
+
+  if ((await segment.count()) > 0) {
+    await segment.click();
+    await expect(segment).toHaveAttribute('aria-pressed', 'true');
+    return;
+  }
+
+  await picker.click();
+  await page.getByRole('option', { name: languageName(language) }).click();
+}
+
+/** A language by its word in English, which is what the switch says it is. */
+function languageName(language: SupportedLanguage): string {
+  return (
+    new Intl.DisplayNames(['en'], { type: 'language' }).of(language) ?? language
+  );
+}
+
 /** Route to a Collection's Entry create form and confirm the app rendered. */
 export async function navigateToEntryCreate(
   page: Page,
@@ -237,14 +364,14 @@ export async function navigateToEntryUpdate(
  * (as shown above each input).
  *
  * A field value is either:
- * - a string, which fills the default-language input directly (single-language
- *   projects, or the visible input of a translatable field), or
- * - a per-language record like `{ en: 'Hello', de: 'Hallo' }`, which opens that
- *   field's translations dialog (via its accessible name "Edit translations for
- *   <label>", from form.tsx's translatable trigger), fills each language input
- *   (labelled by its language code, scoped to the dialog), then clicks "Done".
+ * - a string, which fills the field in the language the form is showing, or
+ * - a per-language record like `{ en: 'Hello', de: 'Hallo' }`, which takes the
+ *   whole Entry into each of those languages through the switch above its
+ *   fields and fills the field there.
  *
- * The string path stays backward compatible, so existing specs are unaffected.
+ * A per-language record leaves the form in the last language it filled, and
+ * the language it started in is restored at the end, so a spec that fills one
+ * field per language and then reads the form finds it as it left it.
  */
 export async function fillEntryForm(
   page: Page,
@@ -256,20 +383,65 @@ export async function fillEntryForm(
       continue;
     }
 
-    // Per-language: open the field's translations dialog. Its accessible name
-    // comes from the Phase 0 sr-only label on the LanguagesIcon trigger, and the
-    // dialog's own name is the field's title (both the field's label).
-    await page
-      .getByRole('button', { name: `Edit translations for ${label}` })
-      .click();
-    const dialog = page.getByRole('dialog', { name: label });
-    await expect(dialog).toBeVisible();
-
     for (const [language, text] of Object.entries(value)) {
-      await dialog.getByLabel(language, { exact: true }).fill(text);
+      await chooseLanguage(page, language as SupportedLanguage);
+      await page.getByLabel(label, { exact: true }).fill(text);
+    }
+  }
+}
+
+/**
+ * What each keystroke costs the app, in milliseconds, while `text` is typed
+ * into `field`.
+ *
+ * Measured inside the window rather than around Playwright's own calls, so no
+ * round trip of its own is in the number. A listener on the capture phase
+ * stamps each `input` event before it reaches the field, and one on the bubble
+ * phase stamps it after it has passed the element the app is drawn in, which is
+ * where React listens and where the work an edit causes runs. The difference is
+ * what that one keystroke cost. One event is dispatched at a time, so the two
+ * stamps always belong to the same keystroke.
+ */
+export async function keystrokeCosts(
+  page: Page,
+  field: Locator,
+  text: string
+): Promise<number[]> {
+  await field.click();
+  await page.evaluate(() => {
+    const kept = window.keystrokeCosts;
+    if (kept !== undefined) {
+      kept.length = 0;
+      return;
     }
 
-    await dialog.getByRole('button', { name: 'Done' }).click();
-    await expect(dialog).toBeHidden();
-  }
+    const costs: number[] = [];
+    window.keystrokeCosts = costs;
+    let startedAt = 0;
+    window.addEventListener(
+      'input',
+      () => {
+        startedAt = performance.now();
+      },
+      true
+    );
+    window.addEventListener('input', () => {
+      costs.push(performance.now() - startedAt);
+    });
+  });
+
+  await page.keyboard.type(text);
+  // Polled rather than read straight away, because the last keystroke's own
+  // work runs after Playwright's type call has returned.
+  await expect
+    .poll(async () => page.evaluate(() => window.keystrokeCosts?.length ?? 0))
+    .toBe(text.length);
+
+  return page.evaluate(() => window.keystrokeCosts ?? []);
+}
+
+/** The middle of a set of measurements, which one slow frame cannot move. */
+export function median(numbers: number[]): number {
+  const sorted = [...numbers].sort((one, other) => one - other);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }

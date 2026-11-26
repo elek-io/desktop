@@ -10,14 +10,20 @@ import {
   type DynamicFieldDefinition,
   type EmailFieldDefinition,
   type FieldType,
+  type Ipv4FieldDefinition,
   type MarkdownFieldDefinition,
   type NumberFieldDefinition,
   type RangeFieldDefinition,
+  type SlugFieldDefinition,
+  type StringSelectFieldDefinition,
   type ReferenceFieldDefinition,
-  type SupportedLanguage,
+  type TelephoneFieldDefinition,
+  type TextareaFieldDefinition,
   type TextFieldDefinition,
   type TimeFieldDefinition,
+  type ToggleFieldDefinition,
   type UpdateCollectionProps,
+  type UrlFieldDefinition,
 } from '@elek-io/core';
 
 import { navigate } from './navigation.js';
@@ -41,6 +47,32 @@ export function textFieldDefinition(
     inputWidth: '12',
     valueType: 'string',
     fieldType: 'text',
+    defaultValue: null,
+    min: null,
+    max: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required multi-line text FieldDefinition with a caller-supplied id.
+ * Mirrors `textFieldDefinition` but with `fieldType` "textarea", which Core
+ * stores as the same value type with the same bounds.
+ */
+export function textareaFieldDefinition(
+  overrides: Partial<TextareaFieldDefinition> = {}
+): TextareaFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'teaser',
+    label: { en: 'Teaser' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'textarea',
     defaultValue: null,
     min: null,
     max: null,
@@ -102,11 +134,166 @@ export function numberFieldDefinition(
 }
 
 /**
+ * Build a toggle FieldDefinition with a caller-supplied id. Core pins a toggle
+ * to required and gives it a boolean default, because it always holds a Value,
+ * which is why it shows no rule beside its label.
+ */
+export function toggleFieldDefinition(
+  overrides: Partial<ToggleFieldDefinition> = {}
+): ToggleFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'featured',
+    label: { en: 'Featured' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'boolean',
+    fieldType: 'toggle',
+    defaultValue: false,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required url FieldDefinition with a caller-supplied id. Mirrors
+ * `emailFieldDefinition`, with `fieldType` "url", so a spec can drive the
+ * refusal of text that is not a web address.
+ */
+export function urlFieldDefinition(
+  overrides: Partial<UrlFieldDefinition> = {}
+): UrlFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'homepage',
+    label: { en: 'Homepage' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'url',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required ipv4 FieldDefinition with a caller-supplied id. Mirrors
+ * `urlFieldDefinition` with `fieldType` "ipv4".
+ */
+export function ipv4FieldDefinition(
+  overrides: Partial<Ipv4FieldDefinition> = {}
+): Ipv4FieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'server',
+    label: { en: 'Server' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'ipv4',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required telephone FieldDefinition with a caller-supplied id. Mirrors
+ * `urlFieldDefinition` with `fieldType` "telephone". Core checks it against
+ * E.164, which takes a leading plus, a country code and no spaces.
+ */
+export function telephoneFieldDefinition(
+  overrides: Partial<TelephoneFieldDefinition> = {}
+): TelephoneFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'hotline',
+    label: { en: 'Hotline' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'telephone',
+    defaultValue: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a required slug FieldDefinition with a caller-supplied id.
+ *
+ * Core pins a slug to unique and to no default Value, and takes the form it
+ * has to be in from `separator`, `lowercase` and `decamelize`. With no
+ * `ofFieldDefinitions` it stands on its own rather than following other fields.
+ */
+export function slugFieldDefinition(
+  overrides: Partial<SlugFieldDefinition> = {}
+): SlugFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'handle',
+    label: { en: 'Handle' },
+    description: null,
+    isRequired: true,
+    isDisabled: false,
+    isUnique: true,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'slug',
+    defaultValue: null,
+    separator: '-',
+    lowercase: true,
+    decamelize: true,
+    ofFieldDefinitions: [],
+    ...overrides,
+  };
+}
+
+/**
+ * Build an optional string select FieldDefinition with a caller-supplied id.
+ *
+ * A select's options are what the control draws: up to seven of them as a list
+ * of radio buttons, and more as a dropdown with a filter. An optional one may
+ * stay empty, so None leads its list. Pass `options` to drive either shape.
+ */
+export function selectFieldDefinition(
+  overrides: Partial<StringSelectFieldDefinition> = {}
+): StringSelectFieldDefinition {
+  return {
+    id: uuid(),
+    slug: 'style',
+    label: { en: 'Style' },
+    description: null,
+    isRequired: false,
+    isDisabled: false,
+    isUnique: false,
+    inputWidth: '12',
+    valueType: 'string',
+    fieldType: 'select',
+    defaultValue: null,
+    options: [
+      { value: 'primary', label: { en: 'Primary' } },
+      { value: 'outline', label: { en: 'Outline' } },
+    ],
+    ...overrides,
+  };
+}
+
+/**
  * Build a range FieldDefinition with a caller-supplied id. A range definition is
  * always required and never unique (Core pins both), carries a numeric
- * `defaultValue`, and its `min` / `max` are the Slider's functional value domain
- * (Radix exposes them as `aria-valuemin` / `aria-valuemax`), not HTML constraint
- * attributes, so a test can assert they survive on the rendered slider.
+ * `defaultValue`, and its `min` / `max` are the Slider's functional value domain,
+ * carried by the range input that owns the slider role, so a test can assert
+ * they survive on the rendered slider.
  */
 export function rangeFieldDefinition(
   overrides: Partial<RangeFieldDefinition> = {}
@@ -416,6 +603,22 @@ export async function deleteCollectionViaIpc(
   );
 }
 
+/**
+ * The icon picker of a Collection's settings, which is the first field of the
+ * page and of Create Collection alike.
+ */
+export function collectionIconPicker(page: Page): Locator {
+  return page.getByRole('combobox', { name: 'Icon', exact: true });
+}
+
+/**
+ * The popup that picker opens, so a caller can scope its groups and its
+ * options to it rather than to the whole window.
+ */
+export function collectionIconPopup(page: Page): Locator {
+  return page.locator('[data-slot="combobox-content"]');
+}
+
 /** Read a Collection directly over IPC, to assert what was written. */
 export async function readCollectionViaIpc(
   page: Page,
@@ -454,7 +657,13 @@ export async function navigateToCollectionSettings(
   );
 }
 
-/** Fill the visible base fields of the Collection form (single language). */
+/**
+ * Fill the visible base fields of the Collection form, in the language the
+ * switch above the page shows.
+ *
+ * Scoped to the main area, so the pane of the chosen field, whose Label, Slug
+ * and Description carry names of their own, cannot make a locator ambiguous.
+ */
 export async function fillCollectionForm(
   page: Page,
   props: {
@@ -465,164 +674,132 @@ export async function fillCollectionForm(
     slugSingular: string;
   }
 ): Promise<void> {
-  await page
-    .getByLabel('Collection name (Plural)', { exact: true })
+  const settings = page.getByRole('main');
+
+  await settings
+    .getByLabel('Collection name', { exact: true })
     .fill(props.namePlural);
-  await page
-    .getByLabel('Entry name (Singular)', { exact: true })
+  await settings
+    .getByLabel('Entry name', { exact: true })
     .fill(props.nameSingular);
-  await page.getByLabel('Description', { exact: true }).fill(props.description);
-  await page
-    .getByLabel('Collection-Slug', { exact: true })
+  await settings
+    .getByLabel('Description', { exact: true })
+    .fill(props.description);
+  await settings
+    .getByLabel('Collection slug', { exact: true })
     .fill(props.slugPlural);
-  await page.getByLabel('Entry-Slug', { exact: true }).fill(props.slugSingular);
+  await settings
+    .getByLabel('Entry slug', { exact: true })
+    .fill(props.slugSingular);
 }
 
 /**
- * Fill languages other than the default on the Collection form's translatable
- * fields, keyed by the field's visible label.
- *
- * The visible input holds the default language, so a second language is edited
- * through the field's translations dialog. Its trigger carries the accessible
- * name "Edit translations for <label>" and the dialog itself is named by the
- * same label (see forms.md), which is what makes both addressable.
+ * Open the pane of field types, which is what Add field does, and return it so
+ * a caller can scope its locators to it.
  */
-export async function fillCollectionFormTranslations(
-  page: Page,
-  fields: Record<string, Partial<Record<SupportedLanguage, string>>>
-): Promise<void> {
-  for (const [label, languages] of Object.entries(fields)) {
-    await page
-      .getByRole('button', { name: `Edit translations for ${label}` })
-      .click();
-    const dialog = page.getByRole('dialog', { name: label });
-    await expect(dialog).toBeVisible();
+export async function openFieldTypes(page: Page): Promise<Locator> {
+  // The page's own Add field, which the settings of a chosen field never
+  // carry: a list inside them says what it adds.
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: 'Add field', exact: true })
+    .click();
+  const pane = page.getByRole('complementary', { name: 'Add field' });
+  await expect(pane).toBeVisible();
 
-    for (const [language, text] of Object.entries(languages)) {
-      // A dialog's per-language label is the language code, with an
-      // " - optional" suffix on a field that is not required (the Description is
-      // not), so anchor on the code rather than matching exactly.
-      await dialog
-        .getByLabel(new RegExp(`^${language}( - optional)?$`))
-        .fill(text);
-    }
-
-    await dialog.getByRole('button', { name: 'Done' }).click();
-    await expect(dialog).toBeHidden();
-  }
+  return pane;
 }
 
 /**
- * Open the "Add Field" sheet and select `fieldType` in its "Input type" picker,
- * returning the sheet so a caller can scope its locators to it.
+ * Open the settings of the field with this label, and return the pane so a
+ * caller can scope its locators to it.
  *
- * Use this directly when a spec inspects the sheet without adding anything (the
- * per-type locked switches), and through `addFieldDefinition` when it does add.
- *
- * `owner` names the sheet, since one editor authors both a Collection's and a
- * Component's fields and the sheet says which it is adding to.
+ * The whole row of a field is the control that opens it, named after what it
+ * opens, since the field below it is a preview rather than something to fill
+ * in there.
  */
-export async function openAddFieldSheet(
+export async function chooseFieldDefinition(
   page: Page,
-  fieldType: FieldType = 'text',
-  owner: 'collection' | 'component' = 'collection'
+  label: string
 ): Promise<Locator> {
-  await page.getByRole('button', { name: 'Add Field' }).click();
-  const sheet = page.getByRole('dialog', {
-    name:
-      owner === 'collection'
-        ? 'Add a Field to this Collection'
-        : 'Add a Field to this Component',
-  });
-  await expect(sheet).toBeVisible();
+  await page
+    .getByRole('button', { name: `Settings of the ${label} field` })
+    .click();
+  // Found by what it is rather than by the field's own label, since the pane
+  // names itself after that label and the label is one of the things edited in
+  // it. A field with no label yet leaves the name "The field", so nothing
+  // stands between "The" and "field" there.
+  const pane = page.getByRole('complementary', { name: /^The .*field$/ });
+  await expect(pane).toBeVisible();
 
-  if (fieldType !== 'text') {
-    // The picker is the first combobox in the sheet (its header). Its options
-    // render in a Radix portal, so locate them on the page, not in the dialog.
-    await sheet.getByRole('combobox').first().click();
-    await page.getByRole('option', { name: fieldType, exact: true }).click();
-  }
-
-  return sheet;
+  return pane;
 }
 
 export interface AddFieldDefinitionOptions {
   label: string;
-  description: string;
-  /** The "Input type" to pick. Defaults to the sheet's own default, `text`. */
+  description?: string;
+  /** The type to choose in the pane. Defaults to `text`. */
   fieldType?: FieldType;
-  /** Which object the field is added to. Defaults to a Collection. */
-  owner?: 'collection' | 'component';
   /** Fills the field's "Minimum" control. */
   min?: number;
   /** Fills the field's "Maximum" control. */
   max?: number;
-  /** Fills the shared "Default value" control. */
+  /** Fills the "Default Value" control. */
   defaultValue?: string;
-  /** Turns the "Unique" switch on. Only the string types allow it. */
+  /** Ticks the "Unique" checkbox. Only the string types allow it. */
   isUnique?: boolean;
-  /**
-   * Turns the "Required" switch off. A field defaults to required, and adding a
-   * required field with no default to a Collection or Component that already
-   * holds content is what Core refuses until each Entry is answered.
-   */
+  /** Unticks the "Required" checkbox, which a new field starts with ticked. */
   isRequired?: boolean;
-  /**
-   * Assert the add is REJECTED rather than accepted. `submitDefinition` only
-   * closes the sheet after it appends the definition, so a still-open sheet
-   * proves the definition was not appended (a failed per-type schema, or a
-   * duplicate slug). When omitted, assert the happy path: the sheet closes
-   * because the definition was appended.
-   */
-  expectRejected?: boolean;
 }
 
 /**
- * Drive the "Add Field" sheet to add one field definition. Opens the sheet on
- * the requested input type, fills the translatable label and description (the
- * slug auto-derives from the label) plus any of the shared per-type controls,
- * then confirms with "Add definition".
+ * Add one field through the pane of field types and fill in its settings.
  *
- * For a valid, unique definition the sheet closes (asserted). Pass
- * `expectRejected` to instead assert the sheet stays open, which the negative
- * validation specs (duplicate slug, min>max, unique with a default) use to prove
- * the definition was not appended.
+ * Choosing a type adds the field and opens its settings, so the pane that
+ * comes back is the field's own, and the field is already part of what the
+ * page saves.
  */
 export async function addFieldDefinition(
   page: Page,
   options: AddFieldDefinitionOptions
-): Promise<void> {
-  const sheet = await openAddFieldSheet(page, options.fieldType, options.owner);
+): Promise<Locator> {
+  const types = await openFieldTypes(page);
+  await types
+    .getByRole('button', { name: options.fieldType ?? 'text', exact: true })
+    .click();
 
-  await sheet.getByLabel('Label', { exact: true }).fill(options.label);
-  // A Field's Description is optional, so its label carries an "- optional"
-  // suffix. Match by prefix. Filling an optional Field is still valid.
-  await sheet.getByLabel('Description').fill(options.description);
+  // The new field has no label yet, so its pane is the one named after a field
+  // with none.
+  const pane = page.getByRole('complementary', {
+    name: /^The .*field$/,
+  });
+  await expect(pane).toBeVisible();
 
-  // The optional bounds labels carry an "- optional" suffix, so match by prefix
-  // rather than exactly. Range's mandatory ones match either way.
+  await pane.getByLabel('Label', { exact: true }).fill(options.label);
+  if (options.description !== undefined) {
+    await pane
+      .getByLabel('Description', { exact: true })
+      .fill(options.description);
+  }
   if (options.min !== undefined) {
-    await sheet.getByLabel('Minimum').fill(String(options.min));
+    await pane.getByLabel('Minimum', { exact: true }).fill(String(options.min));
   }
   if (options.max !== undefined) {
-    await sheet.getByLabel('Maximum').fill(String(options.max));
+    await pane.getByLabel('Maximum', { exact: true }).fill(String(options.max));
   }
   if (options.defaultValue !== undefined) {
-    await sheet.getByLabel('Default value').fill(options.defaultValue);
+    await pane
+      .getByLabel('Default Value', { exact: true })
+      .fill(options.defaultValue);
   }
   if (options.isUnique === true) {
-    await sheet.getByRole('switch', { name: 'Unique' }).click();
+    await pane.getByRole('checkbox', { name: 'Unique' }).click();
   }
   if (options.isRequired === false) {
-    await sheet.getByRole('switch', { name: 'Required' }).click();
+    await pane.getByRole('checkbox', { name: 'Required' }).click();
   }
 
-  await page.getByRole('button', { name: 'Add definition' }).click();
-  if (options.expectRejected === true) {
-    await expect(sheet).toBeVisible();
-  } else {
-    await expect(sheet).toBeHidden();
-  }
+  return pane;
 }
 
 /**
@@ -644,7 +821,10 @@ export async function createCollection(
   await fillCollectionForm(page, props);
   await addFieldDefinition(page, props.field);
 
-  await page.getByRole('button', { name: 'Create Collection' }).click();
+  await page
+    .getByRole('main')
+    .getByRole('button', { name: 'Create Collection' })
+    .click();
   // Match the new Collection's detail route by its uuid segment, never the
   // 'create' segment. A plain `[^/]+` also matches `/collections/create`, so a
   // form that never submits would still satisfy this and hide the failure a

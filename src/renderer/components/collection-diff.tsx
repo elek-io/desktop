@@ -1,21 +1,95 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useLingui } from '@lingui/react/macro';
+import { useMemo } from 'react';
 
 import {
   DiffContainer,
   DiffContainerSkeleton,
 } from '@renderer/components/diff-container';
-import { CollectionForm } from '@renderer/components/forms/collection-form';
+import { FieldDefinitionPreview } from '@renderer/components/fields/field-from-definition';
+import { FieldShell } from '@renderer/components/ui/app-form';
+import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
-import { translatableDefault } from '@renderer/lib/utils';
+import { fieldRules } from '@renderer/lib/fieldRules';
 import { queryOptions } from '@renderer/queries';
 
-import {
-  updateCollectionSchema,
-  type GitCommit,
-  type Project,
-} from '@elek-io/core';
+import { type Collection, type GitCommit, type Project } from '@elek-io/core';
+
+// What a change to a Collection looked like before and after it, for the
+// History.
+//
+// It reads the Collection rather than filling a form with it, so the settings
+// screen stays one editable page, see
+// contributing/renderer/forms.md#view-only-forms-and-diffs.
+
+/** One line of the settings, read rather than edited. */
+function SettingLine({
+  label,
+  text,
+}: {
+  label: string;
+  text: string;
+}): React.JSX.Element {
+  return (
+    <FieldShell label={label} rules={fieldRules({ required: false })}>
+      {() => <p className="text-sm">{text}</p>}
+    </FieldShell>
+  );
+}
+
+/** A Collection's settings as they stood at one commit. */
+function CollectionSettings({
+  collection,
+}: {
+  collection: Collection;
+}): React.JSX.Element {
+  const { t } = useLingui();
+  const { translateContent } = useProject();
+
+  return (
+    <div className="flex flex-col gap-4 p-6">
+      <SettingLine
+        label={t`Collection name`}
+        text={translateContent({
+          key: 'collection.name.plural',
+          record: collection.name.plural,
+        })}
+      />
+      <SettingLine
+        label={t`Entry name`}
+        text={translateContent({
+          key: 'collection.name.singular',
+          record: collection.name.singular,
+        })}
+      />
+      <SettingLine label={t`Collection slug`} text={collection.slug.plural} />
+      <SettingLine label={t`Entry slug`} text={collection.slug.singular} />
+      <SettingLine
+        label={t`Description`}
+        text={translateContent({
+          key: 'collection.description',
+          record: collection.description,
+        })}
+      />
+      <div className="@container grid grid-cols-12 gap-x-6 gap-y-2 border-t pt-4">
+        {collection.fieldDefinitions.map((fieldDefinition) =>
+          'isGroup' in fieldDefinition ? (
+            fieldDefinition.fieldDefinitions.map((member) => (
+              <FieldDefinitionPreview
+                key={member.id}
+                fieldDefinition={member}
+              />
+            ))
+          ) : (
+            <FieldDefinitionPreview
+              key={fieldDefinition.id}
+              fieldDefinition={fieldDefinition}
+            />
+          )
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function CollectionDiff({
   project,
@@ -78,39 +152,6 @@ export function CollectionDiff({
       enabled: commitBefore !== undefined,
     });
 
-  const collectionFormBefore = useForm({
-    resolver: zodResolver(updateCollectionSchema),
-    defaultValues: {
-      projectId: project.id,
-      icon: 'home',
-      name: {
-        singular: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-        plural: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-      },
-      description: translatableDefault({
-        supportedLanguages: project.settings.language.supported,
-        defaultValue: '',
-      }),
-      slug: {
-        singular: '',
-        plural: '',
-      },
-      fieldDefinitions: [],
-    },
-  });
-
-  useEffect(() => {
-    if (isReadingCollectionBefore === false) {
-      collectionFormBefore.reset(collectionBefore);
-    }
-  }, [isReadingCollectionBefore, collectionFormBefore, collectionBefore]);
-
   const { data: collectionAfter, isPending: isReadingCollectionAfter } =
     useQueryNoError({
       ...queryOptions.collections.read({
@@ -120,39 +161,6 @@ export function CollectionDiff({
       }),
       enabled: commitAfter !== undefined,
     });
-
-  const collectionFormAfter = useForm({
-    resolver: zodResolver(updateCollectionSchema),
-    defaultValues: {
-      projectId: project.id,
-      icon: 'home',
-      name: {
-        singular: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-        plural: translatableDefault({
-          supportedLanguages: project.settings.language.supported,
-          defaultValue: '',
-        }),
-      },
-      description: translatableDefault({
-        supportedLanguages: project.settings.language.supported,
-        defaultValue: '',
-      }),
-      slug: {
-        singular: '',
-        plural: '',
-      },
-      fieldDefinitions: [],
-    },
-  });
-
-  useEffect(() => {
-    if (isReadingCollectionAfter === false) {
-      collectionFormAfter.reset(collectionAfter);
-    }
-  }, [isReadingCollectionAfter, collectionFormAfter, collectionAfter]);
 
   // Show loading skeleton while queries are pending
   if (
@@ -175,49 +183,40 @@ export function CollectionDiff({
   }
 
   // Handle create operation
-  if (!commitBefore && commitAfter) {
+  // The object itself is read as well, since a query that is switched off
+  // stays pending and so says nothing about what it holds.
+  if (!commitBefore && commitAfter && collectionAfter !== undefined) {
     return (
       <DiffContainer type="create" commit={commitAfter}>
-        <CollectionForm
-          project={project}
-          collectionForm={collectionFormAfter}
-          isViewOnly
-        />
+        <CollectionSettings collection={collectionAfter} />
       </DiffContainer>
     );
   }
 
   // Handle delete operation
-  if (!commitAfter && commitBefore) {
+  if (!commitAfter && commitBefore && collectionBefore !== undefined) {
     return (
       <DiffContainer type="delete" commit={commitBefore}>
-        <CollectionForm
-          project={project}
-          collectionForm={collectionFormBefore}
-          isViewOnly
-        />
+        <CollectionSettings collection={collectionBefore} />
       </DiffContainer>
     );
   }
 
   // Handle update operation (both commits exist)
-  if (commitBefore && commitAfter) {
+  if (
+    commitBefore &&
+    commitAfter &&
+    collectionBefore !== undefined &&
+    collectionAfter !== undefined
+  ) {
     return (
       <>
         <DiffContainer type="before" commit={commitBefore}>
-          <CollectionForm
-            project={project}
-            collectionForm={collectionFormBefore}
-            isViewOnly
-          />
+          <CollectionSettings collection={collectionBefore} />
         </DiffContainer>
 
         <DiffContainer type="after" commit={commitAfter}>
-          <CollectionForm
-            project={project}
-            collectionForm={collectionFormAfter}
-            isViewOnly
-          />
+          <CollectionSettings collection={collectionAfter} />
         </DiffContainer>
       </>
     );

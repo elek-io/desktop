@@ -1,26 +1,29 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { type MessageDescriptor } from '@lingui/core';
+import { msg, plural } from '@lingui/core/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { parseIpcError } from '@root/src/shared/ipcError';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { Check, Trash } from 'lucide-react';
-import { useEffect, useId, useState, type ReactElement } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { createFileRoute } from '@tanstack/react-router';
+import { Check, Ellipsis, Trash2 } from 'lucide-react';
+import { useCallback, useRef, useState, type ReactElement } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
+import { type z } from 'zod';
 
-import { ComponentImpact } from '@renderer/components/component-impact';
 import { ComponentForm } from '@renderer/components/forms/component-form';
-import { Page } from '@renderer/components/page';
-import { PageSection } from '@renderer/components/page-section';
+import {
+  RefusedChangeDialog,
+  type RefusedChangeAnswer,
+} from '@renderer/components/refused-change-dialog';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@renderer/components/ui/alert-dialog';
-import { FormActions, SubmitButton } from '@renderer/components/ui/app-form';
+import { SubmitButton } from '@renderer/components/ui/app-form';
 import { Button } from '@renderer/components/ui/button';
 import {
   Dialog,
@@ -31,57 +34,106 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu';
+import { useAppForm } from '@renderer/hooks/useAppForm';
 import { useAppMutation } from '@renderer/hooks/useAppMutation';
 import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
+import { useDefinitionsEditor } from '@renderer/hooks/useDefinitionsEditor';
+import { useKeptForm } from '@renderer/hooks/useKeptForm';
+import { useMissingTranslations } from '@renderer/hooks/useMissingTranslations';
 import { useProject } from '@renderer/hooks/useProject';
 import { useQueryNoError } from '@renderer/hooks/useQueryNoError';
 import { describeCoreError } from '@renderer/lib/coreErrorText';
-import { withEmptyDescriptionAsNull } from '@renderer/lib/resolver';
 import {
-  describeEntryIssue,
+  entryLanguage,
+  entryLanguageSearchSchema,
+} from '@renderer/lib/entryLanguage';
+import { componentTranslatableTexts } from '@renderer/lib/missingTranslations';
+import {
+  withBlankDefinitionDescriptionsAsNull,
+  withEmptyDescriptionAsNull,
+} from '@renderer/lib/resolver';
+import {
   entryIssuesOf,
   type SchemaChangeIssue,
 } from '@renderer/lib/schemaChange';
+import { languageName } from '@renderer/lib/utils';
 import { queryOptions } from '@renderer/queries';
 
 import {
+  flattenFieldDefinitions,
   getUpdateComponentSchemaFromLanguages,
   type CoreErrorType,
+  type SupportedLanguage,
   type UpdateComponentProps,
 } from '@elek-io/core';
+
+/**
+ * The Component as the form holds it, which is the input of the same Core
+ * schema the form resolves against, so what is kept across a link to an Entry
+ * goes back in exactly as it came out.
+ */
+type ComponentSettingsValues = z.input<
+  ReturnType<typeof getUpdateComponentSchemaFromLanguages>
+>;
 
 export const Route = createFileRoute(
   '/projects/$projectId/components/$componentId'
 )({
   component: ProjectComponentUpdate,
+  validateSearch: entryLanguageSearchSchema,
 });
 
 // Copy for a blocked delete, keyed by CoreError type.
-const deleteErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again.',
+const deleteErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  Conflict: msg`A Collection or another Component still uses this Component, so it cannot be deleted. Take it out of the Fields that allow it first, then try again.`,
 };
 
-const deleteErrorFallback =
-  'This Component could not be deleted. Please review and try again.';
+const deleteErrorFallback = msg`This Component could not be deleted. Please review and try again.`;
 
 // Copy for a blocked save, keyed by CoreError type. A slug another Component
-// holds is said below the Slug field instead, and the Entries a Field change
-// cannot reach on its own are listed under this description, so what is left
-// here is a Conflict with neither, and the circular reference BadRequest.
-const saveErrorDescriptions: Partial<Record<CoreErrorType, string>> = {
-  Conflict:
-    'Nothing was saved, and this Component is exactly as it was. Your Field changes reach Entries that already exist, and each one below has to be settled before the change can go in, which elek.io Desktop cannot do yet. Put the Field changes back for now.',
-  BadRequest:
-    'A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.',
+// holds is said below the Slug field, and a Field change that reaches Entries
+// that already exist is answered in the dialog of a refused change, so what is
+// left here is `BadRequest`: the circular reference on a save of its own, and
+// the pair below on the save that answers the dialog.
+const saveErrorDescriptions: Partial<Record<CoreErrorType, MessageDescriptor>> =
+  {
+    BadRequest: msg`A Component cannot use itself, not directly and not through another Component. Change which Components its dynamic Field allows and try again.`,
+  };
+
+// Copy for the same type on the save that carries the Values the dialog of a
+// refused change wrote. Core checks each of them against the item of the Entry
+// it names before it writes anything, so what an editor meets here is an Entry
+// that changed while the dialog stood open.
+const appliedSaveErrorDescriptions: Partial<
+  Record<CoreErrorType, MessageDescriptor>
+> = {
+  BadRequest: msg`An Entry this change needs a Value for has changed in the meantime, so nothing was saved. Save again to see what the change needs now.`,
 };
 
-const saveErrorFallback =
-  'This Component could not be saved. Please review your changes and try again.';
+const saveErrorFallback = msg`This Component could not be saved. Please review your changes and try again.`;
 
 function ProjectComponentUpdate(): ReactElement {
-  const router = useRouter();
+  const { t } = useLingui();
+
+  const navigate = Route.useNavigate();
   const { projectId, componentId } = Route.useParams();
+  // Save, which the dialog of a refused change hands the focus back to.
+  const saveRef = useRef<HTMLButtonElement>(null);
+  // Whether the save that is running carries Values the dialog wrote, read
+  // when it fails. Core words a circular reference and a resolution it could
+  // not place as the same `BadRequest`, with its ids in the message alone,
+  // which nothing branches on, so what went with the save is what tells them
+  // apart.
+  const sentResolutions = useRef(false);
   const {
     projectQuery: { data: project, isPending: isReadingProject },
     translateContent,
@@ -89,17 +141,27 @@ function ProjectComponentUpdate(): ReactElement {
   const { data: component, isPending: isReadingComponent } = useQueryNoError(
     queryOptions.components.read({ projectId, id: componentId })
   );
-  const { data: collectionList, isPending: isReadingCollections } =
-    useQueryNoError(queryOptions.collections.list({ projectId, limit: 0 }));
   useBreadcrumb(
     Route,
     isReadingComponent
       ? undefined
       : translateContent({ key: 'component.name', record: component.name })
   );
-  const formId = useId();
   const [isSaveErrorDialogOpen, setIsSaveErrorDialogOpen] = useState(false);
-  const [saveError, setSaveError] = useState<unknown>(null);
+  // The failure the dialog above these settings says, with whether the save it
+  // came from carried the Values the dialog of a refused change wrote, which
+  // is what tells Core's two reasons for a `BadRequest` apart.
+  const [saveError, setSaveError] = useState<{
+    error: unknown;
+    withResolutions: boolean;
+  } | null>(null);
+  // The change Core refused and everything it refused it for, which is what
+  // the dialog over this page draws and applies.
+  const [refused, setRefused] = useState<{
+    props: UpdateComponentProps;
+    issues: SchemaChangeIssue[];
+  } | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleteErrorDialogOpen, setIsDeleteErrorDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<unknown>(null);
 
@@ -114,12 +176,21 @@ function ProjectComponentUpdate(): ReactElement {
         )
       : getUpdateComponentSchemaFromLanguages([]);
 
-  const updateComponentForm = useForm({
-    resolver: withEmptyDescriptionAsNull(
-      zodResolver(generatedUpdateComponentSchema)
+  // What these settings kept for themselves while an Entry of the dialog below
+  // was being fixed, so coming back shows them as they were left.
+  const keptSettings = useKeptForm<ComponentSettingsValues>(
+    // The key of this page, which nothing reads, so it is not a string
+    // somebody reads either.
+    // eslint-disable-next-line lingui/no-unlocalized-strings
+    `components/${componentId}/settings`
+  );
+
+  const updateComponentForm = useAppForm({
+    resolver: withBlankDefinitionDescriptionsAsNull(
+      withEmptyDescriptionAsNull(zodResolver(generatedUpdateComponentSchema))
     ),
     // Seed every bound value so each control is controlled from the first
-    // render, before the Component loads and reset() hydrates it.
+    // render, before the Component arrives.
     defaultValues: {
       projectId,
       id: componentId,
@@ -128,12 +199,40 @@ function ProjectComponentUpdate(): ReactElement {
       description: {},
       fieldDefinitions: [],
     },
+    // Filled from the query rather than reset in an effect, so a refetch keeps
+    // what is being typed. The stored field definitions go back as they are,
+    // ids included, which is what keeps the content of every Entry holding this
+    // Component: Core matches field definitions by id, so a new id would read
+    // as a removal plus an addition.
+    //
+    // What was kept wins over what is stored, since it is what was typed, and
+    // the defaults it is compared against stay what they were, so the page
+    // comes back holding unsaved changes.
+    ...(keptSettings.kept === undefined
+      ? isReadingComponent
+        ? {}
+        : { values: { ...component, projectId } }
+      : {
+          values: keptSettings.kept,
+          resetOptions: { keepDefaultValues: true },
+        }),
+    disabled: isReadingComponent,
+  });
+
+  const definitions = useDefinitionsEditor({
+    form: updateComponentForm,
+    owner: 'component',
+    supportedLanguages: isReadingProject
+      ? []
+      : project.settings.language.supported,
   });
 
   // Core raises Conflict on this path for two unrelated reasons, and the cause
   // it attaches is what tells them apart: a Field change it cannot carry out
-  // alone comes with the list of Entries to fix, a slug another Component holds
-  // comes with nothing. See contributing/error-handling.md.
+  // alone comes with every issue it names, a slug another Component holds
+  // comes with nothing. The Field change is answered where the save is, since
+  // the dialog sends the very same change again.
+  // See contributing/error-handling.md.
   const {
     mutateAsync: updateComponent,
     isPending: isUpdatingComponent,
@@ -144,16 +243,12 @@ function ProjectComponentUpdate(): ReactElement {
         if (entryIssuesOf(error).length === 0) {
           updateComponentForm.setError('slug', {
             type: 'conflict',
-            message:
-              'Another Component in this Project already uses this slug. Choose another one.',
+            message: t`Another Component in this Project already uses this slug. Choose another one.`,
           });
-          return;
         }
-        setSaveError(error);
-        setIsSaveErrorDialogOpen(true);
       },
       BadRequest: (error) => {
-        setSaveError(error);
+        setSaveError({ error, withResolutions: sentResolutions.current });
         setIsSaveErrorDialogOpen(true);
       },
     },
@@ -171,205 +266,299 @@ function ProjectComponentUpdate(): ReactElement {
       },
     });
 
-  // Reset the form with the Component when it loads. The stored field
-  // definitions go back as they are, ids included, which is what keeps the
-  // content of every Entry holding this Component: Core matches field
-  // definitions by id, so a new id would read as a removal plus an addition.
-  useEffect(() => {
-    if (isReadingComponent === false) {
-      updateComponentForm.reset({ ...component, projectId });
-    }
-  }, [projectId, isReadingComponent, component, updateComponentForm]);
-
+  // The Component's name, or the domain term while it is still loading, so the
+  // title takes one placeholder rather than being assembled around it.
   const name = isReadingComponent
-    ? 'Component'
+    ? t`Component`
     : translateContent({ key: 'component.name', record: component.name });
+  const title = t`Settings of the ${name} Component`;
 
-  function Description(): ReactElement {
-    return (
-      <>
-        A Component is a group of fields an Entry can hold more than once, in
-        any order. Its fields cannot be unique, and it holds no slug field.
-      </>
-    );
-  }
+  // What keeps this Component from being saved, in the words below Save. Core
+  // takes it only once every one of its names, labels and descriptions holds a
+  // text in every language of the Project.
+  const languages = isReadingProject ? undefined : project.settings.language;
+  const missingByLanguage = useMissingTranslations({
+    form: updateComponentForm,
+    textsOf: useCallback(componentTranslatableTexts, []),
+    languages: isReadingComponent ? undefined : languages,
+  });
+  const [missingLanguage, missingTexts] = [...missingByLanguage.entries()].find(
+    ([, count]) => count > 0
+  ) ?? [undefined, 0];
+  const missing =
+    missingLanguage === undefined ? undefined : languageName(missingLanguage);
+  const blockedBy =
+    missing === undefined
+      ? undefined
+      : t`${missing} is missing ${plural(missingTexts, { one: '# translation', other: '# translations' })}`;
 
-  function Actions(): ReactElement {
-    return (
-      <FormActions form={updateComponentForm} id={formId}>
-        <SubmitButton requireDirty Icon={Check}>
-          Save changes
-        </SubmitButton>
-      </FormActions>
-    );
-  }
+  // The language every name, label and description is edited in, which stays in
+  // the address, as the Collection's settings have it.
+  const supportedLanguages = languages?.supported ?? [];
+  const shownLanguage = entryLanguage({
+    search: Route.useSearch(),
+    supportedLanguages,
+    defaultLanguage: isReadingProject
+      ? undefined
+      : project.settings.language.default,
+  });
+  const setLanguage = (next: SupportedLanguage): void => {
+    // It replaces rather than pushes, so the way back leads out of the settings
+    // rather than through every language that was looked at.
+    void navigate({
+      search: (previous) => ({ ...previous, language: next }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
 
-  const onUpdate: SubmitHandler<UpdateComponentProps> = async (props) => {
+  /**
+   * Saves the Component, and answers a Field change Core refuses with the one
+   * dialog that says what the change would delete and which Entries need a
+   * Value.
+   *
+   * The change is sent again from there with what Core takes back, so the
+   * props are kept with the refusal: it is the very same change, which is what
+   * Core's acceptance is written for.
+   */
+  const save = async (props: UpdateComponentProps): Promise<void> => {
+    sentResolutions.current = Object.keys(props.resolutions ?? {}).length > 0;
     try {
       await updateComponent(props);
     } catch (error) {
-      // A taken slug, a Field change reaching existing Entries and a circular
-      // reference are surfaced in place above. Any other failure was already
-      // routed to the boundary, so this is a no-op.
+      const issues = entryIssuesOf(error);
+
+      if (issues.length > 0) {
+        setRefused({ props, issues });
+        return;
+      }
+      // A taken slug and a circular reference are surfaced in place above. Any
+      // other failure was already routed to the boundary, so this is a no-op.
       handleSaveError(error);
       return;
     }
-    await router.navigate({
-      to: '/projects/$projectId/components',
-      params: { projectId },
+    setRefused(null);
+    // The Component stays chosen beside its list, so this page stays open and
+    // the form is made pristine again with what went in. Without it Save would
+    // stay available and leaving would ask about changes that are saved.
+    updateComponentForm.reset(updateComponentForm.getValues());
+  };
+
+  const onUpdate: SubmitHandler<UpdateComponentProps> = async (props) => {
+    await save(props);
+  };
+
+  /**
+   * Applies the refused change with what Core takes back: the loss that was
+   * accepted and the Values the dialog wrote, keyed by the Component item each
+   * one belongs to, which is how `components.update` takes them.
+   */
+  const onApplyRefusedChange = async ({
+    acceptedContentLoss,
+    itemResolutions,
+  }: RefusedChangeAnswer): Promise<void> => {
+    if (refused === null) {
+      return;
+    }
+    await save({
+      ...refused.props,
+      acceptedContentLoss,
+      resolutions: itemResolutions,
     });
   };
 
   const onDelete = async (): Promise<void> => {
     try {
       await deleteComponent({ projectId, id: componentId });
-      await router.navigate({
+      setIsDeleteConfirmOpen(false);
+      // The page takes this way out itself, so leaving it asks nothing: the
+      // Component and everything typed into it are gone.
+      await navigate({
         to: '/projects/$projectId/components',
         params: { projectId },
+        ignoreBlocker: true,
       });
     } catch (error) {
+      setIsDeleteConfirmOpen(false);
       handleDeleteError(error);
     }
   };
 
-  const { type: saveErrorType } = parseIpcError(saveError);
+  const { type: saveErrorType } = parseIpcError(saveError?.error);
   const { type: deleteErrorType } = parseIpcError(deleteError);
-  const saveErrorIssues = entryIssuesOf(saveError);
-
-  /** The Collection an issue sits in, by the name somebody gave it. */
-  function collectionName(issue: SchemaChangeIssue): string {
-    const collection = isReadingCollections
-      ? undefined
-      : collectionList.list.find(
-          (candidate) => candidate.id === issue.collectionId
-        );
-    if (collection === undefined) {
-      return 'A Collection';
-    }
-    return translateContent({
-      key: 'collection.name.plural',
-      record: collection.name.plural,
-    });
-  }
 
   if (isReadingProject) {
     return <></>;
   }
 
   return (
-    <Page title={name} description={<Description />} actions={<Actions />}>
+    <>
       <ComponentForm
-        id={formId}
+        schema={generatedUpdateComponentSchema}
         componentForm={updateComponentForm}
         project={project}
+        definitions={definitions}
+        title={title}
+        language={shownLanguage}
+        onLanguageChange={setLanguage}
+        missingByLanguage={missingByLanguage}
+        blockedBy={blockedBy}
         isViewOnly={isUpdatingComponent}
         onFormSubmit={onUpdate}
+        unsavedChangesTitle={title}
+        submit={
+          <SubmitButton ref={saveRef} requireDirty Icon={Check}>
+            <Trans>Save</Trans>
+          </SubmitButton>
+        }
+        more={
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  Icon={Ellipsis}
+                  aria-label={t`More for ${name}`}
+                />
+              }
+            />
+            <DropdownMenuPortal>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                >
+                  <Trash2 />
+                  <Trans>Delete Component</Trans>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenu>
+        }
+      />
+
+      {/*
+        The confirm names what goes and who it reaches, as ci rules for
+        deleting. Its red button is a Button rather than the dialog's own
+        action, so the dialog stays until the delete answered and a refusal can
+        take its place.
+      */}
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
       >
-        <ComponentImpact componentId={componentId} />
-
-        <PageSection title="Danger Zone">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm leading-6 font-medium">
-                Delete this Component
-              </p>
-            </div>
-            <div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" Icon={Trash}>
-                    Delete Component
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this Component?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      A Component a Collection or another Component still uses
-                      cannot be deleted. This cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                      <Button
-                        variant="destructive"
-                        Icon={Trash}
-                        onClick={onDelete}
-                      >
-                        Yes, delete this Component
-                      </Button>
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
-              <Dialog
-                open={isDeleteErrorDialogOpen}
-                onOpenChange={setIsDeleteErrorDialogOpen}
-              >
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Could not delete this Component</DialogTitle>
-                    <DialogDescription>
-                      {describeCoreError(
-                        deleteErrorType,
-                        deleteErrorDescriptions,
-                        deleteErrorFallback
-                      )}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">
-                        Close
-                      </Button>
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </PageSection>
-      </ComponentForm>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <Trans>Delete {name}?</Trans>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <Trans>
+                It goes for everyone on this Project once you sync, in every
+                language.
+              </Trans>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost">
+              <Trans>Cancel</Trans>
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              Icon={Trash2}
+              onClick={() => void onDelete()}
+            >
+              <Trans>Delete Component</Trans>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
-        open={isSaveErrorDialogOpen}
-        onOpenChange={setIsSaveErrorDialogOpen}
+        open={isDeleteErrorDialogOpen}
+        onOpenChange={setIsDeleteErrorDialogOpen}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Could not save this Component</DialogTitle>
+            <DialogTitle>
+              <Trans>Could not delete this Component</Trans>
+            </DialogTitle>
             <DialogDescription>
               {describeCoreError(
-                saveErrorType,
-                saveErrorDescriptions,
-                saveErrorFallback
+                deleteErrorType,
+                deleteErrorDescriptions,
+                deleteErrorFallback
               )}
             </DialogDescription>
           </DialogHeader>
-          {/* Core puts the Entries it could not carry the change into in the
-          error's cause, so each one is named here rather than leaving the
-          editor to guess which Entry to open. See shared/ipcError.ts. */}
-          {saveErrorIssues.length > 0 ? (
-            <ul className="list-inside list-disc text-sm">
-              {saveErrorIssues.map((issue) => (
-                <li key={`${issue.entryId}-${issue.fieldSlug}-${issue.issue}`}>
-                  {collectionName(issue)}, Entry {issue.entryId}, Field{' '}
-                  {issue.fieldSlug}: {describeEntryIssue(issue.issue)}
-                </li>
-              ))}
-            </ul>
-          ) : null}
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Close
-              </Button>
+            <DialogClose render={<Button type="button" variant="ghost" />}>
+              <Trans>Close</Trans>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Page>
+
+      <Dialog
+        open={isSaveErrorDialogOpen}
+        onOpenChange={(next) => {
+          // The rows behind this dialog ask for the Values of an Entry that
+          // has changed, so they go with it and the next Save starts from what
+          // Core refuses now. Closing them hands the focus back to Save.
+          if (next === false && saveError?.withResolutions === true) {
+            setRefused(null);
+          }
+          setIsSaveErrorDialogOpen(next);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>Could not save this Component</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              {describeCoreError(
+                saveErrorType,
+                saveError?.withResolutions === true
+                  ? appliedSaveErrorDescriptions
+                  : saveErrorDescriptions,
+                saveErrorFallback
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="ghost" />}>
+              <Trans>Close</Trans>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* The one dialog a field change Core refuses opens: what the save would
+      delete, and the Values it needs, each named by its Entry and by which
+      item of it the Value belongs to, to fill in right there. */}
+      <RefusedChangeDialog
+        open={refused !== null}
+        question={t`Save the changes to the ${name} Component?`}
+        issues={refused?.issues ?? []}
+        storedFieldDefinitions={
+          isReadingComponent
+            ? []
+            : flattenFieldDefinitions(component.fieldDefinitions)
+        }
+        newFieldDefinitions={
+          refused === null
+            ? []
+            : flattenFieldDefinitions(refused.props.fieldDefinitions)
+        }
+        componentName={name}
+        language={shownLanguage}
+        returnFocusTo={saveRef}
+        onCancel={() => setRefused(null)}
+        onApply={onApplyRefusedChange}
+        onFollowLink={() => keptSettings.keep(updateComponentForm.getValues())}
+      />
+    </>
   );
 }

@@ -1,11 +1,11 @@
-import { useMatches, type AnyRoute } from '@tanstack/react-router';
+import { useMatches } from '@tanstack/react-router';
 import { createContext, useContext, useEffect } from 'react';
 
 import type { Breadcrumb } from '@renderer/providers/BreadcrumbProvider';
 
 export interface BreadcrumbContextValue {
   breadcrumbs: Breadcrumb[];
-  setBreadcrumb: (path: string, label: string) => void;
+  setBreadcrumb: (path: string, label: string, to?: string) => void;
   clearBreadcrumb: (path: string) => void;
 }
 
@@ -14,8 +14,15 @@ export const BreadcrumbContext = createContext<BreadcrumbContextValue | null>(
 );
 
 export function useBreadcrumb(
-  route?: AnyRoute,
-  label?: string | undefined
+  /**
+   * The route the crumb stands for, as its own `Route` or as the `getRouteApi`
+   * of it, which is what lets a component drawn inside a route name that
+   * route's crumb. Only its id is read.
+   */
+  route?: { id: string },
+  label?: string | undefined,
+  /** Where the crumb leads, where that is not the route it stands for. */
+  to?: string | undefined
 ): BreadcrumbContextValue {
   const context = useContext(BreadcrumbContext);
   const matches = useMatches();
@@ -35,13 +42,13 @@ export function useBreadcrumb(
     if (!route || !path) return;
 
     if (label !== undefined && label !== '') {
-      setBreadcrumb(path, label);
+      setBreadcrumb(path, label, to);
     }
 
     return () => {
       clearBreadcrumb(path);
     };
-  }, [route, path, label, setBreadcrumb, clearBreadcrumb]);
+  }, [route, path, label, to, setBreadcrumb, clearBreadcrumb]);
 
   return context;
 }

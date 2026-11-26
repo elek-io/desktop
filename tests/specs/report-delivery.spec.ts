@@ -33,7 +33,7 @@ test.describe('Delivering a report to Cloud', () => {
     // The dialog closes and the toast is the only evidence it worked, so a
     // missing one would make the user send it again.
     await expect(dialog).toBeHidden();
-    await expect(mainWindow.getByText('create report')).toBeVisible();
+    await expect(mainWindow.getByText('Report sent')).toBeVisible();
 
     expect(cloudStub.reports).toHaveLength(1);
     const [report] = cloudStub.reports;
@@ -58,7 +58,7 @@ test.describe('Delivering a report to Cloud', () => {
     await dialog
       .getByLabel('What went wrong?')
       .fill('The sidebar stays collapsed after a restart.');
-    await dialog.getByLabel('Also send my logs').click();
+    await dialog.getByRole('switch', { name: 'Also send my logs' }).click();
     await dialog.getByRole('button', { name: 'Send report' }).click();
     await expect(dialog).toBeHidden();
 
@@ -105,8 +105,8 @@ test.describe('Delivering a report to Cloud', () => {
     await dialog
       .getByLabel('What went wrong?')
       .fill('Renaming a Project does not update the breadcrumb.');
-    await dialog.getByLabel('Name - optional').fill('');
-    await dialog.getByLabel('Email - optional').fill('');
+    await dialog.getByLabel('Name', { exact: true }).fill('');
+    await dialog.getByLabel('Email', { exact: true }).fill('');
     await dialog.getByRole('button', { name: 'Send report' }).click();
     await expect(dialog).toBeHidden();
 
