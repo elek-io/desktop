@@ -91,11 +91,15 @@ function ObjectDiffPage({
   const {
     userQuery: { data: user },
   } = useProject();
+  const sentence = changeSentence(commit, user?.email === commit.author.email);
+  // Its crumb says what happened, as its title does, until the screen that
+  // names a changed Collection itself replaces this page.
+  useBreadcrumb(Route, sentence);
 
   return (
     // What happened, in the sentence the row of this change reads, until the
     // head of a changed Collection names the Collection itself.
-    <Page title={changeSentence(commit, user?.email === commit.author.email)}>
+    <Page title={sentence}>
       <div className="grid grid-cols-12 gap-6">
         {isCollection ? (
           <CollectionDiff project={project} commit={commit} />
@@ -248,7 +252,6 @@ function ProjectHistoryCommitPage(): ReactElement {
   const { projectId, commitHash } = Route.useParams();
   const {
     projectQuery: { data: project, isPending: isReadingProject },
-    userQuery: { data: user },
   } = useProject();
   const { data: history, isPending: isReadingHistory } = useQueryNoError(
     queryOptions.projects.history({ id: projectId })
@@ -256,12 +259,6 @@ function ProjectHistoryCommitPage(): ReactElement {
   const commit = isReadingHistory
     ? undefined
     : history.fullHistory.find((listed) => listed.hash === commitHash);
-  useBreadcrumb(
-    Route,
-    commit === undefined
-      ? undefined
-      : changeSentence(commit, user?.email === commit.author.email)
-  );
 
   return (
     <Pane name={t`this change`}>

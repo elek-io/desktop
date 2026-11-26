@@ -1,8 +1,10 @@
 import { useLingui } from '@lingui/react/macro';
+import { getRouteApi } from '@tanstack/react-router';
 import { type ReactElement, type ReactNode } from 'react';
 
 import { Page } from '@renderer/components/page';
 import { StateMarker } from '@renderer/components/project-state';
+import { useBreadcrumb } from '@renderer/hooks/useBreadcrumb';
 import { useProject } from '@renderer/hooks/useProject';
 import { changeAuthorSentence } from '@renderer/lib/changeSentence';
 import { type ChangeSyncState } from '@renderer/lib/changeSyncState';
@@ -16,6 +18,18 @@ import { type GitCommit } from '@elek-io/core';
 // One component, because ci draws that head the same above an Entry, a
 // Collection, an Asset, the Project and a Release, and only what stands below
 // it differs.
+
+/**
+ * The route every chosen change is drawn in, which is what its crumb is set
+ * on.
+ *
+ * Read through the router rather than imported from the route, which draws
+ * this page: what changed is only known once the object has been read, so the
+ * crumb is set here, beside the title it shows.
+ */
+/* eslint-disable-next-line lingui/no-unlocalized-strings -- the id of a route,
+which nobody reads */
+const changeRoute = getRouteApi('/projects/$projectId/history/$commitHash');
 
 /**
  * The line below the name: the marker, what changed, who changed it and when,
@@ -101,6 +115,10 @@ export function ChangePage({
   open,
   children,
 }: ChangePageProps): ReactElement {
+  // The crumb names what changed, as ci's own does and as the title below it
+  // says it, rather than repeating what happened to it.
+  useBreadcrumb(changeRoute, title);
+
   return (
     <Page
       title={title}

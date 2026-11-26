@@ -401,9 +401,13 @@ export function EntryChange({
                 />
               ) : null}
               {isMarked ? (
+                /* The sentence takes the room beside the switch rather than
+                standing at the pane's right edge, and gives way where the
+                switch needs it for ci's segments, which is how a Collection's
+                settings answers the same row. */
                 <span
                   data-slot="changed-values"
-                  className="text-small text-muted-foreground"
+                  className="min-w-0 flex-1 text-small text-muted-foreground"
                 >
                   {t`${plural(changedHere, {
                     one: '# Value changed',

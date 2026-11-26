@@ -1,4 +1,4 @@
-import { useMatches, type AnyRoute } from '@tanstack/react-router';
+import { useMatches } from '@tanstack/react-router';
 import { createContext, useContext, useEffect } from 'react';
 
 import type { Breadcrumb } from '@renderer/providers/BreadcrumbProvider';
@@ -14,7 +14,12 @@ export const BreadcrumbContext = createContext<BreadcrumbContextValue | null>(
 );
 
 export function useBreadcrumb(
-  route?: AnyRoute,
+  /**
+   * The route the crumb stands for, as its own `Route` or as the `getRouteApi`
+   * of it, which is what lets a component drawn inside a route name that
+   * route's crumb. Only its id is read.
+   */
+  route?: { id: string },
   label?: string | undefined,
   /** Where the crumb leads, where that is not the route it stands for. */
   to?: string | undefined

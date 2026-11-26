@@ -568,6 +568,13 @@ test.describe('The History of a Project', () => {
     await expect(
       mainWindow.getByRole('heading', { name: 'Spring opening hours' })
     ).toBeVisible();
+
+    // The crumb above it names the Entry too, rather than what happened to it.
+    await expect(
+      mainWindow
+        .getByRole('navigation', { name: 'breadcrumb' })
+        .getByText('Spring opening hours')
+    ).toBeVisible();
     await expect(
       mainWindow.getByText('An Entry in the Articles Collection', {
         exact: false,
