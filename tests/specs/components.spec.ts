@@ -2795,8 +2795,12 @@ test.describe('Components', () => {
       .click();
 
     // The change is read at the commit and drawn without a form, so the
-    // Component appears by its name and never as a bare id.
-    await expect(mainWindow.getByText('Created')).toBeVisible();
+    // Component appears by its name and never as a bare id. The card's own
+    // title is named exactly, since the row beside it says "You created this
+    // Project" of the Project's own first change.
+    await expect(
+      mainWindow.getByText('Created', { exact: true })
+    ).toBeVisible();
     await expect(
       mainWindow.getByText('Pull quote', { exact: true })
     ).toBeVisible();

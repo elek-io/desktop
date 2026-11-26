@@ -333,6 +333,15 @@ test.describe('The History of a Project', () => {
       brandColor('light', 'muted-foreground')
     );
 
+    // The chosen row's marker too, which is where a hollow one on the muted
+    // surface it then stands on would reach no contrast at all.
+    await changeRows(mainWindow).first().click();
+    await mainWindow.mouse.move(0, 0);
+    expect(await markerIsHollow(changeRows(mainWindow).first())).toBe(false);
+    expect(await markerFillOf(changeRows(mainWindow).first())).toEqual(
+      brandColor('light', 'muted-foreground')
+    );
+
     // With a Git repository the check runs, and one that cannot be made leaves
     // the History listing its changes without the groups: they are on this
     // computer either way.
