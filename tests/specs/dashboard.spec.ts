@@ -254,11 +254,11 @@ test.describe('The Dashboard', () => {
       'Spring opening hours'
     );
 
-    // The delete took it out of the Project, so there is nothing left to name
-    // it from and its own row keeps what its sentence says.
+    // The delete took it out of the Project, so its own row names it from the
+    // change before the delete, where it still stands.
     const deleted = rows.filter({ hasText: 'You deleted an Entry' });
     await expect(deleted).toHaveCount(1);
-    await expect(deleted).not.toContainText('Spring opening hours');
+    await expect(deleted).toContainText('Spring opening hours');
   });
 
   test('says of each change whether it is synced, where that can be told', async ({
