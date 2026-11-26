@@ -587,6 +587,12 @@ test.describe('The History of a Project', () => {
         exact: false,
       })
     ).toBeVisible();
+
+    // The line below the title says how long ago the change was rather than
+    // the moment it happened, which is how ci words it.
+    await expect(mainWindow.locator('[data-slot="change-who"]')).toContainText(
+      /You changed it (just now|\d+ [^,]+ ago)/
+    );
     await expect(mainWindow.getByText('Before', { exact: true })).toHaveCount(
       0
     );
