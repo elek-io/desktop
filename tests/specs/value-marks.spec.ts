@@ -56,6 +56,26 @@ test.describe('What changed inside a Value', () => {
     ).toEqual([{ text: '3 Assets', mark: 'removed' }]);
   });
 
+  test('marks a Value whole where the word diff gives up', () => {
+    // A markdown Value of a few thousand words, rewritten rather than edited,
+    // is what the time the word diff is given exists for: jsdiff answers
+    // nothing at all, and the whole old reading then stands struck through
+    // beside the whole new one, as a Value that is no words does. Nothing of
+    // the two readings is shared, so the diff cannot finish on any machine.
+    const rewritten = (seed: string): string =>
+      Array.from(
+        { length: 4000 },
+        (_word, index) => `${seed}${(index * 7919) % 997}`
+      ).join(' ');
+    const before = rewritten('alpha');
+    const after = rewritten('beta');
+
+    expect(valueMarks({ before, after, readsAsWords: true })).toEqual([
+      { text: before, mark: 'removed' },
+      { text: after, mark: 'added' },
+    ]);
+  });
+
   test('marks nothing where both readings are the same', () => {
     expect(
       valueMarks({
